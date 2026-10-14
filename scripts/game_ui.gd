@@ -182,7 +182,7 @@ func update_hud(st: Dictionary) -> void:
 	var s: int = st.time
 	time_label.text = "%02d:%02d" % [s / 60, s % 60]
 	time_label.position = Vector2(roundf((size.x - time_label.size.x) / 2.0), 4)
-	kill_label.text = "驅散 %d" % st.kills
+	kill_label.text = ("驅散 %d　餅 %d" % [st.kills, st.bread]) if st.get("bread", 0) > 0 else "驅散 %d" % st.kills
 	pause_btn.position = Vector2(size.x - 42.0, 4)
 	pause_btn.visible = not st.over
 	kill_label.position = Vector2(size.x - kill_label.size.x - 52.0, 4)

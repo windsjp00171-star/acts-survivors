@@ -22,7 +22,7 @@ func _defaults() -> Dictionary:
 		"witness": 0, "witness_total": 0,
 		"unlocked": meta.start_unlocked.duplicate(), "bought": [],
 		"affinity": {}, "achievements": [], "starter": meta.default_starter,
-		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1,
+		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1, "bread": 0, "bread_total": 0, "ups": {},
 		"stats": {"runs": 0, "wins": 0, "elites": 0, "best_kills": 0, "best_fevers": 0,
 			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0, "lights": 0},
 	}
@@ -96,6 +96,32 @@ func camp_built(item: Dictionary) -> bool:
 	return camp_stat(item.stat) >= int(item.min)
 
 
+## 永久恩典（花餅買）
+func up_rank(id: String) -> int:
+	return int(data.ups.get(id, 0))
+
+
+func up_value(id: String) -> float:
+	for u in meta.bread.upgrades:
+		if u.id == id:
+			return up_rank(id) * float(u.per)
+	return 0.0
+
+
+func up_cost(u: Dictionary) -> int:
+	return int(u.cost) + up_rank(u.id) * int(u.cost_step)
+
+
+func buy_up(u: Dictionary) -> bool:
+	var c := up_cost(u)
+	if up_rank(u.id) >= int(u.max) or int(data.bread) < c:
+		return false
+	data.bread = int(data.bread) - c
+	data.ups[u.id] = up_rank(u.id) + 1
+	save_profile()
+	return true
+
+
 func buy(item: Dictionary) -> bool:
 	if data.bought.has(item.id) or data.witness < item.cost:
 		return false
@@ -151,6 +177,8 @@ func finish_run(r: Dictionary) -> Dictionary:
 			if a.has("unlock") and not data.unlocked.has(a.unlock):
 				data.unlocked.append(a.unlock)
 			new_ach.append(a)
+	data.bread = int(data.get("bread", 0)) + int(r.get("bread", 0))
+	data.bread_total = int(data.get("bread_total", 0)) + int(r.get("bread", 0))
 	data.witness += gain
 	data.witness_total += gain
 	save_profile()

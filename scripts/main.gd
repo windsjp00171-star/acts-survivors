@@ -40,6 +40,9 @@ var fever_bursts: Array = []
 var light := 0.0          # 光的身影剩下的秒數（五旬節時偶爾出現）
 var light_max := 0.0
 var run_lights := 0
+var breads: Array = []    # 地上的餅
+var run_bread := 0
+var xp_acc := 0.0
 var force_light := false
 
 var fruits := {}          # 果子 key → 等級
@@ -127,6 +130,10 @@ func _ready() -> void:
 	for k in stage.weights:
 		D.enemies[k].weight = stage.weights[k]
 	D.boss.merge(stage.boss, true)
+	# 永久恩典（花餅買的）
+	D.paul.hp = float(D.paul.hp) + Save.up_value("vigor")
+	D.paul.speed = float(D.paul.speed) * (1.0 + Save.up_value("run"))
+	D.gems.magnet_radius = float(D.gems.magnet_radius) * (1.0 + Save.up_value("reap"))
 	for a in OS.get_cmdline_user_args():
 		if a == "--smoke":
 			smoke = true
@@ -273,7 +280,7 @@ func _build_world() -> void:
 			"engine": D.skills[d.skill].get("engine", d.skill) if d.skill != "" else "",
 			"look": D.skills[d.skill].get("look", "") if d.skill != "" else "",
 			"syn": 1.0, "castfx": 0.0,
-			"aff": 1.0 + Save.affinity_level(d.key) * float(Save.meta.affinity.bonus_per_level),
+			"aff": (1.0 + Save.affinity_level(d.key) * float(Save.meta.affinity.bonus_per_level)) * (1.0 + Save.up_value("haste")),
 			"node": _sprite(d.key + "_0", Vector2(-7, -17))}
 		c.node.visible = false
 		comps.append(c)
@@ -366,7 +373,7 @@ func _area() -> float:
 	return 1.0 + fruits.get("joy", 0) * D.fruits.joy.per_level.area
 
 func _dmg_mult() -> float:
-	return 1.0 + fruits.get("faith", 0) * D.fruits.faith.per_level.damage
+	return (1.0 + fruits.get("faith", 0) * D.fruits.faith.per_level.damage) * (1.0 + Save.up_value("might"))
 
 func _guard() -> float:
 	return 1.0 + fruits.get("good", 0) * D.fruits.good.per_level.guard
@@ -767,6 +774,16 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		kills += 1
 		Sfx.play("kill")
 		gems.append({"pos": e.pos, "got": false})
+		var BD: Dictionary = Save.meta.bread.drop
+		var nb := 0
+		if e.get("boss", false):
+			nb = int(BD.boss)
+		elif e.get("elite", false):
+			nb = int(BD.elite)
+		elif randf() < (float(BD.veteran) if e.get("vet", false) else float(BD.kill)):
+			nb = 1
+		for i in nb:
+			breads.append({"pos": e.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
 		if e.get("vet", false):
 			for i in int(D.waves.veteran.gems) - 1:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
@@ -1037,8 +1054,23 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
+			xp_acc += Save.up_value("growth")
+			if xp_acc >= 1.0:
+				xp_acc -= 1.0
+				xp += 1
 			Sfx.play("gem", 0.15)
 	gems = gems.filter(func(g): return not g.got)
+	for b in breads:
+		var tb: Vector2 = p.pos + Vector2(0, -6) - b.pos
+		if tb.length() < G.magnet_radius:
+			b.pos += tb.normalized() * G.magnet_speed * dt
+		if tb.length() < 5.0:
+			b.got = true
+			run_bread += 1
+			Sfx.play("gem", 0.0)
+	breads = breads.filter(func(b): return not b.get("got", false))
+	if Save.up_value("renew") > 0.0 and p.hp > 0.0:
+		p.hp = minf(float(D.paul.hp), p.hp + Save.up_value("renew") * dt)
 	if gems.size() > 300:
 		gems = gems.slice(gems.size() - 300)
 
@@ -1067,7 +1099,7 @@ func _companion_skills(dt: float) -> void:
 	var speed_mult: float = D.fever.attack_speed if fever > 0.0 else 1.0
 	pa.pos = paul.pos + Vector2(0, 2)
 	pa.castfx = maxf(0.0, pa.castfx - dt)
-	pa.cd -= dt * speed_mult
+	pa.cd -= dt * speed_mult * (1.0 + Save.up_value("haste"))
 	if pa.cd <= 0.0:
 		_cast(pa)
 	for c in comps:
@@ -1675,7 +1707,7 @@ func _render(dt: float) -> void:
 			ui.place_name(c.name, ct * c.pos, c.level > 0 and not over and not choosing)
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
-		"time": int(t), "kills": kills, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text()})
+		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text()})
 
 
 ## 光的身影：沒有臉，只有光的輪廓，站在保羅身邊
@@ -1730,6 +1762,14 @@ func _draw_ground_fx() -> void:
 		if int(t * 4.0) % 2 == 0:
 			n.draw_rect(Rect2(cx + 6, cy - 9, 1, 1), Color.WHITE)
 			n.draw_rect(Rect2(cx - 8, cy - 2, 1, 1), Color.WHITE)
+	for b in breads:
+		var bx: float = roundf(b.pos.x)
+		var by: float = roundf(b.pos.y) - roundf(absf(sin(t * 3.0 + b.pos.x)) * 1.5)
+		n.draw_rect(Rect2(bx - 4, by - 3, 9, 6), Color("2a1a10"))
+		n.draw_rect(Rect2(bx - 3, by - 2, 7, 4), Color("c8873a"))
+		n.draw_rect(Rect2(bx - 2, by - 2, 5, 1), Color("f0c070"))
+		n.draw_rect(Rect2(bx - 1, by, 1, 1), Color("8a5a24"))
+		n.draw_rect(Rect2(bx + 1, by, 1, 1), Color("8a5a24"))
 	var tw := int(t * 6.0)
 	for g in gems:
 		var x: float = roundf(g.pos.x)
@@ -1945,6 +1985,8 @@ func _open_chest() -> void:
 			results.append({"title": card.title, "desc": card.desc, "big": false})
 	_refresh_build_text()
 	Sfx.play("chest", 0.0)
+	for i in int(Save.meta.bread.drop.chest):
+		breads.append({"pos": paul.pos + Vector2(randf_range(-14, 14), randf_range(-10, 10))})
 	ui.do_flash(0.4)
 	ui.show_chest(results)
 
@@ -2197,8 +2239,8 @@ func _finish_run() -> Array:
 			party[c.key] = c.level
 	var res: Dictionary = Save.finish_run({"kills": kills, "seconds": int(t - t_start), "level": level, "won": won,
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
-		"task_witness": task_witness, "lights": run_lights, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
-	var lines := [["帶回見證 +%d　（共 %d）" % [res.witness, Save.data.witness], 15, C_SKY]]
+		"task_witness": task_witness, "lights": run_lights, "bread": run_bread, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
+	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, run_bread], 15, C_SKY]]
 	for a in res.achievements:
 		var txt: String = "見證錄：" + a.name
 		if a.has("unlock"):

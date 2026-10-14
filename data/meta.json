@@ -21,6 +21,19 @@
     { "id": "lamps",  "kind": "lamps",  "name": "",           "pos": [0, 0],      "stat": "witness_total", "min": 600, "news": "營地點起了油燈" },
     { "id": "tent3",  "kind": "tent_small", "name": "",       "pos": [-70, 58],   "stat": "achievements", "min": 4, "news": "營地越來越熱鬧了" }
   ],
+  "_bread說明": "餅：局內撿到、帶回營地（失敗也全部保留）。在補給帳棚買永久恩典。drop 是掉落機率或數量；每項恩典 per 是每級效果、max 是上限、cost 是第 1 級價格，之後每級再加 cost_step。",
+  "bread": {
+    "drop": { "kill": 0.01, "veteran": 0.2, "elite": 5, "chest": 3, "boss": 25 },
+    "upgrades": [
+      { "id": "might",  "name": "剛強", "ref": "弗 6:10",   "desc": "所有攻擊傷害 +5%",       "per": 0.05, "max": 5, "cost": 15, "cost_step": 15 },
+      { "id": "haste",  "name": "殷勤", "ref": "羅 12:11",  "desc": "所有攻擊速度 +4%",       "per": 0.04, "max": 5, "cost": 15, "cost_step": 15 },
+      { "id": "vigor",  "name": "堅忍", "ref": "雅 1:4",    "desc": "保羅血量 +10",           "per": 10,   "max": 5, "cost": 10, "cost_step": 10 },
+      { "id": "renew",  "name": "更新", "ref": "林後 4:16", "desc": "保羅每秒回復 0.2 血",    "per": 0.2,  "max": 3, "cost": 25, "cost_step": 25 },
+      { "id": "reap",   "name": "收割", "ref": "約 4:35",   "desc": "撿經驗與餅的範圍 +20%",  "per": 0.2,  "max": 3, "cost": 10, "cost_step": 10 },
+      { "id": "growth", "name": "長進", "ref": "彼後 3:18", "desc": "經驗 +6%",              "per": 0.06, "max": 3, "cost": 20, "cost_step": 20 },
+      { "id": "run",    "name": "奔跑", "ref": "來 12:1",   "desc": "移動速度 +4%",           "per": 0.04, "max": 3, "cost": 15, "cost_step": 15 }
+    ]
+  },
   "shop": [
     { "id": "barn",          "kind": "companion", "name": "巴拿巴加入名單",   "desc": "鼓勵光環，讓範圍內同伴攻擊加快", "cost": 60 },
     { "id": "apollos",       "kind": "companion", "name": "亞波羅加入名單",   "desc": "直線貫穿的光束，剋謊言", "cost": 100 },

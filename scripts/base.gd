@@ -125,7 +125,7 @@ func _clear(active: String) -> void:
 	for c in content.get_children():
 		c.queue_free()
 	scroll.scroll_vertical = 0
-	witness_label.text = "見證 %d" % Save.data.witness
+	witness_label.text = "見證 %d　餅 %d" % [Save.data.witness, int(Save.data.get("bread", 0))]
 	for k in nav_buttons:
 		nav_buttons[k].add_theme_stylebox_override("normal", UIKit.box(Color("3a2a40") if k == active else UIKit.PANEL, UIKit.GOLD if k == active else UIKit.BRONZE, 6))
 
@@ -343,6 +343,28 @@ func _show_companion(key: String) -> void:
 # ---------- 解鎖 ----------
 func _show_shop() -> void:
 	_clear("shop")
+	_text(content, "永久恩典（花餅）", 16, UIKit.GOLD)
+	_text(content, "餅在旅程中撿到，失敗也會全部帶回來。每一項都有上限。", 11, UIKit.MUTED, true)
+	for u in Save.meta.bread.upgrades:
+		var rank := Save.up_rank(u.id)
+		var full: bool = rank >= int(u.max)
+		var h2 := _row(content)
+		var v2 := VBoxContainer.new()
+		v2.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h2.add_child(v2)
+		var pips := "●".repeat(rank) + "○".repeat(int(u.max) - rank)
+		_text(v2, "%s　%s" % [u.name, pips], 14, UIKit.INK)
+		_text(v2, "%s（%s）" % [u.desc, u.ref], 11, UIKit.MUTED, true)
+		var cost := Save.up_cost(u)
+		var b2 := UIKit.button("已滿" if full else ("餅 %d" % cost), 13, not full)
+		b2.custom_minimum_size = Vector2(96, 32)
+		b2.disabled = full or int(Save.data.bread) < cost
+		var uu: Dictionary = u
+		b2.pressed.connect(func():
+			if Save.buy_up(uu):
+				_show_shop())
+		h2.add_child(b2)
+	_text(content, "解鎖（花見證）", 16, UIKit.GOLD)
 	_text(content, "用見證解鎖。舊約人物要靠「見證錄」的目標解鎖。", 12, UIKit.MUTED, true)
 	for item in Save.meta.shop:
 		var bought: bool = Save.data.bought.has(item.id)

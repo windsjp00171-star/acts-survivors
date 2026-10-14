@@ -411,7 +411,7 @@ func _interact(s: Dictionary) -> void:
 
 func _update_hud() -> void:
 	var vs := get_viewport().get_visible_rect().size
-	witness_label.text = "見證 %d" % Save.data.witness
+	witness_label.text = "見證 %d　餅 %d" % [Save.data.witness, int(Save.data.get("bread", 0))]
 	witness_label.position = Vector2(vs.x - witness_label.size.x - 12.0, 10)
 	var go := hud.get_node("GoButton") as Button
 	go.position = Vector2(vs.x - 100.0, vs.y - 48.0)
