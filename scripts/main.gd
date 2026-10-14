@@ -87,6 +87,10 @@ var rings: Array = []
 var beams: Array = []
 var blasts: Array = []
 var fires: Array = []     # 以利亞的火：先預兆再落下
+var nets: Array = []      # 彼得的網（畫面效果）
+var zaps: Array = []      # 約翰的閃電（畫面效果）
+var thrusts: Array = []   # 多馬的刺擊（畫面效果）
+var gathers: Array = []   # 安得烈的收聚（畫面效果）
 var delayed: Array = []   # 延遲觸發的招式（參孫的第二下）
 var links: Array = []     # 肢體連結：{src, dst, kind, cd}
 var link_queue: Array = []
@@ -197,6 +201,11 @@ func _ready() -> void:
 		fruits = {"joy": 1, "faith": 1, "good": 1}
 		for evo in _ready_evolutions():
 			_evolve(evo)
+	if smoke_preset == "disciples":
+		# 測試用：五位門徒 Lv4
+		for k in ["peter", "john", "thomas", "matthew", "andrew"]:
+			_recruit(by_key[k])
+			_set_level(by_key[k], 4)
 	if smoke_preset == "strong":
 		# 測試用：滿編隊伍，西拉滿級帶喜樂，下一個寶箱會進化
 		for c in comps:
@@ -1173,6 +1182,78 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					bolts.append({"pos": from, "straight": true, "vel": dir * float(s.speed), "dir": dir, "life": float(s.range) * 1.4 / float(s.speed),
 						"pierce": int(s.pierce), "dmg": float(s.damage), "size": 1, "hit": {}, "look": c.look, "owner": c,
 						"split": 0, "child": true, "spd": float(s.speed), "emult": 1.0, "target": {}, "evo": evolved.has(c.key)})
+		"net":
+			var tl := _nearest_enemies(c.pos, s.range, 1)
+			fired = tl.size() > 0
+			if fired:
+				var center: Vector2 = tl[0].pos
+				var r: float = s.radius * _area()
+				nets.append({"pos": center, "r": r, "t": 0.0, "evo": evolved.has(c.key)})
+				for e in enemies:
+					if not e.dead and e.pos.distance_to(center) < r:
+						if not e.get("boss", false):
+							e.knock += (center - e.pos) * float(s.pull) / maxf(r, 1.0) * 2.0
+							e.stun = maxf(e.stun, float(s.stun))
+						_hurt(e, s.damage, Vector2.INF, c)
+		"chain":
+			var tl := _nearest_enemies(c.pos, s.range, 1)
+			fired = tl.size() > 0
+			if fired:
+				var hit := {}
+				var from: Vector2 = c.pos + Vector2(0, -8)
+				var cur: Dictionary = tl[0]
+				var dmg: float = s.damage
+				var pts := [from]
+				for j in int(s.jumps) + 1:
+					hit[cur.node] = true
+					pts.append(cur.pos + Vector2(0, -4))
+					_hurt(cur, dmg, Vector2.INF, c)
+					dmg *= float(s.decay)
+					var nx := _nearest_enemies(cur.pos, s.jump_range, 1, hit)
+					if nx.is_empty():
+						break
+					cur = nx[0]
+				zaps.append({"pts": pts, "t": 0.0, "evo": evolved.has(c.key)})
+		"thrust":
+			var tl := _nearest_enemies(c.pos, s.range + 20.0, 1)
+			fired = tl.size() > 0
+			if fired:
+				var from: Vector2 = c.pos + Vector2(0, -6)
+				var dir: Vector2 = (tl[0].pos - from).normalized()
+				var crit := false
+				for e in enemies:
+					var rel: Vector2 = e.pos - from
+					var along: float = rel.dot(dir)
+					if not e.dead and along > 0.0 and along < s.range * _area() and absf(rel.cross(dir)) < s.width:
+						var is_crit: bool = randf() < float(s.crit)
+						crit = crit or is_crit
+						_hurt(e, s.damage * (float(s.crit_mult) if is_crit else 1.0), from, c)
+				thrusts.append({"from": from, "dir": dir, "len": s.range * _area(), "t": 0.0, "crit": crit, "evo": evolved.has(c.key)})
+				if crit:
+					_ring_pop(from + dir * 20.0, C_GOLD, 14.0)
+		"gather":
+			var r: float = s.radius * _area()
+			for g in gems:
+				if g.pos.distance_to(paul.pos) < r:
+					g.pos = g.pos.lerp(paul.pos, 0.85)
+			for b in breads:
+				if b.pos.distance_to(paul.pos) < r:
+					b.pos = b.pos.lerp(paul.pos, 0.85)
+			for e in enemies:
+				if not e.dead and e.pos.distance_to(paul.pos) < 55.0:
+					_hurt(e, s.damage, paul.pos, c)
+					if not e.get("boss", false):
+						e.knock += (e.pos - paul.pos).normalized() * float(s.knock)
+			if float(s.heal) > 0.0:
+				paul.hp = minf(float(D.paul.hp), paul.hp + float(s.heal))
+				heals.append({"who": paul, "t": 0.0})
+				if evolved.has(c.key):
+					for o in comps:
+						if o.level > 0 and o.down <= 0.0:
+							o.hp = minf(_comp_max_hp(), o.hp + float(s.heal))
+			for i in int(s.get("bread", 0)):
+				breads.append({"pos": paul.pos + Vector2(randf_range(-12, 12), randf_range(-8, 8))})
+			gathers.append({"pos": paul.pos, "r": r, "t": 0.0})
 		"nova":
 			var slams := int(s.slams)
 			for i in slams:
@@ -1373,6 +1454,13 @@ func _update_projectiles(dt: float) -> void:
 				if not e.dead and e.pos.distance_to(f.pos) < f.r + (8.0 if e.get("boss", false) else 0.0):
 					_hurt(e, f.dmg, f.pos, f.owner)
 	fires = fires.filter(func(f): return f.t > -0.35)
+	for arr in [nets, zaps, thrusts, gathers]:
+		for f in arr:
+			f.t += dt
+	nets = nets.filter(func(f): return f.t < 0.4)
+	zaps = zaps.filter(func(f): return f.t < 0.25)
+	thrusts = thrusts.filter(func(f): return f.t < 0.2)
+	gathers = gathers.filter(func(f): return f.t < 0.5)
 	for dl in delayed:
 		dl.t -= dt
 		if dl.t <= 0.0:
@@ -1872,6 +1960,33 @@ func _draw_air() -> void:
 	for fb in fever_bursts:
 		_dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r, 0.8, C_GOLD, 2.0, 0.0, 2)
 		_dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r - 4.0, 0.8, C_FLAME, 3.0, 0.3, 2)
+	for f in nets:
+		var k: float = f.t / 0.4
+		var col := C_GOLD if f.evo else Color("e8dcc0")
+		var rr: float = f.r * (1.0 - 0.3 * k)
+		n.draw_arc(f.pos, rr, 0.0, TAU, 28, Color(col, 1.0 - k), 2.0)
+		for i in 6:
+			var a := i * PI / 6.0
+			n.draw_line(f.pos - Vector2(cos(a), sin(a)) * rr, f.pos + Vector2(cos(a), sin(a)) * rr, Color(col, (1.0 - k) * 0.6), 1.0)
+		n.draw_arc(f.pos, rr * 0.5, 0.0, TAU, 20, Color(col, (1.0 - k) * 0.6), 1.0)
+	for z in zaps:
+		var a: float = 1.0 - z.t / 0.25
+		var col := C_GOLD if z.evo else Color("ffe14d")
+		for i in z.pts.size() - 1:
+			var p0: Vector2 = z.pts[i]
+			var p1: Vector2 = z.pts[i + 1]
+			var mid: Vector2 = (p0 + p1) / 2.0 + (p1 - p0).orthogonal().normalized() * randf_range(-5, 5)
+			n.draw_polyline(PackedVector2Array([p0, mid, p1]), Color(col, a * 0.6), 3.0)
+			n.draw_polyline(PackedVector2Array([p0, mid, p1]), Color(Color.WHITE, a), 1.0)
+	for th in thrusts:
+		var a: float = 1.0 - th.t / 0.2
+		var tip: Vector2 = th.from + th.dir * th.len * minf(1.0, th.t / 0.06)
+		var col := C_GOLD if th.crit or th.evo else Color("d8d0c0")
+		n.draw_line(th.from, tip, Color(col, a), 3.0 if th.crit else 2.0)
+		n.draw_circle(tip, 2.0, Color(Color.WHITE, a))
+	for g in gathers:
+		var k: float = g.t / 0.5
+		_dot_ring(n, g.pos.round() + Vector2(0, -4), g.r * (1.0 - k), 0.8, Color(C_HEAL, 1.0 - k), 4.0, k * 3.0)
 	for f in link_fx:
 		var to: Vector2 = f.b.pos + Vector2(0, -8)
 		if f.t < 0.3:
@@ -1893,7 +2008,11 @@ func _draw_air() -> void:
 		if b.get("evo", false):
 			n.draw_circle(b.pos, 4.0, Color(C_GOLD, 0.35))
 		var col := C_FLAME if on_fire else C_GOLD
-		if b.look == "letter":
+		if b.look == "coin":
+			n.draw_rect(Rect2(x - 2, y - 2, 5, 5), Color("2a1a10"))
+			n.draw_rect(Rect2(x - 1, y - 1, 3, 3), C_FLAME if on_fire else C_GOLD)
+			n.draw_rect(Rect2(x - 1, y - 1, 1, 1), Color.WHITE)
+		elif b.look == "letter":
 			# 捲起來的書信：米白色、中間一點紅色封印，跟著方向轉
 			var d: Vector2 = b.dir
 			var side := d.orthogonal()

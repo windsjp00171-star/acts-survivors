@@ -15,9 +15,14 @@
     { "key": "samson",  "name": "參孫",   "skill": "jawbone", "tag": "守護", "era": "舊約" },
     { "key": "moses",   "name": "摩西",   "skill": "sea",     "tag": "講道", "era": "舊約" },
     { "key": "elijah",  "name": "以利亞", "skill": "fire",    "tag": "醫治", "era": "舊約" },
-    { "key": "joshua",  "name": "約書亞", "skill": "trumpet", "tag": "差派", "era": "舊約" }
+    { "key": "joshua",  "name": "約書亞", "skill": "trumpet", "tag": "差派", "era": "舊約" },
+    { "key": "peter",   "name": "彼得",   "skill": "net",     "tag": "門徒", "era": "福音書" },
+    { "key": "john",    "name": "約翰",   "skill": "thunder", "tag": "門徒", "era": "福音書" },
+    { "key": "thomas",  "name": "多馬",   "skill": "touch",   "tag": "門徒", "era": "福音書" },
+    { "key": "matthew", "name": "馬太",   "skill": "coin",    "tag": "門徒", "era": "福音書" },
+    { "key": "andrew",  "name": "安得烈", "skill": "bring",   "tag": "門徒", "era": "福音書" }
   ],
-  "_skills說明": "base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。engine 是借用哪一種招式的運作方式（bolt 追蹤、ring 擴散圈、beam 直線、nova 身邊重擊、strike 預兆後落下），look 是外觀。",
+  "_skills說明": "base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。engine 是借用哪一種招式的運作方式（bolt 追蹤、ring 擴散圈、beam 直線、nova 身邊重擊、strike 預兆後落下、shot 直線飛行、net 撒網、chain 連鎖閃電、thrust 近身刺擊、gather 收聚），look 是外觀。",
   "skills": {
     "bolt": {
       "base": { "cooldown": 0.4, "range": 120, "damage": 1, "speed": 200, "count": 1, "split": 0, "pierce": 0, "size": 1 },
@@ -78,6 +83,36 @@
       "base": { "cooldown": 2.4, "range": 150, "count": 1, "radius": 16, "damage": 5, "delay": 0.6 },
       "levels": [ { "count": 2 }, { "radius": 22 }, { "damage": 8 }, { "count": 4, "cooldown": 1.8 } ],
       "desc": ["火從天降：地上先出現預兆，火柱再落進敵群", "一次降下 2 道火", "火的範圍變大", "火的威力提升", "一次 4 道，降得更快（王上 18:38）"]
+    },
+    "net": {
+      "engine": "net",
+      "base": { "cooldown": 2.4, "range": 130, "radius": 30, "damage": 4, "pull": 60, "stun": 0.6 },
+      "levels": [ { "radius": 38 }, { "damage": 7 }, { "cooldown": 1.7 }, { "radius": 50, "stun": 1.0, "pull": 90, "damage": 9 } ],
+      "desc": ["得人的漁夫：撒網把一群敵人拉在一起，短暫定住", "網撒得更大", "收網更用力", "撒得更頻繁", "大網，定住更久（路 5:6）"]
+    },
+    "thunder": {
+      "engine": "chain",
+      "base": { "cooldown": 1.1, "range": 130, "damage": 4, "jumps": 3, "jump_range": 55, "decay": 0.9 },
+      "levels": [ { "jumps": 5 }, { "damage": 6 }, { "jumps": 7, "jump_range": 65 }, { "cooldown": 0.7, "damage": 8 } ],
+      "desc": ["雷子：閃電打中一隻後跳向附近的敵人", "多跳一隻", "閃電更強", "跳 5 隻、跳得更遠", "打得更快更重（可 3:17）"]
+    },
+    "touch": {
+      "engine": "thrust",
+      "base": { "cooldown": 0.9, "range": 56, "width": 12, "damage": 6, "crit": 0.15, "crit_mult": 3 },
+      "levels": [ { "damage": 9 }, { "crit": 0.3 }, { "range": 72, "width": 16 }, { "cooldown": 0.6, "crit_mult": 4 } ],
+      "desc": ["伸過手來：朝前方近身一刺，有機會打出三倍會心", "刺得更重", "會心機率加倍", "刺得更遠更寬", "刺得更快，會心四倍（約 20:27）"]
+    },
+    "coin": {
+      "engine": "bolt", "look": "coin",
+      "base": { "cooldown": 0.6, "range": 130, "damage": 3, "speed": 180, "count": 1, "split": 2, "pierce": 0, "size": 1 },
+      "levels": [ { "split": 3 }, { "count": 2 }, { "damage": 3 }, { "count": 3, "split": 4 } ],
+      "desc": ["稅吏：丟出錢幣，打中後分散成 2 枚", "分散成 3 枚", "一次丟兩枚", "錢幣更重", "一次三枚、分散成 4 枚（太 9:9）"]
+    },
+    "bring": {
+      "engine": "gather",
+      "base": { "cooldown": 5.0, "radius": 90, "damage": 3, "knock": 80, "heal": 0 },
+      "levels": [ { "radius": 120 }, { "cooldown": 4.5 }, { "damage": 3, "knock": 100 }, { "radius": 170, "heal": 6 } ],
+      "desc": ["帶人來：把附近的經驗與餅帶到保羅身邊，並把身邊的敵人推開", "帶得更遠", "帶得更頻繁", "推得更用力", "整個畫面都帶來，順便幫保羅回血（約 1:41）"]
     },
     "trumpet": {
       "engine": "ring", "look": "horn",
@@ -147,6 +182,16 @@
       "desc": "一次分開三道巨大的水道（出 14:21）", "stats": { "beams": 3, "width": 34, "length": 260 } },
     { "companion": "elijah", "fruit": "joy", "name": "火車火馬",
       "desc": "一次降下 7 道大火（王下 2:11）", "stats": { "count": 7, "radius": 28, "cooldown": 1.4 } },
+    { "companion": "peter", "fruit": "faith", "name": "磐石",
+      "desc": "網大到能網住半個畫面，定住兩秒（太 16:18）", "stats": { "radius": 70, "stun": 2.0, "damage": 8 } },
+    { "companion": "john", "fruit": "joy", "name": "彼此相愛",
+      "desc": "閃電跳 10 隻，而且不會減弱（約 13:34）", "stats": { "jumps": 10, "decay": 1.0, "jump_range": 80 } },
+    { "companion": "thomas", "fruit": "faith", "name": "我的主，我的神",
+      "desc": "每一刺都是會心（約 20:28）", "stats": { "crit": 1.0, "range": 80 } },
+    { "companion": "matthew", "fruit": "good", "name": "撇下一切",
+      "desc": "一次丟五枚、各分散成五枚（路 5:28）", "stats": { "count": 5, "split": 5, "damage": 4 } },
+    { "companion": "andrew", "fruit": "peace", "name": "五餅二魚",
+      "desc": "收聚時全隊回血，還會多變出一個餅（約 6:9–11）", "stats": { "heal": 15, "cooldown": 3.5, "bread": 1 } },
     { "companion": "joshua", "fruit": "joy", "name": "城牆塌陷",
       "desc": "連吹三聲，震飛一切（書 6:20）", "stats": { "rings": 3, "knock": 160, "damage": 4 } }
   ],
