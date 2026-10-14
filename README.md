@@ -10,6 +10,8 @@
 
 **直接玩（Windows）**：下載 `宣教之路-windows.zip`，解壓縮後雙擊 `ActsSurvivors.exe`，不用安裝。Windows 跳出「已保護您的電腦」時按「其他資訊」→「仍要執行」。
 
+**Android 手機**：下載 `ActsSurvivors-0.5.0.apk` 到手機，點開安裝。第一次會問「是否允許安裝不明來源的應用程式」，允許後再按一次安裝。橫向拿手機玩，按住畫面下方拖曳移動。
+
 **用 Godot 開專案**：
 
 1. 下載 [Godot 4.4](https://godotengine.org/download)（標準版即可，免安裝）
@@ -71,6 +73,15 @@
 ```
 godot --headless --path . --export-release "Windows Desktop" build/windows/ActsSurvivors.exe
 ```
+
+Android：需要 Android SDK（apksigner）與 JDK，在 Godot 編輯器設定填好路徑。簽章金鑰用環境變數提供，不要寫進 `export_presets.cfg`：
+
+```
+GODOT_ANDROID_KEYSTORE_RELEASE_PATH=金鑰路徑 GODOT_ANDROID_KEYSTORE_RELEASE_USER=acts GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=密碼 \
+godot --headless --path . --export-release "Android" build/android/ActsSurvivors.apk
+```
+
+之後每次更新都必須用**同一把金鑰**簽，手機才能直接覆蓋安裝（保留存檔）。
 
 ## 開發者：自動測試
 
