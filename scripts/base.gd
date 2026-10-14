@@ -169,9 +169,10 @@ func _show_home() -> void:
 	var h := _row(content)
 	h.add_child(UIKit.sprite_icon(starter, 4))
 	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	h.add_child(v)
 	_text(v, "第一位同工：" + _display_name(c), 16, UIKit.GOLD)
-	_text(v, "第一次升級一定會出現他的招募卡；到「同伴」頁可以換人", 12, UIKit.MUTED)
+	_text(v, "第一次升級一定會出現他的招募卡；到「同伴」頁可以換人", 12, UIKit.MUTED, true)
 	_text(v, "隊伍上限 %d 人　每局重抽 %d 次" % [Save.party_cap(), Save.rerolls()], 13, UIKit.INK)
 	# 旅程地圖：照保羅旅程的順序，建立前一間教會才能去下一座城
 	_text(content, "旅程地圖", 16, UIKit.GOLD)
