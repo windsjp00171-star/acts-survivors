@@ -37,6 +37,10 @@ var meter := 0.0
 var fever := 0.0          # 剩餘秒數，>0 表示 FEVER 中
 var fever_kills := 0
 var fever_bursts: Array = []
+var light := 0.0          # 光的身影剩下的秒數（五旬節時偶爾出現）
+var light_max := 0.0
+var run_lights := 0
+var force_light := false
 
 var fruits := {}          # 果子 key → 等級
 var armor := {}           # 軍裝 key → 等級
@@ -130,6 +134,8 @@ func _ready() -> void:
 			smoke_shot = a.substr(7)
 		elif a.begins_with("--t0="):
 			t = float(a.substr(5))
+		elif a == "--light":
+			force_light = true
 		elif a == "--nofever":
 			smoke_nofever = true
 		elif a.begins_with("--preset="):
@@ -845,6 +851,20 @@ func _start_fever() -> void:
 	fever_kills = 0
 	run_fevers += 1
 	Sfx.play("fever", 0.0)
+	var L: Dictionary = D.fever.light
+	if force_light or randf() < float(L.chance):
+		# 光的身影：不攻擊，只是扶起倒下的、醫好所有人，最後的爆發加倍
+		light = 1.0
+		light_max = 0.0
+		run_lights += 1
+		paul.hp = float(D.paul.hp)
+		for c in comps:
+			if c.level > 0:
+				c.down = 0.0
+				c.hp = _comp_max_hp()
+				heals.append({"who": c, "t": 0.0})
+		heals.append({"who": paul, "t": 0.0})
+		ui.show_banner("%s\n%s" % [L.text, L.ref], 4.0)
 	meter = 1.0
 	ui.do_flash(0.7)
 	shake = 0.2
@@ -857,7 +877,8 @@ func _start_fever() -> void:
 func _end_fever() -> void:
 	fever = 0.0
 	meter = 0.0
-	fever_bursts.append({"pos": paul.pos, "r": 0.0, "hit": {}})
+	fever_bursts.append({"pos": paul.pos, "r": 0.0, "hit": {}, "mult": float(D.fever.light.burst_mult) if light > 0.0 else 1.0})
+	light = 0.0
 	Sfx.play("burst", 0.0)
 	ui.do_flash(0.5)
 	shake = 0.25
@@ -951,6 +972,8 @@ func _step(dt: float) -> void:
 	# 同心合意
 	if fever > 0.0:
 		fever -= dt
+		if light > 0.0:
+			light_max += dt   # 這裡拿來記已經出現多久
 		meter = clampf(fever / _fever_dur(), 0.0, 1.0)
 		if fever <= 0.0:
 			_end_fever()
@@ -1339,7 +1362,7 @@ func _update_projectiles(dt: float) -> void:
 		for e in enemies:
 			if not e.dead and not fb.hit.has(e.node) and e.pos.distance_to(fb.pos) < fb.r:
 				fb.hit[e.node] = true
-				_hurt(e, D.fever.final_damage, fb.pos)
+				_hurt(e, D.fever.final_damage * fb.get("mult", 1.0), fb.pos)
 	fever_bursts = fever_bursts.filter(func(fb): return fb.r < D.fever.final_radius)
 
 	for s in shots:
@@ -1655,6 +1678,20 @@ func _render(dt: float) -> void:
 		"time": int(t), "kills": kills, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text()})
 
 
+## 光的身影：沒有臉，只有光的輪廓，站在保羅身邊
+func _draw_light(n: Node2D) -> void:
+	var k: float = clampf(minf(light_max, fever) / 0.8, 0.0, 1.0)
+	var at: Vector2 = (paul.pos + Vector2(-16, 0)).round()
+	var pulse := 0.85 + 0.15 * sin(t * 2.0)
+	for i in 6:
+		var a := -PI / 2.0 + (i - 2.5) * 0.35
+		n.draw_line(at + Vector2(0, -14), at + Vector2(0, -14) + Vector2(cos(a), sin(a)) * 30.0, Color(C_CREAM, 0.12 * k), 3.0)
+	n.draw_circle(at + Vector2(0, -12), 18.0, Color(1, 1, 0.9, 0.18 * k * pulse))
+	n.draw_colored_polygon(PackedVector2Array([at + Vector2(-6, 0), at + Vector2(-3, -14), at + Vector2(3, -14), at + Vector2(6, 0)]), Color(1, 1, 0.95, 0.75 * k))
+	n.draw_circle(at + Vector2(0, -17), 3.0, Color(1, 1, 0.95, 0.85 * k))
+	n.draw_arc(at + Vector2(0, -17), 5.0, 0.0, TAU, 16, Color(C_GOLD, 0.6 * k), 1.0)
+
+
 func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, every: float, ph: float, thick := 1) -> void:
 	var count := maxi(12, int(r * TAU / every))
 	for k in count:
@@ -1790,6 +1827,8 @@ func _draw_air() -> void:
 		_dot_ring(n, q.pos.round(), q.r * 0.7, 0.7, Color(C_CREAM, 1.0 - q.r / 360.0), 4.0, 0.5, 1)
 	if armor.get("shield", 0) > 0 and shield_cd <= 0.0:
 		_dot_ring(n, paul.pos.round() + Vector2(0, -8), 9.0, 1.1, Color(C_GOLD, 0.55), 3.0, t)
+	if light > 0.0:
+		_draw_light(n)
 	for fb in fever_bursts:
 		_dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r, 0.8, C_GOLD, 2.0, 0.0, 2)
 		_dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r - 4.0, 0.8, C_FLAME, 3.0, 0.3, 2)
@@ -2158,7 +2197,7 @@ func _finish_run() -> Array:
 			party[c.key] = c.level
 	var res: Dictionary = Save.finish_run({"kills": kills, "seconds": int(t - t_start), "level": level, "won": won,
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
-		"task_witness": task_witness, "no_down": t - t_start >= 300.0 and not someone_down, "full_party": full_party, "party": party})
+		"task_witness": task_witness, "lights": run_lights, "no_down": t - t_start >= 300.0 and not someone_down, "full_party": full_party, "party": party})
 	var lines := [["帶回見證 +%d　（共 %d）" % [res.witness, Save.data.witness], 15, C_SKY]]
 	for a in res.achievements:
 		var txt: String = "見證錄：" + a.name

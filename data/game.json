@@ -183,6 +183,7 @@
     "extend_seconds": 0.5,
     "attack_speed": 2.0,
     "final_damage": 4,
+    "light": { "chance": 0.15, "text": "我就常與你們同在，直到世界的末了。", "ref": "太 28:20", "burst_mult": 2 },
     "final_radius": 150
   },
   "enemies": {

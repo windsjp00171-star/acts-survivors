@@ -24,7 +24,7 @@ func _defaults() -> Dictionary:
 		"affinity": {}, "achievements": [], "starter": meta.default_starter,
 		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1,
 		"stats": {"runs": 0, "wins": 0, "elites": 0, "best_kills": 0, "best_fevers": 0,
-			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0},
+			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0, "lights": 0},
 	}
 
 
@@ -127,6 +127,7 @@ func finish_run(r: Dictionary) -> Dictionary:
 	st.best_fevers = maxi(st.best_fevers, int(r.fevers))
 	st.evolutions += int(r.evolutions)
 	st.tasks += int(r.get("tasks_done", 0))
+	st.lights = int(st.get("lights", 0)) + int(r.get("lights", 0))
 	if r.no_down:
 		st.no_down = 1
 	if r.full_party:

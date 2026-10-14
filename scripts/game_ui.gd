@@ -109,6 +109,7 @@ func setup(name_list: Array, touch: bool) -> void:
 	root.add_child(joy_pad)
 
 	banner = label("", 18, C_GOLD)
+	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner.visible = false
 	boss_bg = _rect(C_DARK, Vector2.ZERO, Vector2(244, 8))
 	boss_fill = _rect(Color("b8b8c4"), Vector2.ZERO, Vector2(240, 4))

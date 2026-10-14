@@ -104,6 +104,7 @@ godot --headless --path . res://scenes/main.tscn -- --smoke
 - `--stage=0~3`：選城市（0 腓立比、1 帖撒羅尼迦、2 哥林多、3 以弗所）
 - `--preset=evo`：五位滿級並全部進化
 - `--nofever`：不自動開五旬節（看一般狀態的畫面）
+- `--light`：開五旬節時一定出現光的身影
 - `--shot=路徑.png`：有顯示環境時存截圖（升級卡、FEVER、寶箱、Boss 預警、連鎖、失敗彩蛋各一張）
 
 營地：`godot --path . res://scenes/base.tscn -- --shot=路徑.png` 會存營地、走近路標，以及出發、同伴、生平、解鎖、見證錄面板的截圖。加 `--resolution 450x900` 可以看直式（手機）排版。

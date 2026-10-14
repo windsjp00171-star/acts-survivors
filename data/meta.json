@@ -43,6 +43,7 @@
     { "id": "evolve",    "name": "生命的改變",   "desc": "第一次進化",                          "stat": "evolutions", "min": 1,    "witness": 60 },
     { "id": "no_down",   "name": "一個都不少",   "desc": "撐到 5:00，過程中沒有任何同伴倒下",   "stat": "no_down",    "min": 1,    "witness": 60 },
     { "id": "full",      "name": "同心合意",     "desc": "隊伍坐滿",                            "stat": "full_party", "min": 1,    "witness": 30 },
+    { "id": "with",      "name": "常與你們同在", "desc": "？？？（在五旬節時遇見）",               "stat": "lights",     "min": 1,    "witness": 50 },
     { "id": "tasks",     "name": "忠心的僕人",   "desc": "累計完成 10 個旅程任務",               "stat": "tasks",      "min": 10,   "witness": 80 }
   ]
 }
