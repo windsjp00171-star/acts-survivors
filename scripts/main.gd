@@ -160,6 +160,17 @@ func _ready() -> void:
 			if c.level > 0:
 				_set_level(c, 4)
 		fruits = {"joy": 2, "faith": 2}
+	if smoke_preset == "evo":
+		# 測試用：五位滿級並全部進化
+		for k in ["tim", "luke", "samson", "elijah"]:
+			_recruit(by_key[k])
+		for c in comps:
+			if c.level > 0:
+				_set_level(c, 5)
+		_set_level(pa, 5)
+		fruits = {"joy": 1, "faith": 1, "good": 1}
+		for evo in _ready_evolutions():
+			_evolve(evo)
 	if smoke_preset == "strong":
 		# 測試用：滿編隊伍，西拉滿級帶喜樂，下一個寶箱會進化
 		for c in comps:
@@ -1027,16 +1038,18 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 				var tg: Dictionary = targets[i % targets.size()]
 				bolts.append({"pos": c.pos + Vector2(0, -8), "target": tg, "life": 1.5, "pierce": int(s.pierce),
 					"split": int(s.split), "child": false, "dmg": float(s.damage), "size": int(s.size), "hit": {},
-					"spd": float(s.speed), "emult": float(s.get("elite_mult", 1.0)), "look": c.look, "owner": c})
+					"spd": float(s.speed), "emult": float(s.get("elite_mult", 1.0)), "look": c.look, "owner": c, "evo": evolved.has(c.key)})
 		"ring":
 			for i in int(s.rings):
 				rings.append({"owner": c, "r": 4.0 - i * 16.0, "dir": 1.0, "returns": int(s.returns), "hit": {},
 					"max": float(s.max_radius) * _area(), "dmg": float(s.damage), "speed": float(s.speed), "stun": float(s.stun),
-					"thick": int(s.thick), "knock": float(s.get("knock", 0.0)), "look": c.look})
+					"thick": int(s.thick), "knock": float(s.get("knock", 0.0)), "look": c.look, "evo": evolved.has(c.key)})
 		"heal":
 			paul.hp = minf(D.paul.hp, paul.hp + s.amount)
 			heals.append({"who": paul, "t": 0.0})
 			_ring_pop(c.pos + Vector2(0, -8), C_HEAL, 40.0)
+			if evolved.has(c.key):
+				_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 64.0)
 			Sfx.play("heal", 0.0)
 			_ring_pop(paul.pos + Vector2(0, -8), C_HEAL, 14.0)
 			for o in comps:
@@ -1070,7 +1083,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					var dir := base_dir.rotated(deg_to_rad((i - (n - 1) / 2.0) * float(s.spread)))
 					bolts.append({"pos": from, "straight": true, "vel": dir * float(s.speed), "dir": dir, "life": float(s.range) * 1.4 / float(s.speed),
 						"pierce": int(s.pierce), "dmg": float(s.damage), "size": 1, "hit": {}, "look": c.look, "owner": c,
-						"split": 0, "child": true, "spd": float(s.speed), "emult": 1.0, "target": {}})
+						"split": 0, "child": true, "spd": float(s.speed), "emult": 1.0, "target": {}, "evo": evolved.has(c.key)})
 		"nova":
 			var slams := int(s.slams)
 			for i in slams:
@@ -1080,7 +1093,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			fired = cand.size() > 0
 			cand.shuffle()
 			for i in mini(int(s.count), cand.size()):
-				fires.append({"pos": cand[i].pos, "t": float(s.delay), "max": float(s.delay), "r": float(s.radius) * _area(), "dmg": float(s.damage), "owner": c})
+				fires.append({"pos": cand[i].pos, "t": float(s.delay), "max": float(s.delay), "r": float(s.radius) * _area(), "dmg": float(s.damage), "owner": c, "evo": evolved.has(c.key)})
 		_:
 			fired = false
 			if not triggered:
@@ -1146,7 +1159,7 @@ func _nova(c: Dictionary, s: Dictionary) -> void:
 		return
 	var center: Vector2 = c.pos + Vector2(0, -4)
 	var r: float = s.radius * _area()
-	blasts.append({"pos": center, "t": 0.0, "r": r, "col": Color("e8c8a0")})
+	blasts.append({"pos": center, "t": 0.0, "r": r, "col": C_GOLD if evolved.has(c.key) else Color("e8c8a0"), "evo": evolved.has(c.key)})
 	shake = maxf(shake, 0.12)
 	for e in enemies:
 		if not e.dead and e.pos.distance_to(center) < r + (8.0 if e.get("boss", false) else 0.0):
@@ -1170,7 +1183,8 @@ func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary, look := "", src = nu
 			if s.get("stun", 0.0) > 0.0 and not o.get("boss", false):
 				o.stun = s.stun
 			_hurt(o, s.damage * (s.lies_mult if o.type == "lies" else 1.0), from, src)
-	beams.append({"pos": from, "dir": dir, "life": 0.3 if look == "" else 0.5, "len": length, "width": width, "look": look})
+	beams.append({"pos": from, "dir": dir, "life": 0.3 if look == "" else 0.5, "len": length, "width": width, "look": look,
+		"evo": src != null and evolved.has(src.key)})
 	if s.burst:
 		var end: Vector2 = from + dir * length
 		var br := 20.0 * _area()
@@ -1264,7 +1278,7 @@ func _update_projectiles(dt: float) -> void:
 		f.t -= dt
 		if f.t <= 0.0 and not f.get("hit", false):
 			f.hit = true
-			blasts.append({"pos": f.pos, "t": 0.0, "r": f.r, "col": C_FLAME})
+			blasts.append({"pos": f.pos, "t": 0.0, "r": f.r, "col": C_GOLD if f.evo else C_FLAME, "evo": f.evo})
 			_burst(f.pos, 8, C_FLAME, C_GOLD)
 			for e in enemies:
 				if not e.dead and e.pos.distance_to(f.pos) < f.r + (8.0 if e.get("boss", false) else 0.0):
@@ -1539,7 +1553,7 @@ func _render(dt: float) -> void:
 	ground.region_rect = Rect2(ground.position, v.size + Vector2(32, 32))
 
 	var walk := int(t * 5.0) % 2
-	p.node.texture = _tex("paul_%d" % (walk if p.moving else 0))
+	p.node.texture = _tex("paul%s_%d" % ["_evo" if evolved.has("paul") else "", walk if p.moving else 0])
 	p.node.position = p.pos.round()
 	var pk: float = pa.castfx / 0.18
 	p.node.scale = Vector2(1.0 + 0.15 * pk, 1.0 - 0.1 * pk)
@@ -1548,7 +1562,7 @@ func _render(dt: float) -> void:
 		if c.level == 0:
 			continue
 		var f: int = (walk + c.i) % 2 if (p.moving or c.vel.length() > 5.0) and c.down <= 0.0 else 0
-		c.node.texture = _tex("%s_%d" % [c.key, f])
+		c.node.texture = _tex("%s%s_%d" % [c.key, "_evo" if evolved.has(c.key) else "", f])
 		c.node.position = c.pos.round()
 		c.node.rotation = deg_to_rad(80.0) if c.down > 0.0 else 0.0
 		var k: float = c.castfx / 0.18
@@ -1613,7 +1627,7 @@ func _draw_ground_fx() -> void:
 	if barn != null and _active(barn):
 		var pulse := fmod(t, 1.6) / 1.6
 		var bc: Vector2 = barn.pos.round() + Vector2(0, -2)
-		var col := C_GOLD if fever > 0.0 else Color("bfe3ff")
+		var col := C_GOLD if fever > 0.0 or evolved.has("barn") else Color("bfe3ff")
 		_dot_ring(n, bc, _aura_r(barn), 0.62, Color(col, 0.9), 3.0, t * 0.8)
 		_dot_ring(n, bc, _aura_r(barn) * pulse, 0.62, Color(col.lightened(0.4), 0.8), 4.0, -t)
 	for ch in chests:
@@ -1655,10 +1669,14 @@ func _draw_air() -> void:
 			var col := Color("b5533c") if r % 3 == 2 else (Color("d9c7a0") if r % 3 == 1 else Color("efe2c0"))
 			if on_fire:
 				col = C_RED if r % 3 == 2 else (C_FLAME if r % 3 == 1 else C_GOLD)
+			elif evolved.has("pri"):
+				col = C_GOLD if r % 3 == 2 else (C_CREAM if r % 3 == 1 else Color.WHITE)
 			n.draw_rect(Rect2(x - 4, y - h - 1 + r, 9, 1), col)
 	for r in rings:
 		if r.r <= 0.0:
 			continue
+		if r.get("evo", false):
+			_dot_ring(n, (r.owner.pos + Vector2(0, -6)).round(), r.r + 3.0, 0.8, Color(C_CREAM, 0.7), 2.0, -r.r * 0.05, 1)
 		var k: float = 1.0 - r.r / r.max
 		var center: Vector2 = (r.owner.pos + Vector2(0, -6)).round()
 		var col := (C_FLAME if on_fire else C_GOLD) if k > 0.4 or r.dir < 0.0 else Color("e0b860")
@@ -1671,6 +1689,8 @@ func _draw_air() -> void:
 	for b in beams:
 		var end: Vector2 = b.pos + b.dir * b.len
 		var a := minf(1.0, b.life * 3.3)
+		if b.get("evo", false):
+			n.draw_line(b.pos, end, Color(C_GOLD, a * 0.35), b.width * 2.6)
 		if b.look == "sea":
 			n.draw_line(b.pos, end, Color(C_FLAME if on_fire else Color("2f78c8"), a * 0.5), b.width * 1.6)
 			n.draw_line(b.pos, end, Color(Color("8fd0ff"), a * 0.8), b.width * 0.8)
@@ -1682,6 +1702,8 @@ func _draw_air() -> void:
 		var k: float = b.t / 0.3
 		n.draw_circle(b.pos, b.r * (0.4 + k * 0.6), Color(b.get("col", C_GOLD), (1.0 - k) * 0.6))
 		n.draw_arc(b.pos, b.r * (0.4 + k * 0.6), 0.0, TAU, 32, Color(Color(b.get("col", C_GOLD)).lightened(0.4), 1.0 - k), 2.0)
+		if b.get("evo", false):
+			n.draw_arc(b.pos, b.r * (0.6 + k * 0.7), 0.0, TAU, 32, Color(C_CREAM, (1.0 - k) * 0.8), 1.0)
 	for f in fires:
 		if f.t > 0.0:
 			var k: float = 1.0 - f.t / f.max
@@ -1689,6 +1711,8 @@ func _draw_air() -> void:
 			n.draw_circle(f.pos, f.r * k, Color(C_FLAME, 0.18))
 		else:
 			var a: float = 1.0 + f.t / 0.35
+			if f.get("evo", false):
+				n.draw_rect(Rect2(f.pos.x - 7, f.pos.y - 70, 15, 70), Color(C_CREAM, a * 0.35))
 			n.draw_rect(Rect2(f.pos.x - 3, f.pos.y - 60, 7, 60), Color(C_GOLD, a * 0.7))
 			n.draw_rect(Rect2(f.pos.x - 1, f.pos.y - 60, 3, 60), Color(C_CREAM, a))
 	var blink := int(t * 8.0) % 2 == 0
@@ -1734,6 +1758,8 @@ func _draw_air() -> void:
 	for b in bolts:
 		var x: float = roundf(b.pos.x)
 		var y: float = roundf(b.pos.y)
+		if b.get("evo", false):
+			n.draw_circle(b.pos, 4.0, Color(C_GOLD, 0.35))
 		var col := C_FLAME if on_fire else C_GOLD
 		if b.look == "letter":
 			# 捲起來的書信：米白色、中間一點紅色封印，跟著方向轉
