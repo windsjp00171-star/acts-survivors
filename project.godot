@@ -13,6 +13,7 @@ config_version=5
 config/name="宣教之路"
 config/description="使徒行傳背景的 survivors-like roguelite"
 run/main_scene="res://scenes/base.tscn"
+config/icon="res://icon.png"
 config/features=PackedStringArray("4.4", "GL Compatibility")
 
 [autoload]
