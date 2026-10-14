@@ -5,6 +5,7 @@ extends CanvasLayer
 signal card_chosen(index: int)
 signal fever_pressed
 signal restart_pressed
+signal chest_closed
 
 const C_INK := Color("f4ead2")
 const C_GOLD := Color("ffd75e")
@@ -37,6 +38,12 @@ var cards_box: BoxContainer
 var card_buttons: Array = []
 var card_ready_at := 0.0
 var joy := {"on": false, "origin": Vector2.ZERO, "pos": Vector2.ZERO}
+var banner: Label
+var banner_until := 0.0
+var boss_bg: ColorRect
+var boss_fill: ColorRect
+var boss_label: Label
+var chest_panel: Control
 
 
 func setup(name_list: Array, touch: bool) -> void:
@@ -91,6 +98,13 @@ func setup(name_list: Array, touch: bool) -> void:
 	joy_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	joy_pad.draw.connect(_draw_joy)
 	root.add_child(joy_pad)
+
+	banner = label("", 18, C_GOLD)
+	banner.visible = false
+	boss_bg = _rect(C_DARK, Vector2.ZERO, Vector2(244, 8))
+	boss_fill = _rect(Color("b8b8c4"), Vector2.ZERO, Vector2(240, 4))
+	boss_label = label("", 12, Color("d8d8e8"))
+	set_boss(-1.0, "")
 
 	flash = _rect(Color(1, 0.96, 0.8, 0.0), Vector2.ZERO, Vector2.ONE)
 	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -175,8 +189,133 @@ func update_hud(st: Dictionary) -> void:
 	fever_btn.visible = st.meter >= 1.0 and not fever_on and not st.over and not st.choosing
 	fever_btn.position = Vector2(roundf((size.x - fever_btn.size.x) / 2.0), my - 54.0)
 	tint.color.a = 0.14 if fever_on else 0.0
+	var now := Time.get_ticks_msec() / 1000.0
+	banner.visible = now < banner_until
+	if banner.visible:
+		banner.position = Vector2(roundf((size.x - banner.size.x) / 2.0), 64)
+		banner.modulate.a = clampf((banner_until - now) * 2.0, 0.0, 1.0)
+	if boss_bg.visible:
+		boss_bg.position = Vector2(roundf((size.x - 244.0) / 2.0), 48)
+		boss_fill.position = boss_bg.position + Vector2(2, 2)
+		boss_label.position = Vector2(boss_bg.position.x - boss_label.size.x - 8.0, 41)
 	flash.color.a = maxf(0.0, flash.color.a - 0.04)
 	joy_pad.queue_redraw()
+
+
+func show_banner(text: String, secs: float) -> void:
+	banner.text = text
+	banner_until = Time.get_ticks_msec() / 1000.0 + secs
+
+
+func set_boss(frac: float, boss_name: String) -> void:
+	var on := frac >= 0.0
+	boss_bg.visible = on
+	boss_fill.visible = on
+	boss_label.visible = on
+	if on:
+		boss_fill.size.x = roundf(240.0 * frac)
+		boss_label.text = boss_name
+
+
+func show_chest(results: Array) -> void:
+	chest_panel = PanelContainer.new()
+	chest_panel.add_theme_stylebox_override("panel", _box(Color("241a2e"), C_GOLD))
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 6)
+	chest_panel.add_child(box)
+	root.add_child(chest_panel)
+	var head := label("寶箱", 18, C_GOLD)
+	root.remove_child(head)
+	box.add_child(head)
+	for r in results:
+		var l := label("%s\n%s" % [r.title, r.desc], 15 if r.big else 13, C_GOLD if r.big else C_INK)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.custom_minimum_size = Vector2(260, 0)
+		root.remove_child(l)
+		box.add_child(l)
+	var btn := Button.new()
+	btn.text = "繼續"
+	btn.add_theme_font_override("font", font)
+	btn.add_theme_font_size_override("font_size", 14)
+	btn.add_theme_stylebox_override("normal", _box(C_BRONZE, C_DARK))
+	btn.add_theme_stylebox_override("focus", _box(C_GOLD, C_DARK))
+	btn.add_theme_color_override("font_color", Color("2a1a14"))
+	btn.add_theme_color_override("font_focus_color", Color("2a1a14"))
+	btn.add_theme_color_override("font_hover_color", Color("2a1a14"))
+	btn.pressed.connect(_close_chest)
+	box.add_child(btn)
+	await get_tree().process_frame
+	if chest_panel == null:
+		return
+	chest_panel.position = ((vp() - chest_panel.size) / 2.0).round()
+	await get_tree().create_timer(0.4).timeout
+	if is_instance_valid(btn):
+		btn.grab_focus()
+
+
+func _close_chest() -> void:
+	if chest_panel:
+		chest_panel.queue_free()
+		chest_panel = null
+		chest_closed.emit()
+
+
+## 失敗彩蛋：光的身影蹲到保羅身邊，留下一個籃子
+func play_egg(baskets: int, paul_screen: Vector2) -> void:
+	for n in names:
+		names[n].visible = false
+	var dim := ColorRect.new()
+	dim.color = Color(0.03, 0.02, 0.05, 0.0)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(dim)
+	var light := Control.new()
+	light.set_anchors_preset(Control.PRESET_FULL_RECT)
+	light.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(light)
+	var st := {"x": vp().x + 40.0, "a": 0.0, "crouch": false, "basket": 0.0}
+	light.draw.connect(func():
+		var gy := paul_screen.y
+		var fx: float = st.x
+		var a: float = st.a
+		for i in 6:
+			light.draw_circle(Vector2(fx, gy - 18), 40.0 - i * 6.0, Color(1.0, 0.85, 0.5, a * 0.06))
+		if st.crouch:
+			light.draw_circle(Vector2(fx, gy - 22), 5.0, Color(1, 0.97, 0.85, a))
+			light.draw_rect(Rect2(fx - 7, gy - 16, 14, 14), Color(1, 0.95, 0.8, a))
+		else:
+			light.draw_circle(Vector2(fx, gy - 34), 5.0, Color(1, 0.97, 0.85, a))
+			light.draw_rect(Rect2(fx - 6, gy - 28, 12, 26), Color(1, 0.95, 0.8, a))
+		if st.basket > 0.0:
+			var bx := paul_screen.x + 22.0
+			var ba: float = st.basket
+			light.draw_rect(Rect2(bx - 8, gy - 8, 16, 8), Color(0.65, 0.48, 0.27, ba))
+			light.draw_rect(Rect2(bx - 6, gy - 11, 12, 3), Color(0.94, 0.78, 0.47, ba))
+			light.draw_arc(Vector2(bx, gy - 9), 7.0, PI, TAU, 12, Color(0.35, 0.25, 0.15, ba), 1.5)
+	)
+	var tw := create_tween()
+	tw.tween_property(dim, "color:a", 0.82, 1.0)
+	tw.parallel().tween_method(func(v): st.a = v; light.queue_redraw(), 0.0, 1.0, 1.0)
+	tw.tween_method(func(v): st.x = v; light.queue_redraw(), vp().x + 40.0, paul_screen.x + 22.0, 2.0)
+	tw.tween_callback(func(): st.crouch = true; light.queue_redraw())
+	await tw.finished
+	var verse := label("我的恩典夠你用的，\n因為我的能力是在人的軟弱上顯得完全。", 15, C_CREAM)
+	verse.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var ref := label("林後 12:9", 12, C_GOLD)
+	await get_tree().process_frame
+	verse.position = Vector2(roundf((vp().x - verse.size.x) / 2.0), roundf(vp().y * 0.18))
+	ref.position = Vector2(roundf((vp().x - ref.size.x) / 2.0), verse.position.y + verse.size.y + 6.0)
+	await get_tree().create_timer(3.5).timeout
+	var tw2 := create_tween()
+	tw2.tween_callback(func(): st.crouch = false)
+	tw2.tween_method(func(v): st.basket = v; light.queue_redraw(), 0.0, 1.0, 0.6)
+	tw2.tween_method(func(v): st.x = v; light.queue_redraw(), paul_screen.x + 22.0, vp().x + 60.0, 1.8)
+	tw2.parallel().tween_method(func(v): st.a = v; light.queue_redraw(), 1.0, 0.0, 1.8)
+	await tw2.finished
+	var b := label("籃子 %d／12" % baskets, 13, C_GOLD)
+	b.position = paul_screen + Vector2(4, 6)
+	await get_tree().create_timer(1.6).timeout
+	for n in [verse, ref, b, light, dim]:
+		n.queue_free()
 
 
 func place_name(n: String, screen_pos: Vector2, show: bool) -> void:
@@ -236,6 +375,8 @@ func show_cards(cards: Array, now: float, delay: float) -> void:
 		cards_box.add_child(b)
 		card_buttons.append(b)
 	await get_tree().process_frame
+	if cards_box == null:
+		return
 	cards_box.position = ((size - cards_box.size) / 2.0).round() + Vector2(0, 14)
 	card_ready_at = now + delay
 
@@ -259,7 +400,7 @@ func hide_cards() -> void:
 
 
 # ---------- 失敗 ----------
-func show_game_over(lines: Array) -> void:
+func show_game_over(lines: Array, button_text := "再出發") -> void:
 	var dim := ColorRect.new()
 	dim.color = Color(0.04, 0.02, 0.06, 0.78)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -274,7 +415,7 @@ func show_game_over(lines: Array) -> void:
 		root.remove_child(l)
 		box.add_child(l)
 	var btn := Button.new()
-	btn.text = "再出發"
+	btn.text = button_text
 	btn.custom_minimum_size = Vector2(160, 40)
 	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.add_theme_font_override("font", font)
@@ -284,6 +425,7 @@ func show_game_over(lines: Array) -> void:
 	btn.add_theme_stylebox_override("focus", _box(C_GOLD, C_DARK))
 	btn.add_theme_color_override("font_color", Color("2a1a14"))
 	btn.add_theme_color_override("font_hover_color", Color("2a1a14"))
+	btn.add_theme_color_override("font_focus_color", Color("2a1a14"))
 	btn.pressed.connect(func(): restart_pressed.emit())
 	box.add_child(btn)
 	for n in names:

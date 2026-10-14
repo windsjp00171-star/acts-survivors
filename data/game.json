@@ -45,7 +45,47 @@
       "desc": ["朝敵人射出一道貫穿的光束", "光束更寬更長", "光束末端爆開", "一次兩道光束", "三道光束，對謊言三倍傷害"]
     }
   },
-  "leveling": { "first": 6, "step": 4, "card_delay": 0.4, "heal_card": 30 },
+  "_fruits說明": "聖靈果子：全隊被動，每種最多 5 級。per_level 是每級加的比例。",
+  "fruits": {
+    "joy":   { "name": "喜樂", "tag": "詩歌", "per_level": { "area": 0.15 },   "desc": "所有範圍攻擊變大 15%" },
+    "faith": { "name": "信實", "tag": "講道", "per_level": { "damage": 0.15 }, "desc": "所有攻擊傷害 +15%" },
+    "good":  { "name": "良善", "tag": "守護", "per_level": { "guard": 0.25 },  "desc": "帳棚屏障傷害與彈開力道 +25%，同伴血量 +10%" },
+    "peace": { "name": "和平", "tag": "群眾", "per_level": { "accord": 0.15 }, "desc": "同心合意累積加快 15%，被打散的力道減輕 10%" }
+  },
+  "_armor說明": "全副軍裝：保羅自己的裝備，最多 3 件，每件 3 級。",
+  "armor_slots": 3,
+  "armor": {
+    "shoes":  { "name": "平安的鞋",   "tag": "差派", "desc": ["移動加快 10%，同伴跟得更緊", "移動再加快 10%", "移動再加快 10%，同伴幾乎不落後"] },
+    "belt":   { "name": "真理的腰帶", "tag": "講道", "desc": ["對謊言傷害 +50%，謊言的射擊傷害減少 30%", "對謊言傷害再 +50%", "謊言的射擊完全擋下"] },
+    "shield": { "name": "信德的藤牌", "tag": "守護", "desc": ["每 12 秒擋下一次攻擊", "每 9 秒擋一次", "每 6 秒擋一次（弗 6:16）"] }
+  },
+  "evolutions": [
+    { "companion": "silas", "fruit": "joy", "name": "半夜的詩歌",
+      "desc": "每 14 秒全畫面地震：所有敵人受傷並暈眩（徒 16:25–26）", "every": 14, "damage": 6, "stun": 1.6 }
+  ],
+  "elites": {
+    "terror": { "name": "恐嚇", "sprite": "fear", "scale": 2.2, "tint": [1.0, 0.7, 1.0], "hp": 70, "speed": 18, "damage": 8,
+                "roar_every": 5, "roar_radius": 70, "roar_force": 140, "chest": true }
+  },
+  "trials": {
+    "_說明": "考驗型敵人：系統看你最強的流派，派出剋它的。目前只有冷漠（剋詩歌流）。",
+    "apathy": { "name": "冷漠", "sprite": "sleep", "tint": [0.7, 0.7, 0.75], "hp": 8, "speed": 13, "damage": 4, "scatter": 0,
+                "immune": "ring", "counters": "silas" }
+  },
+  "elite_wave": { "from": 360, "to": 480, "elite_every": 30, "trial_every": 4, "trial_group": 6 },
+  "boss": {
+    "at": 600, "name": "捆鎖", "hp": 6000, "speed": 10, "touch_damage": 10,
+    "warn": 1.1, "break_seconds": 2.2, "break_mult": 2.0, "phase2_at": 0.5,
+    "sweep": { "damage": 18, "width": 10, "length": 300 },
+    "grid": { "damage": 14, "lines": 3, "width": 8 },
+    "slam": { "damage": 22, "radius": 34 },
+    "hunt": { "damage": 16, "radius": 16 },
+    "win_text": "半夜，保羅和西拉禱告唱詩讚美神，忽然地大震動，監牢的地基都搖動了。",
+    "win_ref": "徒 16:25–26"
+  },
+  "chest": { "rolls_min": 1, "rolls_max": 3 },
+  "easter_egg": { "first_time": true, "chance": 0.1 },
+  "leveling": { "first": 6, "step": 5, "card_delay": 0.4, "heal_card": 30 },
   "fever": {
     "_說明": "同心合意：隊伍越完整累積越快；滿了按空白鍵（觸控按按鈕）開五旬節。",
     "fill_seconds": 16,

@@ -34,6 +34,22 @@ var fever := 0.0          # 剩餘秒數，>0 表示 FEVER 中
 var fever_kills := 0
 var fever_bursts: Array = []
 
+var fruits := {}          # 果子 key → 等級
+var armor := {}           # 軍裝 key → 等級
+var evolved := {}         # 同伴 key → 進化資料
+var evo_timer := 0.0
+var quakes: Array = []
+var shield_cd := 0.0
+var chests: Array = []
+var chest_open := false
+var elite_timer := 0.0
+var trial_timer := 0.0
+var boss = null
+var boss_spawned := false
+var won := false
+var tele: Array = []      # Boss 的預警圖形
+var hits: Array = []      # Boss 攻擊落下的閃光
+
 var paul := {}
 var comps: Array = []
 var by_key := {}
@@ -62,6 +78,8 @@ var ui: GameUI
 var smoke := false
 var smoke_shot := ""
 var smoke_frames := 0
+var smoke_preset := ""
+var smoke_over := 0
 
 
 func _ready() -> void:
@@ -73,6 +91,8 @@ func _ready() -> void:
 			smoke_shot = a.substr(7)
 		elif a.begins_with("--t0="):
 			t = float(a.substr(5))
+		elif a.begins_with("--preset="):
+			smoke_preset = a.substr(9)
 	for k in D.enemies:
 		scatter_by[k] = 0
 	xp_need = int(D.leveling.first)
@@ -80,6 +100,17 @@ func _ready() -> void:
 	_build_ui()
 	for key in D.start_party:
 		_recruit(by_key[key])
+	if smoke_preset == "strong":
+		# 測試用：滿編隊伍，西拉滿級帶喜樂，下一個寶箱會進化
+		for c in comps:
+			if c.level == 0 and c.follows == "":
+				_recruit(c)
+		for c in comps:
+			if c.skill != "":
+				_set_level(c, 5 if c.key == "silas" else 4)
+		fruits = {"joy": 2, "faith": 2, "good": 1, "peace": 1}
+		armor = {"shoes": 1, "shield": 2}
+		chests.append({"pos": Vector2(0, 12)})
 	for i in int(D.waves.initial):
 		var a := randf() * TAU
 		var d := 110.0 + randf() * 80.0
@@ -159,6 +190,7 @@ func _build_ui() -> void:
 		if c.with != "":
 			ui.names[c.name].text = c.name + "・" + by_key[c.with].name
 	ui.card_chosen.connect(_on_card)
+	ui.chest_closed.connect(_on_chest_closed)
 	ui.fever_pressed.connect(_start_fever)
 	ui.restart_pressed.connect(func(): get_tree().reload_current_scene())
 
@@ -187,12 +219,45 @@ func _recruit(c: Dictionary) -> void:
 		_recruit(by_key[c.with])
 
 
-func _active_in_party(c: Dictionary) -> bool:
-	return c.level > 0
+## 果子與軍裝帶來的倍率
+func _area() -> float:
+	return 1.0 + fruits.get("joy", 0) * D.fruits.joy.per_level.area
+
+func _dmg_mult() -> float:
+	return 1.0 + fruits.get("faith", 0) * D.fruits.faith.per_level.damage
+
+func _guard() -> float:
+	return 1.0 + fruits.get("good", 0) * D.fruits.good.per_level.guard
+
+func _accord() -> float:
+	return 1.0 + fruits.get("peace", 0) * D.fruits.peace.per_level.accord
+
+func _scatter_mult() -> float:
+	return maxf(0.3, 1.0 - fruits.get("peace", 0) * 0.1)
+
+func _comp_max_hp() -> float:
+	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1)
+
+func _speed() -> float:
+	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.1)
 
 
 func _make_cards() -> Array:
 	var pool := []
+	for k in D.fruits:
+		var f: Dictionary = D.fruits[k]
+		var lv: int = fruits.get(k, 0)
+		if lv == 0 and fruits.size() < 6:
+			pool.append({"kind": "fruit", "key": k, "title": f.name + "　新果子", "tag": f.tag, "desc": f.desc})
+		elif lv > 0 and lv < 5:
+			pool.append({"kind": "fruit", "key": k, "title": "%s　Lv%d → %d" % [f.name, lv, lv + 1], "tag": f.tag, "desc": f.desc})
+	for k in D.armor:
+		var a: Dictionary = D.armor[k]
+		var lv: int = armor.get(k, 0)
+		if lv == 0 and armor.size() < int(D.armor_slots):
+			pool.append({"kind": "armor", "key": k, "title": a.name + "　穿上", "tag": a.tag, "desc": a.desc[0]})
+		elif lv > 0 and lv < 3:
+			pool.append({"kind": "armor", "key": k, "title": "%s　Lv%d → %d" % [a.name, lv, lv + 1], "tag": a.tag, "desc": a.desc[lv]})
 	for c in comps:
 		if c.follows != "" or c.skill == "":
 			continue
@@ -222,16 +287,23 @@ func _level_up() -> void:
 	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, D.leveling.card_delay)
 
 
-func _on_card(i: int) -> void:
-	var card: Dictionary = pending_cards[i]
+func _apply_card(card: Dictionary) -> void:
 	if card.kind == "recruit":
 		_recruit(by_key[card.key])
 	elif card.kind == "up":
 		var c: Dictionary = by_key[card.key]
 		_set_level(c, c.level + 1)
 		_ring_pop(c.pos + Vector2(0, -6), C_GOLD, 30.0)
+	elif card.kind == "fruit":
+		fruits[card.key] = fruits.get(card.key, 0) + 1
+	elif card.kind == "armor":
+		armor[card.key] = armor.get(card.key, 0) + 1
 	else:
 		paul.hp = minf(D.paul.hp, paul.hp + D.leveling.heal_card)
+
+
+func _on_card(i: int) -> void:
+	_apply_card(pending_cards[i])
 	choosing = false
 	if xp >= xp_need:
 		_level_up()
@@ -334,9 +406,41 @@ func _spawn_one(type: String, at: Vector2) -> void:
 	var d: Dictionary = D.enemies[type]
 	var hp: float = ceilf(d.hp * (1.0 + D.waves.hp_per_minute * t / 60.0))
 	var e := {"type": type, "d": d, "pos": at, "hp": hp, "ph": randf() * TAU, "flash": 0.0, "stun": 0.0,
-		"cd": 0.0, "bcd": 0.0, "shoot": (d.shoot.every * randf()) if d.has("shoot") else 0.0,
+		"cd": 0.0, "bcd": 0.0, "shoot": (d.shoot.every * randf()) if d.has("shoot") else 0.0, "r": 6.0,
+		"sprite": type, "tint": Color.WHITE, "roar": 2.0,
 		"knock": Vector2.ZERO, "dead": false, "node": _sprite(type + "_0", Vector2(-10, -13))}
 	enemies.append(e)
+
+
+## 菁英與考驗型敵人：用現有敵人的圖，放大或換色
+func _spawn_special(key: String, def: Dictionary, at: Vector2) -> void:
+	var d := {"name": def.name, "hp": def.hp, "speed": def.speed, "damage": def.damage, "scatter": def.get("scatter", 0),
+		"dies_on_touch": false}
+	for k in ["roar_every", "roar_radius", "roar_force", "chest", "immune"]:
+		if def.has(k):
+			d[k] = def[k]
+	var scale: float = def.get("scale", 1.0)
+	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * (1.0 + D.waves.hp_per_minute * t / 60.0), "ph": randf() * TAU,
+		"flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "shoot": 0.0, "r": 6.0 * scale, "sprite": def.sprite,
+		"tint": Color(def.tint[0], def.tint[1], def.tint[2]), "roar": 2.0, "elite": scale > 1.0,
+		"knock": Vector2.ZERO, "dead": false, "node": _sprite(def.sprite + "_0", Vector2(-10, -13))}
+	e.node.scale = Vector2(scale, scale)
+	enemies.append(e)
+
+
+func _trial_for_build() -> String:
+	var best = null
+	for c in comps:
+		if c.level > 0 and c.skill != "" and (best == null or c.level > best.level):
+			best = c
+	if best == null:
+		return ""
+	for k in D.trials:
+		if k.begins_with("_"):
+			continue
+		if D.trials[k].counters == best.key:
+			return k
+	return ""
 
 
 func _hurt(e: Dictionary, dmg: float, from := Vector2.INF) -> void:
@@ -344,6 +448,11 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF) -> void:
 		return
 	if fever > 0.0:
 		dmg *= 1.5
+	dmg *= _dmg_mult()
+	if e.type == "lies":
+		dmg *= 1.0 + 0.5 * mini(armor.get("belt", 0), 2)
+	if e.get("boss", false) and boss != null and boss.state == "break":
+		dmg *= D.boss.break_mult
 	e.hp -= dmg
 	e.flash = 0.08
 	if from != Vector2.INF:
@@ -359,6 +468,10 @@ func _kill(e: Dictionary, by_player: bool) -> void:
 	if by_player:
 		kills += 1
 		gems.append({"pos": e.pos, "got": false})
+		if e.d.get("chest", false):
+			chests.append({"pos": e.pos})
+		if e.get("boss", false):
+			_win()
 		_burst(e.pos, 9, C_GOLD if fever > 0.0 else C_VL, C_CREAM)
 		_ring_pop(e.pos, C_CREAM, 9.0)
 		if fever > 0.0:
@@ -449,7 +562,7 @@ func _end_fever() -> void:
 # ---------- 主迴圈 ----------
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.05)
-	if not over and not choosing:
+	if not over and not choosing and not chest_open:
 		t += dt
 		_step(dt)
 	_render(dt)
@@ -460,9 +573,10 @@ func _process(delta: float) -> void:
 func _step(dt: float) -> void:
 	var p := paul
 	var mv := _move_vector()
-	p.pos += mv * D.paul.speed * dt
+	p.pos += mv * _speed() * dt
 	p.moving = mv.length() > 0.05
 	p.inv = maxf(0.0, p.inv - dt)
+	shield_cd = maxf(0.0, shield_cd - dt)
 
 	var luke = by_key.get("luke")
 	var revive_mult: float = luke.st.revive_speed if luke != null and _active(luke) else 1.0
@@ -475,12 +589,12 @@ func _step(dt: float) -> void:
 		if c.level == 0:
 			continue
 		party += 1
-		var k := minf(1.0, dt * 5.0)
+		var k := minf(1.0, dt * 5.0 * (1.0 + armor.get("shoes", 0) * 0.5))
 		var target: Vector2 = p.pos + c.home + Vector2(sin(t * 0.7 + c.i * 1.7) * 2.0, cos(t * 0.9 + c.i * 1.3) * 1.5)
 		if c.down <= 0.0:
 			c.base += (target - c.base) * k
 		var spring := 6.0
-		if barn_on and barn.st.pull and c.pos.distance_to(barn.pos) < barn.st.radius * 1.4:
+		if barn_on and barn.st.pull and c.pos.distance_to(barn.pos) < _aura_r(barn) * 1.4:
 			spring = 30.0
 		c.vel += (-spring * c.off - 4.0 * c.vel) * dt
 		c.off += c.vel * dt
@@ -493,7 +607,7 @@ func _step(dt: float) -> void:
 		if c.down > 0.0:
 			c.down -= dt * revive_mult
 			if c.down <= 0.0:
-				c.hp = rules.hp * rules.revive_hp
+				c.hp = _comp_max_hp() * rules.revive_hp
 		if _active(c):
 			together += 1
 
@@ -504,11 +618,40 @@ func _step(dt: float) -> void:
 		if fever <= 0.0:
 			_end_fever()
 	elif party > 0:
-		meter = minf(1.0, meter + dt / D.fever.fill_seconds * (float(together) / party))
+		meter = minf(1.0, meter + dt / D.fever.fill_seconds * (float(together) / party) * _accord())
 
 	_companion_skills(dt)
 	_update_projectiles(dt)
 	_update_enemies(dt)
+
+	var ew: Dictionary = D.elite_wave
+	if t >= ew.from and t < ew.to and boss == null:
+		elite_timer -= dt
+		if elite_timer <= 0.0:
+			_spawn_special("terror", D.elites.terror, _edge_point(16.0))
+			ui.show_banner("菁英出現：恐嚇", 2.0)
+			elite_timer = ew.elite_every
+		trial_timer -= dt
+		if trial_timer <= 0.0:
+			var tr := _trial_for_build()
+			if tr != "":
+				var center := _edge_point(16.0)
+				for i in int(ew.trial_group):
+					_spawn_special(tr, D.trials[tr], center + Vector2(randf_range(-12, 12), randf_range(-12, 12)))
+			trial_timer = ew.trial_every
+	if t >= D.boss.at and not boss_spawned:
+		_spawn_boss()
+
+	for ch in chests:
+		if p.pos.distance_to(ch.pos) < 10.0 and not chest_open:
+			ch.got = true
+			_open_chest()
+	chests = chests.filter(func(ch): return not ch.get("got", false))
+
+	if not evolved.is_empty():
+		evo_timer -= dt
+		if evo_timer <= 0.0:
+			_quake()
 
 	var wave := _wave_now()
 	spawn_timer -= dt
@@ -544,7 +687,7 @@ func _step(dt: float) -> void:
 		_update_chunks()
 		chunk_timer = 0.4
 
-	if xp >= xp_need and not over:
+	if xp >= xp_need and not over and not chest_open:
 		_level_up()
 
 
@@ -557,7 +700,7 @@ func _companion_skills(dt: float) -> void:
 			continue
 		var s: Dictionary = c.st
 		var mult := speed_mult
-		if barn_on and c != barn and c.pos.distance_to(barn.pos) < barn.st.radius:
+		if barn_on and c != barn and c.pos.distance_to(barn.pos) < _aura_r(barn):
 			mult *= barn.st.attack_speed
 		c.cd -= dt * mult
 		if c.cd > 0.0:
@@ -574,7 +717,7 @@ func _companion_skills(dt: float) -> void:
 			"ring":
 				for i in int(s.rings):
 					rings.append({"owner": c, "r": 4.0 - i * 16.0, "dir": 1.0, "returns": int(s.returns), "hit": {},
-						"max": float(s.max_radius), "dmg": float(s.damage), "speed": float(s.speed), "stun": float(s.stun), "thick": int(s.thick)})
+						"max": float(s.max_radius) * _area(), "dmg": float(s.damage), "speed": float(s.speed), "stun": float(s.stun), "thick": int(s.thick)})
 				c.cd = s.cooldown
 			"heal":
 				paul.hp = minf(D.paul.hp, paul.hp + s.amount)
@@ -584,9 +727,9 @@ func _companion_skills(dt: float) -> void:
 						continue
 					if o.down > 0.0 and s.instant_revive:
 						o.down = 0.0
-						o.hp = D.companion_rules.hp * D.companion_rules.revive_hp
+						o.hp = _comp_max_hp() * D.companion_rules.revive_hp
 					if o.down <= 0.0:
-						o.hp = minf(D.companion_rules.hp, o.hp + s.amount)
+						o.hp = minf(_comp_max_hp(), o.hp + s.amount)
 						heals.append({"who": o, "t": 0.0})
 				c.cd = s.cooldown
 			"beam":
@@ -604,19 +747,26 @@ func _companion_skills(dt: float) -> void:
 				c.cd = 1.0
 
 
+func _aura_r(barn: Dictionary) -> float:
+	return barn.st.radius * _area()
+
+
 func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary) -> void:
+	var length: float = s.length * _area()
+	var width: float = s.width * _area()
 	for o in enemies:
 		var rel: Vector2 = o.pos - from
 		var along: float = rel.dot(dir)
 		var across: float = absf(rel.cross(dir))
-		if along > 0.0 and along < s.length and across < s.width:
+		if along > 0.0 and along < length and across < width + (8.0 if o.get("boss", false) else 0.0):
 			_hurt(o, s.damage * (s.lies_mult if o.type == "lies" else 1.0), from)
-	beams.append({"pos": from, "dir": dir, "life": 0.3, "len": float(s.length), "width": float(s.width)})
+	beams.append({"pos": from, "dir": dir, "life": 0.3, "len": length, "width": width})
 	if s.burst:
-		var end: Vector2 = from + dir * s.length
-		blasts.append({"pos": end, "t": 0.0, "r": 20.0})
+		var end: Vector2 = from + dir * length
+		var br := 20.0 * _area()
+		blasts.append({"pos": end, "t": 0.0, "r": br})
 		for o in enemies:
-			if o.pos.distance_to(end) < 20.0:
+			if o.pos.distance_to(end) < br:
 				_hurt(o, s.damage, end)
 
 
@@ -668,8 +818,11 @@ func _update_projectiles(dt: float) -> void:
 			continue
 		var center: Vector2 = c.pos + Vector2(0, -6)
 		for e in enemies:
-			if not e.dead and not r.hit.has(e.node) and absf(center.distance_to(e.pos) - r.r) < 3.0 + r.thick * 2.0:
+			if not e.dead and not r.hit.has(e.node) and absf(center.distance_to(e.pos) - r.r) < 3.0 + r.thick * 2.0 + (10.0 if e.get("boss", false) else 0.0):
 				r.hit[e.node] = true
+				if e.d.get("immune", "") == "ring":
+					_ring_pop(e.pos, Color("8a8a96"), 8.0)
+					continue
 				if r.stun > 0.0:
 					e.stun = r.stun
 				_hurt(e, r.dmg, center)
@@ -685,6 +838,13 @@ func _update_projectiles(dt: float) -> void:
 		h.t += dt
 	heals = heals.filter(func(h): return h.t < 0.9)
 
+	for h in hits:
+		h.t += dt
+	hits = hits.filter(func(h): return h.t < 0.3)
+	for q in quakes:
+		q.r += 420.0 * dt
+	quakes = quakes.filter(func(q): return q.r < 360.0)
+
 	for fb in fever_bursts:
 		fb.r += 260.0 * dt
 		for e in enemies:
@@ -697,7 +857,11 @@ func _update_projectiles(dt: float) -> void:
 		s.pos += s.vel * dt
 		s.life -= dt
 		if s.pos.distance_to(paul.pos + Vector2(0, -6)) < 5.0 and paul.inv <= 0.0:
-			_damage_paul(D.enemies.lies.shoot.damage)
+			var belt: int = armor.get("belt", 0)
+			if belt < 3:
+				_damage_paul(D.enemies.lies.shoot.damage * (1.0 - 0.3 * belt))
+			else:
+				_ring_pop(s.pos, C_CREAM, 8.0)
 			s.life = 0.0
 	shots = shots.filter(func(s): return s.life > 0.0)
 
@@ -712,7 +876,21 @@ func _update_enemies(dt: float) -> void:
 	for e in enemies:
 		if e.dead:
 			continue
+		if e.get("boss", false):
+			_update_boss(e, dt)
+			continue
 		var d: Dictionary = e.d
+		if d.has("roar_every"):
+			e.roar -= dt
+			if e.roar <= 0.0:
+				e.roar = d.roar_every
+				_ring_pop(e.pos, C_VL, d.roar_radius)
+				shake = 0.15
+				for c in comps:
+					if c.level > 0 and c.down <= 0.0 and fever <= 0.0 and c.pos.distance_to(e.pos) < d.roar_radius:
+						c.vel += (c.pos - e.pos).normalized() * d.roar_force * _scatter_mult()
+						c.alert = 1.0
+						scatter_by.fear += 1
 		e.flash = maxf(0.0, e.flash - dt)
 		e.cd = maxf(0.0, e.cd - dt)
 		e.bcd = maxf(0.0, e.bcd - dt)
@@ -750,21 +928,21 @@ func _update_enemies(dt: float) -> void:
 
 		for b in bars:
 			if b.up > 0.6 and e.bcd <= 0.0 and e.pos.distance_to(b.pos + Vector2(0, -3)) < 8.0:
-				e.knock += (e.pos - p.pos).normalized() * pri.st.knockback * 6.0
+				e.knock += (e.pos - p.pos).normalized() * pri.st.knockback * _guard() * 6.0
 				e.bcd = 0.5
-				_hurt(e, pri.st.damage)
+				_hurt(e, pri.st.damage * _guard())
 		if e.dead:
 			continue
 
 		# 碰到同伴：打散、受傷、睡著
 		if e.cd <= 0.0:
 			for c in comps:
-				if c.level == 0 or c.down > 0.0 or c.pos.distance_to(e.pos + Vector2(0, 5)) > 6.0:
+				if c.level == 0 or c.down > 0.0 or c.pos.distance_to(e.pos + Vector2(0, 5)) > e.r:
 					continue
-				var shielded: bool = fever > 0.0 or (e.type == "fear" and barn_on and barn.st.fear_immune and c.pos.distance_to(barn.pos) < barn.st.radius)
+				var shielded: bool = fever > 0.0 or (e.type == "fear" and barn_on and barn.st.fear_immune and c.pos.distance_to(barn.pos) < _aura_r(barn))
 				var out: Vector2 = (c.pos - p.pos).normalized()
 				if d.scatter > 0 and not shielded:
-					c.vel += out * d.scatter
+					c.vel += out * d.scatter * _scatter_mult()
 					scatter_by[e.type] += 1
 					if d.scatter > 50:
 						c.alert = 0.9
@@ -783,7 +961,7 @@ func _update_enemies(dt: float) -> void:
 			continue
 
 		# 碰到保羅
-		if p.pos.distance_to(e.pos + Vector2(0, 5)) < 6.0 and p.inv <= 0.0:
+		if p.pos.distance_to(e.pos + Vector2(0, 5)) < e.r and p.inv <= 0.0:
 			_damage_paul(d.damage)
 			e.knock -= dir * 80.0
 			if d.dies_on_touch:
@@ -802,7 +980,7 @@ func _separate() -> void:
 	var grid := {}
 	for i in enemies.size():
 		var e: Dictionary = enemies[i]
-		if e.dead:
+		if e.dead or e.get("boss", false):
 			continue
 		var k: Vector2i = Vector2i(floori(e.pos.x / SEP_CELL), floori(e.pos.y / SEP_CELL))
 		if not grid.has(k):
@@ -830,7 +1008,13 @@ func _separate() -> void:
 
 
 func _damage_paul(n: float) -> void:
-	if fever > 0.0:
+	if fever > 0.0 or won:
+		return
+	var sh: int = armor.get("shield", 0)
+	if sh > 0 and shield_cd <= 0.0:
+		shield_cd = [12.0, 9.0, 6.0][sh - 1]
+		paul.inv = 0.4
+		_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 16.0)
 		return
 	paul.hp -= n
 	paul.inv = 0.6
@@ -926,14 +1110,15 @@ func _render(dt: float) -> void:
 			c.node.modulate = Color.WHITE
 	var ef := int(t * 4.0) % 2
 	for e in enemies:
-		e.node.texture = _tex("%s_%d" % [e.type, (ef + int(e.ph)) % 2])
+		if not e.get("boss", false):
+			e.node.texture = _tex("%s_%d" % [e.sprite, (ef + int(e.ph)) % 2])
 		e.node.position = e.pos.round()
 		if e.flash > 0.0:
 			e.node.modulate = Color(4, 4, 3.5)
-		elif e.stun > 0.0:
-			e.node.modulate = Color(1.4, 1.4, 0.8)
+		elif e.stun > 0.0 or (e.get("boss", false) and e.state == "break"):
+			e.node.modulate = Color(1.5, 1.5, 0.8)
 		else:
-			e.node.modulate = Color.WHITE
+			e.node.modulate = e.tint
 
 	ground_fx.queue_redraw()
 	air.queue_redraw()
@@ -947,8 +1132,9 @@ func _render(dt: float) -> void:
 			ui.place_name(c.name, ct * ((c.pos + by_key[c.with].pos) / 2.0), c.level > 0 and not over and not choosing)
 		else:
 			ui.place_name(c.name, ct * c.pos, c.level > 0 and not over and not choosing)
+	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
-		"time": int(t), "kills": kills, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing})
+		"time": int(t), "kills": kills, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open})
 
 
 func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, every: float, ph: float, thick := 1) -> void:
@@ -969,8 +1155,18 @@ func _draw_ground_fx() -> void:
 		var pulse := fmod(t, 1.6) / 1.6
 		var bc: Vector2 = barn.pos.round() + Vector2(0, -2)
 		var col := C_GOLD if fever > 0.0 else Color("bfe3ff")
-		_dot_ring(n, bc, barn.st.radius, 0.62, Color(col, 0.9), 3.0, t * 0.8)
-		_dot_ring(n, bc, barn.st.radius * pulse, 0.62, Color(col.lightened(0.4), 0.8), 4.0, -t)
+		_dot_ring(n, bc, _aura_r(barn), 0.62, Color(col, 0.9), 3.0, t * 0.8)
+		_dot_ring(n, bc, _aura_r(barn) * pulse, 0.62, Color(col.lightened(0.4), 0.8), 4.0, -t)
+	for ch in chests:
+		var cx: float = roundf(ch.pos.x)
+		var cy: float = roundf(ch.pos.y) - roundf(absf(sin(t * 3.0)) * 2.0)
+		n.draw_rect(Rect2(cx - 6, cy - 6, 13, 10), Color("2a1a14"))
+		n.draw_rect(Rect2(cx - 5, cy - 5, 11, 8), Color("b8862e"))
+		n.draw_rect(Rect2(cx - 5, cy - 5, 11, 3), C_GOLD)
+		n.draw_rect(Rect2(cx - 1, cy - 3, 3, 3), Color("2a1a14"))
+		if int(t * 4.0) % 2 == 0:
+			n.draw_rect(Rect2(cx + 6, cy - 9, 1, 1), Color.WHITE)
+			n.draw_rect(Rect2(cx - 8, cy - 2, 1, 1), Color.WHITE)
 	var tw := int(t * 6.0)
 	for g in gems:
 		var x: float = roundf(g.pos.x)
@@ -1017,6 +1213,28 @@ func _draw_air() -> void:
 	for b in blasts:
 		var k: float = b.t / 0.3
 		n.draw_circle(b.pos, b.r * (0.4 + k * 0.6), Color(C_GOLD, (1.0 - k) * 0.6))
+	var blink := int(t * 8.0) % 2 == 0
+	for sh in tele:
+		if sh.kind == "line":
+			n.draw_line(sh.a, sh.b, Color(C_RED, 0.35), sh.w)
+			var side: Vector2 = (sh.b - sh.a).normalized().orthogonal() * (sh.w / 2.0)
+			var ea := 1.0 if blink else 0.5
+			n.draw_line(sh.a + side, sh.b + side, Color(Color("ff3a2a"), ea), 1.0)
+			n.draw_line(sh.a - side, sh.b - side, Color(Color("ff3a2a"), ea), 1.0)
+		else:
+			n.draw_circle(sh.c, sh.r, Color(C_RED, 0.35))
+			n.draw_arc(sh.c, sh.r, 0.0, TAU, 40, Color(Color("ff3a2a"), 1.0 if blink else 0.5), 1.0)
+	for h in hits:
+		var a: float = 1.0 - h.t / 0.3
+		if h.sh.kind == "line":
+			n.draw_line(h.sh.a, h.sh.b, Color(Color("d8d8e8"), a), h.sh.w)
+		else:
+			n.draw_circle(h.sh.c, h.sh.r, Color(Color("d8d8e8"), a * 0.8))
+	for q in quakes:
+		_dot_ring(n, q.pos.round(), q.r, 0.7, Color(C_GOLD, 1.0 - q.r / 360.0), 3.0, 0.0, 2)
+		_dot_ring(n, q.pos.round(), q.r * 0.7, 0.7, Color(C_CREAM, 1.0 - q.r / 360.0), 4.0, 0.5, 1)
+	if armor.get("shield", 0) > 0 and shield_cd <= 0.0:
+		_dot_ring(n, paul.pos.round() + Vector2(0, -8), 9.0, 1.1, Color(C_GOLD, 0.55), 3.0, t)
 	for fb in fever_bursts:
 		_dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r, 0.8, C_GOLD, 2.0, 0.0, 2)
 		_dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r - 4.0, 0.8, C_FLAME, 3.0, 0.3, 2)
@@ -1047,7 +1265,7 @@ func _draw_air() -> void:
 	for o in pops:
 		var k: float = o.t / 0.25
 		_dot_ring(n, o.pos.round(), o.size * (0.3 + k), 1.0, Color(o.col, 1.0 - k), 3.0, 0.0)
-	var max_hp: float = D.companion_rules.hp
+	var max_hp: float = _comp_max_hp()
 	for c in [paul] + comps:
 		if c != paul and c.level == 0:
 			continue
@@ -1079,6 +1297,236 @@ func _draw_air() -> void:
 			n.draw_rect(Rect2(x + 4, zy + 2, 3, 1), Color("9fb4e0"))
 
 
+# ---------- 寶箱與進化 ----------
+func _open_chest() -> void:
+	chest_open = true
+	joy.on = false
+	ui.joy.on = false
+	var results := []
+	for evo in D.evolutions:
+		var c: Dictionary = by_key[evo.companion]
+		if c.level >= 5 and fruits.has(evo.fruit) and not evolved.has(c.key):
+			evolved[c.key] = evo
+			evo_timer = 2.0
+			results.append({"title": "進化！" + evo.name, "desc": evo.desc, "big": true})
+			break
+	if results.is_empty():
+		var n := randi_range(int(D.chest.rolls_min), int(D.chest.rolls_max))
+		for i in n:
+			var pool := _make_cards().filter(func(card): return card.kind != "heal")
+			if pool.is_empty():
+				pool = [{"kind": "heal", "key": "", "title": "五餅二魚", "desc": "保羅回復 %d 血" % int(D.leveling.heal_card)}]
+			var card: Dictionary = pool[randi() % pool.size()]
+			_apply_card(card)
+			results.append({"title": card.title, "desc": card.desc, "big": false})
+	ui.do_flash(0.4)
+	ui.show_chest(results)
+
+
+func _on_chest_closed() -> void:
+	chest_open = false
+	if xp >= xp_need:
+		_level_up()
+
+
+func _quake() -> void:
+	var evo: Dictionary = evolved.values()[0]
+	evo_timer = evo.every
+	var view := _view_rect().grow(20.0)
+	for e in enemies:
+		if not e.dead and view.has_point(e.pos):
+			e.stun = evo.stun
+			_hurt(e, evo.damage)
+	var src: Dictionary = by_key[evolved.keys()[0]]
+	quakes.append({"pos": src.pos, "r": 0.0})
+	shake = 0.45
+	ui.do_flash(0.35)
+	ui.show_banner(evo.name, 1.2)
+
+
+# ---------- Boss ----------
+func _boss_tex() -> Texture2D:
+	var img := Image.create(40, 40, false, Image.FORMAT_RGBA8)
+	var c := Vector2(20, 20)
+	for y in 40:
+		for x in 40:
+			var p := Vector2(x + 0.5, y + 0.5) - c
+			var r := p.length()
+			var col := Color(0, 0, 0, 0)
+			if r < 10.0:
+				col = Color("3a2430") if r > 8.0 else Color("1a0c16")
+			else:
+				# 十二個鎖鏈環繞著核心
+				for i in 12:
+					var a := i * TAU / 12.0
+					var lc := c + Vector2(cos(a), sin(a)) * 15.0 - c
+					var tdir := Vector2(-sin(a), cos(a))
+					var rel := p - lc
+					var u := rel.dot(tdir) / 3.6
+					var v := rel.dot(Vector2(cos(a), sin(a))) / 2.2
+					var dd := u * u + v * v
+					if dd < 1.0 and dd > 0.35:
+						col = Color("b8b8c4") if (i % 2 == 0) else Color("7a7a88")
+			img.set_pixel(x, y, col)
+	for q in [Vector2(16, 18), Vector2(23, 18)]:
+		img.set_pixel(int(q.x), int(q.y), Color("ff5a3a"))
+		img.set_pixel(int(q.x) + 1, int(q.y), Color("ff5a3a"))
+	return ImageTexture.create_from_image(img)
+
+
+func _spawn_boss() -> void:
+	boss_spawned = true
+	var B: Dictionary = D.boss
+	var s := Sprite2D.new()
+	s.texture = _boss_tex()
+	s.centered = false
+	s.offset = Vector2(-20, -30)
+	world.add_child(s)
+	boss = {"type": "boss", "boss": true, "d": {"name": B.name, "damage": B.touch_damage}, "pos": _edge_point(-30.0),
+		"hp": float(B.hp), "max_hp": float(B.hp), "ph": 0.0, "flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "r": 14.0,
+		"sprite": "boss", "tint": Color.WHITE, "knock": Vector2.ZERO, "dead": false, "node": s,
+		"state": "move", "timer": 2.5, "pattern_i": 0, "pattern": ""}
+	enemies.append(boss)
+	ui.show_banner("Boss：" + B.name, 2.5)
+
+
+func _update_boss(b: Dictionary, dt: float) -> void:
+	var B: Dictionary = D.boss
+	var phase2: bool = b.hp < b.max_hp * B.phase2_at
+	b.flash = maxf(0.0, b.flash - dt)
+	b.knock = Vector2.ZERO
+	match b.state:
+		"move":
+			b.pos += (paul.pos - b.pos).normalized() * B.speed * (1.6 if phase2 else 1.0) * dt
+			b.timer -= dt
+			if b.timer <= 0.0:
+				var order := ["sweep", "slam", "grid", "hunt"]
+				b.pattern = order[b.pattern_i % order.size()]
+				b.pattern_i += 1
+				tele = _make_tele(b)
+				b.state = "warn"
+				b.timer = B.warn * (0.7 if phase2 else 1.0)
+		"warn":
+			b.timer -= dt
+			if b.timer <= 0.0:
+				_resolve_tele()
+				tele = []
+				if b.pattern == "slam" or b.pattern == "grid":
+					b.state = "break"
+					b.timer = B.break_seconds
+					ui.show_banner("破口！", 1.0)
+				else:
+					b.state = "move"
+					b.timer = 1.0 if phase2 else 1.6
+		"break":
+			b.timer -= dt
+			if b.timer <= 0.0:
+				b.state = "move"
+				b.timer = 1.0 if phase2 else 1.4
+	if paul.pos.distance_to(b.pos) < b.r and paul.inv <= 0.0:
+		_damage_paul(B.touch_damage)
+
+
+func _make_tele(b: Dictionary) -> Array:
+	var B: Dictionary = D.boss
+	var out := []
+	match b.pattern:
+		"sweep":
+			var dir: Vector2 = (paul.pos - b.pos).normalized()
+			out.append({"kind": "line", "a": b.pos - dir * 20.0, "b": b.pos + dir * B.sweep.length, "w": float(B.sweep.width), "dmg": float(B.sweep.damage)})
+		"grid":
+			var v := _view_rect().grow(40.0)
+			var n := int(B.grid.lines)
+			for i in n:
+				var off := (i - (n - 1) / 2.0) * 70.0
+				var x: float = paul.pos.x + off + randf_range(-10, 10)
+				var y: float = paul.pos.y + off + randf_range(-10, 10)
+				out.append({"kind": "line", "a": Vector2(x, v.position.y), "b": Vector2(x, v.end.y), "w": float(B.grid.width), "dmg": float(B.grid.damage)})
+				out.append({"kind": "line", "a": Vector2(v.position.x, y), "b": Vector2(v.end.x, y), "w": float(B.grid.width), "dmg": float(B.grid.damage)})
+		"slam":
+			# 懲罰聚集：砸隊伍中心
+			var sum: Vector2 = paul.pos
+			var n := 1
+			for c in comps:
+				if _active(c):
+					sum += c.pos
+					n += 1
+			out.append({"kind": "circle", "c": sum / n, "r": float(B.slam.radius), "dmg": float(B.slam.damage)})
+		"hunt":
+			# 懲罰分散：鎖定離保羅最遠的兩個同伴
+			var list := []
+			for c in comps:
+				if c.level > 0 and c.down <= 0.0:
+					list.append(c)
+			list.sort_custom(func(a, c2): return a.pos.distance_to(paul.pos) > c2.pos.distance_to(paul.pos))
+			for i in mini(2, list.size()):
+				out.append({"kind": "circle", "c": list[i].pos, "r": float(B.hunt.radius), "dmg": float(B.hunt.damage)})
+			if out.is_empty():
+				out.append({"kind": "circle", "c": paul.pos, "r": float(B.hunt.radius), "dmg": float(B.hunt.damage)})
+	return out
+
+
+func _in_shape(sh: Dictionary, pt: Vector2) -> bool:
+	if sh.kind == "line":
+		var q := Geometry2D.get_closest_point_to_segment(pt, sh.a, sh.b)
+		return pt.distance_to(q) < sh.w / 2.0 + 3.0
+	return pt.distance_to(sh.c) < sh.r
+
+
+func _resolve_tele() -> void:
+	shake = 0.3
+	for sh in tele:
+		hits.append({"sh": sh, "t": 0.0})
+		if _in_shape(sh, paul.pos + Vector2(0, -6)) and paul.inv <= 0.0:
+			_damage_paul(sh.dmg)
+		for c in comps:
+			if c.level > 0 and c.down <= 0.0 and _in_shape(sh, c.pos + Vector2(0, -6)):
+				if fever <= 0.0:
+					c.hurt_cd = 0.0
+					_damage_companion(c, sh.dmg)
+				var center: Vector2 = sh.c if sh.kind == "circle" else Geometry2D.get_closest_point_to_segment(c.pos, sh.a, sh.b)
+				c.vel += (c.pos - center).normalized() * 80.0
+
+
+## 每局結束寫一筆紀錄到本機，之後拿來看哪個流派太強或太弱
+func _record_run() -> void:
+	var path := "user://runs.json"
+	var runs: Array = []
+	if FileAccess.file_exists(path):
+		var old = JSON.parse_string(FileAccess.get_file_as_string(path))
+		if old is Array:
+			runs = old
+	var party := {}
+	for c in comps:
+		if c.level > 0 and c.follows == "":
+			party[c.key] = c.level
+	runs.append({"date": Time.get_datetime_string_from_system(), "won": won, "seconds": int(t), "level": level,
+		"kills": kills, "party": party, "fruits": fruits, "armor": armor, "evolved": evolved.keys(),
+		"scattered_by": scatter_by, "boss_hp_left": (boss.hp / boss.max_hp) if boss != null and not boss.dead else 0.0})
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(JSON.stringify(runs, "  "))
+
+
+func _win() -> void:
+	if won:
+		return
+	won = true
+	over = true
+	_record_run()
+	tele = []
+	joy.on = false
+	ui.joy.on = false
+	shake = 0.5
+	ui.do_flash(0.8)
+	var s := int(t)
+	ui.show_game_over([
+		["腓立比　通關", 26, C_GOLD],
+		[D.boss.win_text, 13, C_CREAM],
+		[D.boss.win_ref, 11, Color("c9a46b")],
+		["用時 %02d:%02d　Lv.%d　驅散 %d" % [s / 60, s % 60, level, kills], 13, Color("f4ead2")],
+	], "再走一次")
+
+
 # ---------- 失敗 ----------
 func _game_over() -> void:
 	over = true
@@ -1092,6 +1540,18 @@ func _game_over() -> void:
 			best = scatter_by[k]
 			who = D.enemies[k].name
 	var s := int(t)
+	tele = []
+	_record_run()
+	# 失敗彩蛋：第一次失敗必定出現，之後偶爾出現；不給任何資源
+	var cfg := ConfigFile.new()
+	cfg.load("user://save.cfg")
+	var first: bool = not cfg.get_value("egg", "seen", false)
+	if (first and D.easter_egg.first_time) or randf() < D.easter_egg.chance:
+		if first:
+			cfg.set_value("egg", "seen", true)
+			cfg.set_value("egg", "baskets", maxi(1, cfg.get_value("egg", "baskets", 0)))
+			cfg.save("user://save.cfg")
+		await ui.play_egg(int(cfg.get_value("egg", "baskets", 1)), ui.get_viewport().get_canvas_transform() * paul.pos)
 	ui.show_game_over([
 		["旅程中斷", 26, C_GOLD],
 		["四面受敵，卻不被困住；心裡作難，卻不至失望；\n遭逼迫，卻不被丟棄；打倒了，也不至死亡。", 13, C_CREAM],
@@ -1103,6 +1563,23 @@ func _game_over() -> void:
 # ---------- 自動測試 ----------
 func _smoke_tick() -> void:
 	smoke_frames += 1
+	if chest_open and smoke_frames % 40 == 0:
+		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_chest.png")):
+			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_chest.png"))
+		ui._close_chest()
+	if over and smoke_shot != "":
+		smoke_over += 1
+		if smoke_over == 170:
+			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_egg.png"))
+		if smoke_over == 900:
+			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_over.png"))
+			print("SMOKE DONE (over) t=%.1f won=%s" % [t, won])
+			get_tree().quit()
+		return
+	if smoke_shot != "" and tele.size() > 0 and smoke_frames % 10 == 5 and not FileAccess.file_exists(smoke_shot.replace(".png", "_tele.png")):
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_tele.png"))
+	if smoke_shot != "" and not quakes.is_empty() and not FileAccess.file_exists(smoke_shot.replace(".png", "_quake.png")):
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_quake.png"))
 	if choosing and smoke_frames % 20 == 0:
 		ui.card_ready_at = 0.0
 		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_cards.png")):
@@ -1115,7 +1592,8 @@ func _smoke_tick() -> void:
 		for c in comps:
 			if c.level > 0:
 				party.append("%s%d" % [c.key, c.level])
-		print("t=%.1f hp=%.0f Lv=%d enemies=%d kills=%d fever=%.1f party=%s" % [t, paul.hp, level, enemies.size(), kills, fever, party])
+		print("t=%.1f hp=%.0f Lv=%d enemies=%d kills=%d fever=%.1f boss=%s party=%s fruits=%s armor=%s evo=%s" % [t, paul.hp, level, enemies.size(), kills, fever,
+			("%.0f/%s" % [boss.hp, boss.state]) if boss != null else "-", party, fruits, armor, evolved.keys()])
 	if smoke_shot != "" and fever > 0.0 and fever < D.fever.duration - 1.5 and not FileAccess.file_exists(smoke_shot.replace(".png", "_fever.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_fever.png"))
 	if smoke_shot != "" and smoke_frames == 1700:
