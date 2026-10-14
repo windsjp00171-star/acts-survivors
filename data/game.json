@@ -104,6 +104,17 @@
       "hurt": { "name": "一同受苦", "short": "受傷", "cooldown": 1.0, "desc": "保羅或任何同伴受傷時，%s 立刻出手（若一個肢體受苦，所有的肢體就一同受苦）" }
     }
   },
+  "_tasks說明": "旅程任務：每局隨機抽 count 個。stat 可用 kills、elites、fevers、links、level；by 是要在第幾秒前完成（0 = 不限時）。完成給 witness 見證，並在保羅身邊掉一個寶箱。",
+  "tasks": {
+    "count": 2,
+    "list": [
+      { "id": "kills",  "name": "驅散 300",       "stat": "kills",  "goal": 300, "by": 240, "witness": 25 },
+      { "id": "elites", "name": "打倒菁英 3 隻",   "stat": "elites", "goal": 3,   "by": 0,   "witness": 30 },
+      { "id": "fevers", "name": "開 2 次五旬節",   "stat": "fevers", "goal": 2,   "by": 300, "witness": 25 },
+      { "id": "links",  "name": "肢體連結觸發 40 次", "stat": "links", "goal": 40, "by": 0,   "witness": 30 },
+      { "id": "level",  "name": "升到 Lv12",       "stat": "level",  "goal": 12,  "by": 360, "witness": 25 }
+    ]
+  },
   "_synergy說明": "同工：同一個流派（tag）的同伴有 2 位、3 位以上時，他們的攻擊速度加成。",
   "synergy": { "bonus": { "2": 0.25, "3": 0.5 } },
   "_evolutions說明": "同伴滿級（Lv5）且拿到指定果子後，下一個寶箱會進化。有 every 的是定時全畫面地震；有 stats 的是直接覆蓋招式數值。",

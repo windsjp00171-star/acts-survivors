@@ -160,6 +160,7 @@ func vp() -> Vector2:
 
 # ---------- 每幀更新 ----------
 var build_label: Label
+var task_label: Label
 
 
 func update_hud(st: Dictionary) -> void:
@@ -198,6 +199,10 @@ func update_hud(st: Dictionary) -> void:
 		build_label = label("", 10, C_CREAM)
 	build_label.text = st.get("build", "")
 	build_label.position = Vector2(12, 52)
+	if task_label == null:
+		task_label = label("", 10, C_INK)
+	task_label.text = st.get("tasks", "")
+	task_label.position = Vector2(size.x - task_label.size.x - 12.0, 30)
 	var now := Time.get_ticks_msec() / 1000.0
 	banner.visible = now < banner_until
 	if banner.visible:

@@ -78,6 +78,7 @@ var link_queue: Array = []
 var link_fx: Array = []
 var link_count := 0       # 本局觸發次數
 var build_text := ""      # HUD 左側：同工與肢體連結
+var run_tasks: Array = [] # 旅程任務：{def, done, failed}
 var shots: Array = []
 var gems: Array = []
 var parts: Array = []
@@ -127,6 +128,10 @@ func _ready() -> void:
 		starter = Save.meta.default_starter
 	_recruit(by_key[starter])
 	rerolls_left = Save.rerolls()
+	var pool: Array = D.tasks.list.duplicate()
+	pool.shuffle()
+	for i in mini(int(D.tasks.count), pool.size()):
+		run_tasks.append({"def": pool[i], "done": false, "failed": false})
 	if smoke_preset == "ot":
 		# 測試用：五位舊約人物滿級
 		for k in ["david", "samson", "moses", "elijah", "joshua"]:
@@ -404,6 +409,44 @@ func _apply_card(card: Dictionary) -> void:
 		ui.show_banner("肢體連結！", 1.2)
 	else:
 		paul.hp = minf(D.paul.hp, paul.hp + D.leveling.heal_card)
+
+
+func _task_value(stat: String) -> int:
+	match stat:
+		"kills": return kills
+		"elites": return run_elites
+		"fevers": return run_fevers
+		"links": return link_count
+		"level": return level
+	return 0
+
+
+func _update_tasks() -> void:
+	for rt in run_tasks:
+		if rt.done or rt.failed:
+			continue
+		var d: Dictionary = rt.def
+		if _task_value(d.stat) >= int(d.goal):
+			rt.done = true
+			tasks_done += 1
+			task_witness += int(d.witness)
+			chests.append({"pos": paul.pos + Vector2(randf_range(-24, 24), -26)})
+			ui.show_banner("任務完成：%s　見證 +%d" % [d.name, int(d.witness)], 2.0)
+		elif int(d.by) > 0 and t - t_start > float(d.by):
+			rt.failed = true
+
+
+func _task_text() -> String:
+	var lines := []
+	for rt in run_tasks:
+		var d: Dictionary = rt.def
+		var mark := "✓" if rt.done else ("✗" if rt.failed else "・")
+		var limit := ""
+		if int(d.by) > 0 and not rt.done:
+			limit = "（%d:%02d 前）" % [int(d.by) / 60, int(d.by) % 60]
+		var prog := "" if rt.done else "　%d/%d" % [mini(_task_value(d.stat), int(d.goal)), int(d.goal)]
+		lines.append("%s %s%s%s" % [mark, d.name, prog, limit])
+	return "\n".join(lines)
 
 
 func _refresh_build_text() -> void:
@@ -747,6 +790,7 @@ func _step(dt: float) -> void:
 
 	for L in links:
 		L.cd = maxf(0.0, L.cd - dt)
+	_update_tasks()
 	_companion_skills(dt)
 	_update_projectiles(dt)
 	_update_enemies(dt)
@@ -1371,7 +1415,7 @@ func _render(dt: float) -> void:
 			ui.place_name(c.name, ct * c.pos, c.level > 0 and not over and not choosing)
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
-		"time": int(t), "kills": kills, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text})
+		"time": int(t), "kills": kills, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text()})
 
 
 func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, every: float, ph: float, thick := 1) -> void:
