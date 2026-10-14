@@ -202,8 +202,27 @@ def music():
     save_ogg("music_battle", y * np.clip(np.minimum(tt, sec - tt) / 0.03, 0, 1))
 
 
+# ---------- 對話的咕噥聲（像動物森友會那樣） ----------
+def voices():
+    """五個母音般的短音節，基準音高 220Hz；遊戲裡每個角色用不同的 pitch_scale 播放。"""
+    t = t_axis(0.075)
+    vowels = {  # 第一、第二共振峰的大約位置（Hz）
+        "a": (750, 1200), "e": (500, 1800), "i": (300, 2200), "o": (500, 900), "u": (350, 800),
+    }
+    f0 = 220 * (1 + 0.03 * np.sin(2 * np.pi * 9 * t))
+    phase = 2 * np.pi * np.cumsum(f0) / SR
+    for name, (f1, f2) in vowels.items():
+        y = np.zeros_like(t)
+        for k in range(1, 14):  # 諧波，靠近共振峰的放大
+            fk = 220 * k
+            w = np.exp(-((fk - f1) / 180) ** 2) + 0.6 * np.exp(-((fk - f2) / 260) ** 2) + 0.05
+            y += w * np.sin(k * phase) / k ** 0.3
+        save_wav("voice_" + name, y * env(len(t), 0.008, curve=3.5), 0.5)
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     sfx()
+    voices()
     music()
     print("done:", sorted(os.listdir(OUT)))

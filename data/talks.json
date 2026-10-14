@@ -2,6 +2,13 @@
   "_說明": "營地對話：每次從旅程回到營地，會有幾位同伴頭上冒出對話框。點他就會聊一段，聊完默契 +talk_bonus（默契本身有上限）。每段是 [說話的人, 內容]，說話的人寫 paul 或同伴的 key。歡迎補充，引用經文請附出處。",
   "talk_bonus": 5,
   "per_visit": 2,
+  "_voices說明": "咕噥聲：pitch 是音高倍率（1 = 普通，小於 1 比較低沉），speed 是每秒跳幾個字。",
+  "voices": {
+    "paul": { "pitch": 0.9 }, "barn": { "pitch": 0.85 }, "luke": { "pitch": 1.05 }, "silas": { "pitch": 0.95 },
+    "tim": { "pitch": 1.25 }, "apollos": { "pitch": 1.0, "speed": 34 }, "pri": { "pitch": 1.35 }, "aq": { "pitch": 0.9 },
+    "david": { "pitch": 1.2 }, "samson": { "pitch": 0.62 }, "moses": { "pitch": 0.75, "speed": 16 }, "elijah": { "pitch": 0.8 },
+    "joshua": { "pitch": 1.0, "speed": 30 }
+  },
   "talks": {
     "barn": [
       [["barn", "保羅，還記得你剛信主的時候嗎？大家都怕你。"], ["paul", "只有你肯帶我去見使徒。"], ["barn", "勸慰人，本來就是我名字的意思啊。（徒 4:36；9:27）"]],

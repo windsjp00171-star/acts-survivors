@@ -72,3 +72,20 @@ func toggle(kind: String) -> void:
 		music_name = ""
 		music(n if _on("music") else "")
 		music_name = n
+
+
+## 對話咕噥聲：隨機一個母音，用角色的音高播
+func voice(pitch: float) -> void:
+	if not _on("sfx"):
+		return
+	var v: String = ["a", "e", "i", "o", "u"][randi() % 5]
+	var name := "voice_" + v
+	if not streams.has(name):
+		streams[name] = load("res://assets/audio/%s.wav" % name)
+	for p in players:
+		if not p.playing:
+			p.stream = streams[name]
+			p.volume_db = -9.0
+			p.pitch_scale = pitch * randf_range(0.94, 1.08)
+			p.play()
+			return

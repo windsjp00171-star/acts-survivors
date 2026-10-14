@@ -37,6 +37,11 @@ var talk_box: PanelContainer
 var talk_icon: TextureRect
 var talk_name: Label
 var talk_text: Label
+var typing := false
+var type_t := 0.0
+var type_speed := 26.0
+var type_pitch := 1.0
+var type_shown := 0
 
 
 func _ready() -> void:
@@ -255,10 +260,21 @@ func _show_line() -> void:
 	talk_name.text = G.paul.name if who == "paul" else _name_of(who)
 	talk_text.text = line[1]
 	talk_box.visible = true
-	Sfx.play("ui", 0.0)
+	# 打字機效果＋咕噥聲
+	var vo: Dictionary = T.get("voices", {}).get(who, {})
+	type_pitch = float(vo.get("pitch", 1.0))
+	type_speed = float(vo.get("speed", 26.0))
+	type_t = 0.0
+	type_shown = 0
+	typing = true
+	talk_text.visible_characters = 0
 
 
 func _advance_talk() -> void:
+	if typing:
+		typing = false
+		talk_text.visible_characters = -1
+		return
 	talk_i += 1
 	if talk_i < talk.size():
 		_show_line()
@@ -324,6 +340,17 @@ func _process(dt: float) -> void:
 	for p in people:
 		p.node.position = p.pos + Vector2(0, roundf(sin(t * 1.6 + p.ph) * 0.6))
 
+	if typing:
+		type_t += dt * type_speed
+		var n := mini(int(type_t), talk_text.text.length())
+		while type_shown < n:
+			var ch := talk_text.text[type_shown]
+			type_shown += 1
+			if type_shown % 2 == 1 and not ch in "，。、；：！？「」（）… 0123456789:–":
+				Sfx.voice(type_pitch)
+		talk_text.visible_characters = n
+		if n >= talk_text.text.length():
+			typing = false
 	_update_hud()
 	props.queue_redraw()
 	tags.queue_redraw()
@@ -523,6 +550,7 @@ func _auto_shots(shot: String) -> void:
 		await get_tree().create_timer(0.4).timeout
 		get_viewport().get_texture().get_image().save_png(shot.replace(".png", "_talk.png"))
 		while not talk.is_empty():
+			typing = false
 			_advance_talk()
 		await panel.auto_shots(shot)
 	get_tree().quit()
