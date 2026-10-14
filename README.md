@@ -2,7 +2,9 @@
 
 以使徒行傳為背景的 survivors-like roguelite。玩家操控保羅，同伴就是武器：他們群聚在保羅身邊自動攻擊，對抗懼怕、紛爭、謊言、沉睡這些想把隊伍打散的黑暗勢力。
 
-目前是原型「腓立比」這一座城：約 12 分鐘一局，升級三選一招募與強化同伴、收集聖靈果子與全副軍裝、同心合意滿了開五旬節 FEVER；第 6 分鐘起有菁英潮，第 10 分鐘 Boss「捆鎖」出現，打倒就通關。保羅倒下就結束。
+目前是原型「腓立比」這一座城：約 12 分鐘一局，升級三選一招募與強化同伴、收集聖靈果子與全副軍裝、用「肢體連結」把同伴的招式串成連鎖、同心合意滿了開五旬節 FEVER；第 6 分鐘起有菁英潮，第 10 分鐘 Boss「捆鎖」出現，打倒就通關。保羅倒下就結束。
+
+每局結束帶回「見證」，回到安提阿基地解鎖新同伴、果子、軍裝和隊伍位置；完成見證錄的目標會解鎖舊約人物（大衛、參孫、摩西、以利亞、約書亞）。常帶出門的同伴默契會升高，解鎖他的生平。
 
 ## 怎麼玩
 
@@ -21,22 +23,26 @@
 | --- | --- | --- |
 | 移動 | WASD 或方向鍵 | 按住畫面下方拖曳 |
 | 升級選卡 | 1／2／3 | 點卡片 |
+| 重抽升級卡（要先解鎖） | R | 按「重抽」 |
 | 五旬節 FEVER | 空白鍵（同心合意滿了） | 按「五旬節」按鈕 |
-| 失敗後再出發 | Enter 或空白鍵 | 按「再出發」 |
+| 結束後再出發 | Enter 或空白鍵 | 按「再出發」或「回安提阿」 |
 
 ## 一起來改這個遊戲
 
-同伴、技能、敵人、怪物數量曲線，全部寫在 [`data/game.json`](data/game.json)。不會寫程式也能改：打開這個檔案改數字，存檔後重新執行就生效。
+同伴、技能、敵人、怪物數量曲線，全部寫在 [`data/game.json`](data/game.json)；局外成長在 [`data/meta.json`](data/meta.json)；同伴生平在 [`data/bios.json`](data/bios.json)。不會寫程式也能改：打開檔案改數字或文字，存檔後重新執行就生效。
 
-- `companions`：同伴名單、名字、技能、站位
-- `skills`：每種技能 Lv1 的數值（base）和 Lv2–5 的變化（levels）、升級卡說明（desc）
-- `start_party`：開局帶哪些同伴
+- `companions`：同伴名單、名字、技能、流派
+- `skills`：每種技能 Lv1 的數值（base）和 Lv2–5 的變化（levels）、升級卡說明（desc）；`engine` 可以借用現有招式的運作方式做出新角色
+- `links`／`synergy`：肢體連結的種類與間隔、同工加成
+- `tasks`：旅程任務
 - `fever`：同心合意累積速度、FEVER 長度與效果
 - `enemies`：四種敵人的血量、速度、打散隊伍的力道
 - `waves.curve`：每個時間點場上要有多少怪
-- `fruits`／`armor`／`evolutions`：果子、軍裝、進化條件
+- `fruits`／`armor`／`evolutions`：果子、軍裝、進化條件與效果
 - `elites`／`trials`／`elite_wave`：菁英、考驗型敵人與出現時間
 - `boss`：Boss 出現時間、血量、各招式傷害
+
+`meta.json` 裡有見證怎麼算、一開始解鎖哪些、基地能買什麼、見證錄目標、默契門檻。`bios.json` 的生平歡迎補充修正（請附經文出處）。
 
 改出好玩的設定，歡迎開 Issue 或 Pull Request 分享。之後遊戲裡會有「使徒行傳第 29 章」的入口，讓玩家直接在遊戲中改寫。
 
@@ -44,11 +50,17 @@
 
 | 路徑 | 內容 |
 | --- | --- |
-| `data/game.json` | 所有遊戲數值 |
+| `data/game.json` | 所有局內遊戲數值 |
+| `data/meta.json` | 局外成長：見證、解鎖、見證錄、默契 |
+| `data/bios.json` | 同伴生平 |
+| `scripts/base.gd` | 安提阿基地畫面 |
+| `scripts/save.gd` | 存檔（`profile.json`） |
 | `scripts/main.gd` | 遊戲主程式 |
 | `scripts/game_ui.gd` | 畫面介面（血量、升級卡、寶箱、失敗與通關畫面） |
+| `scripts/ui_kit.gd` | 共用字型、顏色、按鈕 |
 | `tools/runs_report.py` | 每局紀錄報表 |
-| `scenes/main.tscn` | 主場景 |
+| `scenes/base.tscn` | 基地（遊戲開啟時的畫面） |
+| `scenes/main.tscn` | 一局遊戲 |
 | `assets/sprites/` | 像素圖（目前由程式產生） |
 | `docs/mockups/` | 美術風格樣稿（用瀏覽器打開） |
 
@@ -65,12 +77,17 @@ godot --headless --path . --export-release "Windows Desktop" build/windows/ActsS
 不用開視窗也能跑一段遊戲、印出狀態：
 
 ```
-godot --headless --path . -- --smoke
+godot --headless --path . res://scenes/main.tscn -- --smoke
 ```
 
 - `--t0=秒數`：直接跳到某個時間（例如 `--t0=590` 測 Boss）
-- `--preset=strong`：滿編隊伍、西拉滿級帶喜樂，開局附一個寶箱（測進化）
-- `--shot=路徑.png`：有顯示環境時存截圖（升級卡、FEVER、寶箱、Boss 預警、失敗彩蛋各一張）
+- `--preset=strong`：全員出動、西拉滿級帶喜樂，開局附一個寶箱（測進化）
+- `--preset=ot`：五位舊約人物滿級
+- `--preset=links`：預先接好一條三段的肢體連結
+- `--nofever`：不自動開五旬節（看一般狀態的畫面）
+- `--shot=路徑.png`：有顯示環境時存截圖（升級卡、FEVER、寶箱、Boss 預警、連鎖、失敗彩蛋各一張）
+
+基地畫面：`godot --path . res://scenes/base.tscn -- --shot=路徑.png` 會依序存出發、同伴、生平、解鎖、見證錄五張截圖。
 
 ## 平衡紀錄
 
