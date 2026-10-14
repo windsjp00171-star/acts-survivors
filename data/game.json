@@ -190,7 +190,15 @@
     "strife": { "name": "紛爭", "hp": 3, "speed": 14, "damage": 5, "scatter": 45, "dies_on_touch": false, "from": 0,  "weight": 3 },
     "lies":   { "name": "謊言", "hp": 2, "speed": 16, "damage": 3, "scatter": 30, "dies_on_touch": false, "from": 45, "weight": 2,
                 "shoot": { "every": 2.6, "range": 110, "keep_away": 70, "speed": 50, "damage": 4 } },
-    "sleep":  { "name": "沉睡", "hp": 4, "speed": 9,  "damage": 3, "scatter": 0,  "dies_on_touch": false, "from": 90, "weight": 1.5, "sleep_for": 2 }
+    "sleep":  { "name": "沉睡", "hp": 4, "speed": 9,  "damage": 3, "scatter": 0,  "dies_on_touch": false, "from": 90, "weight": 1.5, "sleep_for": 2 },
+    "_各城說明": "下面幾種只在特定城市出現（weight 0，由 stages.json 打開）。sprite 借用現有的圖、tint 換顏色。dash 衝刺、split_into 被打倒時分裂、blink 瞬間移動。",
+    "riot":   { "name": "暴動", "sprite": "strife", "tint": [1.0, 0.55, 0.45], "hp": 3, "speed": 15, "damage": 5, "scatter": 60, "dies_on_touch": false, "from": 0, "weight": 0,
+                "dash": { "every": 3.5, "mult": 4.0, "time": 0.45 } },
+    "pride":  { "name": "自高", "sprite": "lies", "tint": [1.0, 0.85, 0.4], "hp": 6, "speed": 13, "damage": 4, "scatter": 40, "dies_on_touch": false, "from": 0, "weight": 0,
+                "split_into": "pride_small", "split_count": 2 },
+    "pride_small": { "name": "自高", "sprite": "lies", "tint": [1.0, 0.92, 0.65], "hp": 1, "speed": 24, "damage": 2, "scatter": 30, "dies_on_touch": true, "from": 0, "weight": 0, "scale": 0.7 },
+    "sorcery": { "name": "邪術", "sprite": "sleep", "tint": [0.75, 0.45, 1.0], "hp": 4, "speed": 10, "damage": 5, "scatter": 50, "dies_on_touch": false, "from": 0, "weight": 0,
+                "blink": { "every": 4.0, "min": 28, "max": 46 } }
   },
   "waves": {
     "_說明": "curve 每列是 [秒數, 場上目標隻數, 每群間隔秒數]，中間線性內插。照設計文件的一座城節奏：開局 → 成形 → 菁英潮高峰 → 喘息 → Boss 前再升高。超過最後一列就維持最後一列。",

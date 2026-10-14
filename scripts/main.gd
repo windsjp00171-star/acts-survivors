@@ -67,7 +67,11 @@ var hits: Array = []      # Boss 攻擊落下的閃光
 
 var paul := {}
 var pa := {}              # 保羅自己的攻擊（書信），用和同伴一樣的出招流程
-var first_recruit := ""   # 第一位同工：第一次升級一定出現他的招募卡
+var first_recruit := ""
+var stage := {}           # 這一局的城市（data/stages.json）
+var stage_i := 0
+var epistles := {}        # 已選的書信卡效果
+var founded_now := false  # 這局建立了新的教會   # 第一位同工：第一次升級一定出現他的招募卡
 var comps: Array = []
 var by_key := {}
 var enemies: Array = []
@@ -110,6 +114,15 @@ var smoke_nofever := false
 
 func _ready() -> void:
 	D = JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
+	var stages: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages
+	stage_i = clampi(int(Save.run_config.get("stage", 0)), 0, stages.size() - 1)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--stage="):
+			stage_i = clampi(int(a.substr(8)), 0, stages.size() - 1)
+	stage = stages[stage_i]
+	for k in stage.weights:
+		D.enemies[k].weight = stage.weights[k]
+	D.boss.merge(stage.boss, true)
 	for a in OS.get_cmdline_user_args():
 		if a == "--smoke":
 			smoke = true
@@ -188,6 +201,8 @@ func _ready() -> void:
 		_spawn_one(_pick_type(), Vector2(cos(a) * d, sin(a) * d * 0.7))
 	_update_chunks()
 	Sfx.music("battle")
+	ground.modulate = Color(stage.tint[0], stage.tint[1], stage.tint[2])
+	ui.show_banner("%s　%s" % [stage.name, stage.ref], 2.5)
 
 
 # ---------- 建立場景 ----------
@@ -351,7 +366,11 @@ func _guard() -> float:
 	return 1.0 + fruits.get("good", 0) * D.fruits.good.per_level.guard
 
 func _accord() -> float:
-	return 1.0 + fruits.get("peace", 0) * D.fruits.peace.per_level.accord
+	return (1.0 + fruits.get("peace", 0) * D.fruits.peace.per_level.accord) * (1.3 if epistles.has("accord_plus") else 1.0)
+
+
+func _fever_dur() -> float:
+	return float(D.fever.duration) + (3.0 if epistles.has("fever_plus") else 0.0)
 
 func _scatter_mult() -> float:
 	return maxf(0.3, 1.0 - fruits.get("peace", 0) * 0.1)
@@ -385,7 +404,7 @@ func _make_cards() -> Array:
 		var lv: int = armor.get(k, 0)
 		if lv == 0 and not Save.is_unlocked("armor_" + k):
 			continue
-		if lv == 0 and armor.size() < int(D.armor_slots):
+		if lv == 0 and armor.size() < int(D.armor_slots) + (1 if epistles.has("armor_plus") else 0):
 			pool.append({"kind": "armor", "key": k, "title": a.name + "　穿上", "tag": a.tag, "desc": a.desc[0]})
 		elif lv > 0 and lv < 3:
 			pool.append({"kind": "armor", "key": k, "title": "%s　Lv%d → %d" % [a.name, lv, lv + 1], "tag": a.tag, "desc": a.desc[lv]})
@@ -413,6 +432,10 @@ func _make_cards() -> Array:
 				if not Save.is_unlocked("fruit_" + evo.fruit):
 					d2 += "（果子要先在補給帳棚解鎖）"
 			pool.append({"kind": "up", "key": c.key, "title": "%s　Lv%d → %d" % [c.name, c.level, c.level + 1], "tag": c.tag, "desc": d2})
+	for st in _stage_list():
+		var ep: Dictionary = st.epistle
+		if Save.data.churches.has(st.id) and not epistles.has(ep.effect):
+			pool.append({"kind": "epistle", "key": ep.effect, "title": ep.name, "tag": "書信", "desc": ep.desc})
 	var lc := _link_card()
 	if not lc.is_empty():
 		pool.append(lc)
@@ -472,6 +495,8 @@ func _apply_card(card: Dictionary) -> void:
 		fruits[card.key] = fruits.get(card.key, 0) + 1
 	elif card.kind == "armor":
 		armor[card.key] = armor.get(card.key, 0) + 1
+	elif card.kind == "epistle":
+		epistles[card.key] = true
 	elif card.kind == "evolve":
 		_evolve(_evo_of(card.key))
 	elif card.kind == "link":
@@ -592,11 +617,11 @@ func _move_vector() -> Vector2:
 func _pick_type() -> String:
 	var total := 0.0
 	for k in D.enemies:
-		if t >= D.enemies[k].from:
+		if not k.begins_with("_") and t >= D.enemies[k].from:
 			total += D.enemies[k].weight
 	var r := randf() * total
 	for k in D.enemies:
-		if t >= D.enemies[k].from:
+		if not k.begins_with("_") and t >= D.enemies[k].from and D.enemies[k].weight > 0:
 			r -= D.enemies[k].weight
 			if r <= 0.0:
 				return k
@@ -658,15 +683,19 @@ func _spawn_one(type: String, at: Vector2) -> void:
 	var SC: Dictionary = D.waves.scaling
 	var V: Dictionary = D.waves.veteran
 	var vet := randf() < _curve(V.chance, t)
-	var hp: float = ceilf(d.hp * _curve(SC.hp, t) * (float(V.hp_mult) if vet else 1.0))
+	var hp: float = ceilf(d.hp * _curve(SC.hp, t) * stage.hp_mult * (float(V.hp_mult) if vet else 1.0))
+	var spr: String = d.get("sprite", type)
+	var tint := Color(d.tint[0], d.tint[1], d.tint[2]) if d.has("tint") else Color.WHITE
 	var e := {"type": type, "d": d, "pos": at, "hp": hp, "ph": randf() * TAU, "flash": 0.0, "stun": 0.0,
 		"cd": 0.0, "bcd": 0.0, "shoot": (d.shoot.every * randf()) if d.has("shoot") else 0.0, "r": 6.0,
-		"sprite": type, "tint": Color(0.7, 0.5, 0.6) if vet else Color.WHITE, "roar": 2.0, "vet": vet,
-		"dmul": _curve(SC.damage, t), "smul": _curve(SC.speed, t),
-		"knock": Vector2.ZERO, "dead": false, "node": _sprite(type + "_0", Vector2(-10, -13))}
-	if vet:
-		e.node.scale = Vector2.ONE * float(V.scale)
-		e.r *= float(V.scale)
+		"sprite": spr, "tint": tint * Color(0.7, 0.5, 0.6) if vet else tint, "roar": 2.0, "vet": vet,
+		"dmul": _curve(SC.damage, t) * stage.dmg_mult, "smul": _curve(SC.speed, t),
+		"dash_cd": randf() * 3.0, "dash_t": 0.0, "blink_cd": 2.0 + randf() * 2.0,
+		"knock": Vector2.ZERO, "dead": false, "node": _sprite(spr + "_0", Vector2(-10, -13))}
+	var sc: float = float(d.get("scale", 1.0)) * (float(V.scale) if vet else 1.0)
+	if sc != 1.0:
+		e.node.scale = Vector2.ONE * sc
+		e.r *= sc
 	enemies.append(e)
 
 
@@ -679,8 +708,8 @@ func _spawn_special(key: String, def: Dictionary, at: Vector2) -> void:
 			d[k] = def[k]
 	var scale: float = def.get("scale", 1.0)
 	var SC: Dictionary = D.waves.scaling
-	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * _curve(SC.hp, t), "ph": randf() * TAU,
-		"dmul": _curve(SC.damage, t), "smul": _curve(SC.speed, t),
+	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * _curve(SC.hp, t) * stage.hp_mult, "ph": randf() * TAU,
+		"dmul": _curve(SC.damage, t) * stage.dmg_mult, "smul": _curve(SC.speed, t),
 		"flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "shoot": 0.0, "r": 6.0 * scale, "sprite": def.sprite,
 		"tint": Color(def.tint[0], def.tint[1], def.tint[2]), "roar": 2.0, "elite": scale > 1.0,
 		"knock": Vector2.ZERO, "dead": false, "node": _sprite(def.sprite + "_0", Vector2(-10, -13))}
@@ -739,6 +768,9 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			chests.append({"pos": e.pos})
 		if e.get("elite", false):
 			run_elites += 1
+		if e.d.has("split_into"):
+			for i in int(e.d.split_count):
+				_spawn_one(e.d.split_into, e.pos + Vector2(randf_range(-8, 8), randf_range(-6, 6)))
 		if e.get("boss", false):
 			_win()
 		_burst(e.pos, 9, C_GOLD if fever > 0.0 else C_VL, C_CREAM)
@@ -809,7 +841,7 @@ func _barrier_pieces() -> Array:
 func _start_fever() -> void:
 	if meter < 1.0 or fever > 0.0 or over or choosing or paused:
 		return
-	fever = D.fever.duration
+	fever = _fever_dur()
 	fever_kills = 0
 	run_fevers += 1
 	Sfx.play("fever", 0.0)
@@ -882,6 +914,8 @@ func _step(dt: float) -> void:
 
 	var luke = by_key.get("luke")
 	var revive_mult: float = luke.st.revive_speed if luke != null and _active(luke) else 1.0
+	if epistles.has("revive_plus"):
+		revive_mult *= 2.0
 	var barn = by_key.get("barn")
 	var barn_on: bool = barn != null and _active(barn)
 	var rules: Dictionary = D.companion_rules
@@ -917,7 +951,7 @@ func _step(dt: float) -> void:
 	# 同心合意
 	if fever > 0.0:
 		fever -= dt
-		meter = clampf(fever / D.fever.duration, 0.0, 1.0)
+		meter = clampf(fever / _fever_dur(), 0.0, 1.0)
 		if fever <= 0.0:
 			_end_fever()
 	elif party > 0:
@@ -1379,6 +1413,25 @@ func _update_enemies(dt: float) -> void:
 			if e.shoot <= 0.0 and dist < sh.range:
 				shots.append({"pos": e.pos, "vel": dir * sh.speed, "life": 3.0, "dmg": float(sh.damage) * e.dmul})
 				e.shoot = sh.every
+		if d.has("dash"):
+			# 暴動：每隔一陣子朝保羅衝刺
+			e.dash_cd -= dt
+			if e.dash_t > 0.0:
+				e.dash_t -= dt
+				go *= float(d.dash.mult)
+			elif e.dash_cd <= 0.0 and dist < 130.0:
+				e.dash_t = float(d.dash.time)
+				e.dash_cd = float(d.dash.every)
+				_ring_pop(e.pos, Color("e8481c"), 8.0)
+		if d.has("blink"):
+			# 邪術：瞬間移動到保羅附近
+			e.blink_cd -= dt
+			if e.blink_cd <= 0.0 and dist > 60.0:
+				e.blink_cd = float(d.blink.every)
+				_ring_pop(e.pos, Color("a060ff"), 10.0)
+				var a := randf() * TAU
+				e.pos = p.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(d.blink.min, d.blink.max)
+				_ring_pop(e.pos, Color("a060ff"), 14.0)
 		var wob: float = sin(t * 2.2 + e.ph) * 0.5
 		e.pos += (dir * go + dir.orthogonal() * wob) * d.speed * e.smul * dt
 
@@ -1857,6 +1910,10 @@ func _open_chest() -> void:
 	ui.show_chest(results)
 
 
+func _stage_list() -> Array:
+	return JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages
+
+
 ## 已經符合條件、還沒進化的
 func _ready_evolutions() -> Array:
 	var out := []
@@ -1957,7 +2014,7 @@ func _spawn_boss() -> void:
 	world.add_child(s)
 	boss = {"type": "boss", "boss": true, "d": {"name": B.name, "damage": B.touch_damage}, "pos": _edge_point(-30.0),
 		"hp": float(B.hp), "max_hp": float(B.hp), "ph": 0.0, "flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "r": 14.0,
-		"sprite": "boss", "tint": Color.WHITE, "dmul": 1.0, "smul": 1.0, "knock": Vector2.ZERO, "dead": false, "node": s,
+		"sprite": "boss", "tint": Color(B.tint[0], B.tint[1], B.tint[2]) if B.has("tint") else Color.WHITE, "dmul": 1.0, "smul": 1.0, "knock": Vector2.ZERO, "dead": false, "node": s,
 		"state": "move", "timer": 2.5, "pattern_i": 0, "pattern": ""}
 	enemies.append(boss)
 	ui.show_banner("Boss：" + B.name, 2.5)
@@ -1973,7 +2030,7 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 			b.pos += (paul.pos - b.pos).normalized() * B.speed * (1.6 if phase2 else 1.0) * dt
 			b.timer -= dt
 			if b.timer <= 0.0:
-				var order := ["sweep", "slam", "grid", "hunt"]
+				var order: Array = B.get("order", ["sweep", "slam", "grid", "hunt"])
 				b.pattern = order[b.pattern_i % order.size()]
 				b.pattern_i += 1
 				tele = _make_tele(b)
@@ -1985,6 +2042,8 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 			if b.timer <= 0.0:
 				_resolve_tele()
 				tele = []
+				if b.pattern == "summon":
+					_boss_summon(b)
 				if b.pattern == "slam" or b.pattern == "grid":
 					b.state = "break"
 					b.timer = B.break_seconds
@@ -2038,6 +2097,16 @@ func _make_tele(b: Dictionary) -> Array:
 			if out.is_empty():
 				out.append({"kind": "circle", "c": paul.pos, "r": float(B.hunt.radius), "dmg": float(B.hunt.damage)})
 	return out
+
+
+## 城市 Boss 的招式：召喚一圈那座城的敵人
+func _boss_summon(b: Dictionary) -> void:
+	var sm: Dictionary = D.boss.summon
+	ui.show_banner("%s召來了%s" % [D.boss.name, D.enemies[sm.type].name], 1.2)
+	_ring_pop(b.pos, C_VL, 40.0)
+	for i in int(sm.count):
+		var a := i * TAU / float(sm.count)
+		_spawn_one(sm.type, b.pos + Vector2(cos(a), sin(a) * 0.8) * 30.0)
 
 
 func _in_shape(sh: Dictionary, pt: Vector2) -> bool:
@@ -2100,7 +2169,10 @@ func _finish_run() -> Array:
 		var names := []
 		for k in res.affinity_ups:
 			names.append(_comp_name(k))
-		lines.append(["默契提升：" + "、".join(names) + "（解鎖新的生平）", 12, C_HEAL])
+		var rows := []
+		for i in range(0, names.size(), 3):
+			rows.append("、".join(names.slice(i, i + 3)))
+		lines.append(["默契提升：" + "\n".join(rows) + "（解鎖新的生平）", 12, C_HEAL])
 	return lines
 
 
@@ -2114,6 +2186,9 @@ func _comp_name(key: String) -> String:
 func _win() -> void:
 	if won:
 		return
+	if not Save.data.churches.has(stage.id):
+		Save.data.churches.append(stage.id)
+		founded_now = true
 	Sfx.music("")
 	Sfx.play("win", 0.0)
 	won = true
@@ -2125,12 +2200,19 @@ func _win() -> void:
 	shake = 0.5
 	ui.do_flash(0.8)
 	var s := int(t)
-	ui.show_game_over([
-		["腓立比　通關", 26, C_GOLD],
+	var lines := [
+		["%s　教會建立！" % stage.name if founded_now else "%s　通關" % stage.name, 26, C_GOLD],
 		[D.boss.win_text, 13, C_CREAM],
 		[D.boss.win_ref, 11, Color("c9a46b")],
 		["用時 %02d:%02d　Lv.%d　驅散 %d" % [s / 60, s % 60, level, kills], 13, Color("f4ead2")],
-	] + _finish_run(), "再走一次")
+	]
+	if founded_now:
+		var nxt := ""
+		var all := _stage_list()
+		if stage_i + 1 < all.size():
+			nxt = "　下一站：" + all[stage_i + 1].name
+		lines.append(["解鎖書信卡「%s」%s" % [stage.epistle.name, nxt], 12, C_HEAL])
+	ui.show_game_over(lines + _finish_run(), "再走一次")
 
 
 # ---------- 失敗 ----------

@@ -5,6 +5,7 @@ signal closed
 
 var G: Dictionary      # game.json
 var bios: Dictionary
+var stages: Array
 var content: VBoxContainer
 var scroll: ScrollContainer
 var witness_label: Label
@@ -16,6 +17,7 @@ var tabs_enabled := {"home": true, "roster": true, "shop": true, "ach": true}
 func _ready() -> void:
 	G = JSON.parse_string(FileAccess.get_file_as_string("res://data/game.json"))
 	bios = JSON.parse_string(FileAccess.get_file_as_string("res://data/bios.json"))
+	stages = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var vs := get_viewport().get_visible_rect().size
 	portrait = vs.y > vs.x
@@ -171,9 +173,45 @@ func _show_home() -> void:
 	_text(v, "第一位同工：" + _display_name(c), 16, UIKit.GOLD)
 	_text(v, "第一次升級一定會出現他的招募卡；到「同伴」頁可以換人", 12, UIKit.MUTED)
 	_text(v, "隊伍上限 %d 人　每局重抽 %d 次" % [Save.party_cap(), Save.rerolls()], 13, UIKit.INK)
+	# 旅程地圖：照保羅旅程的順序，建立前一間教會才能去下一座城
+	_text(content, "旅程地圖", 16, UIKit.GOLD)
+	var sel := clampi(int(Save.data.stage), 0, stages.size() - 1)
+	if not _stage_open(sel):
+		sel = 0
+	for i in stages.size():
+		var stg: Dictionary = stages[i]
+		var founded: bool = Save.data.churches.has(stg.id)
+		var open := _stage_open(i)
+		var box := PanelContainer.new()
+		box.add_theme_stylebox_override("panel", UIKit.box(Color(0.2, 0.15, 0.1) if i == sel else Color(0.14, 0.1, 0.17), UIKit.GOLD if i == sel else Color("4a3a50"), 6))
+		content.add_child(box)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+		box.add_child(row)
+		var mark := UIKit.label("✓" if founded else ("▶" if open else "・"), 18, UIKit.HEAL if founded else (UIKit.GOLD if open else UIKit.MUTED))
+		mark.custom_minimum_size = Vector2(20, 0)
+		row.add_child(mark)
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(col)
+		var title := "%s　%s" % [stg.name, stg.ref] if open else "？？？"
+		_text(col, title + ("　教會已建立" if founded else ""), 14, UIKit.CREAM if open else UIKit.MUTED)
+		_text(col, stg.intro if open else "建立前一間教會後解鎖", 11, UIKit.MUTED, true)
+		if founded:
+			_text(col, "書信卡：" + stg.epistle.name, 11, UIKit.SKY, true)
+		if open and i != sel:
+			var pick := UIKit.button("選這裡", 12)
+			pick.custom_minimum_size = Vector2(72, 30)
+			pick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			var idx := i
+			pick.pressed.connect(func():
+				Save.data.stage = idx
+				Save.save_profile()
+				_show_home())
+			row.add_child(pick)
 	var st: Dictionary = Save.data.stats
-	_text(content, "已出發 %d 次　通關 %d 次　最多驅散 %d　見證錄 %d／%d" % [st.runs, st.wins, st.best_kills, Save.data.achievements.size(), Save.meta.achievements.size()], 13, UIKit.INK)
-	var go := UIKit.button("出發：腓立比", 18, true)
+	_text(content, "已出發 %d 次　通關 %d 次　最多驅散 %d　見證錄 %d／%d" % [st.runs, st.wins, st.best_kills, Save.data.achievements.size(), Save.meta.achievements.size()], 12, UIKit.MUTED, true)
+	var go := UIKit.button("出發：" + stages[sel].name, 18, true)
 	go.custom_minimum_size = Vector2(220, 48)
 	go.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	go.pressed.connect(_start)
@@ -182,11 +220,16 @@ func _show_home() -> void:
 	_text(content, "提示：每局結束都會帶回「見證」，用來解鎖新同伴、果子、軍裝和隊伍位置。完成見證錄的目標可以解鎖舊約人物。", 12, UIKit.MUTED, true)
 
 
+func _stage_open(i: int) -> bool:
+	return i == 0 or Save.data.churches.has(stages[i - 1].id)
+
+
 func _start() -> void:
 	var starter: String = Save.data.starter
 	if not Save.is_unlocked(starter):
 		starter = Save.meta.default_starter
-	Save.run_config = {"starter": starter}
+	var sel := clampi(int(Save.data.stage), 0, stages.size() - 1)
+	Save.run_config = {"starter": starter, "stage": sel if _stage_open(sel) else 0}
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 

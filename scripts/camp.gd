@@ -296,7 +296,7 @@ func _verb(s: Dictionary) -> String:
 		"comp": return "跟%s說話" % s.name
 		"shop": return "補給帳棚（解鎖）"
 		"ach": return "見證牆"
-	return "出發往腓立比"
+	return "看旅程地圖、出發"
 
 
 # ---------- 畫營地 ----------

@@ -1,0 +1,35 @@
+{
+  "_說明": "初代教會關卡：照保羅旅程的順序，通關（建立教會）才解鎖下一座。hp_mult／dmg_mult 疊在時間曲線上；weights 改敵人出現比例；boss 覆蓋 game.json 的 boss 欄位；epistle 是建立教會後解鎖的書信卡（局內升級卡，不是永久加成）。",
+  "stages": [
+    {
+      "id": "philippi", "name": "腓立比", "ref": "徒 16", "intro": "馬其頓的第一站。賣紫色布的呂底亞、被鬼附的使女、半夜的監獄。",
+      "hp_mult": 1.0, "dmg_mult": 1.0, "tint": [1.0, 1.0, 1.0], "weights": {},
+      "boss": {},
+      "epistle": { "effect": "fever_plus", "name": "腓立比書：靠主常常喜樂", "desc": "五旬節持續時間 +3 秒（腓 4:4）" }
+    },
+    {
+      "id": "thessalonica", "name": "帖撒羅尼迦", "ref": "徒 17:1–9", "intro": "那些攪亂天下的，也到這裡來了。城裡被聳動，成群的暴動衝過來。",
+      "hp_mult": 1.25, "dmg_mult": 1.15, "tint": [1.0, 0.9, 0.85], "weights": { "riot": 3 },
+      "boss": { "name": "騷亂", "hp": 8000, "tint": [1.0, 0.6, 0.5], "order": ["summon", "sweep", "slam", "summon", "hunt"],
+                "summon": { "type": "riot", "count": 10 },
+                "win_text": "主的道從你們那裡已經傳揚出來，你們向神的信心也傳開了。", "win_ref": "帖前 1:8" },
+      "epistle": { "effect": "accord_plus", "name": "帖撒羅尼迦前書：不住的禱告", "desc": "同心合意累積加快 30%（帖前 5:17）" }
+    },
+    {
+      "id": "corinth", "name": "哥林多", "ref": "徒 18:1–17", "intro": "繁華的港口城市。知識叫人自高自大，打倒了也會分成兩派。",
+      "hp_mult": 1.5, "dmg_mult": 1.3, "tint": [0.95, 0.95, 1.05], "weights": { "pride": 3 },
+      "boss": { "name": "分門結黨", "hp": 10000, "tint": [0.95, 0.8, 0.4], "order": ["grid", "summon", "hunt", "grid", "slam"],
+                "summon": { "type": "pride", "count": 8 },
+                "win_text": "不要怕，只管講，不要閉口；有我與你同在。", "win_ref": "徒 18:9–10" },
+      "epistle": { "effect": "revive_plus", "name": "哥林多前書：愛是恆久忍耐", "desc": "倒下的同伴站起來的速度加倍（林前 13:4）" }
+    },
+    {
+      "id": "ephesus", "name": "以弗所", "ref": "徒 19", "intro": "亞底米的城。行邪術的會突然出現在身邊，銀匠們聚眾喊了兩小時。",
+      "hp_mult": 1.8, "dmg_mult": 1.45, "tint": [0.9, 0.85, 1.0], "weights": { "sorcery": 3 },
+      "boss": { "name": "銀匠的騷動", "hp": 12000, "tint": [0.8, 0.6, 1.0], "order": ["sweep", "summon", "slam", "sweep", "grid", "hunt"],
+                "summon": { "type": "sorcery", "count": 8 },
+                "win_text": "主的道大大興旺，而且得勝。", "win_ref": "徒 19:20" },
+      "epistle": { "effect": "armor_plus", "name": "以弗所書：全副軍裝", "desc": "軍裝可以多穿一件（弗 6:11）" }
+    }
+  ]
+}

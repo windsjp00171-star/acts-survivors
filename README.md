@@ -57,6 +57,7 @@
 | `data/game.json` | 所有局內遊戲數值 |
 | `data/meta.json` | 局外成長：見證、解鎖、見證錄、默契 |
 | `data/bios.json` | 同伴生平 |
+| `data/stages.json` | 初代教會關卡（城市、Boss、書信卡） |
 | `scripts/camp.gd` | 安提阿營地（遊戲開啟時的畫面） |
 | `scripts/base.gd` | 營地裡的彈出面板（出發、同伴、解鎖、見證錄） |
 | `scripts/save.gd` | 存檔（`profile.json`） |
@@ -99,6 +100,8 @@ godot --headless --path . res://scenes/main.tscn -- --smoke
 - `--preset=five`：接近實際的中後期隊伍（5 人 Lv4），拿來測難度曲線
 - `--preset=ot`：五位舊約人物滿級
 - `--preset=links`：預先接好一條三段的肢體連結
+- `--stage=0~3`：選城市（0 腓立比、1 帖撒羅尼迦、2 哥林多、3 以弗所）
+- `--preset=evo`：五位滿級並全部進化
 - `--nofever`：不自動開五旬節（看一般狀態的畫面）
 - `--shot=路徑.png`：有顯示環境時存截圖（升級卡、FEVER、寶箱、Boss 預警、連鎖、失敗彩蛋各一張）
 
