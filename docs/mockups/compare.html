@@ -1,0 +1,116 @@
+<title>宣教之路美術樣稿</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700&family=Noto+Sans+TC:wght@400;500&display=swap">
+<style>
+/* Layout: one stage (16:9 iframe) under a row of style tabs, notes beneath. Single dark look on purpose: game screens read best on a dark frame. */
+:root {
+  --bg: #15110d;
+  --panel: #1f1914;
+  --line: #3a2f24;
+  --fg: #efe4d2;
+  --muted: #a8977f;
+  --gold: #d9a441;
+  --display: "Noto Serif TC", "Songti TC", serif;
+  --body: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); }
+body {
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.7;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 40px;
+}
+.wrap { max-width: 980px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+header { display: flex; flex-direction: column; gap: 4px; }
+.eyebrow { color: var(--gold); font-size: 12px; letter-spacing: .12em; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(24px, 4vw, 34px); margin: 0; text-wrap: balance; }
+header p { margin: 0; color: var(--muted); max-width: 62ch; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button {
+  font: inherit; font-size: 14px; color: var(--fg);
+  background: var(--panel); border: 1px solid var(--line);
+  padding: 8px 14px; border-radius: 6px; cursor: pointer;
+}
+.tabs button[aria-selected="true"] { border-color: var(--gold); color: var(--gold); }
+.tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.tag { font-size: 11px; margin-left: 6px; color: var(--bg); background: var(--gold); padding: 1px 6px; border-radius: 3px; }
+.stage-wrap { container-type: inline-size; }
+.stage { width: 100%; max-width: 100%; height: calc(56.25cqw + 64px); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: #0e0a11; }
+.stage iframe { width: 100%; height: 100%; border: 0; display: block; }
+.note { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+.note h2 { font-family: var(--display); font-size: 19px; margin: 0; }
+.note p { margin: 0; color: var(--muted); }
+.note dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 14px; margin: 6px 0 0; }
+.note dt { color: var(--gold); font-size: 13px; }
+.note dd { margin: 0; font-size: 14px; }
+footer { color: var(--muted); font-size: 13px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">ACTS SURVIVORS · 美術風格比較</span>
+    <h1>宣教之路：五種美術樣稿</h1>
+    <p>同一個場景用五種畫風呈現：保羅帶著同伴群聚前進，懼怕、紛爭、謊言、沉睡從四面湧來，同心合意滿了就降下五旬節。每約 12 秒觸發一次。</p>
+  </header>
+
+  <div class="tabs" role="tablist" id="tabs"></div>
+
+  <div class="stage-wrap"><div class="stage"><iframe id="frame" title="美術樣稿畫面" src="styles/mobile.html"></iframe></div></div>
+
+  <section class="note" id="note"></section>
+
+  <footer>樣稿全為程式繪製，畫面裡的角色與特效都是示意，不是最終美術。</footer>
+</div>
+
+<script>
+const styles = [
+  { id: "mobile", name: "手機直式（新）", portrait: true,
+    sum: "像素風的手機直式版，單手操作。畫面會自己跑一輪：一般遊玩、五旬節 FEVER、升級選卡、失敗彩蛋。",
+    good: "可以看到浮動搖桿、FEVER 按鈕、直向疊放的卡片在單手時的實際位置。",
+    cost: "這是示意流程，敵人和保羅血量是照劇本跑的，不是真的平衡。" },
+  { id: "hd2d", name: "HD-2D",
+    sum: "像素角色站在有景深、有光影的立體小模型世界裡。像素的銳利和光的柔和形成對比。",
+    good: "光與黑暗本來就是遊戲主題，打光效果會讓同伴的攻擊、五旬節特別有感。",
+    cost: "製作量最大：要做透視地形、景深、動態光源，效能也要顧。" },
+  { id: "pixel", name: "像素風", pick: true,
+    sum: "16-bit 超任時代 RPG 的平面像素，色數少、畫面乾淨。",
+    good: "最好做，素材好量產，玩家一眼就懂。",
+    cost: "這類遊戲很多都長這樣，辨識度最低。" },
+  { id: "glass", name: "彩繪玻璃",
+    sum: "整個世界是一扇會動的教堂花窗，鉛條分隔的寶石色玻璃，光照到會發亮。",
+    good: "題材辨識度最高，五旬節時整面窗亮起來很震撼。",
+    cost: "敵人一多畫面容易亂，可讀性要花心思調。" },
+  { id: "mosaic", name: "拜占庭馬賽克",
+    sum: "早期教會馬賽克磚拼成的世界，金箔、青金石、陶土色，被打中會掉磚。",
+    good: "有考古感，跟使徒行傳的年代最貼。",
+    cost: "格狀移動會讓動作感覺比較硬。" },
+  { id: "scroll", name: "古卷手繪",
+    sum: "畫在羊皮紙上的墨線與淡彩，線條會微微抖動，像活起來的旅行地圖。",
+    good: "很適合「宣教旅程」的地圖感，關卡之間可以直接是卷軸展開。",
+    cost: "墨色調偏淡，戰鬥激烈時對比度不夠。" }
+];
+const tabs = document.getElementById("tabs");
+const frame = document.getElementById("frame");
+const note = document.getElementById("note");
+
+function show(s) {
+  frame.src = "styles/" + s.id + ".html";
+  frame.parentElement.style.height = s.portrait ? "min(780px, 88vh)" : "";
+  for (const b of tabs.children) b.setAttribute("aria-selected", b.dataset.id === s.id ? "true" : "false");
+  note.innerHTML = "<h2>" + s.name + "</h2><p>" + s.sum + "</p><dl><dt>優點</dt><dd>" + s.good + "</dd><dt>代價</dt><dd>" + s.cost + "</dd></dl>";
+  try { localStorage.setItem("style", s.id); } catch (e) {}
+}
+for (const s of styles) {
+  const b = document.createElement("button");
+  b.role = "tab"; b.dataset.id = s.id;
+  b.innerHTML = s.name + (s.pick ? '<span class="tag">你選的</span>' : "");
+  b.addEventListener("click", () => show(s));
+  tabs.appendChild(b);
+}
+let start = styles[0];
+show(start);
+</script>

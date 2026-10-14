@@ -1,0 +1,48 @@
+{
+  "_說明": "遊戲資料。改這個檔就能調整數值，不用動程式。之後玩家改寫遊戲的入口也從這裡開始。",
+  "paul": { "name": "保羅", "speed": 42, "hp": 100 },
+  "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
+  "companions": [
+    { "key": "barn",    "name": "巴拿巴", "skill": "aura", "home": [-21, -10] },
+    { "key": "luke",    "name": "路加",   "skill": "heal", "home": [20, -11] },
+    { "key": "silas",   "name": "西拉",   "skill": "ring", "home": [-24, 9] },
+    { "key": "tim",     "name": "提摩太", "skill": "bolt", "home": [24, 8] },
+    { "key": "apollos", "name": "亞波羅", "skill": "beam", "home": [0, -21] },
+    { "key": "pri",     "name": "百基拉", "skill": "tent", "home": [-7, 22] },
+    { "key": "aq",      "name": "亞居拉", "skill": "",     "home": [7, 22] }
+  ],
+  "skills": {
+    "bolt": { "cooldown": 0.45, "range": 110, "damage": 1, "speed": 180 },
+    "ring": { "cooldown": 2.2, "max_radius": 52, "damage": 1, "speed": 55 },
+    "aura": { "radius": 28, "attack_speed": 1.25 },
+    "heal": { "cooldown": 3.2, "amount": 6 },
+    "tent": { "cycle": 4.6, "radius": 36, "pieces": 4, "damage": 1, "knockback": 14 },
+    "beam": { "cooldown": 1.8, "length": 110, "width": 5, "damage": 2, "range": 120 }
+  },
+  "enemies": {
+    "fear":   { "name": "懼怕", "hp": 1, "speed": 26, "damage": 3, "scatter": 85, "dies_on_touch": true,  "from": 0,  "weight": 5 },
+    "strife": { "name": "紛爭", "hp": 3, "speed": 14, "damage": 5, "scatter": 45, "dies_on_touch": false, "from": 0,  "weight": 3 },
+    "lies":   { "name": "謊言", "hp": 2, "speed": 16, "damage": 3, "scatter": 30, "dies_on_touch": false, "from": 45, "weight": 2,
+                "shoot": { "every": 2.6, "range": 110, "keep_away": 70, "speed": 50, "damage": 4 } },
+    "sleep":  { "name": "沉睡", "hp": 4, "speed": 9,  "damage": 3, "scatter": 0,  "dies_on_touch": false, "from": 90, "weight": 1.5, "sleep_for": 2 }
+  },
+  "waves": {
+    "_說明": "curve 每列是 [秒數, 場上目標隻數, 每群間隔秒數]，中間線性內插。照設計文件的一座城節奏：開局 → 成形 → 菁英潮高峰 → 喘息 → Boss 前再升高。超過最後一列就維持最後一列。",
+    "initial": 15,
+    "group_min": 3,
+    "group_max": 7,
+    "curve": [
+      [0,   25,  1.2],
+      [60,  60,  0.8],
+      [180, 110, 0.55],
+      [360, 200, 0.35],
+      [480, 260, 0.25],
+      [500, 80,  1.5],
+      [600, 140, 0.6],
+      [720, 260, 0.3]
+    ],
+    "max_enemies": 280,
+    "hp_per_minute": 0.1
+  },
+  "gems": { "magnet_radius": 34, "magnet_speed": 110 }
+}
