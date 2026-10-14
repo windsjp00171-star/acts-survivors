@@ -7,6 +7,8 @@ signal fever_pressed
 signal restart_pressed
 signal home_pressed
 signal reroll_pressed
+signal pause_pressed
+signal resume_pressed
 signal chest_closed
 
 const C_INK := Color("f4ead2")
@@ -69,6 +71,11 @@ func setup(name_list: Array, touch: bool) -> void:
 	xp_fill = _rect(C_SKY, Vector2(49, 42), Vector2(0, 4))
 	time_label = label("00:00", 16, C_CREAM)
 	kill_label = label("驅散 0", 13, C_INK)
+	pause_btn = UIKit.button("Ⅱ", 14)
+	pause_btn.custom_minimum_size = Vector2(34, 30)
+	pause_btn.focus_mode = Control.FOCUS_NONE
+	pause_btn.pressed.connect(func(): pause_pressed.emit())
+	root.add_child(pause_btn)
 
 	for n in name_list:
 		var l := label(n, 11, C_GOLD if n == "保羅" else C_INK, 2)
@@ -160,6 +167,8 @@ func vp() -> Vector2:
 
 # ---------- 每幀更新 ----------
 var build_label: Label
+var pause_btn: Button
+var pause_box: Control
 var task_label: Label
 
 
@@ -173,7 +182,9 @@ func update_hud(st: Dictionary) -> void:
 	time_label.text = "%02d:%02d" % [s / 60, s % 60]
 	time_label.position = Vector2(roundf((size.x - time_label.size.x) / 2.0), 4)
 	kill_label.text = "驅散 %d" % st.kills
-	kill_label.position = Vector2(size.x - kill_label.size.x - 12.0, 4)
+	pause_btn.position = Vector2(size.x - 42.0, 4)
+	pause_btn.visible = not st.over
+	kill_label.position = Vector2(size.x - kill_label.size.x - 52.0, 4)
 	hint_label.modulate.a = clampf((10.0 - st.time) / 2.0, 0.0, 1.0)
 	hint_label.position = Vector2(roundf((size.x - hint_label.size.x) / 2.0), size.y - 70.0)
 
@@ -384,15 +395,31 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
 		b.add_theme_stylebox_override("hover", _box(Color("3a2a40"), C_GOLD))
 		b.add_theme_stylebox_override("focus", _box(Color("3a2a40"), C_GOLD))
 		b.add_theme_stylebox_override("pressed", _box(Color("5a4420"), C_CREAM))
+		b.add_theme_stylebox_override("disabled", _box(Color("241a2e"), C_BRONZE))
+		b.add_theme_color_override("font_disabled_color", C_INK)
 		var idx := i
 		b.pressed.connect(func(): pick(idx))
 		cards_box.add_child(b)
 		card_buttons.append(b)
+	# 剛跳出時先鎖住（變暗），避免滑動移動時手指誤觸
+	for b in card_buttons:
+		b.disabled = true
+		b.modulate.a = 0.55
 	await get_tree().process_frame
 	if cards_box == null:
 		return
 	cards_box.position = ((size - cards_box.size) / 2.0).round() + Vector2(0, 14)
 	card_ready_at = now + delay
+	var my_id := cards_box.get_instance_id()
+	get_tree().create_timer(delay, true).timeout.connect(func():
+		if cards_box == null or cards_box.get_instance_id() != my_id:
+			return
+		for b in card_buttons:
+			if is_instance_valid(b):
+				b.disabled = false
+				b.modulate.a = 1.0
+		if not card_buttons.is_empty() and is_instance_valid(card_buttons[0]):
+			card_buttons[0].grab_focus())
 	if rerolls > 0:
 		var rb := UIKit.button("重抽（R）　剩 %d 次" % rerolls, 13)
 		rb.name = "CardReroll"
@@ -403,6 +430,55 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
 				reroll_pressed.emit())
 		root.add_child(rb)
 		rb.position = Vector2(roundf((size.x - 160) / 2.0), cards_box.position.y + cards_box.size.y + 10)
+
+
+## 暫停選單
+func show_pause(build_text: String) -> void:
+	hide_pause()
+	var size := vp()
+	pause_box = Control.new()
+	pause_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(pause_box)
+	var dim := ColorRect.new()
+	dim.color = Color(0.04, 0.02, 0.06, 0.75)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	pause_box.add_child(dim)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 10)
+	pause_box.add_child(v)
+	var title := UIKit.label("暫停", 22, C_GOLD)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(title)
+	if build_text != "":
+		var b := UIKit.label(build_text, 11, C_CREAM)
+		b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(b)
+	var go := UIKit.button("繼續（Esc）", 16, true)
+	go.custom_minimum_size = Vector2(200, 40)
+	go.pressed.connect(func(): resume_pressed.emit())
+	v.add_child(go)
+	var re := UIKit.button("放棄，重新開始", 14)
+	re.custom_minimum_size = Vector2(200, 34)
+	re.pressed.connect(func(): restart_pressed.emit())
+	v.add_child(re)
+	var home := UIKit.button("放棄，回安提阿", 14)
+	home.custom_minimum_size = Vector2(200, 34)
+	home.pressed.connect(func(): home_pressed.emit())
+	v.add_child(home)
+	var note := UIKit.label("放棄會照失敗結算（見證減半）", 10, UIKit.MUTED)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(note)
+	await get_tree().process_frame
+	if is_instance_valid(v):
+		v.position = ((size - v.size) / 2.0).round()
+		go.grab_focus()
+
+
+func hide_pause() -> void:
+	if pause_box != null and is_instance_valid(pause_box):
+		root.remove_child(pause_box)
+		pause_box.queue_free()
+	pause_box = null
 
 
 func pick(i: int) -> void:

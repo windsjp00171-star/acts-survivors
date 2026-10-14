@@ -26,6 +26,7 @@ var level := 1
 var xp_need := 6
 var over := false
 var choosing := false
+var paused := false
 var pending_cards: Array = []
 var spawn_timer := 0.0
 var scatter_by := {}
@@ -148,6 +149,14 @@ func _ready() -> void:
 			{"src": by_key.elijah, "dst": by_key.david, "kind": "cast", "cd": 0.0},
 			{"src": by_key.silas, "dst": by_key.tim, "kind": "kill", "cd": 0.0}]
 		_refresh_build_text()
+	if smoke_preset == "five":
+		# 測試用：接近實際的中後期隊伍（5 人 Lv4、兩種果子 Lv2）
+		for k in ["tim", "luke", "apollos", "david"]:
+			_recruit(by_key[k])
+		for c in comps:
+			if c.level > 0:
+				_set_level(c, 4)
+		fruits = {"joy": 2, "faith": 2}
 	if smoke_preset == "strong":
 		# 測試用：滿編隊伍，西拉滿級帶喜樂，下一個寶箱會進化
 		for c in comps:
@@ -244,8 +253,11 @@ func _build_ui() -> void:
 	ui.card_chosen.connect(_on_card)
 	ui.chest_closed.connect(_on_chest_closed)
 	ui.fever_pressed.connect(_start_fever)
-	ui.restart_pressed.connect(func(): get_tree().reload_current_scene())
-	ui.home_pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/base.tscn"))
+	ui.restart_pressed.connect(func(): _leave("res://scenes/main.tscn"))
+	ui.home_pressed.connect(func(): _leave("res://scenes/base.tscn"))
+	ui.pause_pressed.connect(_set_paused.bind(true))
+	ui.resume_pressed.connect(_set_paused.bind(false))
+	get_tree().set_quit_on_go_back(false)
 	ui.reroll_pressed.connect(_reroll)
 
 
@@ -375,14 +387,19 @@ func _make_cards() -> Array:
 func _level_up() -> void:
 	level += 1
 	xp -= xp_need
-	xp_need = int(D.leveling.first) + (level - 1) * int(D.leveling.step)
+	var L: Dictionary = D.leveling
+	xp_need = int(L.first + (level - 1) * L.step + pow(level - 1, 2) * L.growth)
 	choosing = true
 	joy.on = false
 	ui.joy.on = false
 	pending_cards = _make_cards()
 	ui.do_flash(0.5)
 	_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 60.0)
-	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, D.leveling.card_delay, rerolls_left)
+	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, _card_delay(), rerolls_left)
+
+
+func _card_delay() -> float:
+	return float(D.leveling.touch_card_delay if DisplayServer.is_touchscreen_available() else D.leveling.card_delay)
 
 
 func _reroll() -> void:
@@ -475,6 +492,11 @@ func _unhandled_input(event: InputEvent) -> void:
 		if over and (event.keycode == KEY_ENTER or event.keycode == KEY_SPACE):
 			get_tree().reload_current_scene()
 			return
+		if not over and (event.keycode == KEY_ESCAPE or event.keycode == KEY_P):
+			_set_paused(not paused)
+			return
+		if paused:
+			return
 		if choosing and event.keycode == KEY_R:
 			_reroll()
 			return
@@ -484,7 +506,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if not over and not choosing and event.keycode == KEY_SPACE:
 			_start_fever()
 			return
-	if over or choosing:
+	if over or choosing or paused:
 		return
 	var h := get_viewport().get_visible_rect().size.y
 	if event is InputEventScreenTouch:
@@ -541,6 +563,18 @@ func _edge_point(margin: float) -> Vector2:
 		_: return Vector2(v.position.x + randf() * v.size.x, v.end.y)
 
 
+## [[x, y], ...] 折線內插
+func _curve(points: Array, x: float) -> float:
+	if x <= points[0][0]:
+		return points[0][1]
+	for i in range(points.size() - 1):
+		var a: Array = points[i]
+		var b: Array = points[i + 1]
+		if x < b[0]:
+			return lerpf(a[1], b[1], (x - a[0]) / (b[0] - a[0]))
+	return points[-1][1]
+
+
 ## 回傳 (目標隻數, 每群間隔)
 func _wave_now() -> Vector2:
 	var c: Array = D.waves.curve
@@ -567,11 +601,18 @@ func _spawn_group() -> void:
 
 func _spawn_one(type: String, at: Vector2) -> void:
 	var d: Dictionary = D.enemies[type]
-	var hp: float = ceilf(d.hp * (1.0 + D.waves.hp_per_minute * t / 60.0))
+	var SC: Dictionary = D.waves.scaling
+	var V: Dictionary = D.waves.veteran
+	var vet := randf() < _curve(V.chance, t)
+	var hp: float = ceilf(d.hp * _curve(SC.hp, t) * (float(V.hp_mult) if vet else 1.0))
 	var e := {"type": type, "d": d, "pos": at, "hp": hp, "ph": randf() * TAU, "flash": 0.0, "stun": 0.0,
 		"cd": 0.0, "bcd": 0.0, "shoot": (d.shoot.every * randf()) if d.has("shoot") else 0.0, "r": 6.0,
-		"sprite": type, "tint": Color.WHITE, "roar": 2.0,
+		"sprite": type, "tint": Color(0.7, 0.5, 0.6) if vet else Color.WHITE, "roar": 2.0, "vet": vet,
+		"dmul": _curve(SC.damage, t), "smul": _curve(SC.speed, t),
 		"knock": Vector2.ZERO, "dead": false, "node": _sprite(type + "_0", Vector2(-10, -13))}
+	if vet:
+		e.node.scale = Vector2.ONE * float(V.scale)
+		e.r *= float(V.scale)
 	enemies.append(e)
 
 
@@ -583,7 +624,9 @@ func _spawn_special(key: String, def: Dictionary, at: Vector2) -> void:
 		if def.has(k):
 			d[k] = def[k]
 	var scale: float = def.get("scale", 1.0)
-	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * (1.0 + D.waves.hp_per_minute * t / 60.0), "ph": randf() * TAU,
+	var SC: Dictionary = D.waves.scaling
+	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * _curve(SC.hp, t), "ph": randf() * TAU,
+		"dmul": _curve(SC.damage, t), "smul": _curve(SC.speed, t),
 		"flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "shoot": 0.0, "r": 6.0 * scale, "sprite": def.sprite,
 		"tint": Color(def.tint[0], def.tint[1], def.tint[2]), "roar": 2.0, "elite": scale > 1.0,
 		"knock": Vector2.ZERO, "dead": false, "node": _sprite(def.sprite + "_0", Vector2(-10, -13))}
@@ -633,6 +676,9 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 	if by_player:
 		kills += 1
 		gems.append({"pos": e.pos, "got": false})
+		if e.get("vet", false):
+			for i in int(D.waves.veteran.gems) - 1:
+				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
 		if e.d.get("chest", false):
 			chests.append({"pos": e.pos})
 		if e.get("elite", false):
@@ -705,7 +751,7 @@ func _barrier_pieces() -> Array:
 
 # ---------- FEVER ----------
 func _start_fever() -> void:
-	if meter < 1.0 or fever > 0.0 or over or choosing:
+	if meter < 1.0 or fever > 0.0 or over or choosing or paused:
 		return
 	fever = D.fever.duration
 	fever_kills = 0
@@ -728,9 +774,39 @@ func _end_fever() -> void:
 
 
 # ---------- 主迴圈 ----------
+## 離開這局：還沒結束的話（從暫停選單放棄）照失敗結算
+func _leave(scene: String) -> void:
+	if not over:
+		over = true
+		_record_run()
+		_finish_run()
+	get_tree().change_scene_to_file(scene)
+
+
+func _set_paused(on: bool) -> void:
+	if over:
+		return
+	paused = on
+	joy.on = false
+	ui.joy.on = false
+	if on:
+		ui.show_pause(build_text)
+	else:
+		ui.hide_pause()
+
+
+func _notification(what: int) -> void:
+	# 手機按返回鍵、切到別的 App、視窗失去焦點：自動暫停
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_set_paused(not paused)
+	elif what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
+		if not smoke and not choosing and not chest_open:
+			_set_paused(true)
+
+
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.05)
-	if not over and not choosing and not chest_open:
+	if not over and not choosing and not chest_open and not paused:
 		t += dt
 		_step(dt)
 	_render(dt)
@@ -800,12 +876,14 @@ func _step(dt: float) -> void:
 	link_fx = link_fx.filter(func(f): return f.t < 0.6)
 
 	var ew: Dictionary = D.elite_wave
-	if t >= ew.from and t < ew.to and boss == null:
+	var peak: bool = t >= ew.peak_from and t < ew.peak_to
+	if t >= ew.from and boss == null:
 		elite_timer -= dt
 		if elite_timer <= 0.0:
 			_spawn_special("terror", D.elites.terror, _edge_point(16.0))
 			ui.show_banner("菁英出現：恐嚇", 2.0)
-			elite_timer = ew.elite_every
+			elite_timer = ew.peak_every if peak else ew.elite_every
+	if peak and boss == null:
 		trial_timer -= dt
 		if trial_timer <= 0.0:
 			var tr := _trial_for_build()
@@ -1136,7 +1214,7 @@ func _update_projectiles(dt: float) -> void:
 		if s.pos.distance_to(paul.pos + Vector2(0, -6)) < 5.0 and paul.inv <= 0.0:
 			var belt: int = armor.get("belt", 0)
 			if belt < 3:
-				_damage_paul(D.enemies.lies.shoot.damage * (1.0 - 0.3 * belt))
+				_damage_paul(s.dmg * (1.0 - 0.3 * belt))
 			else:
 				_ring_pop(s.pos, C_CREAM, 8.0)
 			s.life = 0.0
@@ -1198,10 +1276,10 @@ func _update_enemies(dt: float) -> void:
 				go = 0.0
 			e.shoot -= dt
 			if e.shoot <= 0.0 and dist < sh.range:
-				shots.append({"pos": e.pos, "vel": dir * sh.speed, "life": 3.0})
+				shots.append({"pos": e.pos, "vel": dir * sh.speed, "life": 3.0, "dmg": float(sh.damage) * e.dmul})
 				e.shoot = sh.every
 		var wob: float = sin(t * 2.2 + e.ph) * 0.5
-		e.pos += (dir * go + dir.orthogonal() * wob) * d.speed * dt
+		e.pos += (dir * go + dir.orthogonal() * wob) * d.speed * e.smul * dt
 
 		for b in bars:
 			if b.up > 0.6 and e.bcd <= 0.0 and e.pos.distance_to(b.pos + Vector2(0, -3)) < 8.0:
@@ -1227,7 +1305,7 @@ func _update_enemies(dt: float) -> void:
 					c.sleep = d.sleep_for
 					scatter_by[e.type] += 1
 				if fever <= 0.0:
-					_damage_companion(c, d.damage)
+					_damage_companion(c, d.damage * e.dmul)
 				if d.dies_on_touch:
 					_kill(e, fever > 0.0)
 				else:
@@ -1239,7 +1317,7 @@ func _update_enemies(dt: float) -> void:
 
 		# 碰到保羅
 		if p.pos.distance_to(e.pos + Vector2(0, 5)) < e.r and p.inv <= 0.0:
-			_damage_paul(d.damage)
+			_damage_paul(d.damage * e.dmul)
 			e.knock -= dir * 80.0
 			if d.dies_on_touch:
 				_kill(e, false)
@@ -1710,7 +1788,7 @@ func _spawn_boss() -> void:
 	world.add_child(s)
 	boss = {"type": "boss", "boss": true, "d": {"name": B.name, "damage": B.touch_damage}, "pos": _edge_point(-30.0),
 		"hp": float(B.hp), "max_hp": float(B.hp), "ph": 0.0, "flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "r": 14.0,
-		"sprite": "boss", "tint": Color.WHITE, "knock": Vector2.ZERO, "dead": false, "node": s,
+		"sprite": "boss", "tint": Color.WHITE, "dmul": 1.0, "smul": 1.0, "knock": Vector2.ZERO, "dead": false, "node": s,
 		"state": "move", "timer": 2.5, "pattern_i": 0, "pattern": ""}
 	enemies.append(boss)
 	ui.show_banner("Boss：" + B.name, 2.5)
@@ -1954,6 +2032,11 @@ func _smoke_tick() -> void:
 			("%.0f/%s" % [boss.hp, boss.state]) if boss != null else "-", party, fruits, armor, evolved.keys()])
 	if smoke_shot != "" and fever > 0.0 and fever < D.fever.duration - 1.5 and not FileAccess.file_exists(smoke_shot.replace(".png", "_fever.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_fever.png"))
+	if smoke_shot != "" and smoke_frames == 1500 and not FileAccess.file_exists(smoke_shot.replace(".png", "_pause.png")):
+		_set_paused(true)
+	if smoke_shot != "" and paused and smoke_frames == 1530:
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_pause.png"))
+		_set_paused(false)
 	if smoke_shot != "" and smoke_frames == 1700:
 		get_viewport().get_texture().get_image().save_png(smoke_shot)
 	if smoke_frames >= 1800:

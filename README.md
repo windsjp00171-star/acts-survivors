@@ -27,6 +27,7 @@
 | 升級選卡 | 1／2／3 | 點卡片 |
 | 重抽升級卡（要先解鎖） | R | 按「重抽」 |
 | 五旬節 FEVER | 空白鍵（同心合意滿了） | 按「五旬節」按鈕 |
+| 暫停 | Esc 或 P | 右上角「Ⅱ」、手機返回鍵 |
 | 結束後再出發 | Enter 或空白鍵 | 按「再出發」或「回安提阿」 |
 
 ## 一起來改這個遊戲
@@ -40,6 +41,7 @@
 - `fever`：同心合意累積速度、FEVER 長度與效果
 - `enemies`：四種敵人的血量、速度、打散隊伍的力道
 - `waves.curve`：每個時間點場上要有多少怪
+- `waves.scaling`／`waves.veteran`：敵人隨時間變強的倍率、老練敵人的出現機率
 - `fruits`／`armor`／`evolutions`：果子、軍裝、進化條件與效果
 - `elites`／`trials`／`elite_wave`：菁英、考驗型敵人與出現時間
 - `boss`：Boss 出現時間、血量、各招式傷害
@@ -93,6 +95,7 @@ godot --headless --path . res://scenes/main.tscn -- --smoke
 
 - `--t0=秒數`：直接跳到某個時間（例如 `--t0=590` 測 Boss）
 - `--preset=strong`：全員出動、西拉滿級帶喜樂，開局附一個寶箱（測進化）
+- `--preset=five`：接近實際的中後期隊伍（5 人 Lv4），拿來測難度曲線
 - `--preset=ot`：五位舊約人物滿級
 - `--preset=links`：預先接好一條三段的肢體連結
 - `--nofever`：不自動開五旬節（看一般狀態的畫面）

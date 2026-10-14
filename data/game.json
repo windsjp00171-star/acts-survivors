@@ -151,7 +151,8 @@
     "apathy": { "name": "冷漠", "sprite": "sleep", "tint": [0.7, 0.7, 0.75], "hp": 8, "speed": 13, "damage": 4, "scatter": 0,
                 "immune": "ring", "counters": "silas" }
   },
-  "elite_wave": { "from": 360, "to": 480, "elite_every": 30, "trial_every": 4, "trial_group": 6 },
+  "_elite_wave說明": "菁英從 from 秒開始每 elite_every 秒出現一隻；peak_from 到 peak_to 是菁英潮，間隔縮短成 peak_every，並會出現考驗型敵人。Boss 出現後停止。",
+  "elite_wave": { "from": 120, "elite_every": 45, "peak_from": 360, "peak_to": 480, "peak_every": 25, "trial_every": 4, "trial_group": 6 },
   "boss": {
     "at": 600, "name": "捆鎖", "hp": 6000, "speed": 10, "touch_damage": 10,
     "warn": 1.1, "break_seconds": 2.2, "break_mult": 2.0, "phase2_at": 0.5,
@@ -164,7 +165,8 @@
   },
   "chest": { "rolls_min": 1, "rolls_max": 3 },
   "easter_egg": { "first_time": true, "chance": 0.1 },
-  "leveling": { "first": 6, "step": 5, "card_delay": 0.4, "heal_card": 30 },
+  "_leveling說明": "升到下一級需要的經驗 = first + step ×(等級-1) + growth ×(等級-1)²，越後面越慢。card_delay 是升級卡跳出後幾秒才能選；觸控用 touch_card_delay，避免滑動時誤觸。",
+  "leveling": { "first": 8, "step": 6, "growth": 0.7, "card_delay": 0.4, "touch_card_delay": 1.0, "heal_card": 30 },
   "fever": {
     "_說明": "同心合意：隊伍越完整累積越快；滿了按空白鍵（觸控按按鈕）開五旬節。",
     "fill_seconds": 16,
@@ -185,6 +187,14 @@
   "waves": {
     "_說明": "curve 每列是 [秒數, 場上目標隻數, 每群間隔秒數]，中間線性內插。照設計文件的一座城節奏：開局 → 成形 → 菁英潮高峰 → 喘息 → Boss 前再升高。超過最後一列就維持最後一列。",
     "initial": 15,
+    "_scaling說明": "敵人隨時間變強：每列是 [秒數, 倍率]，中間線性內插。hp 血量、damage 傷害、speed 速度。",
+    "scaling": {
+      "hp":     [[0, 1], [120, 1.8], [240, 3], [360, 4.5], [480, 6.5], [600, 9], [720, 12]],
+      "damage": [[0, 1], [300, 1.4], [600, 1.8], [720, 2]],
+      "speed":  [[0, 1], [300, 1.15], [600, 1.3]]
+    },
+    "_veteran說明": "老練的敵人：同一種敵人的強化版，血量 hp_mult 倍、體型 scale 倍、顏色較深，打倒掉 gems 顆經驗。出現機率隨時間 chance 內插。",
+    "veteran": { "chance": [[0, 0], [90, 0.04], [240, 0.12], [480, 0.22], [720, 0.3]], "hp_mult": 4, "scale": 1.35, "gems": 3 },
     "group_min": 3,
     "group_max": 7,
     "curve": [
@@ -197,8 +207,7 @@
       [600, 140, 0.6],
       [720, 260, 0.3]
     ],
-    "max_enemies": 280,
-    "hp_per_minute": 0.1
+    "max_enemies": 280
   },
   "gems": { "magnet_radius": 34, "magnet_speed": 110 }
 }
