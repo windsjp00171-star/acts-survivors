@@ -62,6 +62,7 @@ func _ready() -> void:
 
 	_build_camp()
 	_build_hud()
+	Sfx.music("camp")
 
 	var shot := ""
 	for a in OS.get_cmdline_user_args():

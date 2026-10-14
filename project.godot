@@ -19,6 +19,7 @@ config/features=PackedStringArray("4.4", "GL Compatibility")
 [autoload]
 
 Save="*res://scripts/save.gd"
+Sfx="*res://scripts/sfx.gd"
 
 [display]
 

@@ -469,6 +469,20 @@ func show_pause(build_text: String) -> void:
 	home.custom_minimum_size = Vector2(200, 34)
 	home.pressed.connect(func(): home_pressed.emit())
 	v.add_child(home)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
+	v.add_child(row)
+	for kind in [["sfx", "音效"], ["music", "音樂"]]:
+		var tb := UIKit.button("", 13)
+		tb.custom_minimum_size = Vector2(96, 30)
+		var k: String = kind[0]
+		var nm: String = kind[1]
+		var refresh := func(): tb.text = "%s：%s" % [nm, "開" if Save.data.get(k + "_on", true) else "關"]
+		refresh.call()
+		tb.pressed.connect(func():
+			Sfx.toggle(k)
+			refresh.call())
+		row.add_child(tb)
 	var note := UIKit.label("放棄會照失敗結算（見證減半）", 10, UIKit.MUTED)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(note)

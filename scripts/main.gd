@@ -174,6 +174,7 @@ func _ready() -> void:
 		var d := 110.0 + randf() * 80.0
 		_spawn_one(_pick_type(), Vector2(cos(a) * d, sin(a) * d * 0.7))
 	_update_chunks()
+	Sfx.music("battle")
 
 
 # ---------- 建立場景 ----------
@@ -413,6 +414,7 @@ func _level_up() -> void:
 	joy.on = false
 	ui.joy.on = false
 	pending_cards = _make_cards()
+	Sfx.play("levelup", 0.0)
 	ui.do_flash(0.5)
 	_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 60.0)
 	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, _card_delay(), rerolls_left)
@@ -501,6 +503,7 @@ func _refresh_build_text() -> void:
 
 
 func _on_card(i: int) -> void:
+	Sfx.play("pick", 0.0)
 	_apply_card(pending_cards[i])
 	_refresh_build_text()
 	choosing = false
@@ -683,6 +686,7 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		dmg *= D.boss.break_mult
 	e.hp -= dmg
 	e.flash = 0.08
+	Sfx.play("hit")
 	if from != Vector2.INF:
 		e.knock += (e.pos - from).normalized() * 40.0
 	_burst(e.pos, 2, C_CREAM, C_GOLD)
@@ -697,6 +701,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 	e.node.queue_free()
 	if by_player:
 		kills += 1
+		Sfx.play("kill")
 		gems.append({"pos": e.pos, "got": false})
 		if e.get("vet", false):
 			for i in int(D.waves.veteran.gems) - 1:
@@ -778,6 +783,7 @@ func _start_fever() -> void:
 	fever = D.fever.duration
 	fever_kills = 0
 	run_fevers += 1
+	Sfx.play("fever", 0.0)
 	meter = 1.0
 	ui.do_flash(0.7)
 	shake = 0.2
@@ -791,6 +797,7 @@ func _end_fever() -> void:
 	fever = 0.0
 	meter = 0.0
 	fever_bursts.append({"pos": paul.pos, "r": 0.0, "hit": {}})
+	Sfx.play("burst", 0.0)
 	ui.do_flash(0.5)
 	shake = 0.25
 
@@ -944,6 +951,7 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
+			Sfx.play("gem", 0.15)
 	gems = gems.filter(func(g): return not g.got)
 	if gems.size() > 300:
 		gems = gems.slice(gems.size() - 300)
@@ -1006,6 +1014,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			paul.hp = minf(D.paul.hp, paul.hp + s.amount)
 			heals.append({"who": paul, "t": 0.0})
 			_ring_pop(c.pos + Vector2(0, -8), C_HEAL, 40.0)
+			Sfx.play("heal", 0.0)
 			_ring_pop(paul.pos + Vector2(0, -8), C_HEAL, 14.0)
 			for o in comps:
 				if o.level == 0:
@@ -1074,6 +1083,7 @@ func _run_link_queue() -> void:
 		var from: Vector2 = paul.pos if L.kind == "hurt" else L.src.pos
 		if _cast(L.dst, true, q.depth):
 			link_count += 1
+			Sfx.play("link%d" % mini(q.depth, 3), 0.02)
 			link_fx.append({"a": from + Vector2(0, -8), "b": L.dst, "t": 0.0, "depth": q.depth})
 			_ring_pop(L.dst.pos + Vector2(0, -8), C_GOLD, 12.0 + q.depth * 5.0)
 
@@ -1267,6 +1277,7 @@ func _update_enemies(dt: float) -> void:
 			e.roar -= dt
 			if e.roar <= 0.0:
 				e.roar = d.roar_every
+				Sfx.play("roar")
 				_ring_pop(e.pos, C_VL, d.roar_radius)
 				shake = 0.15
 				for c in comps:
@@ -1400,6 +1411,7 @@ func _damage_paul(n: float) -> void:
 		_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 16.0)
 		return
 	paul.hp -= n
+	Sfx.play("hurt")
 	paul.inv = 0.6
 	shake = 0.12
 	_fire_links("hurt", null, 0)
@@ -1756,6 +1768,7 @@ func _open_chest() -> void:
 			_apply_card(card)
 			results.append({"title": card.title, "desc": card.desc, "big": false})
 	_refresh_build_text()
+	Sfx.play("chest", 0.0)
 	ui.do_flash(0.4)
 	ui.show_chest(results)
 
@@ -1788,6 +1801,7 @@ func _evolve(evo: Dictionary) -> void:
 		evo_timer = 2.0
 	_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 50.0)
 	_burst(c.pos + Vector2(0, -8), 20, C_GOLD, C_CREAM)
+	Sfx.play("evolve", 0.0)
 	shake = 0.3
 	ui.do_flash(0.5)
 	ui.show_banner("進化！%s：%s" % [c.name, evo.name], 2.2)
@@ -1813,6 +1827,7 @@ func _quake() -> void:
 			e.stun = evo.stun
 			_hurt(e, evo.damage, Vector2.INF, src)
 	quakes.append({"pos": src.pos, "r": 0.0})
+	Sfx.play("quake", 0.0)
 	shake = 0.45
 	ui.do_flash(0.35)
 	ui.show_banner(evo.name, 1.2)
@@ -1878,6 +1893,7 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 				b.pattern = order[b.pattern_i % order.size()]
 				b.pattern_i += 1
 				tele = _make_tele(b)
+				Sfx.play("warn", 0.0)
 				b.state = "warn"
 				b.timer = B.warn * (0.7 if phase2 else 1.0)
 		"warn":
@@ -2014,6 +2030,8 @@ func _comp_name(key: String) -> String:
 func _win() -> void:
 	if won:
 		return
+	Sfx.music("")
+	Sfx.play("win", 0.0)
 	won = true
 	over = true
 	_record_run()
@@ -2033,6 +2051,8 @@ func _win() -> void:
 
 # ---------- 失敗 ----------
 func _game_over() -> void:
+	Sfx.music("")
+	Sfx.play("lose", 0.0)
 	over = true
 	joy.on = false
 	ui.joy.on = false

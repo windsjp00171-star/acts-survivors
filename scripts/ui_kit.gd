@@ -72,6 +72,7 @@ static func button(text: String, size := 14, primary := false) -> Button:
 		b.add_theme_stylebox_override("focus", box(Color("3a2a40"), GOLD, 6))
 		b.add_theme_stylebox_override("pressed", box(Color("5a4420"), CREAM, 6))
 	b.add_theme_stylebox_override("disabled", box(Color("1a1420"), Color("3a3040"), 6))
+	b.pressed.connect(func(): Sfx.play("ui", 0.0))
 	return b
 
 
