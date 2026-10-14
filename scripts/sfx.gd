@@ -89,3 +89,9 @@ func voice(pitch: float) -> void:
 			p.pitch_scale = pitch * randf_range(0.94, 1.08)
 			p.play()
 			return
+
+
+## 手機震動（只在手機上，可在暫停選單關掉）
+func buzz(ms: int) -> void:
+	if OS.has_feature("mobile") and _on("vibe"):
+		Input.vibrate_handheld(ms)

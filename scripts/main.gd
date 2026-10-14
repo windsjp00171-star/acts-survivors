@@ -877,6 +877,7 @@ func _start_fever() -> void:
 	fever_kills = 0
 	run_fevers += 1
 	Sfx.play("fever", 0.0)
+	Sfx.buzz(90)
 	var L: Dictionary = D.fever.light
 	if force_light or randf() < float(L.chance):
 		# 光的身影：不攻擊，只是扶起倒下的、醫好所有人，最後的爆發加倍
@@ -1670,6 +1671,7 @@ func _damage_paul(n: float) -> void:
 		return
 	paul.hp -= n
 	Sfx.play("hurt")
+	Sfx.buzz(40)
 	paul.inv = 0.6
 	shake = 0.12
 	_fire_links("hurt", null, 0)
@@ -2104,6 +2106,7 @@ func _open_chest() -> void:
 			results.append({"title": card.title, "desc": card.desc, "big": false})
 	_refresh_build_text()
 	Sfx.play("chest", 0.0)
+	Sfx.buzz(50)
 	for i in int(Save.meta.bread.drop.chest):
 		breads.append({"pos": paul.pos + Vector2(randf_range(-14, 14), randf_range(-10, 10))})
 	ui.do_flash(0.4)
@@ -2143,6 +2146,7 @@ func _evolve(evo: Dictionary) -> void:
 	_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 50.0)
 	_burst(c.pos + Vector2(0, -8), 20, C_GOLD, C_CREAM)
 	Sfx.play("evolve", 0.0)
+	Sfx.buzz(150)
 	shake = 0.3
 	ui.do_flash(0.5)
 	ui.show_banner("進化！%s：%s" % [c.name, evo.name], 2.2)
@@ -2391,6 +2395,7 @@ func _win() -> void:
 		founded_now = true
 	Sfx.music("")
 	Sfx.play("win", 0.0)
+	Sfx.buzz(250)
 	won = true
 	over = true
 	_record_run()

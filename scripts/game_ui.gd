@@ -473,9 +473,12 @@ func show_pause(build_text: String) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 8)
 	v.add_child(row)
-	for kind in [["sfx", "音效"], ["music", "音樂"]]:
+	var kinds := [["sfx", "音效"], ["music", "音樂"]]
+	if OS.has_feature("mobile"):
+		kinds.append(["vibe", "震動"])
+	for kind in kinds:
 		var tb := UIKit.button("", 13)
-		tb.custom_minimum_size = Vector2(96, 30)
+		tb.custom_minimum_size = Vector2(88, 30)
 		var k: String = kind[0]
 		var nm: String = kind[1]
 		var refresh := func(): tb.text = "%s：%s" % [nm, "開" if Save.data.get(k + "_on", true) else "關"]
