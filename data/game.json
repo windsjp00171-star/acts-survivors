@@ -2,16 +2,22 @@
   "_說明": "遊戲資料。改這個檔就能調整數值，不用動程式。之後玩家改寫遊戲的入口也從這裡開始。",
   "paul": { "name": "保羅", "speed": 42, "hp": 100 },
   "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
+  "_companions說明": "skill 對應下面的 skills；tag 是流派；era 顯示在名冊上。站位依加入順序自動排。",
   "companions": [
-    { "key": "barn",    "name": "巴拿巴", "skill": "aura", "home": [-21, -10], "tag": "守護" },
-    { "key": "luke",    "name": "路加",   "skill": "heal", "home": [20, -11],  "tag": "醫治" },
-    { "key": "silas",   "name": "西拉",   "skill": "ring", "home": [-24, 9],   "tag": "詩歌" },
-    { "key": "tim",     "name": "提摩太", "skill": "bolt", "home": [24, 8],    "tag": "差派" },
-    { "key": "apollos", "name": "亞波羅", "skill": "beam", "home": [0, -21],   "tag": "講道" },
-    { "key": "pri",     "name": "百基拉", "skill": "tent", "home": [-7, 22],   "tag": "守護", "with": "aq" },
-    { "key": "aq",      "name": "亞居拉", "skill": "",     "home": [7, 22],    "tag": "守護", "follows": "pri" }
+    { "key": "barn",    "name": "巴拿巴", "skill": "aura",    "tag": "守護", "era": "新約" },
+    { "key": "luke",    "name": "路加",   "skill": "heal",    "tag": "醫治", "era": "新約" },
+    { "key": "silas",   "name": "西拉",   "skill": "ring",    "tag": "詩歌", "era": "新約" },
+    { "key": "tim",     "name": "提摩太", "skill": "bolt",    "tag": "差派", "era": "新約" },
+    { "key": "apollos", "name": "亞波羅", "skill": "beam",    "tag": "講道", "era": "新約" },
+    { "key": "pri",     "name": "百基拉", "skill": "tent",    "tag": "守護", "era": "新約", "with": "aq" },
+    { "key": "aq",      "name": "亞居拉", "skill": "",        "tag": "守護", "era": "新約", "follows": "pri" },
+    { "key": "david",   "name": "大衛",   "skill": "sling",   "tag": "詩歌", "era": "舊約" },
+    { "key": "samson",  "name": "參孫",   "skill": "jawbone", "tag": "守護", "era": "舊約" },
+    { "key": "moses",   "name": "摩西",   "skill": "sea",     "tag": "講道", "era": "舊約" },
+    { "key": "elijah",  "name": "以利亞", "skill": "fire",    "tag": "醫治", "era": "舊約" },
+    { "key": "joshua",  "name": "約書亞", "skill": "trumpet", "tag": "差派", "era": "舊約" }
   ],
-  "_skills說明": "base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。",
+  "_skills說明": "base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。engine 是借用哪一種招式的運作方式（bolt 追蹤、ring 擴散圈、beam 直線、nova 身邊重擊、strike 預兆後落下），look 是外觀。",
   "skills": {
     "bolt": {
       "base": { "cooldown": 0.4, "range": 120, "damage": 1, "speed": 200, "count": 1, "split": 0, "pierce": 0, "size": 1 },
@@ -42,6 +48,36 @@
       "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 2, "range": 130, "beams": 1, "burst": 0, "lies_mult": 1 },
       "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 3 } ],
       "desc": ["朝敵人射出一道貫穿的光束", "光束更寬更長", "光束末端爆開", "一次兩道光束", "三道光束，對謊言三倍傷害"]
+    },
+    "sling": {
+      "engine": "bolt", "look": "stone",
+      "base": { "cooldown": 1.1, "range": 140, "damage": 3, "speed": 240, "count": 1, "split": 0, "pierce": 0, "size": 1, "elite_mult": 3 },
+      "levels": [ { "damage": 4 }, { "count": 2 }, { "pierce": 2 }, { "elite_mult": 6, "size": 2, "cooldown": 0.8 } ],
+      "desc": ["甩石機弦：慢但重的石子，對菁英與 Boss 三倍傷害", "石子更重", "一次甩出 2 顆", "石子可以穿透 2 隻敵人", "甩得更快，對菁英與 Boss 六倍傷害（撒上 17:49）"]
+    },
+    "jawbone": {
+      "engine": "nova",
+      "base": { "cooldown": 2.6, "radius": 30, "damage": 3, "knock": 70, "slams": 1 },
+      "levels": [ { "radius": 38 }, { "damage": 5 }, { "cooldown": 1.9 }, { "slams": 2, "radius": 46, "knock": 110 } ],
+      "desc": ["驢腮骨：定期重擊身邊一圈，把敵人震飛", "範圍變大", "威力提升", "砸得更頻繁", "連砸兩下，範圍更大、震得更遠（士 15:16）"]
+    },
+    "sea": {
+      "engine": "beam", "look": "sea",
+      "base": { "cooldown": 3.0, "length": 150, "width": 12, "damage": 2, "range": 140, "beams": 1, "burst": 0, "lies_mult": 1, "stun": 0.6 },
+      "levels": [ { "width": 18 }, { "stun": 1.2, "damage": 3 }, { "beams": 2 }, { "length": 220, "width": 26, "stun": 1.6 } ],
+      "desc": ["分開紅海：寬大的水道直線沖開敵人並使其暈眩", "水道更寬", "暈眩更久、威力提升", "一次分開兩道", "水道更長更寬，暈眩更久（出 14:21）"]
+    },
+    "fire": {
+      "engine": "strike",
+      "base": { "cooldown": 2.4, "range": 150, "count": 1, "radius": 16, "damage": 5, "delay": 0.6 },
+      "levels": [ { "count": 2 }, { "radius": 22 }, { "damage": 8 }, { "count": 4, "cooldown": 1.8 } ],
+      "desc": ["火從天降：地上先出現預兆，火柱再落進敵群", "一次降下 2 道火", "火的範圍變大", "火的威力提升", "一次 4 道，降得更快（王上 18:38）"]
+    },
+    "trumpet": {
+      "engine": "ring", "look": "horn",
+      "base": { "cooldown": 3.0, "max_radius": 64, "damage": 1, "speed": 90, "rings": 1, "returns": 0, "stun": 0, "thick": 1, "knock": 60 },
+      "levels": [ { "knock": 90, "max_radius": 80 }, { "damage": 2 }, { "rings": 2 }, { "stun": 1.0, "max_radius": 110, "thick": 2 } ],
+      "desc": ["吹角：號角聲一圈圈把敵人震退", "震得更遠、範圍更大", "威力提升", "一次吹兩聲", "號角更響，被震到的敵人暈眩（書 6:20）"]
     }
   },
   "_fruits說明": "聖靈果子：全隊被動，每種最多 5 級。per_level 是每級加的比例。",

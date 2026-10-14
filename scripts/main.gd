@@ -6,6 +6,8 @@ const ZOOM := 2.0
 const CHUNK := 96
 const SEP_CELL := 8.0
 const DATA_PATH := "res://data/game.json"
+## 隊形：同伴依加入順序站到這些位置（相對保羅）
+const SLOTS := [Vector2(-24, 9), Vector2(24, 8), Vector2(-21, -10), Vector2(20, -11), Vector2(0, -21), Vector2(-7, 22)]
 
 const C_GOLD := Color("ffd75e")
 const C_CREAM := Color("fff4c2")
@@ -68,6 +70,8 @@ var bolts: Array = []
 var rings: Array = []
 var beams: Array = []
 var blasts: Array = []
+var fires: Array = []     # 以利亞的火：先預兆再落下
+var delayed: Array = []   # 延遲觸發的招式（參孫的第二下）
 var shots: Array = []
 var gems: Array = []
 var parts: Array = []
@@ -90,6 +94,7 @@ var smoke_shot := ""
 var smoke_frames := 0
 var smoke_preset := ""
 var smoke_over := 0
+var smoke_nofever := false
 
 
 func _ready() -> void:
@@ -101,6 +106,8 @@ func _ready() -> void:
 			smoke_shot = a.substr(7)
 		elif a.begins_with("--t0="):
 			t = float(a.substr(5))
+		elif a == "--nofever":
+			smoke_nofever = true
 		elif a.begins_with("--preset="):
 			smoke_preset = a.substr(9)
 	for k in D.enemies:
@@ -114,6 +121,11 @@ func _ready() -> void:
 		starter = Save.meta.default_starter
 	_recruit(by_key[starter])
 	rerolls_left = Save.rerolls()
+	if smoke_preset == "ot":
+		# 測試用：五位舊約人物滿級
+		for k in ["david", "samson", "moses", "elijah", "joshua"]:
+			_recruit(by_key[k])
+			_set_level(by_key[k], 5)
 	if smoke_preset == "strong":
 		# 測試用：滿編隊伍，西拉滿級帶喜樂，下一個寶箱會進化
 		for c in comps:
@@ -180,12 +192,14 @@ func _build_world() -> void:
 		"node": _sprite("paul_0", Vector2(-7, -17))}
 	var i := 0
 	for d in D.companions:
-		var home := Vector2(d.home[0], d.home[1])
+		var home := Vector2.ZERO
 		var c := {"key": d.key, "name": d.name, "skill": d.skill, "tag": d.tag, "i": i, "home": home,
 			"base": home, "pos": home, "off": Vector2.ZERO, "vel": Vector2.ZERO, "level": 0, "st": {},
 			"cd": 0.3 + i * 0.2, "sleep": 0.0, "alert": 0.0,
 			"hp": float(D.companion_rules.hp), "down": 0.0, "hurt_cd": 0.0,
 			"with": d.get("with", ""), "follows": d.get("follows", ""),
+			"engine": D.skills[d.skill].get("engine", d.skill) if d.skill != "" else "",
+			"look": D.skills[d.skill].get("look", "") if d.skill != "" else "",
 			"aff": 1.0 + Save.affinity_level(d.key) * float(Save.meta.affinity.bonus_per_level),
 			"node": _sprite(d.key + "_0", Vector2(-7, -17))}
 		c.node.visible = false
@@ -228,6 +242,10 @@ func _set_level(c: Dictionary, lv: int) -> void:
 
 
 func _recruit(c: Dictionary) -> void:
+	if c.follows == "":
+		c.home = SLOTS[_party_count() % SLOTS.size()]
+	else:
+		c.home = by_key[c.follows].home + Vector2(14, 0)
 	_set_level(c, 1)
 	c.base = paul.pos + c.home + Vector2(randf_range(-30, 30), 40)
 	c.pos = c.base
@@ -753,53 +771,87 @@ func _companion_skills(dt: float) -> void:
 		c.cd -= dt * mult
 		if c.cd > 0.0:
 			continue
-		match c.skill:
-			"bolt":
-				var targets := _nearest_enemies(c.pos, s.range, int(s.count))
-				if targets.size() > 0:
-					for i in int(s.count):
-						var tg: Dictionary = targets[i % targets.size()]
-						bolts.append({"pos": c.pos + Vector2(0, -8), "target": tg, "life": 1.5, "pierce": int(s.pierce),
-							"split": int(s.split), "child": false, "dmg": float(s.damage), "size": int(s.size), "hit": {}})
-					c.cd = s.cooldown
-			"ring":
-				for i in int(s.rings):
-					rings.append({"owner": c, "r": 4.0 - i * 16.0, "dir": 1.0, "returns": int(s.returns), "hit": {},
-						"max": float(s.max_radius) * _area(), "dmg": float(s.damage), "speed": float(s.speed), "stun": float(s.stun), "thick": int(s.thick)})
-				c.cd = s.cooldown
-			"heal":
-				paul.hp = minf(D.paul.hp, paul.hp + s.amount)
-				heals.append({"who": paul, "t": 0.0})
-				for o in comps:
-					if o.level == 0:
-						continue
-					if o.down > 0.0 and s.instant_revive:
-						o.down = 0.0
-						o.hp = _comp_max_hp() * D.companion_rules.revive_hp
-					if o.down <= 0.0:
-						o.hp = minf(_comp_max_hp(), o.hp + s.amount)
-						heals.append({"who": o, "t": 0.0})
-				c.cd = s.cooldown
-			"beam":
-				var tg_list := _nearest_enemies(c.pos, s.range, 1)
-				if tg_list.size() > 0:
-					var from: Vector2 = c.pos + Vector2(0, -7)
-					var base_dir: Vector2 = (tg_list[0].pos - from).normalized()
-					var n := int(s.beams)
-					for b in n:
-						var ang := (b - (n - 1) / 2.0) * deg_to_rad(28.0)
-						var dir := base_dir.rotated(ang)
-						_fire_beam(from, dir, s)
-					c.cd = s.cooldown
-			_:
+		_cast(c)
+
+
+## 讓同伴出一次招。triggered = 被別的招式觸發（不重設冷卻）。回傳是否真的出手。
+func _cast(c: Dictionary, triggered := false) -> bool:
+	var s: Dictionary = c.st
+	var fired := true
+	match c.engine:
+		"bolt":
+			var targets := _nearest_enemies(c.pos, s.range, int(s.count))
+			fired = targets.size() > 0
+			for i in (int(s.count) if fired else 0):
+				var tg: Dictionary = targets[i % targets.size()]
+				bolts.append({"pos": c.pos + Vector2(0, -8), "target": tg, "life": 1.5, "pierce": int(s.pierce),
+					"split": int(s.split), "child": false, "dmg": float(s.damage), "size": int(s.size), "hit": {},
+					"spd": float(s.speed), "emult": float(s.get("elite_mult", 1.0)), "look": c.look, "owner": c})
+		"ring":
+			for i in int(s.rings):
+				rings.append({"owner": c, "r": 4.0 - i * 16.0, "dir": 1.0, "returns": int(s.returns), "hit": {},
+					"max": float(s.max_radius) * _area(), "dmg": float(s.damage), "speed": float(s.speed), "stun": float(s.stun),
+					"thick": int(s.thick), "knock": float(s.get("knock", 0.0)), "look": c.look})
+		"heal":
+			paul.hp = minf(D.paul.hp, paul.hp + s.amount)
+			heals.append({"who": paul, "t": 0.0})
+			for o in comps:
+				if o.level == 0:
+					continue
+				if o.down > 0.0 and s.instant_revive:
+					o.down = 0.0
+					o.hp = _comp_max_hp() * D.companion_rules.revive_hp
+				if o.down <= 0.0:
+					o.hp = minf(_comp_max_hp(), o.hp + s.amount)
+					heals.append({"who": o, "t": 0.0})
+		"beam":
+			var tg_list := _nearest_enemies(c.pos, s.range, 1)
+			fired = tg_list.size() > 0
+			if fired:
+				var from: Vector2 = c.pos + Vector2(0, -7)
+				var base_dir: Vector2 = (tg_list[0].pos - from).normalized()
+				var n := int(s.beams)
+				for b in n:
+					var ang := (b - (n - 1) / 2.0) * deg_to_rad(28.0)
+					_fire_beam(from, base_dir.rotated(ang), s, c.look)
+		"nova":
+			var slams := int(s.slams)
+			for i in slams:
+				delayed.append({"t": i * 0.25, "fn": _nova.bind(c, s)})
+		"strike":
+			var cand := _nearest_enemies(c.pos, s.range, 12)
+			fired = cand.size() > 0
+			cand.shuffle()
+			for i in mini(int(s.count), cand.size()):
+				fires.append({"pos": cand[i].pos, "t": float(s.delay), "max": float(s.delay), "r": float(s.radius) * _area(), "dmg": float(s.damage)})
+		_:
+			fired = false
+			if not triggered:
 				c.cd = 1.0
+	if fired and not triggered:
+		c.cd = s.cooldown
+	return fired
+
+
+func _nova(c: Dictionary, s: Dictionary) -> void:
+	if c.level == 0:
+		return
+	var center: Vector2 = c.pos + Vector2(0, -4)
+	var r: float = s.radius * _area()
+	blasts.append({"pos": center, "t": 0.0, "r": r, "col": Color("e8c8a0")})
+	shake = maxf(shake, 0.12)
+	for e in enemies:
+		if not e.dead and e.pos.distance_to(center) < r + (8.0 if e.get("boss", false) else 0.0):
+			_hurt(e, s.damage, center)
+			if not e.get("boss", false):
+				e.knock += (e.pos - center).normalized() * float(s.knock)
 
 
 func _aura_r(barn: Dictionary) -> float:
 	return barn.st.radius * _area()
 
 
-func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary) -> void:
+func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary, look := "") -> void:
 	var length: float = s.length * _area()
 	var width: float = s.width * _area()
 	for o in enemies:
@@ -807,8 +859,10 @@ func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary) -> void:
 		var along: float = rel.dot(dir)
 		var across: float = absf(rel.cross(dir))
 		if along > 0.0 and along < length and across < width + (8.0 if o.get("boss", false) else 0.0):
+			if s.get("stun", 0.0) > 0.0 and not o.get("boss", false):
+				o.stun = s.stun
 			_hurt(o, s.damage * (s.lies_mult if o.type == "lies" else 1.0), from)
-	beams.append({"pos": from, "dir": dir, "life": 0.3, "len": length, "width": width})
+	beams.append({"pos": from, "dir": dir, "life": 0.3 if look == "" else 0.5, "len": length, "width": width, "look": look})
 	if s.burst:
 		var end: Vector2 = from + dir * length
 		var br := 20.0 * _area()
@@ -829,16 +883,16 @@ func _update_projectiles(dt: float) -> void:
 			b.target = nxt[0]
 			tg = b.target
 		var to: Vector2 = tg.pos - b.pos
-		var spd: float = by_key.tim.st.speed if by_key.has("tim") else 200.0
-		b.pos += to.normalized() * spd * dt
+		b.pos += to.normalized() * b.spd * dt
 		b.life -= dt
 		if to.length() < 4.0:
 			b.hit[tg.node] = true
-			_hurt(tg, b.dmg, b.pos - to)
+			var big: bool = tg.get("elite", false) or tg.get("boss", false)
+			_hurt(tg, b.dmg * (b.emult if big else 1.0), b.pos - to)
 			if b.split > 0 and not b.child:
 				for o in _nearest_enemies(b.pos, 70.0, b.split, b.hit):
 					bolts.append({"pos": b.pos, "target": o, "life": 0.8, "pierce": 0, "split": 0, "child": true,
-						"dmg": maxf(1.0, b.dmg / 2.0), "size": 1, "hit": b.hit.duplicate()})
+						"dmg": maxf(1.0, b.dmg / 2.0), "size": 1, "hit": b.hit.duplicate(), "spd": b.spd, "emult": 1.0, "look": b.look, "owner": b.owner})
 			if b.pierce > 0:
 				b.pierce -= 1
 				var nxt := _nearest_enemies(b.pos, 70.0, 1, b.hit)
@@ -874,6 +928,8 @@ func _update_projectiles(dt: float) -> void:
 				if r.stun > 0.0:
 					e.stun = r.stun
 				_hurt(e, r.dmg, center)
+				if r.knock > 0.0 and not e.get("boss", false):
+					e.knock += (e.pos - center).normalized() * r.knock
 	rings = rings.filter(func(r): return not r.get("dead", false))
 
 	for b in beams:
@@ -882,6 +938,21 @@ func _update_projectiles(dt: float) -> void:
 	for b in blasts:
 		b.t += dt
 	blasts = blasts.filter(func(b): return b.t < 0.3)
+	for f in fires:
+		f.t -= dt
+		if f.t <= 0.0 and not f.get("hit", false):
+			f.hit = true
+			blasts.append({"pos": f.pos, "t": 0.0, "r": f.r, "col": C_FLAME})
+			_burst(f.pos, 8, C_FLAME, C_GOLD)
+			for e in enemies:
+				if not e.dead and e.pos.distance_to(f.pos) < f.r + (8.0 if e.get("boss", false) else 0.0):
+					_hurt(e, f.dmg, f.pos)
+	fires = fires.filter(func(f): return f.t > -0.35)
+	for dl in delayed:
+		dl.t -= dt
+		if dl.t <= 0.0:
+			dl.fn.call()
+	delayed = delayed.filter(func(dl): return dl.t > 0.0)
 	for h in heals:
 		h.t += dt
 	heals = heals.filter(func(h): return h.t < 0.9)
@@ -1253,16 +1324,34 @@ func _draw_air() -> void:
 		var k: float = 1.0 - r.r / r.max
 		var center: Vector2 = (r.owner.pos + Vector2(0, -6)).round()
 		var col := (C_FLAME if on_fire else C_GOLD) if k > 0.4 or r.dir < 0.0 else Color("e0b860")
+		var inner := C_RED if on_fire else C_CREAM
+		if r.look == "horn":
+			col = C_FLAME if on_fire else Color("e8e0d0")
+			inner = Color("a89878")
 		_dot_ring(n, center, r.r, 0.8, col, 2.0 if r.thick > 1 else 2.5, r.r * 0.05, r.thick)
-		_dot_ring(n, center, r.r - 3.0, 0.8, C_RED if on_fire else C_CREAM, 5.0, 0.0)
+		_dot_ring(n, center, r.r - 3.0, 0.8, inner, 5.0, 0.0)
 	for b in beams:
 		var end: Vector2 = b.pos + b.dir * b.len
 		var a := minf(1.0, b.life * 3.3)
-		n.draw_line(b.pos, end, Color(C_FLAME if on_fire else Color("3fbfb0"), a * 0.6), b.width * 1.4)
-		n.draw_line(b.pos, end, Color(C_CREAM, a), maxf(1.0, b.width * 0.4))
+		if b.look == "sea":
+			n.draw_line(b.pos, end, Color(C_FLAME if on_fire else Color("2f78c8"), a * 0.5), b.width * 1.6)
+			n.draw_line(b.pos, end, Color(Color("8fd0ff"), a * 0.8), b.width * 0.8)
+			n.draw_line(b.pos, end, Color(Color("eaf8ff"), a), 1.0)
+		else:
+			n.draw_line(b.pos, end, Color(C_FLAME if on_fire else Color("3fbfb0"), a * 0.6), b.width * 1.4)
+			n.draw_line(b.pos, end, Color(C_CREAM, a), maxf(1.0, b.width * 0.4))
 	for b in blasts:
 		var k: float = b.t / 0.3
-		n.draw_circle(b.pos, b.r * (0.4 + k * 0.6), Color(C_GOLD, (1.0 - k) * 0.6))
+		n.draw_circle(b.pos, b.r * (0.4 + k * 0.6), Color(b.get("col", C_GOLD), (1.0 - k) * 0.6))
+	for f in fires:
+		if f.t > 0.0:
+			var k: float = 1.0 - f.t / f.max
+			n.draw_arc(f.pos, f.r, 0.0, TAU, 24, Color(C_FLAME, 0.4 + 0.5 * k), 1.0)
+			n.draw_circle(f.pos, f.r * k, Color(C_FLAME, 0.18))
+		else:
+			var a: float = 1.0 + f.t / 0.35
+			n.draw_rect(Rect2(f.pos.x - 3, f.pos.y - 60, 7, 60), Color(C_GOLD, a * 0.7))
+			n.draw_rect(Rect2(f.pos.x - 1, f.pos.y - 60, 3, 60), Color(C_CREAM, a))
 	var blink := int(t * 8.0) % 2 == 0
 	for sh in tele:
 		if sh.kind == "line":
@@ -1292,7 +1381,12 @@ func _draw_air() -> void:
 		var x: float = roundf(b.pos.x)
 		var y: float = roundf(b.pos.y)
 		var col := C_FLAME if on_fire else C_GOLD
-		if b.size >= 2:
+		if b.look == "stone":
+			var sz: int = 3 if b.size >= 2 else 2
+			n.draw_rect(Rect2(x - 1, y - 1, sz + 1, sz + 1), Color("2a2030"))
+			n.draw_rect(Rect2(x, y - 1, sz, sz), Color("d8d0c0") if not on_fire else C_FLAME)
+			n.draw_rect(Rect2(x, y - 1, 1, 1), Color.WHITE)
+		elif b.size >= 2:
 			n.draw_rect(Rect2(x - 2, y - 1, 5, 3), col)
 			n.draw_rect(Rect2(x - 1, y - 2, 3, 5), col)
 			n.draw_rect(Rect2(x - 1, y - 1, 3, 3), Color.WHITE)
@@ -1665,7 +1759,7 @@ func _smoke_tick() -> void:
 		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_cards.png")):
 			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_cards.png"))
 		ui.pick(randi() % 3)
-	if meter >= 1.0 and fever <= 0.0:
+	if meter >= 1.0 and fever <= 0.0 and not smoke_nofever:
 		_start_fever()
 	if smoke_frames % 300 == 0:
 		var party := []
