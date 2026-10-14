@@ -256,6 +256,10 @@ func _show_companion(key: String) -> void:
 	_text(v, "【%s】%s" % [c.tag, c.get("era", "")], 12, UIKit.SKY)
 	var sk: Dictionary = G.skills[c.skill]
 	_text(v, sk.desc[0], 13, UIKit.INK, true)
+	for evo in G.evolutions:
+		if evo.companion == key:
+			_text(v, "進化「%s」：滿級＋果子「%s」" % [evo.name, G.fruits[evo.fruit].name], 12, UIKit.GOLD, true)
+			_text(v, evo.desc, 11, UIKit.MUTED, true)
 	if not unlocked:
 		_text(content, "尚未加入：" + _lock_hint(key), 13, UIKit.CREAM, true)
 	else:

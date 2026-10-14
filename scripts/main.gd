@@ -233,7 +233,7 @@ func _build_world() -> void:
 			"with": d.get("with", ""), "follows": d.get("follows", ""),
 			"engine": D.skills[d.skill].get("engine", d.skill) if d.skill != "" else "",
 			"look": D.skills[d.skill].get("look", "") if d.skill != "" else "",
-			"syn": 1.0,
+			"syn": 1.0, "castfx": 0.0,
 			"aff": 1.0 + Save.affinity_level(d.key) * float(Save.meta.affinity.bonus_per_level),
 			"node": _sprite(d.key + "_0", Vector2(-7, -17))}
 		c.node.visible = false
@@ -352,8 +352,14 @@ func _make_cards() -> Array:
 		var lv: int = fruits.get(k, 0)
 		if lv == 0 and not Save.is_unlocked("fruit_" + k):
 			continue
+		var fdesc: String = f.desc
+		if lv == 0:
+			for evo in D.evolutions:
+				if evo.fruit == k and by_key[evo.companion].level > 0:
+					fdesc += "\n可讓%s進化（滿級時）" % by_key[evo.companion].name
+					break
 		if lv == 0 and fruits.size() < 6:
-			pool.append({"kind": "fruit", "key": k, "title": f.name + "　新果子", "tag": f.tag, "desc": f.desc})
+			pool.append({"kind": "fruit", "key": k, "title": f.name + "　新果子", "tag": f.tag, "desc": fdesc})
 		elif lv > 0 and lv < 5:
 			pool.append({"kind": "fruit", "key": k, "title": "%s　Lv%d → %d" % [f.name, lv, lv + 1], "tag": f.tag, "desc": f.desc})
 	for k in D.armor:
@@ -375,11 +381,23 @@ func _make_cards() -> Array:
 			var nm: String = c.name + ("・" + by_key[c.with].name if c.with != "" else "")
 			pool.append({"kind": "recruit", "key": c.key, "title": nm + "　加入", "tag": c.tag, "desc": desc[0]})
 		elif c.level < 5:
-			pool.append({"kind": "up", "key": c.key, "title": "%s　Lv%d → %d" % [c.name, c.level, c.level + 1], "tag": c.tag, "desc": desc[c.level]})
+			var d2: String = desc[c.level]
+			var evo := _evo_of(c.key)
+			if c.level == 4 and not evo.is_empty():
+				var fname: String = D.fruits[evo.fruit].name
+				d2 += "\n滿級＋果子「%s」→ 進化「%s」" % [fname, evo.name]
+				if not Save.is_unlocked("fruit_" + evo.fruit):
+					d2 += "（果子要先在補給帳棚解鎖）"
+			pool.append({"kind": "up", "key": c.key, "title": "%s　Lv%d → %d" % [c.name, c.level, c.level + 1], "tag": c.tag, "desc": d2})
 	var lc := _link_card()
 	if not lc.is_empty():
 		pool.append(lc)
 	pool.shuffle()
+	# 符合進化條件時，進化卡一定排第一張
+	for evo in _ready_evolutions():
+		var c: Dictionary = by_key[evo.companion]
+		pool.push_front({"kind": "evolve", "key": c.key, "title": "進化！" + evo.name, "tag": c.tag, "desc": c.name + "：" + evo.desc})
+		break
 	var cards := pool.slice(0, 3)
 	while cards.size() < 3:
 		cards.append({"kind": "heal", "key": "", "title": "五餅二魚", "tag": "恩典", "desc": "保羅回復 %d 血" % int(D.leveling.heal_card)})
@@ -423,6 +441,8 @@ func _apply_card(card: Dictionary) -> void:
 		fruits[card.key] = fruits.get(card.key, 0) + 1
 	elif card.kind == "armor":
 		armor[card.key] = armor.get(card.key, 0) + 1
+	elif card.kind == "evolve":
+		_evolve(_evo_of(card.key))
 	elif card.kind == "link":
 		links.append({"src": by_key[card.src], "dst": by_key[card.dst], "kind": card.key, "cd": 0.0})
 		ui.show_banner("肢體連結！", 1.2)
@@ -849,6 +869,7 @@ func _step(dt: float) -> void:
 		c.pos = c.base + c.off
 		c.sleep = maxf(0.0, c.sleep - dt)
 		c.alert = maxf(0.0, c.alert - dt)
+		c.castfx = maxf(0.0, c.castfx - dt)
 		c.hurt_cd = maxf(0.0, c.hurt_cd - dt)
 		if c.down > 0.0:
 			c.down -= dt * revive_mult
@@ -984,6 +1005,8 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 		"heal":
 			paul.hp = minf(D.paul.hp, paul.hp + s.amount)
 			heals.append({"who": paul, "t": 0.0})
+			_ring_pop(c.pos + Vector2(0, -8), C_HEAL, 40.0)
+			_ring_pop(paul.pos + Vector2(0, -8), C_HEAL, 14.0)
 			for o in comps:
 				if o.level == 0:
 					continue
@@ -993,6 +1016,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 				if o.down <= 0.0:
 					o.hp = minf(_comp_max_hp(), o.hp + s.amount)
 					heals.append({"who": o, "t": 0.0})
+					_ring_pop(o.pos + Vector2(0, -8), C_HEAL, 12.0)
 		"beam":
 			var tg_list := _nearest_enemies(c.pos, s.range, 1)
 			fired = tg_list.size() > 0
@@ -1020,6 +1044,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 	if fired and not triggered:
 		c.cd = s.cooldown
 	if fired:
+		c.castfx = 0.18
 		_fire_links("cast", c, depth)
 	return fired
 
@@ -1121,7 +1146,8 @@ func _update_projectiles(dt: float) -> void:
 			b.target = nxt[0]
 			tg = b.target
 		var to: Vector2 = tg.pos - b.pos
-		b.pos += to.normalized() * b.spd * dt
+		b.dir = to.normalized()
+		b.pos += b.dir * b.spd * dt
 		b.life -= dt
 		if to.length() < 4.0:
 			b.hit[tg.node] = true
@@ -1463,12 +1489,14 @@ func _render(dt: float) -> void:
 		c.node.texture = _tex("%s_%d" % [c.key, f])
 		c.node.position = c.pos.round()
 		c.node.rotation = deg_to_rad(80.0) if c.down > 0.0 else 0.0
+		var k: float = c.castfx / 0.18
+		c.node.scale = Vector2(1.0 + 0.2 * k, 1.0 - 0.12 * k)
 		if c.down > 0.0:
 			c.node.modulate = Color(0.55, 0.55, 0.6)
 		elif c.sleep > 0.0:
 			c.node.modulate = Color(0.6, 0.65, 0.85)
 		else:
-			c.node.modulate = Color.WHITE
+			c.node.modulate = Color.WHITE.lerp(Color(1.8, 1.7, 1.2), k)
 	var ef := int(t * 4.0) % 2
 	for e in enemies:
 		if not e.get("boss", false):
@@ -1511,6 +1539,14 @@ func _draw_ground_fx() -> void:
 		if o != paul and o.level == 0:
 			continue
 		n.draw_rect(Rect2(round(o.pos.x) - 4, round(o.pos.y) - 1, 9, 2), Color(0.24, 0.13, 0.05, 0.35))
+	for k in evolved:
+		var ec: Dictionary = by_key[k]
+		if ec.level > 0 and ec.down <= 0.0:
+			var gp: Vector2 = ec.pos.round()
+			var a := 0.5 + 0.3 * sin(t * 4.0)
+			n.draw_arc(gp, 8.0, 0.0, TAU, 20, Color(C_GOLD, a), 1.0)
+			if int(t * 6.0 + ec.i) % 3 == 0:
+				n.draw_rect(Rect2(gp.x + randf_range(-6, 6), gp.y - randf_range(4, 18), 1, 1), C_CREAM)
 	var barn = by_key.get("barn")
 	if barn != null and _active(barn):
 		var pulse := fmod(t, 1.6) / 1.6
@@ -1583,6 +1619,7 @@ func _draw_air() -> void:
 	for b in blasts:
 		var k: float = b.t / 0.3
 		n.draw_circle(b.pos, b.r * (0.4 + k * 0.6), Color(b.get("col", C_GOLD), (1.0 - k) * 0.6))
+		n.draw_arc(b.pos, b.r * (0.4 + k * 0.6), 0.0, TAU, 32, Color(Color(b.get("col", C_GOLD)).lightened(0.4), 1.0 - k), 2.0)
 	for f in fires:
 		if f.t > 0.0:
 			var k: float = 1.0 - f.t / f.max
@@ -1641,14 +1678,15 @@ func _draw_air() -> void:
 			n.draw_rect(Rect2(x - 1, y - 1, sz + 1, sz + 1), Color("2a2030"))
 			n.draw_rect(Rect2(x, y - 1, sz, sz), Color("d8d0c0") if not on_fire else C_FLAME)
 			n.draw_rect(Rect2(x, y - 1, 1, 1), Color.WHITE)
-		elif b.size >= 2:
-			n.draw_rect(Rect2(x - 2, y - 1, 5, 3), col)
-			n.draw_rect(Rect2(x - 1, y - 2, 3, 5), col)
-			n.draw_rect(Rect2(x - 1, y - 1, 3, 3), Color.WHITE)
 		else:
-			n.draw_rect(Rect2(x - 1, y, 3, 1), col)
-			n.draw_rect(Rect2(x, y - 1, 1, 3), col)
-			n.draw_rect(Rect2(x, y, 1, 1), Color.WHITE)
+			# 光箭：後面拖一道光，比較看得出是誰射的、往哪飛
+			var dir: Vector2 = b.get("dir", Vector2.RIGHT)
+			n.draw_line(b.pos - dir * (10.0 + b.size * 3.0), b.pos, Color(col, 0.45), 2.0 + b.size)
+			n.draw_line(b.pos - dir * 6.0, b.pos, Color(C_CREAM, 0.8), 1.0)
+			var r: int = 2 if b.size < 2 else 3
+			n.draw_rect(Rect2(x - r, y - 1, r * 2 + 1, 3), col)
+			n.draw_rect(Rect2(x - 1, y - r, 3, r * 2 + 1), col)
+			n.draw_rect(Rect2(x - 1, y - 1, 3, 3), Color.WHITE)
 	for s in shots:
 		n.draw_rect(Rect2(roundf(s.pos.x) - 1, roundf(s.pos.y) - 1, 3, 3), Color("c8e070"))
 		n.draw_rect(Rect2(roundf(s.pos.x), roundf(s.pos.y), 1, 1), Color("2a2638"))
@@ -1656,9 +1694,11 @@ func _draw_air() -> void:
 		if h.t > 0.75:
 			continue
 		var x: float = roundf(h.who.pos.x)
-		var y: float = roundf(h.who.pos.y) - 17.0 - roundf(h.t * 8.0)
-		n.draw_rect(Rect2(x - 1, y, 3, 1), C_HEAL)
-		n.draw_rect(Rect2(x, y - 1, 1, 3), C_HEAL)
+		var y: float = roundf(h.who.pos.y) - 19.0 - roundf(h.t * 10.0)
+		n.draw_rect(Rect2(x - 3, y - 1, 7, 3), Color("10301a"))
+		n.draw_rect(Rect2(x - 1, y - 3, 3, 7), Color("10301a"))
+		n.draw_rect(Rect2(x - 2, y, 5, 1), C_HEAL)
+		n.draw_rect(Rect2(x, y - 2, 1, 5), C_HEAL)
 	for q in parts:
 		n.draw_rect(Rect2(roundf(q.pos.x), roundf(q.pos.y), 1, 1), q.c1 if q.life > q.max * 0.5 else q.c2)
 	for o in pops:
@@ -1702,19 +1742,10 @@ func _open_chest() -> void:
 	joy.on = false
 	ui.joy.on = false
 	var results := []
-	for evo in D.evolutions:
-		var c: Dictionary = by_key[evo.companion]
-		if c.level >= 5 and fruits.has(evo.fruit) and not evolved.has(c.key):
-			evolved[c.key] = evo
-			run_evolutions += 1
-			if evo.has("stats"):
-				c.st.merge(evo.stats, true)
-			if evo.has("every") and quake_key == "":
-				quake_key = c.key
-				evo_timer = 2.0
-			_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 40.0)
-			results.append({"title": "進化！" + evo.name, "desc": evo.desc, "big": true})
-			break
+	for evo in _ready_evolutions():
+		_evolve(evo)
+		results.append({"title": "進化！" + evo.name, "desc": evo.desc, "big": true})
+		break
 	if results.is_empty():
 		var n := randi_range(int(D.chest.rolls_min), int(D.chest.rolls_max))
 		for i in n:
@@ -1727,6 +1758,43 @@ func _open_chest() -> void:
 	_refresh_build_text()
 	ui.do_flash(0.4)
 	ui.show_chest(results)
+
+
+## 已經符合條件、還沒進化的
+func _ready_evolutions() -> Array:
+	var out := []
+	for evo in D.evolutions:
+		var c: Dictionary = by_key[evo.companion]
+		if c.level >= 5 and fruits.has(evo.fruit) and not evolved.has(c.key):
+			out.append(evo)
+	return out
+
+
+func _evo_of(key: String) -> Dictionary:
+	for evo in D.evolutions:
+		if evo.companion == key:
+			return evo
+	return {}
+
+
+func _evolve(evo: Dictionary) -> void:
+	var c: Dictionary = by_key[evo.companion]
+	evolved[c.key] = evo
+	run_evolutions += 1
+	if evo.has("stats"):
+		c.st.merge(evo.stats, true)
+	if evo.has("every") and quake_key == "":
+		quake_key = c.key
+		evo_timer = 2.0
+	_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 50.0)
+	_burst(c.pos + Vector2(0, -8), 20, C_GOLD, C_CREAM)
+	shake = 0.3
+	ui.do_flash(0.5)
+	ui.show_banner("進化！%s：%s" % [c.name, evo.name], 2.2)
+	var l: Label = ui.names[c.name]
+	l.text = "★" + l.text
+	l.label_settings.font_color = C_GOLD
+	l.modulate.a = 1.0
 
 
 func _on_chest_closed() -> void:
