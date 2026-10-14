@@ -106,6 +106,7 @@ godot --headless --path . res://scenes/main.tscn -- --smoke
 - `--preset=disciples`：五位門徒 Lv4
 - `--nofever`：不自動開五旬節（看一般狀態的畫面）
 - `--light`：開五旬節時一定出現光的身影
+- `--trials=swift,many`：打開熬煉條件（swift、many、hard、sharp、lion、simple、alone）
 - `--shot=路徑.png`：有顯示環境時存截圖（升級卡、FEVER、寶箱、Boss 預警、連鎖、失敗彩蛋各一張）
 
 營地：`godot --path . res://scenes/base.tscn -- --shot=路徑.png` 會存營地、走近路標，以及出發、同伴、生平、解鎖、見證錄面板的截圖。加 `--resolution 450x900` 可以看直式（手機）排版。

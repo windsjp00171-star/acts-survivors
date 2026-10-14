@@ -34,6 +34,20 @@
       { "id": "run",    "name": "奔跑", "ref": "來 12:1",   "desc": "移動速度 +4%",           "per": 0.04, "max": 3, "cost": 15, "cost_step": 15 }
     ]
   },
+  "_trials說明": "熬煉（難度等級，彼前 1:7）：建立第一間教會後可以在出發前打開。每項有點數，總點數每點見證 +15%、餅 +10%。",
+  "trials": {
+    "witness_per_point": 0.15,
+    "bread_per_point": 0.1,
+    "list": [
+      { "id": "swift",    "name": "急流",       "ref": "賽 43:2",   "desc": "敵人速度 +20%",               "points": 1 },
+      { "id": "many",     "name": "大軍",       "ref": "詩 3:6",    "desc": "敵人數量 +30%",               "points": 2 },
+      { "id": "hard",     "name": "剛硬",       "ref": "出 7:13",   "desc": "敵人血量 +40%",               "points": 2 },
+      { "id": "sharp",    "name": "火箭",       "ref": "弗 6:16",   "desc": "敵人傷害 +40%",               "points": 2 },
+      { "id": "lion",     "name": "吼叫的獅子", "ref": "彼前 5:8",  "desc": "Boss 血量 +50%、預警變短",    "points": 2 },
+      { "id": "simple",   "name": "單純",       "ref": "太 6:22",   "desc": "這局不能重抽",                "points": 1 },
+      { "id": "alone",    "name": "獨行",       "ref": "提後 4:16", "desc": "隊伍上限 -1",                 "points": 2 }
+    ]
+  },
   "shop": [
     { "id": "barn",          "kind": "companion", "name": "巴拿巴加入名單",   "desc": "鼓勵光環，讓範圍內同伴攻擊加快", "cost": 60 },
     { "id": "apollos",       "kind": "companion", "name": "亞波羅加入名單",   "desc": "直線貫穿的光束，剋謊言", "cost": 100 },

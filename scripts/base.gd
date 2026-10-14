@@ -210,6 +210,33 @@ func _show_home() -> void:
 				Save.save_profile()
 				_show_home())
 			row.add_child(pick)
+	if Save.trials_unlocked():
+		var on: Array = Save.data.trials_on
+		var tp := Save.trial_points(on)
+		_text(content, "熬煉（彼前 1:7）　%d 點：見證 +%d%%、餅 +%d%%" % [tp, roundi(tp * Save.meta.trials.witness_per_point * 100), roundi(tp * Save.meta.trials.bread_per_point * 100)], 15, UIKit.GOLD)
+		var best := int(Save.data.trial_best.get(stages[sel].id, 0))
+		if best > 0:
+			_text(content, "%s 最高通過 %d 點" % [stages[sel].name, best], 11, UIKit.SKY)
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.add_theme_constant_override("h_separation", 6)
+		grid.add_theme_constant_override("v_separation", 6)
+		content.add_child(grid)
+		for tr in Save.meta.trials.list:
+			var is_on: bool = on.has(tr.id)
+			var tb := UIKit.button("%s %s（%d）\n%s" % ["●" if is_on else "○", tr.name, int(tr.points), tr.desc], 11, is_on)
+			tb.custom_minimum_size = Vector2(0, 44)
+			tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			tb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			var tid: String = tr.id
+			tb.pressed.connect(func():
+				if Save.data.trials_on.has(tid):
+					Save.data.trials_on.erase(tid)
+				else:
+					Save.data.trials_on.append(tid)
+				Save.save_profile()
+				_show_home())
+			grid.add_child(tb)
 	var st: Dictionary = Save.data.stats
 	_text(content, "已出發 %d 次　通關 %d 次　最多驅散 %d　見證錄 %d／%d" % [st.runs, st.wins, st.best_kills, Save.data.achievements.size(), Save.meta.achievements.size()], 12, UIKit.MUTED, true)
 	var go := UIKit.button("出發：" + stages[sel].name, 18, true)
@@ -230,7 +257,8 @@ func _start() -> void:
 	if not Save.is_unlocked(starter):
 		starter = Save.meta.default_starter
 	var sel := clampi(int(Save.data.stage), 0, stages.size() - 1)
-	Save.run_config = {"starter": starter, "stage": sel if _stage_open(sel) else 0}
+	Save.run_config = {"starter": starter, "stage": sel if _stage_open(sel) else 0,
+		"trials": Save.data.trials_on.duplicate() if Save.trials_unlocked() else []}
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 

@@ -22,7 +22,7 @@ func _defaults() -> Dictionary:
 		"witness": 0, "witness_total": 0,
 		"unlocked": meta.start_unlocked.duplicate(), "bought": [],
 		"affinity": {}, "achievements": [], "starter": meta.default_starter,
-		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1, "bread": 0, "bread_total": 0, "ups": {},
+		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1, "bread": 0, "bread_total": 0, "ups": {}, "trials_on": [], "trial_best": {},
 		"stats": {"runs": 0, "wins": 0, "elites": 0, "best_kills": 0, "best_fevers": 0,
 			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0, "lights": 0},
 	}
@@ -49,8 +49,22 @@ func is_unlocked(key: String) -> bool:
 	return data.unlocked.has(key)
 
 
+func trials_unlocked() -> bool:
+	return not data.churches.is_empty()
+
+
+func trial_points(ids: Array) -> int:
+	var n := 0
+	for t in meta.trials.list:
+		if ids.has(t.id):
+			n += int(t.points)
+	return n
+
+
 func party_cap() -> int:
 	var n: int = meta.party_cap_base
+	if run_config.get("trials", []).has("alone"):
+		n -= 1
 	for id in data.bought:
 		if id.begins_with("slot_"):
 			n += 1
@@ -58,6 +72,8 @@ func party_cap() -> int:
 
 
 func rerolls() -> int:
+	if run_config.get("trials", []).has("simple"):
+		return 0
 	var n := 0
 	for item in meta.shop:
 		if item.kind == "reroll" and data.bought.has(item.id):
@@ -144,6 +160,12 @@ func finish_run(r: Dictionary) -> Dictionary:
 	else:
 		gain = int(gain * W.lose_ratio)
 	gain += int(r.get("task_witness", 0))
+	var tp := int(r.get("trial_points", 0))
+	gain = int(gain * (1.0 + tp * float(meta.trials.witness_per_point)))
+	r.bread = int(int(r.get("bread", 0)) * (1.0 + tp * float(meta.trials.bread_per_point)))
+	if r.won and tp > 0:
+		var sid: String = r.get("stage", "")
+		data.trial_best[sid] = maxi(int(data.trial_best.get(sid, 0)), tp)
 	var st: Dictionary = data.stats
 	st.runs += 1
 	if r.won:
@@ -182,4 +204,4 @@ func finish_run(r: Dictionary) -> Dictionary:
 	data.witness += gain
 	data.witness_total += gain
 	save_profile()
-	return {"witness": gain, "achievements": new_ach, "affinity_ups": aff_ups}
+	return {"witness": gain, "achievements": new_ach, "affinity_ups": aff_ups, "bread": int(r.bread)}

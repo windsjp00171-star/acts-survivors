@@ -78,7 +78,8 @@ var first_recruit := ""
 var stage := {}           # 這一局的城市（data/stages.json）
 var stage_i := 0
 var epistles := {}        # 已選的書信卡效果
-var founded_now := false  # 這局建立了新的教會   # 第一位同工：第一次升級一定出現他的招募卡
+var founded_now := false  # 這局建立了新的教會
+var trials: Array = []    # 這局打開的熬煉   # 第一位同工：第一次升級一定出現他的招募卡
 var comps: Array = []
 var by_key := {}
 var enemies: Array = []
@@ -134,6 +135,27 @@ func _ready() -> void:
 	for k in stage.weights:
 		D.enemies[k].weight = stage.weights[k]
 	D.boss.merge(stage.boss, true)
+	# 熬煉（難度條件）
+	trials = Save.run_config.get("trials", [])
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--trials="):
+			trials = a.substr(9).split(",")
+			Save.run_config.trials = trials
+	if trials.has("swift"):
+		for pt in D.waves.scaling.speed:
+			pt[1] *= 1.2
+	if trials.has("hard"):
+		stage.hp_mult = float(stage.hp_mult) * 1.4
+	if trials.has("sharp"):
+		stage.dmg_mult = float(stage.dmg_mult) * 1.4
+	if trials.has("many"):
+		for pt in D.waves.curve:
+			pt[1] *= 1.3
+			pt[2] /= 1.3
+		D.waves.max_enemies = int(D.waves.max_enemies * 1.3)
+	if trials.has("lion"):
+		D.boss.hp = float(D.boss.hp) * 1.5
+		D.boss.warn = float(D.boss.warn) * 0.75
 	# 永久恩典（花餅買的）
 	D.paul.hp = float(D.paul.hp) + Save.up_value("vigor")
 	D.paul.speed = float(D.paul.speed) * (1.0 + Save.up_value("run"))
@@ -224,7 +246,7 @@ func _ready() -> void:
 	_update_chunks()
 	Sfx.music("battle")
 	ground.modulate = Color(stage.tint[0], stage.tint[1], stage.tint[2])
-	ui.show_banner("%s　%s" % [stage.name, stage.ref], 2.5)
+	ui.show_banner("%s　%s%s" % [stage.name, stage.ref, ("\n熬煉 %d 點" % Save.trial_points(trials)) if not trials.is_empty() else ""], 2.5)
 
 
 # ---------- 建立場景 ----------
@@ -2362,8 +2384,11 @@ func _finish_run() -> Array:
 			party[c.key] = c.level
 	var res: Dictionary = Save.finish_run({"kills": kills, "seconds": int(t - t_start), "level": level, "won": won,
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
-		"task_witness": task_witness, "lights": run_lights, "bread": run_bread, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
-	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, run_bread], 15, C_SKY]]
+		"task_witness": task_witness, "lights": run_lights, "bread": run_bread,
+		"trial_points": Save.trial_points(trials), "stage": stage.id, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
+	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
+	if not trials.is_empty():
+		lines.append(["熬煉 %d 點：見證與餅已加成" % Save.trial_points(trials), 11, C_GOLD])
 	for a in res.achievements:
 		var txt: String = "見證錄：" + a.name
 		if a.has("unlock"):
