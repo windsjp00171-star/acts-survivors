@@ -40,6 +40,7 @@ var fruits := {}          # 果子 key → 等級
 var armor := {}           # 軍裝 key → 等級
 var evolved := {}         # 同伴 key → 進化資料
 var evo_timer := 0.0
+var quake_key := ""       # 有「定時地震」型進化的同伴
 var quakes: Array = []
 var shield_cd := 0.0
 var chests: Array = []
@@ -72,6 +73,11 @@ var beams: Array = []
 var blasts: Array = []
 var fires: Array = []     # 以利亞的火：先預兆再落下
 var delayed: Array = []   # 延遲觸發的招式（參孫的第二下）
+var links: Array = []     # 肢體連結：{src, dst, kind, cd}
+var link_queue: Array = []
+var link_fx: Array = []
+var link_count := 0       # 本局觸發次數
+var build_text := ""      # HUD 左側：同工與肢體連結
 var shots: Array = []
 var gems: Array = []
 var parts: Array = []
@@ -126,6 +132,17 @@ func _ready() -> void:
 		for k in ["david", "samson", "moses", "elijah", "joshua"]:
 			_recruit(by_key[k])
 			_set_level(by_key[k], 5)
+	if smoke_preset == "links":
+		# 測試用：提摩太出手→以利亞出手→大衛出手；西拉驅散→提摩太出手
+		for k in ["tim", "elijah", "david"]:
+			_recruit(by_key[k])
+		for c in comps:
+			if c.level > 0:
+				_set_level(c, 4)
+		links = [{"src": by_key.tim, "dst": by_key.elijah, "kind": "cast", "cd": 0.0},
+			{"src": by_key.elijah, "dst": by_key.david, "kind": "cast", "cd": 0.0},
+			{"src": by_key.silas, "dst": by_key.tim, "kind": "kill", "cd": 0.0}]
+		_refresh_build_text()
 	if smoke_preset == "strong":
 		# 測試用：滿編隊伍，西拉滿級帶喜樂，下一個寶箱會進化
 		for c in comps:
@@ -136,7 +153,7 @@ func _ready() -> void:
 				_set_level(c, 5 if c.key == "silas" else 4)
 		fruits = {"joy": 2, "faith": 2, "good": 1, "peace": 1}
 		armor = {"shoes": 1, "shield": 2}
-		chests.append({"pos": Vector2(0, 12)})
+		chests.append({"pos": Vector2(0, 6)})
 	for i in int(D.waves.initial):
 		var a := randf() * TAU
 		var d := 110.0 + randf() * 80.0
@@ -200,6 +217,7 @@ func _build_world() -> void:
 			"with": d.get("with", ""), "follows": d.get("follows", ""),
 			"engine": D.skills[d.skill].get("engine", d.skill) if d.skill != "" else "",
 			"look": D.skills[d.skill].get("look", "") if d.skill != "" else "",
+			"syn": 1.0,
 			"aff": 1.0 + Save.affinity_level(d.key) * float(Save.meta.affinity.bonus_per_level),
 			"node": _sprite(d.key + "_0", Vector2(-7, -17))}
 		c.node.visible = false
@@ -254,7 +272,27 @@ func _recruit(c: Dictionary) -> void:
 		_recruit(by_key[c.with])
 	if _party_count() >= Save.party_cap():
 		full_party = true
+	_update_synergy()
 
+
+## 同工：同一流派的同伴有 2 位以上，他們攻擊加快
+func _tag_counts() -> Dictionary:
+	var cnt := {}
+	for c in comps:
+		if c.level > 0 and c.follows == "" and c.engine != "":
+			cnt[c.tag] = cnt.get(c.tag, 0) + 1
+	return cnt
+
+
+func _update_synergy() -> void:
+	var cnt := _tag_counts()
+	var bonus: Dictionary = D.synergy.bonus
+	for c in comps:
+		var n: int = mini(cnt.get(c.tag, 0), 3)
+		var before: float = c.syn
+		c.syn = 1.0 + float(bonus.get(str(n), 0.0))
+		if c.level > 0 and c.syn > before and ui != null:
+			ui.show_banner("同工：%s ×%d　攻擊加快" % [c.tag, n], 1.6)
 
 ## 隊伍人數（百基拉・亞居拉算一位）
 func _party_count() -> int:
@@ -319,6 +357,9 @@ func _make_cards() -> Array:
 			pool.append({"kind": "recruit", "key": c.key, "title": nm + "　加入", "tag": c.tag, "desc": desc[0]})
 		elif c.level < 5:
 			pool.append({"kind": "up", "key": c.key, "title": "%s　Lv%d → %d" % [c.name, c.level, c.level + 1], "tag": c.tag, "desc": desc[c.level]})
+	var lc := _link_card()
+	if not lc.is_empty():
+		pool.append(lc)
 	pool.shuffle()
 	var cards := pool.slice(0, 3)
 	while cards.size() < 3:
@@ -358,12 +399,28 @@ func _apply_card(card: Dictionary) -> void:
 		fruits[card.key] = fruits.get(card.key, 0) + 1
 	elif card.kind == "armor":
 		armor[card.key] = armor.get(card.key, 0) + 1
+	elif card.kind == "link":
+		links.append({"src": by_key[card.src], "dst": by_key[card.dst], "kind": card.key, "cd": 0.0})
+		ui.show_banner("肢體連結！", 1.2)
 	else:
 		paul.hp = minf(D.paul.hp, paul.hp + D.leveling.heal_card)
 
 
+func _refresh_build_text() -> void:
+	var lines := []
+	var cnt := _tag_counts()
+	for tag in cnt:
+		if cnt[tag] >= 2:
+			lines.append("同工　%s ×%d" % [tag, cnt[tag]])
+	for L in links:
+		var K: Dictionary = D.links.kinds[L.kind]
+		lines.append("連結　%s" % (("受傷→" + L.dst.name) if L.kind == "hurt" else (L.src.name + "→" + L.dst.name + "（" + K.short + "）")))
+	build_text = "\n".join(lines)
+
+
 func _on_card(i: int) -> void:
 	_apply_card(pending_cards[i])
+	_refresh_build_text()
 	choosing = false
 	if xp >= xp_need:
 		_level_up()
@@ -506,7 +563,7 @@ func _trial_for_build() -> String:
 	return ""
 
 
-func _hurt(e: Dictionary, dmg: float, from := Vector2.INF) -> void:
+func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if e.dead:
 		return
 	if fever > 0.0:
@@ -522,11 +579,13 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF) -> void:
 		e.knock += (e.pos - from).normalized() * 40.0
 	_burst(e.pos, 2, C_CREAM, C_GOLD)
 	if e.hp <= 0:
-		_kill(e, true)
+		_kill(e, true, src)
 
 
-func _kill(e: Dictionary, by_player: bool) -> void:
+func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 	e.dead = true
+	if by_player and src != null:
+		_fire_links("kill", src, 0)
 	e.node.queue_free()
 	if by_player:
 		kills += 1
@@ -686,9 +745,15 @@ func _step(dt: float) -> void:
 	elif party > 0:
 		meter = minf(1.0, meter + dt / D.fever.fill_seconds * (float(together) / party) * _accord())
 
+	for L in links:
+		L.cd = maxf(0.0, L.cd - dt)
 	_companion_skills(dt)
 	_update_projectiles(dt)
 	_update_enemies(dt)
+	_run_link_queue()
+	for f in link_fx:
+		f.t += dt
+	link_fx = link_fx.filter(func(f): return f.t < 0.6)
 
 	var ew: Dictionary = D.elite_wave
 	if t >= ew.from and t < ew.to and boss == null:
@@ -714,7 +779,7 @@ func _step(dt: float) -> void:
 			_open_chest()
 	chests = chests.filter(func(ch): return not ch.get("got", false))
 
-	if not evolved.is_empty():
+	if quake_key != "":
 		evo_timer -= dt
 		if evo_timer <= 0.0:
 			_quake()
@@ -765,7 +830,7 @@ func _companion_skills(dt: float) -> void:
 		if c.skill == "" or not _active(c):
 			continue
 		var s: Dictionary = c.st
-		var mult: float = speed_mult * c.aff
+		var mult: float = speed_mult * c.aff * c.syn
 		if barn_on and c != barn and c.pos.distance_to(barn.pos) < _aura_r(barn):
 			mult *= barn.st.attack_speed
 		c.cd -= dt * mult
@@ -775,7 +840,7 @@ func _companion_skills(dt: float) -> void:
 
 
 ## 讓同伴出一次招。triggered = 被別的招式觸發（不重設冷卻）。回傳是否真的出手。
-func _cast(c: Dictionary, triggered := false) -> bool:
+func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 	var s: Dictionary = c.st
 	var fired := true
 	match c.engine:
@@ -813,7 +878,7 @@ func _cast(c: Dictionary, triggered := false) -> bool:
 				var n := int(s.beams)
 				for b in n:
 					var ang := (b - (n - 1) / 2.0) * deg_to_rad(28.0)
-					_fire_beam(from, base_dir.rotated(ang), s, c.look)
+					_fire_beam(from, base_dir.rotated(ang), s, c.look, c)
 		"nova":
 			var slams := int(s.slams)
 			for i in slams:
@@ -823,14 +888,63 @@ func _cast(c: Dictionary, triggered := false) -> bool:
 			fired = cand.size() > 0
 			cand.shuffle()
 			for i in mini(int(s.count), cand.size()):
-				fires.append({"pos": cand[i].pos, "t": float(s.delay), "max": float(s.delay), "r": float(s.radius) * _area(), "dmg": float(s.damage)})
+				fires.append({"pos": cand[i].pos, "t": float(s.delay), "max": float(s.delay), "r": float(s.radius) * _area(), "dmg": float(s.damage), "owner": c})
 		_:
 			fired = false
 			if not triggered:
 				c.cd = 1.0
 	if fired and not triggered:
 		c.cd = s.cooldown
+	if fired:
+		_fire_links("cast", c, depth)
 	return fired
+
+
+# ---------- 肢體連結（林前 12:26） ----------
+## 某個條件發生時，把連到的同伴排進觸發佇列；佇列在每格結尾處理，避免在走訪陣列時改動它
+func _fire_links(kind: String, src, depth: int) -> void:
+	if depth >= int(D.links.max_depth):
+		return
+	for L in links:
+		if L.kind != kind or L.cd > 0.0:
+			continue
+		if kind != "hurt" and L.src != src:
+			continue
+		L.cd = float(D.links.kinds[kind].cooldown)
+		link_queue.append({"L": L, "depth": depth + 1})
+
+
+func _run_link_queue() -> void:
+	var guard := 0
+	while not link_queue.is_empty() and guard < 30:
+		guard += 1
+		var q: Dictionary = link_queue.pop_front()
+		var L: Dictionary = q.L
+		if not _active(L.dst):
+			continue
+		var from: Vector2 = paul.pos if L.kind == "hurt" else L.src.pos
+		if _cast(L.dst, true, q.depth):
+			link_count += 1
+			link_fx.append({"a": from + Vector2(0, -8), "b": L.dst, "t": 0.0, "depth": q.depth})
+			_ring_pop(L.dst.pos + Vector2(0, -8), C_GOLD, 12.0 + q.depth * 5.0)
+
+
+func _link_card() -> Dictionary:
+	var cands := []
+	for c in comps:
+		if c.level > 0 and c.engine != "" and c.follows == "":
+			cands.append(c)
+	if cands.size() < 2 or links.size() >= int(D.links.max_links):
+		return {}
+	cands.shuffle()
+	var kinds: Array = D.links.kinds.keys()
+	var kind: String = kinds[randi() % kinds.size()]
+	var a: Dictionary = cands[0]
+	var b: Dictionary = cands[1]
+	var K: Dictionary = D.links.kinds[kind]
+	var desc: String = K.desc % ([b.name] if kind == "hurt" else [a.name, b.name])
+	return {"kind": "link", "key": kind, "src": a.key, "dst": b.key, "tag": "肢體",
+		"title": "肢體連結：" + K.name, "desc": desc}
 
 
 func _nova(c: Dictionary, s: Dictionary) -> void:
@@ -842,7 +956,7 @@ func _nova(c: Dictionary, s: Dictionary) -> void:
 	shake = maxf(shake, 0.12)
 	for e in enemies:
 		if not e.dead and e.pos.distance_to(center) < r + (8.0 if e.get("boss", false) else 0.0):
-			_hurt(e, s.damage, center)
+			_hurt(e, s.damage, center, c)
 			if not e.get("boss", false):
 				e.knock += (e.pos - center).normalized() * float(s.knock)
 
@@ -851,7 +965,7 @@ func _aura_r(barn: Dictionary) -> float:
 	return barn.st.radius * _area()
 
 
-func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary, look := "") -> void:
+func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary, look := "", src = null) -> void:
 	var length: float = s.length * _area()
 	var width: float = s.width * _area()
 	for o in enemies:
@@ -861,7 +975,7 @@ func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary, look := "") -> void:
 		if along > 0.0 and along < length and across < width + (8.0 if o.get("boss", false) else 0.0):
 			if s.get("stun", 0.0) > 0.0 and not o.get("boss", false):
 				o.stun = s.stun
-			_hurt(o, s.damage * (s.lies_mult if o.type == "lies" else 1.0), from)
+			_hurt(o, s.damage * (s.lies_mult if o.type == "lies" else 1.0), from, src)
 	beams.append({"pos": from, "dir": dir, "life": 0.3 if look == "" else 0.5, "len": length, "width": width, "look": look})
 	if s.burst:
 		var end: Vector2 = from + dir * length
@@ -869,7 +983,7 @@ func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary, look := "") -> void:
 		blasts.append({"pos": end, "t": 0.0, "r": br})
 		for o in enemies:
 			if o.pos.distance_to(end) < br:
-				_hurt(o, s.damage, end)
+				_hurt(o, s.damage, end, src)
 
 
 func _update_projectiles(dt: float) -> void:
@@ -888,7 +1002,7 @@ func _update_projectiles(dt: float) -> void:
 		if to.length() < 4.0:
 			b.hit[tg.node] = true
 			var big: bool = tg.get("elite", false) or tg.get("boss", false)
-			_hurt(tg, b.dmg * (b.emult if big else 1.0), b.pos - to)
+			_hurt(tg, b.dmg * (b.emult if big else 1.0), b.pos - to, b.owner)
 			if b.split > 0 and not b.child:
 				for o in _nearest_enemies(b.pos, 70.0, b.split, b.hit):
 					bolts.append({"pos": b.pos, "target": o, "life": 0.8, "pierce": 0, "split": 0, "child": true,
@@ -927,7 +1041,7 @@ func _update_projectiles(dt: float) -> void:
 					continue
 				if r.stun > 0.0:
 					e.stun = r.stun
-				_hurt(e, r.dmg, center)
+				_hurt(e, r.dmg, center, c)
 				if r.knock > 0.0 and not e.get("boss", false):
 					e.knock += (e.pos - center).normalized() * r.knock
 	rings = rings.filter(func(r): return not r.get("dead", false))
@@ -946,7 +1060,7 @@ func _update_projectiles(dt: float) -> void:
 			_burst(f.pos, 8, C_FLAME, C_GOLD)
 			for e in enemies:
 				if not e.dead and e.pos.distance_to(f.pos) < f.r + (8.0 if e.get("boss", false) else 0.0):
-					_hurt(e, f.dmg, f.pos)
+					_hurt(e, f.dmg, f.pos, f.owner)
 	fires = fires.filter(func(f): return f.t > -0.35)
 	for dl in delayed:
 		dl.t -= dt
@@ -1049,7 +1163,7 @@ func _update_enemies(dt: float) -> void:
 			if b.up > 0.6 and e.bcd <= 0.0 and e.pos.distance_to(b.pos + Vector2(0, -3)) < 8.0:
 				e.knock += (e.pos - p.pos).normalized() * pri.st.knockback * _guard() * 6.0
 				e.bcd = 0.5
-				_hurt(e, pri.st.damage * _guard())
+				_hurt(e, pri.st.damage * _guard(), Vector2.INF, pri)
 		if e.dead:
 			continue
 
@@ -1138,6 +1252,7 @@ func _damage_paul(n: float) -> void:
 	paul.hp -= n
 	paul.inv = 0.6
 	shake = 0.12
+	_fire_links("hurt", null, 0)
 	if paul.hp <= 0.0:
 		paul.hp = 0.0
 		_game_over()
@@ -1148,6 +1263,7 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 		return
 	c.hp -= n
 	c.hurt_cd = 0.4
+	_fire_links("hurt", null, 0)
 	if c.hp <= 0.0:
 		c.hp = 0.0
 		c.down = D.companion_rules.down_seconds
@@ -1255,7 +1371,7 @@ func _render(dt: float) -> void:
 			ui.place_name(c.name, ct * c.pos, c.level > 0 and not over and not choosing)
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
-		"time": int(t), "kills": kills, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open})
+		"time": int(t), "kills": kills, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text})
 
 
 func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, every: float, ph: float, thick := 1) -> void:
@@ -1377,6 +1493,21 @@ func _draw_air() -> void:
 	for fb in fever_bursts:
 		_dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r, 0.8, C_GOLD, 2.0, 0.0, 2)
 		_dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r - 4.0, 0.8, C_FLAME, 3.0, 0.3, 2)
+	for f in link_fx:
+		var to: Vector2 = f.b.pos + Vector2(0, -8)
+		if f.t < 0.3:
+			var a: float = 1.0 - f.t / 0.3
+			# 從來源射向被觸發的人：前 0.08 秒線往前長出去
+			var tip: Vector2 = f.a.lerp(to, minf(1.0, f.t / 0.08))
+			n.draw_line(f.a, tip, Color(C_FLAME if f.depth >= 2 else C_GOLD, a * 0.8), 2.0 + f.depth)
+			n.draw_line(f.a, tip, Color(C_CREAM, a), 1.0)
+			n.draw_circle(tip, 2.0 + f.depth, Color(C_CREAM, a))
+		if f.depth >= 2:
+			var k: float = f.t / 0.6
+			var txt := "連鎖×%d" % f.depth
+			var pos: Vector2 = (to + Vector2(-12, -10 - k * 10.0)).round()
+			n.draw_string_outline(UIKit.font(), pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, 2, Color(Color("140c10"), 1.0 - k))
+			n.draw_string(UIKit.font(), pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(C_GOLD if f.depth == 2 else C_FLAME, 1.0 - k))
 	for b in bolts:
 		var x: float = roundf(b.pos.x)
 		var y: float = roundf(b.pos.y)
@@ -1452,7 +1583,12 @@ func _open_chest() -> void:
 		if c.level >= 5 and fruits.has(evo.fruit) and not evolved.has(c.key):
 			evolved[c.key] = evo
 			run_evolutions += 1
-			evo_timer = 2.0
+			if evo.has("stats"):
+				c.st.merge(evo.stats, true)
+			if evo.has("every") and quake_key == "":
+				quake_key = c.key
+				evo_timer = 2.0
+			_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 40.0)
 			results.append({"title": "進化！" + evo.name, "desc": evo.desc, "big": true})
 			break
 	if results.is_empty():
@@ -1464,6 +1600,7 @@ func _open_chest() -> void:
 			var card: Dictionary = pool[randi() % pool.size()]
 			_apply_card(card)
 			results.append({"title": card.title, "desc": card.desc, "big": false})
+	_refresh_build_text()
 	ui.do_flash(0.4)
 	ui.show_chest(results)
 
@@ -1475,14 +1612,14 @@ func _on_chest_closed() -> void:
 
 
 func _quake() -> void:
-	var evo: Dictionary = evolved.values()[0]
+	var evo: Dictionary = evolved[quake_key]
+	var src: Dictionary = by_key[quake_key]
 	evo_timer = evo.every
 	var view := _view_rect().grow(20.0)
 	for e in enemies:
 		if not e.dead and view.has_point(e.pos):
 			e.stun = evo.stun
-			_hurt(e, evo.damage)
-	var src: Dictionary = by_key[evolved.keys()[0]]
+			_hurt(e, evo.damage, Vector2.INF, src)
 	quakes.append({"pos": src.pos, "r": 0.0})
 	shake = 0.45
 	ui.do_flash(0.35)
@@ -1754,6 +1891,8 @@ func _smoke_tick() -> void:
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_tele.png"))
 	if smoke_shot != "" and not quakes.is_empty() and not FileAccess.file_exists(smoke_shot.replace(".png", "_quake.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_quake.png"))
+	if smoke_shot != "" and link_fx.any(func(f): return f.depth >= 2 and f.t > 0.05 and f.t < 0.15) and not FileAccess.file_exists(smoke_shot.replace(".png", "_link.png")):
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_link.png"))
 	if choosing and smoke_frames % 20 == 0:
 		ui.card_ready_at = 0.0
 		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_cards.png")):
@@ -1766,6 +1905,7 @@ func _smoke_tick() -> void:
 		for c in comps:
 			if c.level > 0:
 				party.append("%s%d" % [c.key, c.level])
+		print("links fired=%d" % link_count)
 		print("t=%.1f hp=%.0f Lv=%d enemies=%d kills=%d fever=%.1f boss=%s party=%s fruits=%s armor=%s evo=%s" % [t, paul.hp, level, enemies.size(), kills, fever,
 			("%.0f/%s" % [boss.hp, boss.state]) if boss != null else "-", party, fruits, armor, evolved.keys()])
 	if smoke_shot != "" and fever > 0.0 and fever < D.fever.duration - 1.5 and not FileAccess.file_exists(smoke_shot.replace(".png", "_fever.png")):

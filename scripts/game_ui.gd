@@ -159,6 +159,9 @@ func vp() -> Vector2:
 
 
 # ---------- 每幀更新 ----------
+var build_label: Label
+
+
 func update_hud(st: Dictionary) -> void:
 	var size := vp()
 	hp_fill.size.x = roundf(120.0 * st.hp_frac)
@@ -191,6 +194,10 @@ func update_hud(st: Dictionary) -> void:
 	fever_btn.visible = st.meter >= 1.0 and not fever_on and not st.over and not st.choosing
 	fever_btn.position = Vector2(roundf((size.x - fever_btn.size.x) / 2.0), my - 54.0)
 	tint.color.a = 0.14 if fever_on else 0.0
+	if build_label == null:
+		build_label = label("", 10, C_CREAM)
+	build_label.text = st.get("build", "")
+	build_label.position = Vector2(12, 52)
 	var now := Time.get_ticks_msec() / 1000.0
 	banner.visible = now < banner_until
 	if banner.visible:

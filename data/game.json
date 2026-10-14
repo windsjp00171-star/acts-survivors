@@ -94,9 +94,42 @@
     "belt":   { "name": "真理的腰帶", "tag": "講道", "desc": ["對謊言傷害 +50%，謊言的射擊傷害減少 30%", "對謊言傷害再 +50%", "謊言的射擊完全擋下"] },
     "shield": { "name": "信德的藤牌", "tag": "守護", "desc": ["每 12 秒擋下一次攻擊", "每 9 秒擋一次", "每 6 秒擋一次（弗 6:16）"] }
   },
+  "_links說明": "肢體連結（林前 12:26）：升級卡會出現，把兩位同伴連起來。條件成立時被連到的同伴立刻多出手一次（不影響他自己的冷卻）。連鎖最多 max_depth 層，每條連結有 cooldown 秒的間隔。",
+  "links": {
+    "max_links": 3,
+    "max_depth": 3,
+    "kinds": {
+      "cast": { "name": "一同出手", "short": "出手", "cooldown": 0.6, "desc": "%s 每次出手，%s 也跟著出手。連到的人出手時也會觸發他自己的連結" },
+      "kill": { "name": "一同快樂", "short": "驅散", "cooldown": 0.4, "desc": "%s 驅散敵人時，%s 立刻出手（若一個肢體得榮耀，所有的肢體就一同快樂）" },
+      "hurt": { "name": "一同受苦", "short": "受傷", "cooldown": 1.0, "desc": "保羅或任何同伴受傷時，%s 立刻出手（若一個肢體受苦，所有的肢體就一同受苦）" }
+    }
+  },
+  "_synergy說明": "同工：同一個流派（tag）的同伴有 2 位、3 位以上時，他們的攻擊速度加成。",
+  "synergy": { "bonus": { "2": 0.25, "3": 0.5 } },
+  "_evolutions說明": "同伴滿級（Lv5）且拿到指定果子後，下一個寶箱會進化。有 every 的是定時全畫面地震；有 stats 的是直接覆蓋招式數值。",
   "evolutions": [
     { "companion": "silas", "fruit": "joy", "name": "半夜的詩歌",
-      "desc": "每 14 秒全畫面地震：所有敵人受傷並暈眩（徒 16:25–26）", "every": 14, "damage": 6, "stun": 1.6 }
+      "desc": "每 14 秒全畫面地震：所有敵人受傷並暈眩（徒 16:25–26）", "every": 14, "damage": 6, "stun": 1.6 },
+    { "companion": "tim", "fruit": "faith", "name": "無愧的工人",
+      "desc": "一次射 5 支光箭，每支穿透 4 隻（提後 2:15）", "stats": { "count": 5, "pierce": 4, "cooldown": 0.26 } },
+    { "companion": "apollos", "fruit": "faith", "name": "極有能力",
+      "desc": "五道寬光束，末端全部爆開（徒 18:28）", "stats": { "beams": 5, "width": 14, "burst": 1, "damage": 4 } },
+    { "companion": "luke", "fruit": "good", "name": "親愛的醫生",
+      "desc": "治療量大增、更頻繁，倒下立刻扶起（西 4:14）", "stats": { "amount": 24, "cooldown": 1.6 } },
+    { "companion": "pri", "fruit": "good", "name": "家中的教會",
+      "desc": "帳棚圍成大圈，撞上去的敵人受重傷（羅 16:5）", "stats": { "radius": 58, "pieces": 14, "damage": 6, "knockback": 30 } },
+    { "companion": "barn", "fruit": "peace", "name": "勸慰子",
+      "desc": "光環極大，裡面攻擊速度幾乎加倍（徒 4:36）", "stats": { "radius": 72, "attack_speed": 1.9 } },
+    { "companion": "david", "fruit": "faith", "name": "戰役是耶和華的",
+      "desc": "一次甩 5 顆，對菁英與 Boss 十倍傷害（撒上 17:47）", "stats": { "count": 5, "elite_mult": 10 } },
+    { "companion": "samson", "fruit": "good", "name": "最後一次的力量",
+      "desc": "連砸三下，範圍極大（士 16:28）", "stats": { "slams": 3, "radius": 64, "damage": 12 } },
+    { "companion": "moses", "fruit": "peace", "name": "向海伸杖",
+      "desc": "一次分開三道巨大的水道（出 14:21）", "stats": { "beams": 3, "width": 34, "length": 260 } },
+    { "companion": "elijah", "fruit": "joy", "name": "火車火馬",
+      "desc": "一次降下 7 道大火（王下 2:11）", "stats": { "count": 7, "radius": 28, "cooldown": 1.4 } },
+    { "companion": "joshua", "fruit": "joy", "name": "城牆塌陷",
+      "desc": "連吹三聲，震飛一切（書 6:20）", "stats": { "rings": 3, "knock": 160, "damage": 4 } }
   ],
   "elites": {
     "terror": { "name": "恐嚇", "sprite": "fear", "scale": 2.2, "tint": [1.0, 0.7, 1.0], "hp": 70, "speed": 18, "damage": 8,
