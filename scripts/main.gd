@@ -229,6 +229,19 @@ func _ready() -> void:
 		for k in ["peter", "john", "thomas", "matthew", "andrew"]:
 			_recruit(by_key[k])
 			_set_level(by_key[k], 4)
+	if smoke_preset == "branch":
+		# 測試用：提摩太 Lv2→3 走分支「四散」
+		_recruit(by_key.tim)
+		_set_level(by_key.tim, 2)
+		choosing = true
+		pending_cards = [{"kind": "up", "key": "tim", "title": "", "tag": "", "desc": ""}]
+		_on_card(0)
+		print("branch cards: ", pending_cards.map(func(c): return c.title))
+		ui.card_ready_at = 0.0
+		_on_card(1)
+		print("tim lv=%d branch=%d split=%s" % [by_key.tim.level, by_key.tim.branch, by_key.tim.st.split])
+		_set_level(by_key.tim, 5)
+		print("tim lv5 split=%s count=%s" % [by_key.tim.st.split, by_key.tim.st.count])
 	if smoke_preset == "strong":
 		# 測試用：滿編隊伍，西拉滿級帶喜樂，下一個寶箱會進化
 		for c in comps:
@@ -354,6 +367,14 @@ func _set_level(c: Dictionary, lv: int) -> void:
 	c.level = lv
 	if c.skill != "":
 		c.st = _stats(c.skill, lv)
+		# Lv3 二選一的分支：加在數值上，之後升級也保留
+		var bi: int = c.get("branch", -1)
+		if bi >= 0:
+			for k in D.skills[c.skill].branches[bi].add:
+				c.st[k] = float(c.st.get(k, 0)) + float(D.skills[c.skill].branches[bi].add[k])
+			c.st.cooldown = maxf(0.2, float(c.st.get("cooldown", 1.0)))
+		if evolved.has(c.key) and evolved[c.key].has("stats"):
+			c.st.merge(evolved[c.key].stats, true)
 
 
 func _recruit(c: Dictionary) -> void:
@@ -540,6 +561,11 @@ func _apply_card(card: Dictionary) -> void:
 		fruits[card.key] = fruits.get(card.key, 0) + 1
 	elif card.kind == "armor":
 		armor[card.key] = armor.get(card.key, 0) + 1
+	elif card.kind == "branch":
+		var c: Dictionary = by_key[card.key]
+		c.branch = int(card.idx)
+		_set_level(c, 3)
+		_ring_pop(c.pos + Vector2(0, -6), C_GOLD, 30.0)
 	elif card.kind == "epistle":
 		epistles[card.key] = true
 	elif card.kind == "evolve":
@@ -595,6 +621,12 @@ func _refresh_build_text() -> void:
 	for tag in cnt:
 		if cnt[tag] >= 2:
 			lines.append("同工　%s ×%d" % [tag, cnt[tag]])
+	var brs := []
+	for c in [pa] + comps:
+		if c.get("branch", -1) >= 0:
+			brs.append("%s・%s" % [c.name, D.skills[c.skill].branches[c.branch].name])
+	if not brs.is_empty():
+		lines.append("分支　" + "、".join(brs))
 	for L in links:
 		var K: Dictionary = D.links.kinds[L.kind]
 		lines.append("連結　%s" % (("受傷→" + L.dst.name) if L.kind == "hurt" else (L.src.name + "→" + L.dst.name + "（" + K.short + "）")))
@@ -603,7 +635,19 @@ func _refresh_build_text() -> void:
 
 func _on_card(i: int) -> void:
 	Sfx.play("pick", 0.0)
-	_apply_card(pending_cards[i])
+	var card: Dictionary = pending_cards[i]
+	# 升到 Lv3：先選分支（第二張選單）
+	if card.kind == "up" and by_key.has(card.key):
+		var c: Dictionary = by_key[card.key]
+		if c.level == 2 and c.get("branch", -1) < 0 and D.skills[c.skill].has("branches"):
+			var who: String = c.name
+			pending_cards = []
+			for bi in D.skills[c.skill].branches.size():
+				var br: Dictionary = D.skills[c.skill].branches[bi]
+				pending_cards.append({"kind": "branch", "key": c.key, "idx": bi, "title": "%s：%s" % [who, br.name], "tag": "Lv3 分支", "desc": br.desc + "\n（之後的升級都會保留）"})
+			ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, 0.3, 0)
+			return
+	_apply_card(card)
 	_refresh_build_text()
 	choosing = false
 	if xp >= xp_need:
@@ -2508,7 +2552,7 @@ func _smoke_tick() -> void:
 		ui.card_ready_at = 0.0
 		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_cards.png")):
 			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_cards.png"))
-		ui.pick(randi() % 3)
+		ui.pick(randi() % pending_cards.size())
 	if meter >= 1.0 and fever <= 0.0 and not smoke_nofever:
 		_start_fever()
 	if smoke_frames % 300 == 0:

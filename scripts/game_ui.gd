@@ -504,7 +504,7 @@ func hide_pause() -> void:
 
 
 func pick(i: int) -> void:
-	if card_buttons.is_empty() or Time.get_ticks_msec() / 1000.0 < card_ready_at:
+	if i >= card_buttons.size() or Time.get_ticks_msec() / 1000.0 < card_ready_at:
 		return
 	hide_cards()
 	card_chosen.emit(i)

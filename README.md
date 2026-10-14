@@ -105,6 +105,7 @@ godot --headless --path . res://scenes/main.tscn -- --smoke
 - `--stage=0~3`：選城市（0 腓立比、1 帖撒羅尼迦、2 哥林多、3 以弗所）
 - `--preset=evo`：五位滿級並全部進化
 - `--preset=disciples`：五位門徒 Lv4
+- `--preset=branch`：測試 Lv3 分支流程（印出結果）
 - `--nofever`：不自動開五旬節（看一般狀態的畫面）
 - `--light`：開五旬節時一定出現光的身影
 - `--trials=swift,many`：打開熬煉條件（swift、many、hard、sharp、lion、simple、alone）
