@@ -1,5 +1,7 @@
 extends Control
-## 安提阿基地：出發前的畫面。見證、同伴名冊（默契與生平）、解鎖、見證錄。
+## 營地裡的彈出面板：出發、同伴名冊（默契與生平）、解鎖、見證錄。由 camp.gd 開關。
+
+signal closed
 
 var G: Dictionary      # game.json
 var bios: Dictionary
@@ -7,29 +9,51 @@ var content: VBoxContainer
 var scroll: ScrollContainer
 var witness_label: Label
 var nav_buttons := {}
-var shot_path := ""
+var portrait := false
+var tabs_enabled := {"home": true, "roster": true, "shop": true, "ach": true}
 
 
 func _ready() -> void:
 	G = JSON.parse_string(FileAccess.get_file_as_string("res://data/game.json"))
 	bios = JSON.parse_string(FileAccess.get_file_as_string("res://data/bios.json"))
-	for a in OS.get_cmdline_user_args():
-		if a.begins_with("--shot="):
-			shot_path = a.substr(7)
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var vs := get_viewport().get_visible_rect().size
+	portrait = vs.y > vs.x
 	_build()
-	_show_home()
-	if shot_path != "":
-		_auto_shots()
+	visible = false
+
+
+## 打開面板到某一頁；key 是同伴時直接看他的生平
+func open(tab: String, key := "") -> void:
+	for k in nav_buttons:
+		nav_buttons[k].visible = tabs_enabled.get(k, true)
+	visible = true
+	match tab:
+		"roster":
+			if key != "":
+				_show_companion(key)
+			else:
+				_show_roster()
+		"shop": _show_shop()
+		"ach": _show_achievements()
+		_: _show_home()
+
+
+func close() -> void:
+	visible = false
+	closed.emit()
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	if visible and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		close()
+		get_viewport().set_input_as_handled()
 
 
 func _build() -> void:
-	var bg := TextureRect.new()
-	bg.texture = load("res://assets/sprites/ground.png")
-	bg.stretch_mode = TextureRect.STRETCH_TILE
-	bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var bg := ColorRect.new()
+	bg.color = Color(0.04, 0.02, 0.06, 0.8)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg.modulate = Color(0.35, 0.3, 0.3)
 	add_child(bg)
 
 	var margin := MarginContainer.new()
@@ -45,33 +69,45 @@ func _build() -> void:
 	outer.add_child(top)
 	var title := UIKit.label("安提阿", 24, UIKit.GOLD)
 	top.add_child(title)
-	var sub := UIKit.label("　宣教之路的出發地", 12, UIKit.MUTED)
-	sub.size_flags_vertical = Control.SIZE_SHRINK_END
-	top.add_child(sub)
+	if not portrait:
+		var sub := UIKit.label("　宣教之路的出發地", 12, UIKit.MUTED)
+		sub.size_flags_vertical = Control.SIZE_SHRINK_END
+		top.add_child(sub)
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
 	witness_label = UIKit.label("", 16, UIKit.SKY)
 	top.add_child(witness_label)
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(12, 0)
+	top.add_child(gap)
+	var x := UIKit.button("✕ 關閉", 13)
+	x.custom_minimum_size = Vector2(80, 30)
+	x.pressed.connect(close)
+	top.add_child(x)
 
-	var body := HBoxContainer.new()
+	# 橫式：左邊分頁、右邊內容；直式：分頁在上、內容在下
+	var body: BoxContainer = VBoxContainer.new() if portrait else HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_theme_constant_override("separation", 10)
 	outer.add_child(body)
 
-	var nav := VBoxContainer.new()
-	nav.custom_minimum_size = Vector2(112, 0)
+	var nav: BoxContainer = HBoxContainer.new() if portrait else VBoxContainer.new()
+	nav.custom_minimum_size = Vector2(0, 0) if portrait else Vector2(112, 0)
 	nav.add_theme_constant_override("separation", 6)
 	body.add_child(nav)
 	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["ach", "見證錄", _show_achievements]]:
 		var b := UIKit.button(item[1], 15)
-		b.custom_minimum_size = Vector2(112, 38)
+		b.custom_minimum_size = Vector2(0, 36) if portrait else Vector2(112, 38)
+		if portrait:
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		b.pressed.connect(item[2])
 		nav.add_child(b)
 		nav_buttons[item[0]] = b
 
 	var panel := PanelContainer.new()
 	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	panel.add_theme_stylebox_override("panel", UIKit.box(Color(0.1, 0.07, 0.12, 0.92), UIKit.BRONZE, 10))
 	body.add_child(panel)
 	scroll = ScrollContainer.new()
@@ -169,7 +205,7 @@ func _show_roster() -> void:
 	_clear("roster")
 	_text(content, "常帶出門的同伴默契會升高：攻擊變快，並解鎖他的生平。", 12, UIKit.MUTED, true)
 	var grid := GridContainer.new()
-	grid.columns = 4
+	grid.columns = 2 if portrait else 4
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	content.add_child(grid)
@@ -178,7 +214,7 @@ func _show_roster() -> void:
 			continue
 		var unlocked := Save.is_unlocked(c.key)
 		var b := UIKit.button("", 12)
-		b.custom_minimum_size = Vector2(108, 92)
+		b.custom_minimum_size = Vector2(136 if portrait else 108, 92)
 		var v := VBoxContainer.new()
 		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		v.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -304,9 +340,9 @@ func _show_achievements() -> void:
 
 
 # ---------- 自動截圖測試 ----------
-func _auto_shots() -> void:
+func auto_shots(shot_path: String) -> void:
 	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["ach", _show_achievements]]:
+		visible = true
 		step[1].call()
 		await get_tree().create_timer(0.6).timeout
 		get_viewport().get_texture().get_image().save_png(shot_path.replace(".png", "_%s.png" % step[0]))
-	get_tree().quit()

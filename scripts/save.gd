@@ -11,6 +11,10 @@ var run_config := {}
 func _ready() -> void:
 	meta = JSON.parse_string(FileAccess.get_file_as_string("res://data/meta.json"))
 	load_profile()
+	# 直式螢幕（手機）改用 360×640 當基準，介面與鏡頭會自動換成直式排版
+	var ws := DisplayServer.window_get_size()
+	if ws.y > ws.x:
+		get_tree().root.content_scale_size = Vector2i(360, 640)
 
 
 func _defaults() -> Dictionary:
@@ -18,7 +22,7 @@ func _defaults() -> Dictionary:
 		"witness": 0, "witness_total": 0,
 		"unlocked": meta.start_unlocked.duplicate(), "bought": [],
 		"affinity": {}, "achievements": [], "starter": meta.default_starter,
-		"baskets": 0, "egg_seen": false,
+		"baskets": 0, "egg_seen": false, "camp_seen": [],
 		"stats": {"runs": 0, "wins": 0, "elites": 0, "best_kills": 0, "best_fevers": 0,
 			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0},
 	}
@@ -78,6 +82,18 @@ func next_threshold(key: String) -> int:
 	var lv := affinity_level(key)
 	var ths: Array = meta.affinity.thresholds
 	return ths[lv] if lv < ths.size() else -1
+
+
+## 營地設施的條件值
+func camp_stat(stat: String) -> int:
+	match stat:
+		"witness_total": return int(data.witness_total)
+		"achievements": return data.achievements.size()
+	return int(data.stats.get(stat, 0))
+
+
+func camp_built(item: Dictionary) -> bool:
+	return camp_stat(item.stat) >= int(item.min)
 
 
 func buy(item: Dictionary) -> bool:

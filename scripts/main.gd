@@ -3,6 +3,7 @@ extends Node2D
 ## 數值全部來自 data/game.json。
 
 const ZOOM := 2.0
+const ZOOM_PORTRAIT := 1.5   # 直式畫面窄，鏡頭拉遠一點才看得到兩側的敵人
 const CHUNK := 96
 const SEP_CELL := 8.0
 const DATA_PATH := "res://data/game.json"
@@ -215,7 +216,8 @@ func _build_world() -> void:
 	add_child(air)
 
 	cam = Camera2D.new()
-	cam.zoom = Vector2(ZOOM, ZOOM)
+	var vs := get_viewport().get_visible_rect().size
+	cam.zoom = Vector2.ONE * (ZOOM_PORTRAIT if vs.y > vs.x else ZOOM)
 	add_child(cam)
 	cam.make_current()
 
@@ -550,7 +552,7 @@ func _pick_type() -> String:
 
 
 func _view_rect() -> Rect2:
-	var size := get_viewport().get_visible_rect().size / ZOOM
+	var size := get_viewport().get_visible_rect().size / cam.zoom.x
 	return Rect2(cam.position - size / 2.0, size)
 
 

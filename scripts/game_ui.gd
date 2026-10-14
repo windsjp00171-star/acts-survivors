@@ -213,7 +213,11 @@ func update_hud(st: Dictionary) -> void:
 	if task_label == null:
 		task_label = label("", 10, C_INK)
 	task_label.text = st.get("tasks", "")
-	task_label.position = Vector2(size.x - task_label.size.x - 12.0, 30)
+	if size.y > size.x:
+		# 直式：任務排在左邊、同工與連結的下面
+		task_label.position = Vector2(12, build_label.position.y + (build_label.size.y + 4.0 if build_label.text != "" else 0.0))
+	else:
+		task_label.position = Vector2(size.x - task_label.size.x - 12.0, 30)
 	var now := Time.get_ticks_msec() / 1000.0
 	banner.visible = now < banner_until
 	if banner.visible:
