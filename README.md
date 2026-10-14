@@ -6,6 +6,10 @@
 
 ## 怎麼玩
 
+**直接玩（Windows）**：下載 `宣教之路-windows.zip`，解壓縮後雙擊 `宣教之路.exe`，不用安裝。Windows 跳出「已保護您的電腦」時按「其他資訊」→「仍要執行」。
+
+**用 Godot 開專案**：
+
 1. 下載 [Godot 4.4](https://godotengine.org/download)（標準版即可，免安裝）
 2. 下載這個專案（綠色的 Code 按鈕 → Download ZIP，或用 git clone）
 3. 打開 Godot，按「匯入」，選這個資料夾裡的 `project.godot`
@@ -47,6 +51,14 @@
 | `scenes/main.tscn` | 主場景 |
 | `assets/sprites/` | 像素圖（目前由程式產生） |
 | `docs/mockups/` | 美術風格樣稿（用瀏覽器打開） |
+
+## 開發者：打包
+
+`export_presets.cfg` 已設好 Windows 與 Linux。裝好 Godot 4.4.1 的 Export Templates 後：
+
+```
+godot --headless --path . --export-release "Windows Desktop" build/windows/宣教之路.exe
+```
 
 ## 開發者：自動測試
 
