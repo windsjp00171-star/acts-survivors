@@ -22,7 +22,7 @@ func _defaults() -> Dictionary:
 		"witness": 0, "witness_total": 0,
 		"unlocked": meta.start_unlocked.duplicate(), "bought": [],
 		"affinity": {}, "achievements": [], "starter": meta.default_starter,
-		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0,
+		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1,
 		"stats": {"runs": 0, "wins": 0, "elites": 0, "best_kills": 0, "best_fevers": 0,
 			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0},
 	}

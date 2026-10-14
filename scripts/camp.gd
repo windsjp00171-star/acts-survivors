@@ -27,6 +27,16 @@ var walk_to = null       # 點擊空地走過去的位置
 var t := 0.0
 var portrait := false
 var squash := Vector2.ONE
+# 營地對話（data/talks.json）
+var T: Dictionary
+var bubbles := {}        # 同伴 key → 這次要聊的那一段
+var talk: Array = []     # 正在進行的對話
+var talk_i := 0
+var talk_key := ""
+var talk_box: PanelContainer
+var talk_icon: TextureRect
+var talk_name: Label
+var talk_text: Label
 
 
 func _ready() -> void:
@@ -62,6 +72,7 @@ func _ready() -> void:
 
 	_build_camp()
 	_build_hud()
+	_pick_bubbles()
 	Sfx.music("camp")
 
 	var shot := ""
@@ -170,11 +181,101 @@ func _build_hud() -> void:
 	go.pressed.connect(func(): _interact({"kind": "depart"}))
 	go.name = "GoButton"
 	hud.add_child(go)
+	talk_box = PanelContainer.new()
+	talk_box.add_theme_stylebox_override("panel", UIKit.box(Color(0.1, 0.07, 0.12, 0.95), UIKit.GOLD, 10))
+	talk_box.visible = false
+	hud.add_child(talk_box)
+	var th := HBoxContainer.new()
+	th.add_theme_constant_override("separation", 10)
+	talk_box.add_child(th)
+	talk_icon = TextureRect.new()
+	talk_icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	talk_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	talk_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	talk_icon.custom_minimum_size = Vector2(42, 51)
+	th.add_child(talk_icon)
+	var tv := VBoxContainer.new()
+	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	th.add_child(tv)
+	talk_name = UIKit.label("", 13, UIKit.GOLD)
+	tv.add_child(talk_name)
+	talk_text = UIKit.label("", 14, C_INK)
+	talk_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	talk_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tv.add_child(talk_text)
+	var more := UIKit.label("▼", 10, UIKit.MUTED)
+	more.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	tv.add_child(more)
 	var p2 = load("res://scripts/base.gd").new()
 	panel = p2
 	hud.add_child(panel)
 	panel.tabs_enabled = {"home": true, "roster": true, "shop": _has("shop"), "ach": _has("ach")}
 	panel.closed.connect(func(): target = null)
+
+
+## 每次從旅程回來，挑幾位同伴有話要說
+func _pick_bubbles() -> void:
+	T = JSON.parse_string(FileAccess.get_file_as_string("res://data/talks.json"))
+	var runs: int = Save.data.stats.runs
+	if runs == 0 or int(Save.data.get("talk_run", -1)) == runs:
+		# 同一次回營地已經挑過：保留還沒聊完的
+		for k in Save.data.get("talk_pending", []):
+			_add_bubble(k)
+		return
+	Save.data.talk_run = runs
+	var cands := []
+	for p in people:
+		var seen: int = int(Save.data.get("talks_seen", {}).get(p.key, 0))
+		if T.talks.has(p.key) and seen < T.talks[p.key].size():
+			cands.append(p.key)
+	cands.shuffle()
+	Save.data.talk_pending = cands.slice(0, int(T.per_visit))
+	Save.save_profile()
+	for k in Save.data.talk_pending:
+		_add_bubble(k)
+
+
+func _add_bubble(key: String) -> void:
+	var seen: int = int(Save.data.get("talks_seen", {}).get(key, 0))
+	if T.talks.has(key) and seen < T.talks[key].size():
+		bubbles[key] = T.talks[key][seen]
+
+
+func _start_talk(key: String) -> void:
+	talk = bubbles[key]
+	talk_key = key
+	talk_i = 0
+	_show_line()
+
+
+func _show_line() -> void:
+	var line: Array = talk[talk_i]
+	var who: String = line[0]
+	talk_icon.texture = load("res://assets/sprites/%s_0.png" % who)
+	talk_name.text = G.paul.name if who == "paul" else _name_of(who)
+	talk_text.text = line[1]
+	talk_box.visible = true
+	Sfx.play("ui", 0.0)
+
+
+func _advance_talk() -> void:
+	talk_i += 1
+	if talk_i < talk.size():
+		_show_line()
+		return
+	# 聊完：默契增加、記錄看過
+	talk_box.visible = false
+	var seen: Dictionary = Save.data.get("talks_seen", {})
+	seen[talk_key] = int(seen.get(talk_key, 0)) + 1
+	Save.data.talks_seen = seen
+	Save.data.affinity[talk_key] = Save.affinity_xp(talk_key) + int(T.talk_bonus)
+	Save.data.talk_pending.erase(talk_key)
+	Save.save_profile()
+	bubbles.erase(talk_key)
+	news_label.text = "與%s的默契 +%d" % [_name_of(talk_key), int(T.talk_bonus)]
+	news_until = 1.6
+	Sfx.play("heal", 0.0)
+	talk = []
 
 
 func _has(kind: String) -> bool:
@@ -188,7 +289,7 @@ func _has(kind: String) -> bool:
 func _process(dt: float) -> void:
 	t += dt
 	news_until -= dt
-	var busy: bool = panel.visible
+	var busy: bool = panel.visible or not talk.is_empty()
 	var mv := Vector2.ZERO
 	if not busy:
 		mv = Vector2(
@@ -242,6 +343,13 @@ func _near() -> Variant:
 func _unhandled_input(event: InputEvent) -> void:
 	if panel.visible:
 		return
+	if not talk.is_empty():
+		var adv: bool = (event is InputEventKey and event.pressed and not event.echo and event.keycode in [KEY_SPACE, KEY_E, KEY_ENTER]) \
+			or (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT)
+		if adv:
+			_advance_talk()
+			get_viewport().set_input_as_handled()
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		if event.keycode in [KEY_SPACE, KEY_E, KEY_ENTER]:
 			var n = _near()
@@ -264,7 +372,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func _interact(s: Dictionary) -> void:
 	walk_to = null
 	match s.kind:
-		"comp": panel.open("roster", s.key)
+		"comp":
+			if bubbles.has(s.key):
+				_start_talk(s.key)
+			else:
+				panel.open("roster", s.key)
 		"shop": panel.open("shop")
 		"ach": panel.open("ach")
 		_: panel.open("home")
@@ -276,7 +388,7 @@ func _update_hud() -> void:
 	witness_label.position = Vector2(vs.x - witness_label.size.x - 12.0, 10)
 	var go := hud.get_node("GoButton") as Button
 	go.position = Vector2(vs.x - 100.0, vs.y - 48.0)
-	go.visible = not panel.visible
+	go.visible = not panel.visible and talk.is_empty()
 	var n = _near()
 	var touch := DisplayServer.is_touchscreen_available()
 	if n != null:
@@ -284,7 +396,9 @@ func _update_hud() -> void:
 	else:
 		hint_label.text = "點同伴或設施就會走過去" if touch else "WASD 移動，靠近按空白鍵"
 	hint_label.position = Vector2(14, vs.y - 30.0)
-	hint_label.visible = not panel.visible
+	talk_box.size = Vector2(minf(vs.x - 24.0, 460.0), 0)
+	talk_box.position = Vector2(roundf((vs.x - talk_box.size.x) / 2.0), vs.y - talk_box.size.y - 60.0)
+	hint_label.visible = not panel.visible and talk.is_empty()
 	news_label.visible = news_until > 0.0 and not panel.visible
 	if news_label.visible:
 		news_label.modulate.a = clampf(news_until, 0.0, 1.0)
@@ -293,7 +407,7 @@ func _update_hud() -> void:
 
 func _verb(s: Dictionary) -> String:
 	match s.kind:
-		"comp": return "跟%s說話" % s.name
+		"comp": return ("跟%s聊聊（默契 +）" if bubbles.has(s.key) else "看%s的生平") % s.name
 		"shop": return "補給帳棚（解鎖）"
 		"ach": return "見證牆"
 	return "看旅程地圖、出發"
@@ -373,6 +487,15 @@ func _draw_tags() -> void:
 	var font := UIKit.font()
 	var near = _near()
 	for s in spots:
+		if s.kind == "comp" and bubbles.has(s.key):
+			# 有話要說：頭上一個小對話框
+			var bp: Vector2 = s.pos + Vector2(4, -28 + roundf(sin(t * 3.0 + s.pos.x)))
+			n.draw_rect(Rect2(bp.x - 1, bp.y - 1, 12, 8), Color("140c10"))
+			n.draw_rect(Rect2(bp.x, bp.y, 10, 6), Color.WHITE)
+			n.draw_rect(Rect2(bp.x + 1, bp.y + 6, 2, 2), Color.WHITE)
+			for d in 3:
+				n.draw_rect(Rect2(bp.x + 2 + d * 3, bp.y + 2, 1, 1), Color("3a2a20"))
+	for s in spots:
 		if s.kind == "comp" and s != near:
 			continue
 		var txt: String = s.name
@@ -394,5 +517,12 @@ func _auto_shots(shot: String) -> void:
 	paul.pos = spots[0].pos + Vector2(-4, 10)
 	await get_tree().create_timer(0.4).timeout
 	get_viewport().get_texture().get_image().save_png(shot.replace(".png", "_near.png"))
-	await panel.auto_shots(shot)
+	if not bubbles.is_empty():
+		get_viewport().get_texture().get_image().save_png(shot.replace(".png", "_bubble.png"))
+		_start_talk(bubbles.keys()[0])
+		await get_tree().create_timer(0.4).timeout
+		get_viewport().get_texture().get_image().save_png(shot.replace(".png", "_talk.png"))
+		while not talk.is_empty():
+			_advance_talk()
+		await panel.auto_shots(shot)
 	get_tree().quit()
