@@ -2,22 +2,59 @@
   "_說明": "遊戲資料。改這個檔就能調整數值，不用動程式。之後玩家改寫遊戲的入口也從這裡開始。",
   "paul": { "name": "保羅", "speed": 42, "hp": 100 },
   "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
+  "start_party": ["silas", "tim"],
   "companions": [
-    { "key": "barn",    "name": "巴拿巴", "skill": "aura", "home": [-21, -10] },
-    { "key": "luke",    "name": "路加",   "skill": "heal", "home": [20, -11] },
-    { "key": "silas",   "name": "西拉",   "skill": "ring", "home": [-24, 9] },
-    { "key": "tim",     "name": "提摩太", "skill": "bolt", "home": [24, 8] },
-    { "key": "apollos", "name": "亞波羅", "skill": "beam", "home": [0, -21] },
-    { "key": "pri",     "name": "百基拉", "skill": "tent", "home": [-7, 22] },
-    { "key": "aq",      "name": "亞居拉", "skill": "",     "home": [7, 22] }
+    { "key": "barn",    "name": "巴拿巴", "skill": "aura", "home": [-21, -10], "tag": "守護" },
+    { "key": "luke",    "name": "路加",   "skill": "heal", "home": [20, -11],  "tag": "醫治" },
+    { "key": "silas",   "name": "西拉",   "skill": "ring", "home": [-24, 9],   "tag": "詩歌" },
+    { "key": "tim",     "name": "提摩太", "skill": "bolt", "home": [24, 8],    "tag": "差派" },
+    { "key": "apollos", "name": "亞波羅", "skill": "beam", "home": [0, -21],   "tag": "講道" },
+    { "key": "pri",     "name": "百基拉", "skill": "tent", "home": [-7, 22],   "tag": "守護", "with": "aq" },
+    { "key": "aq",      "name": "亞居拉", "skill": "",     "home": [7, 22],    "tag": "守護", "follows": "pri" }
   ],
+  "_skills說明": "base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。",
   "skills": {
-    "bolt": { "cooldown": 0.45, "range": 110, "damage": 1, "speed": 180 },
-    "ring": { "cooldown": 2.2, "max_radius": 52, "damage": 1, "speed": 55 },
-    "aura": { "radius": 28, "attack_speed": 1.25 },
-    "heal": { "cooldown": 3.2, "amount": 6 },
-    "tent": { "cycle": 4.6, "radius": 36, "pieces": 4, "damage": 1, "knockback": 14 },
-    "beam": { "cooldown": 1.8, "length": 110, "width": 5, "damage": 2, "range": 120 }
+    "bolt": {
+      "base": { "cooldown": 0.4, "range": 120, "damage": 1, "speed": 200, "count": 1, "split": 0, "pierce": 0, "size": 1 },
+      "levels": [ { "count": 2 }, { "split": 2 }, { "count": 3, "cooldown": 0.32 }, { "pierce": 2, "size": 2, "damage": 2 } ],
+      "desc": ["追蹤光箭，自動射向最近的敵人", "一次射 2 支光箭", "命中後分裂成 2 支小箭", "一次射 3 支，射得更快", "光箭變大、威力加倍，可以穿透 2 隻敵人"]
+    },
+    "ring": {
+      "base": { "cooldown": 2.0, "max_radius": 52, "damage": 1, "speed": 60, "rings": 1, "returns": 0, "stun": 0, "thick": 1 },
+      "levels": [ { "max_radius": 72, "damage": 2 }, { "returns": 1 }, { "rings": 2, "thick": 2 }, { "stun": 0.8, "max_radius": 90 } ],
+      "desc": ["詩歌聲波一圈圈擴散", "聲波更大、威力加倍", "聲波擴散到底會再收回來，打兩次", "一次唱出兩圈，聲波更粗", "聲波更大，被打中的敵人會暈眩"]
+    },
+    "aura": {
+      "base": { "radius": 28, "attack_speed": 1.25, "pull": 0, "fear_immune": 0 },
+      "levels": [ { "radius": 40 }, { "pull": 1 }, { "attack_speed": 1.5 }, { "fear_immune": 1, "radius": 50 } ],
+      "desc": ["鼓勵光環，範圍內同伴攻擊加快", "光環範圍變大", "被打散的同伴進到光環會被拉回來", "光環內攻擊速度大幅提升", "光環更大，裡面的同伴不會被懼怕嚇散"]
+    },
+    "heal": {
+      "base": { "cooldown": 3.2, "amount": 6, "revive_speed": 1, "instant_revive": 0 },
+      "levels": [ { "amount": 10 }, { "cooldown": 2.4 }, { "revive_speed": 2 }, { "instant_revive": 1, "amount": 14 } ],
+      "desc": ["定期幫全隊回血", "治療量提升", "治療更頻繁", "倒下的同伴站起來的速度加倍", "每次治療直接扶起倒下的同伴"]
+    },
+    "tent": {
+      "base": { "cycle": 4.6, "radius": 36, "pieces": 4, "damage": 1, "knockback": 14, "always_up": 0 },
+      "levels": [ { "pieces": 6 }, { "damage": 3, "knockback": 22 }, { "radius": 46 }, { "pieces": 10, "always_up": 1 } ],
+      "desc": ["外圈架起帳棚布擋住敵人", "帳棚布增加到 6 片", "撞上帳棚會被重重彈開", "帳棚圈擴大", "帳棚圍成一整圈，不再收起來"]
+    },
+    "beam": {
+      "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 2, "range": 130, "beams": 1, "burst": 0, "lies_mult": 1 },
+      "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 3 } ],
+      "desc": ["朝敵人射出一道貫穿的光束", "光束更寬更長", "光束末端爆開", "一次兩道光束", "三道光束，對謊言三倍傷害"]
+    }
+  },
+  "leveling": { "first": 6, "step": 4, "card_delay": 0.4, "heal_card": 30 },
+  "fever": {
+    "_說明": "同心合意：隊伍越完整累積越快；滿了按空白鍵（觸控按按鈕）開五旬節。",
+    "fill_seconds": 16,
+    "duration": 8,
+    "extend_every_kills": 10,
+    "extend_seconds": 0.5,
+    "attack_speed": 2.0,
+    "final_damage": 4,
+    "final_radius": 150
   },
   "enemies": {
     "fear":   { "name": "懼怕", "hp": 1, "speed": 26, "damage": 3, "scatter": 85, "dies_on_touch": true,  "from": 0,  "weight": 5 },

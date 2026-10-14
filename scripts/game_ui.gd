@@ -1,0 +1,293 @@
+class_name GameUI
+extends CanvasLayer
+## 畫面上的介面：血量、經驗、時間、同心合意、名牌、搖桿、升級卡、FEVER 按鈕、失敗畫面。
+
+signal card_chosen(index: int)
+signal fever_pressed
+signal restart_pressed
+
+const C_INK := Color("f4ead2")
+const C_GOLD := Color("ffd75e")
+const C_CREAM := Color("fff4c2")
+const C_SKY := Color("4fd8ff")
+const C_HEAL := Color("7be08a")
+const C_RED := Color("e8481c")
+const C_BRONZE := Color("c9a46b")
+const C_FLAME := Color("ff8a2a")
+const C_DARK := Color("0b080d")
+
+var font: SystemFont
+var root: Control
+var hp_fill: ColorRect
+var xp_fill: ColorRect
+var lv_label: Label
+var time_label: Label
+var kill_label: Label
+var hint_label: Label
+var meter_bg: ColorRect
+var meter_fill: ColorRect
+var meter_label: Label
+var fever_label: Label
+var fever_btn: Button
+var tint: ColorRect
+var flash: ColorRect
+var joy_pad: Control
+var names := {}
+var cards_box: BoxContainer
+var card_buttons: Array = []
+var card_ready_at := 0.0
+var joy := {"on": false, "origin": Vector2.ZERO, "pos": Vector2.ZERO}
+
+
+func setup(name_list: Array, touch: bool) -> void:
+	font = SystemFont.new()
+	font.font_weight = 500
+	font.font_names = PackedStringArray(["Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", "sans-serif"])
+	root = Control.new()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(root)
+
+	tint = _rect(Color(1.0, 0.6, 0.15, 0.0), Vector2.ZERO, Vector2.ONE)
+	tint.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	label("保羅", 13, C_GOLD).position = Vector2(12, 4)
+	_rect(C_DARK, Vector2(10, 26), Vector2(124, 9))
+	hp_fill = _rect(C_HEAL, Vector2(12, 28), Vector2(120, 5))
+	lv_label = label("Lv.1", 11, C_SKY)
+	lv_label.position = Vector2(12, 37)
+	_rect(C_DARK, Vector2(48, 41), Vector2(86, 6))
+	xp_fill = _rect(C_SKY, Vector2(49, 42), Vector2(0, 4))
+	time_label = label("00:00", 16, C_CREAM)
+	kill_label = label("驅散 0", 13, C_INK)
+
+	for n in name_list:
+		var l := label(n, 11, C_GOLD if n == "保羅" else C_INK, 2)
+		l.modulate.a = 0.85
+		names[n] = l
+
+	meter_bg = _rect(C_DARK, Vector2.ZERO, Vector2(204, 10))
+	meter_fill = _rect(C_FLAME, Vector2.ZERO, Vector2(0, 6))
+	meter_label = label("同心合意", 12, C_INK)
+	fever_label = label("", 12, C_GOLD)
+
+	fever_btn = Button.new()
+	fever_btn.text = "五旬節"
+	fever_btn.custom_minimum_size = Vector2(96, 44)
+	fever_btn.add_theme_font_override("font", font)
+	fever_btn.add_theme_font_size_override("font_size", 16)
+	fever_btn.add_theme_stylebox_override("normal", _box(Color("c4421a"), C_GOLD))
+	fever_btn.add_theme_stylebox_override("hover", _box(Color("e0582a"), C_CREAM))
+	fever_btn.add_theme_stylebox_override("pressed", _box(C_GOLD, C_CREAM))
+	fever_btn.add_theme_color_override("font_color", C_CREAM)
+	fever_btn.visible = false
+	fever_btn.pressed.connect(func(): fever_pressed.emit())
+	root.add_child(fever_btn)
+
+	hint_label = label("按住畫面下方拖曳來移動" if touch else "WASD／方向鍵移動　同心合意滿了按空白鍵", 12, C_CREAM)
+
+	joy_pad = Control.new()
+	joy_pad.set_anchors_preset(Control.PRESET_FULL_RECT)
+	joy_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	joy_pad.draw.connect(_draw_joy)
+	root.add_child(joy_pad)
+
+	flash = _rect(Color(1, 0.96, 0.8, 0.0), Vector2.ZERO, Vector2.ONE)
+	flash.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+
+func label(text: String, size: int, color: Color, outline := 2) -> Label:
+	var l := Label.new()
+	l.text = text
+	var ls := LabelSettings.new()
+	ls.font = font
+	ls.font_size = size + 2
+	ls.font_color = color
+	# 中文筆畫多，外框太粗會糊在一起：用細外框＋往右下的陰影
+	ls.outline_size = mini(outline, 2)
+	ls.outline_color = Color("140c10", 0.85)
+	ls.shadow_size = 0
+	ls.shadow_offset = Vector2(1, 1)
+	ls.shadow_color = Color(0, 0, 0, 0.6)
+	l.label_settings = ls
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(l)
+	return l
+
+
+func _rect(c: Color, pos: Vector2, size: Vector2) -> ColorRect:
+	var r := ColorRect.new()
+	r.color = c
+	r.position = pos
+	r.size = size
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.add_child(r)
+	return r
+
+
+func _box(bg: Color, border: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = bg
+	s.border_color = border
+	s.set_border_width_all(2)
+	s.set_corner_radius_all(4)
+	s.content_margin_left = 10
+	s.content_margin_right = 10
+	s.content_margin_top = 6
+	s.content_margin_bottom = 6
+	return s
+
+
+func vp() -> Vector2:
+	return get_viewport().get_visible_rect().size
+
+
+# ---------- 每幀更新 ----------
+func update_hud(st: Dictionary) -> void:
+	var size := vp()
+	hp_fill.size.x = roundf(120.0 * st.hp_frac)
+	hp_fill.color = C_HEAL if st.hp_frac > 0.35 else C_RED
+	lv_label.text = "Lv.%d" % st.level
+	xp_fill.size.x = roundf(84.0 * st.xp_frac)
+	var s: int = st.time
+	time_label.text = "%02d:%02d" % [s / 60, s % 60]
+	time_label.position = Vector2(roundf((size.x - time_label.size.x) / 2.0), 4)
+	kill_label.text = "驅散 %d" % st.kills
+	kill_label.position = Vector2(size.x - kill_label.size.x - 12.0, 4)
+	hint_label.modulate.a = clampf((10.0 - st.time) / 2.0, 0.0, 1.0)
+	hint_label.position = Vector2(roundf((size.x - hint_label.size.x) / 2.0), size.y - 70.0)
+
+	# 同心合意
+	var mx := roundf((size.x - 204.0) / 2.0)
+	var my := size.y - 22.0
+	meter_bg.position = Vector2(mx, my)
+	meter_fill.position = Vector2(mx + 2, my + 2)
+	meter_fill.size.x = roundf(200.0 * st.meter)
+	var fever_on: bool = st.fever > 0.0
+	meter_fill.color = C_GOLD if fever_on or st.meter >= 1.0 else C_FLAME
+	meter_label.text = "五旬節！" if fever_on else "同心合意"
+	meter_label.label_settings.font_color = C_GOLD if fever_on or st.meter >= 1.0 else C_INK
+	meter_label.position = Vector2(mx - meter_label.size.x - 8.0, my - 6.0)
+	fever_label.visible = fever_on
+	if fever_on:
+		fever_label.text = "FEVER ×%d" % st.fever_kills
+		fever_label.position = Vector2(roundf((size.x - fever_label.size.x) / 2.0), 26)
+	fever_btn.visible = st.meter >= 1.0 and not fever_on and not st.over and not st.choosing
+	fever_btn.position = Vector2(roundf((size.x - fever_btn.size.x) / 2.0), my - 54.0)
+	tint.color.a = 0.14 if fever_on else 0.0
+	flash.color.a = maxf(0.0, flash.color.a - 0.04)
+	joy_pad.queue_redraw()
+
+
+func place_name(n: String, screen_pos: Vector2, show: bool) -> void:
+	var l: Label = names[n]
+	l.visible = show
+	l.position = (screen_pos + Vector2(-l.size.x / 2.0, 2.0)).round()
+
+
+func do_flash(a: float) -> void:
+	flash.color.a = a
+
+
+func _draw_joy() -> void:
+	if not joy.on:
+		return
+	joy_pad.draw_arc(joy.origin, 36.0, 0.0, TAU, 48, Color(C_CREAM, 0.5), 2.0)
+	var d: Vector2 = joy.pos - joy.origin
+	if d.length() > 36.0:
+		d = d.normalized() * 36.0
+	joy_pad.draw_circle(joy.origin + d, 14.0, Color(C_CREAM, 0.45))
+
+
+# ---------- 升級卡 ----------
+func show_cards(cards: Array, now: float, delay: float) -> void:
+	hide_cards()
+	var size := vp()
+	var portrait := size.y > size.x
+	var dim := ColorRect.new()
+	dim.color = Color(0.05, 0.03, 0.08, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.name = "CardDim"
+	root.add_child(dim)
+	var title := label("升級！選一個", 20, C_GOLD)
+	title.name = "CardTitle"
+	title.position = Vector2(roundf((size.x - 140) / 2.0), 34 if not portrait else 90)
+	cards_box = VBoxContainer.new() if portrait else HBoxContainer.new()
+	cards_box.add_theme_constant_override("separation", 10)
+	root.add_child(cards_box)
+	card_buttons.clear()
+	for i in cards.size():
+		var c: Dictionary = cards[i]
+		var b := Button.new()
+		b.text = "%d　%s\n【%s】\n%s" % [i + 1, c.title, c.tag, c.desc]
+		b.custom_minimum_size = Vector2(300, 74) if portrait else Vector2(184, 150)
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		b.alignment = HORIZONTAL_ALIGNMENT_LEFT if portrait else HORIZONTAL_ALIGNMENT_CENTER
+		b.add_theme_font_override("font", font)
+		b.add_theme_font_size_override("font_size", 13)
+		b.add_theme_color_override("font_color", C_INK)
+		b.add_theme_color_override("font_hover_color", C_CREAM)
+		b.add_theme_stylebox_override("normal", _box(Color("241a2e"), C_BRONZE))
+		b.add_theme_stylebox_override("hover", _box(Color("3a2a40"), C_GOLD))
+		b.add_theme_stylebox_override("focus", _box(Color("3a2a40"), C_GOLD))
+		b.add_theme_stylebox_override("pressed", _box(Color("5a4420"), C_CREAM))
+		var idx := i
+		b.pressed.connect(func(): pick(idx))
+		cards_box.add_child(b)
+		card_buttons.append(b)
+	await get_tree().process_frame
+	cards_box.position = ((size - cards_box.size) / 2.0).round() + Vector2(0, 14)
+	card_ready_at = now + delay
+
+
+func pick(i: int) -> void:
+	if card_buttons.is_empty() or Time.get_ticks_msec() / 1000.0 < card_ready_at:
+		return
+	hide_cards()
+	card_chosen.emit(i)
+
+
+func hide_cards() -> void:
+	for n in ["CardDim", "CardTitle"]:
+		var node := root.get_node_or_null(n)
+		if node:
+			node.queue_free()
+	if cards_box:
+		cards_box.queue_free()
+		cards_box = null
+	card_buttons.clear()
+
+
+# ---------- 失敗 ----------
+func show_game_over(lines: Array) -> void:
+	var dim := ColorRect.new()
+	dim.color = Color(0.04, 0.02, 0.06, 0.78)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(dim)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 8)
+	root.add_child(box)
+	for row in lines:
+		var l := label(row[0], row[1], row[2])
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		root.remove_child(l)
+		box.add_child(l)
+	var btn := Button.new()
+	btn.text = "再出發"
+	btn.custom_minimum_size = Vector2(160, 40)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	btn.add_theme_font_override("font", font)
+	btn.add_theme_font_size_override("font_size", 16)
+	btn.add_theme_stylebox_override("normal", _box(C_BRONZE, C_DARK))
+	btn.add_theme_stylebox_override("hover", _box(C_GOLD, C_DARK))
+	btn.add_theme_stylebox_override("focus", _box(C_GOLD, C_DARK))
+	btn.add_theme_color_override("font_color", Color("2a1a14"))
+	btn.add_theme_color_override("font_hover_color", Color("2a1a14"))
+	btn.pressed.connect(func(): restart_pressed.emit())
+	box.add_child(btn)
+	for n in names:
+		names[n].visible = false
+	await get_tree().process_frame
+	box.position = ((vp() - box.size) / 2.0).round()
+	btn.grab_focus()
