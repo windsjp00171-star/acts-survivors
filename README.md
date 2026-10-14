@@ -10,7 +10,7 @@
 
 ## 怎麼玩
 
-**直接玩（Windows）**：下載 `宣教之路-windows.zip`，解壓縮後雙擊 `ActsSurvivors.exe`，不用安裝。Windows 跳出「已保護您的電腦」時按「其他資訊」→「仍要執行」。
+**直接玩（Windows）**：下載 `ActsSurvivors-版本-windows.7z`（Windows 11 可以直接打開，舊版 Windows 用 7-Zip 或 WinRAR），解壓縮後雙擊 `ActsSurvivors.exe`，不用安裝。Windows 跳出「已保護您的電腦」時按「其他資訊」→「仍要執行」。
 
 **Android 手機**：下載 APK 到手機，點開安裝。第一次會問「是否允許安裝不明來源的應用程式」，允許後再按一次安裝。直式單手玩，按住畫面下方拖曳移動。
 
