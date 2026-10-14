@@ -5,6 +5,8 @@ extends CanvasLayer
 signal card_chosen(index: int)
 signal fever_pressed
 signal restart_pressed
+signal home_pressed
+signal reroll_pressed
 signal chest_closed
 
 const C_INK := Color("f4ead2")
@@ -339,7 +341,7 @@ func _draw_joy() -> void:
 
 
 # ---------- 升級卡 ----------
-func show_cards(cards: Array, now: float, delay: float) -> void:
+func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
 	hide_cards()
 	var size := vp()
 	var portrait := size.y > size.x
@@ -379,6 +381,16 @@ func show_cards(cards: Array, now: float, delay: float) -> void:
 		return
 	cards_box.position = ((size - cards_box.size) / 2.0).round() + Vector2(0, 14)
 	card_ready_at = now + delay
+	if rerolls > 0:
+		var rb := UIKit.button("重抽（R）　剩 %d 次" % rerolls, 13)
+		rb.name = "CardReroll"
+		rb.focus_mode = Control.FOCUS_NONE
+		rb.custom_minimum_size = Vector2(160, 32)
+		rb.pressed.connect(func():
+			if Time.get_ticks_msec() / 1000.0 >= card_ready_at:
+				reroll_pressed.emit())
+		root.add_child(rb)
+		rb.position = Vector2(roundf((size.x - 160) / 2.0), cards_box.position.y + cards_box.size.y + 10)
 
 
 func pick(i: int) -> void:
@@ -389,9 +401,10 @@ func pick(i: int) -> void:
 
 
 func hide_cards() -> void:
-	for n in ["CardDim", "CardTitle"]:
+	for n in ["CardDim", "CardTitle", "CardReroll"]:
 		var node := root.get_node_or_null(n)
 		if node:
+			root.remove_child(node)
 			node.queue_free()
 	if cards_box:
 		cards_box.queue_free()
@@ -414,20 +427,18 @@ func show_game_over(lines: Array, button_text := "再出發") -> void:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		root.remove_child(l)
 		box.add_child(l)
-	var btn := Button.new()
-	btn.text = button_text
-	btn.custom_minimum_size = Vector2(160, 40)
-	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	btn.add_theme_font_override("font", font)
-	btn.add_theme_font_size_override("font_size", 16)
-	btn.add_theme_stylebox_override("normal", _box(C_BRONZE, C_DARK))
-	btn.add_theme_stylebox_override("hover", _box(C_GOLD, C_DARK))
-	btn.add_theme_stylebox_override("focus", _box(C_GOLD, C_DARK))
-	btn.add_theme_color_override("font_color", Color("2a1a14"))
-	btn.add_theme_color_override("font_hover_color", Color("2a1a14"))
-	btn.add_theme_color_override("font_focus_color", Color("2a1a14"))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 12)
+	box.add_child(row)
+	var home := UIKit.button("回安提阿", 16)
+	home.custom_minimum_size = Vector2(140, 40)
+	home.pressed.connect(func(): home_pressed.emit())
+	row.add_child(home)
+	var btn := UIKit.button(button_text, 16, true)
+	btn.custom_minimum_size = Vector2(140, 40)
 	btn.pressed.connect(func(): restart_pressed.emit())
-	box.add_child(btn)
+	row.add_child(btn)
 	for n in names:
 		names[n].visible = false
 	await get_tree().process_frame

@@ -1,0 +1,312 @@
+extends Control
+## 安提阿基地：出發前的畫面。見證、同伴名冊（默契與生平）、解鎖、見證錄。
+
+var G: Dictionary      # game.json
+var bios: Dictionary
+var content: VBoxContainer
+var scroll: ScrollContainer
+var witness_label: Label
+var nav_buttons := {}
+var shot_path := ""
+
+
+func _ready() -> void:
+	G = JSON.parse_string(FileAccess.get_file_as_string("res://data/game.json"))
+	bios = JSON.parse_string(FileAccess.get_file_as_string("res://data/bios.json"))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--shot="):
+			shot_path = a.substr(7)
+	set_anchors_preset(Control.PRESET_FULL_RECT)
+	_build()
+	_show_home()
+	if shot_path != "":
+		_auto_shots()
+
+
+func _build() -> void:
+	var bg := TextureRect.new()
+	bg.texture = load("res://assets/sprites/ground.png")
+	bg.stretch_mode = TextureRect.STRETCH_TILE
+	bg.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.modulate = Color(0.35, 0.3, 0.3)
+	add_child(bg)
+
+	var margin := MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		margin.add_theme_constant_override("margin_" + side, 14)
+	add_child(margin)
+	var outer := VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 10)
+	margin.add_child(outer)
+
+	var top := HBoxContainer.new()
+	outer.add_child(top)
+	var title := UIKit.label("安提阿", 24, UIKit.GOLD)
+	top.add_child(title)
+	var sub := UIKit.label("　宣教之路的出發地", 12, UIKit.MUTED)
+	sub.size_flags_vertical = Control.SIZE_SHRINK_END
+	top.add_child(sub)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(spacer)
+	witness_label = UIKit.label("", 16, UIKit.SKY)
+	top.add_child(witness_label)
+
+	var body := HBoxContainer.new()
+	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override("separation", 10)
+	outer.add_child(body)
+
+	var nav := VBoxContainer.new()
+	nav.custom_minimum_size = Vector2(112, 0)
+	nav.add_theme_constant_override("separation", 6)
+	body.add_child(nav)
+	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["ach", "見證錄", _show_achievements]]:
+		var b := UIKit.button(item[1], 15)
+		b.custom_minimum_size = Vector2(112, 38)
+		b.pressed.connect(item[2])
+		nav.add_child(b)
+		nav_buttons[item[0]] = b
+
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.add_theme_stylebox_override("panel", UIKit.box(Color(0.1, 0.07, 0.12, 0.92), UIKit.BRONZE, 10))
+	body.add_child(panel)
+	scroll = ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	panel.add_child(scroll)
+	content = VBoxContainer.new()
+	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content.add_theme_constant_override("separation", 8)
+	scroll.add_child(content)
+
+
+func _clear(active: String) -> void:
+	for c in content.get_children():
+		c.queue_free()
+	scroll.scroll_vertical = 0
+	witness_label.text = "見證 %d" % Save.data.witness
+	for k in nav_buttons:
+		nav_buttons[k].add_theme_stylebox_override("normal", UIKit.box(Color("3a2a40") if k == active else UIKit.PANEL, UIKit.GOLD if k == active else UIKit.BRONZE, 6))
+
+
+func _row(parent: Control) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	parent.add_child(h)
+	return h
+
+
+func _text(parent: Control, s: String, size: int, color: Color, wrap := false) -> Label:
+	var l := UIKit.label(s, size, color)
+	if wrap:
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	parent.add_child(l)
+	return l
+
+
+func _comp_def(key: String) -> Dictionary:
+	for c in G.companions:
+		if c.key == key:
+			return c
+	return {}
+
+
+func _display_name(c: Dictionary) -> String:
+	if c.get("with", "") != "":
+		return c.name + "・" + _comp_def(c.with).name
+	return c.name
+
+
+# ---------- 出發 ----------
+func _show_home() -> void:
+	_clear("home")
+	var starter: String = Save.data.starter
+	if not Save.is_unlocked(starter):
+		starter = Save.meta.default_starter
+	var c := _comp_def(starter)
+	var h := _row(content)
+	h.add_child(UIKit.sprite_icon(starter, 4))
+	var v := VBoxContainer.new()
+	h.add_child(v)
+	_text(v, "起始同伴：" + _display_name(c), 16, UIKit.GOLD)
+	_text(v, "到「同伴」頁可以換人", 12, UIKit.MUTED)
+	_text(v, "隊伍上限 %d 人　每局重抽 %d 次" % [Save.party_cap(), Save.rerolls()], 13, UIKit.INK)
+	var st: Dictionary = Save.data.stats
+	_text(content, "已出發 %d 次　通關 %d 次　最多驅散 %d　見證錄 %d／%d" % [st.runs, st.wins, st.best_kills, Save.data.achievements.size(), Save.meta.achievements.size()], 13, UIKit.INK)
+	var go := UIKit.button("出發：腓立比", 18, true)
+	go.custom_minimum_size = Vector2(220, 48)
+	go.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	go.pressed.connect(_start)
+	content.add_child(go)
+	go.grab_focus()
+	_text(content, "提示：每局結束都會帶回「見證」，用來解鎖新同伴、果子、軍裝和隊伍位置。完成見證錄的目標可以解鎖舊約人物。", 12, UIKit.MUTED, true)
+
+
+func _start() -> void:
+	var starter: String = Save.data.starter
+	if not Save.is_unlocked(starter):
+		starter = Save.meta.default_starter
+	Save.run_config = {"starter": starter}
+	get_tree().change_scene_to_file("res://scenes/main.tscn")
+
+
+# ---------- 同伴 ----------
+func _lock_hint(key: String) -> String:
+	for item in Save.meta.shop:
+		if item.id == key:
+			return "在「解鎖」頁用見證 %d 解鎖" % int(item.cost)
+	for a in Save.meta.achievements:
+		if a.get("unlock", "") == key:
+			return "見證錄：%s（%s）" % [a.name, a.desc]
+	return ""
+
+
+func _show_roster() -> void:
+	_clear("roster")
+	_text(content, "常帶出門的同伴默契會升高：攻擊變快，並解鎖他的生平。", 12, UIKit.MUTED, true)
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	content.add_child(grid)
+	for c in G.companions:
+		if c.get("follows", "") != "":
+			continue
+		var unlocked := Save.is_unlocked(c.key)
+		var b := UIKit.button("", 12)
+		b.custom_minimum_size = Vector2(108, 92)
+		var v := VBoxContainer.new()
+		v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.set_anchors_preset(Control.PRESET_FULL_RECT)
+		v.alignment = BoxContainer.ALIGNMENT_CENTER
+		b.add_child(v)
+		var icon := UIKit.sprite_icon(c.key, 3)
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		if not unlocked:
+			icon.modulate = Color(0, 0, 0, 0.85)
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		v.add_child(icon)
+		var n := UIKit.label(_display_name(c) if unlocked else "？？？", 12, UIKit.INK if unlocked else UIKit.MUTED)
+		n.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(n)
+		var lv := Save.affinity_level(c.key)
+		var sub := UIKit.label(("默契 Lv%d" % lv) if unlocked else c.get("era", ""), 10, UIKit.SKY if unlocked else UIKit.MUTED)
+		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(sub)
+		var key: String = c.key
+		b.pressed.connect(func(): _show_companion(key))
+		grid.add_child(b)
+
+
+func _show_companion(key: String) -> void:
+	_clear("roster")
+	var c := _comp_def(key)
+	var unlocked := Save.is_unlocked(key)
+	var h := _row(content)
+	var icon := UIKit.sprite_icon(key, 5)
+	if not unlocked:
+		icon.modulate = Color(0, 0, 0, 0.85)
+	h.add_child(icon)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(v)
+	_text(v, _display_name(c) if unlocked else "？？？", 20, UIKit.GOLD)
+	_text(v, "【%s】%s" % [c.tag, c.get("era", "")], 12, UIKit.SKY)
+	var sk: Dictionary = G.skills[c.skill]
+	_text(v, sk.desc[0], 13, UIKit.INK, true)
+	if not unlocked:
+		_text(content, "尚未加入：" + _lock_hint(key), 13, UIKit.CREAM, true)
+	else:
+		var lv := Save.affinity_level(key)
+		var nxt := Save.next_threshold(key)
+		var prog := "默契 Lv%d　%s" % [lv, ("下一級還差 %d" % (nxt - Save.affinity_xp(key))) if nxt > 0 else "已滿"]
+		_text(content, prog + "　攻擊速度 +%d%%" % int(lv * Save.meta.affinity.bonus_per_level * 100), 13, UIKit.SKY)
+		var starter := UIKit.button("設為起始同伴" if Save.data.starter != key else "目前的起始同伴", 13, Save.data.starter != key)
+		starter.disabled = Save.data.starter == key
+		starter.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		starter.pressed.connect(func():
+			Save.data.starter = key
+			Save.save_profile()
+			_show_companion(key))
+		content.add_child(starter)
+	_text(content, "生平", 16, UIKit.GOLD)
+	var entries: Array = bios.get(key, [])
+	var lv2 := Save.affinity_level(key) if unlocked else -1
+	for i in entries.size():
+		var e: Dictionary = entries[i]
+		var box := PanelContainer.new()
+		box.add_theme_stylebox_override("panel", UIKit.box(Color(0.14, 0.1, 0.17), Color("4a3a50"), 6))
+		var bv := VBoxContainer.new()
+		box.add_child(bv)
+		content.add_child(box)
+		if i <= lv2:
+			_text(bv, e.title + "　" + e.ref, 13, UIKit.CREAM)
+			_text(bv, e.text, 12, UIKit.INK, true)
+		else:
+			_text(bv, "默契 Lv%d 解鎖" % i, 12, UIKit.MUTED)
+	var back := UIKit.button("返回名冊", 13)
+	back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	back.pressed.connect(_show_roster)
+	content.add_child(back)
+
+
+# ---------- 解鎖 ----------
+func _show_shop() -> void:
+	_clear("shop")
+	_text(content, "用見證解鎖。舊約人物要靠「見證錄」的目標解鎖。", 12, UIKit.MUTED, true)
+	for item in Save.meta.shop:
+		var bought: bool = Save.data.bought.has(item.id)
+		var locked_req: bool = item.has("requires") and not Save.data.bought.has(item.requires)
+		var h := _row(content)
+		var v := VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(v)
+		_text(v, item.name, 14, UIKit.MUTED if bought else UIKit.INK)
+		_text(v, item.desc, 11, UIKit.MUTED, true)
+		var b := UIKit.button("已解鎖" if bought else ("見證 %d" % int(item.cost)), 13, not bought)
+		b.custom_minimum_size = Vector2(96, 32)
+		b.disabled = bought or locked_req or Save.data.witness < item.cost
+		var it: Dictionary = item
+		b.pressed.connect(func():
+			if Save.buy(it):
+				_show_shop())
+		h.add_child(b)
+
+
+# ---------- 見證錄 ----------
+func _show_achievements() -> void:
+	_clear("ach")
+	var st: Dictionary = Save.data.stats
+	for a in Save.meta.achievements:
+		var done: bool = Save.data.achievements.has(a.id)
+		var h := _row(content)
+		var mark := UIKit.label("✓" if done else "・", 16, UIKit.HEAL if done else UIKit.MUTED)
+		mark.custom_minimum_size = Vector2(18, 0)
+		h.add_child(mark)
+		var v := VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(v)
+		_text(v, a.name, 14, UIKit.GOLD if done else UIKit.INK)
+		var prog := "" if done else "　（%d／%d）" % [mini(int(st.get(a.stat, 0)), int(a.min)), int(a.min)]
+		_text(v, a.desc + prog, 12, UIKit.MUTED, true)
+		var reward := []
+		if a.has("unlock"):
+			reward.append("解鎖 " + _comp_def(a.unlock).get("name", a.unlock))
+		if a.has("witness"):
+			reward.append("見證 +%d" % int(a.witness))
+		_text(h, "、".join(reward), 12, UIKit.SKY)
+
+
+# ---------- 自動截圖測試 ----------
+func _auto_shots() -> void:
+	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["ach", _show_achievements]]:
+		step[1].call()
+		await get_tree().create_timer(0.6).timeout
+		get_viewport().get_texture().get_image().save_png(shot_path.replace(".png", "_%s.png" % step[0]))
+	get_tree().quit()

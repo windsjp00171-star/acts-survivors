@@ -48,6 +48,16 @@ var boss = null
 var boss_spawned := false
 var won := false
 var tele: Array = []      # Boss 的預警圖形
+# 本局統計（給見證錄與結算）
+var run_elites := 0
+var run_fevers := 0
+var run_evolutions := 0
+var someone_down := false
+var full_party := false
+var tasks_done := 0
+var task_witness := 0
+var rerolls_left := 0
+var t_start := 0.0
 var hits: Array = []      # Boss 攻擊落下的閃光
 
 var paul := {}
@@ -96,10 +106,14 @@ func _ready() -> void:
 	for k in D.enemies:
 		scatter_by[k] = 0
 	xp_need = int(D.leveling.first)
+	t_start = t
 	_build_world()
 	_build_ui()
-	for key in D.start_party:
-		_recruit(by_key[key])
+	var starter: String = Save.run_config.get("starter", Save.data.starter)
+	if not by_key.has(starter) or not Save.is_unlocked(starter):
+		starter = Save.meta.default_starter
+	_recruit(by_key[starter])
+	rerolls_left = Save.rerolls()
 	if smoke_preset == "strong":
 		# 測試用：滿編隊伍，西拉滿級帶喜樂，下一個寶箱會進化
 		for c in comps:
@@ -172,6 +186,7 @@ func _build_world() -> void:
 			"cd": 0.3 + i * 0.2, "sleep": 0.0, "alert": 0.0,
 			"hp": float(D.companion_rules.hp), "down": 0.0, "hurt_cd": 0.0,
 			"with": d.get("with", ""), "follows": d.get("follows", ""),
+			"aff": 1.0 + Save.affinity_level(d.key) * float(Save.meta.affinity.bonus_per_level),
 			"node": _sprite(d.key + "_0", Vector2(-7, -17))}
 		c.node.visible = false
 		comps.append(c)
@@ -193,6 +208,8 @@ func _build_ui() -> void:
 	ui.chest_closed.connect(_on_chest_closed)
 	ui.fever_pressed.connect(_start_fever)
 	ui.restart_pressed.connect(func(): get_tree().reload_current_scene())
+	ui.home_pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/base.tscn"))
+	ui.reroll_pressed.connect(_reroll)
 
 
 # ---------- 同伴等級 ----------
@@ -217,6 +234,17 @@ func _recruit(c: Dictionary) -> void:
 	c.node.visible = true
 	if c.with != "":
 		_recruit(by_key[c.with])
+	if _party_count() >= Save.party_cap():
+		full_party = true
+
+
+## 隊伍人數（百基拉・亞居拉算一位）
+func _party_count() -> int:
+	var n := 0
+	for c in comps:
+		if c.level > 0 and c.follows == "":
+			n += 1
+	return n
 
 
 ## 果子與軍裝帶來的倍率
@@ -247,6 +275,8 @@ func _make_cards() -> Array:
 	for k in D.fruits:
 		var f: Dictionary = D.fruits[k]
 		var lv: int = fruits.get(k, 0)
+		if lv == 0 and not Save.is_unlocked("fruit_" + k):
+			continue
 		if lv == 0 and fruits.size() < 6:
 			pool.append({"kind": "fruit", "key": k, "title": f.name + "　新果子", "tag": f.tag, "desc": f.desc})
 		elif lv > 0 and lv < 5:
@@ -254,6 +284,8 @@ func _make_cards() -> Array:
 	for k in D.armor:
 		var a: Dictionary = D.armor[k]
 		var lv: int = armor.get(k, 0)
+		if lv == 0 and not Save.is_unlocked("armor_" + k):
+			continue
 		if lv == 0 and armor.size() < int(D.armor_slots):
 			pool.append({"kind": "armor", "key": k, "title": a.name + "　穿上", "tag": a.tag, "desc": a.desc[0]})
 		elif lv > 0 and lv < 3:
@@ -262,6 +294,8 @@ func _make_cards() -> Array:
 		if c.follows != "" or c.skill == "":
 			continue
 		var desc: Array = D.skills[c.skill].desc
+		if c.level == 0 and (not Save.is_unlocked(c.key) or _party_count() >= Save.party_cap()):
+			continue
 		if c.level == 0:
 			var nm: String = c.name + ("・" + by_key[c.with].name if c.with != "" else "")
 			pool.append({"kind": "recruit", "key": c.key, "title": nm + "　加入", "tag": c.tag, "desc": desc[0]})
@@ -284,7 +318,15 @@ func _level_up() -> void:
 	pending_cards = _make_cards()
 	ui.do_flash(0.5)
 	_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 60.0)
-	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, D.leveling.card_delay)
+	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, D.leveling.card_delay, rerolls_left)
+
+
+func _reroll() -> void:
+	if not choosing or rerolls_left <= 0:
+		return
+	rerolls_left -= 1
+	pending_cards = _make_cards()
+	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, 0.15, rerolls_left)
 
 
 func _apply_card(card: Dictionary) -> void:
@@ -314,6 +356,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if over and (event.keycode == KEY_ENTER or event.keycode == KEY_SPACE):
 			get_tree().reload_current_scene()
+			return
+		if choosing and event.keycode == KEY_R:
+			_reroll()
 			return
 		if choosing and event.keycode >= KEY_1 and event.keycode <= KEY_3:
 			ui.pick(event.keycode - KEY_1)
@@ -470,6 +515,8 @@ func _kill(e: Dictionary, by_player: bool) -> void:
 		gems.append({"pos": e.pos, "got": false})
 		if e.d.get("chest", false):
 			chests.append({"pos": e.pos})
+		if e.get("elite", false):
+			run_elites += 1
 		if e.get("boss", false):
 			_win()
 		_burst(e.pos, 9, C_GOLD if fever > 0.0 else C_VL, C_CREAM)
@@ -542,6 +589,7 @@ func _start_fever() -> void:
 		return
 	fever = D.fever.duration
 	fever_kills = 0
+	run_fevers += 1
 	meter = 1.0
 	ui.do_flash(0.7)
 	shake = 0.2
@@ -699,7 +747,7 @@ func _companion_skills(dt: float) -> void:
 		if c.skill == "" or not _active(c):
 			continue
 		var s: Dictionary = c.st
-		var mult := speed_mult
+		var mult: float = speed_mult * c.aff
 		if barn_on and c != barn and c.pos.distance_to(barn.pos) < _aura_r(barn):
 			mult *= barn.st.attack_speed
 		c.cd -= dt * mult
@@ -1033,6 +1081,8 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 		c.hp = 0.0
 		c.down = D.companion_rules.down_seconds
 		c.vel = Vector2.ZERO
+		if t < 300.0:
+			someone_down = true
 
 
 # ---------- 場景物件（依區塊生成） ----------
@@ -1307,6 +1357,7 @@ func _open_chest() -> void:
 		var c: Dictionary = by_key[evo.companion]
 		if c.level >= 5 and fruits.has(evo.fruit) and not evolved.has(c.key):
 			evolved[c.key] = evo
+			run_evolutions += 1
 			evo_timer = 2.0
 			results.append({"title": "進化！" + evo.name, "desc": evo.desc, "big": true})
 			break
@@ -1507,6 +1558,36 @@ func _record_run() -> void:
 	f.store_string(JSON.stringify(runs, "  "))
 
 
+## 結算：交給存檔算見證、默契、見證錄，回傳要顯示的幾行
+func _finish_run() -> Array:
+	var party := {}
+	for c in comps:
+		if c.level > 0 and c.follows == "":
+			party[c.key] = c.level
+	var res: Dictionary = Save.finish_run({"kills": kills, "seconds": int(t - t_start), "level": level, "won": won,
+		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
+		"task_witness": task_witness, "no_down": t - t_start >= 300.0 and not someone_down, "full_party": full_party, "party": party})
+	var lines := [["帶回見證 +%d　（共 %d）" % [res.witness, Save.data.witness], 15, C_SKY]]
+	for a in res.achievements:
+		var txt: String = "見證錄：" + a.name
+		if a.has("unlock"):
+			txt += "　→　%s 加入名單！" % _comp_name(a.unlock)
+		lines.append([txt, 13, C_GOLD])
+	if not res.affinity_ups.is_empty():
+		var names := []
+		for k in res.affinity_ups:
+			names.append(_comp_name(k))
+		lines.append(["默契提升：" + "、".join(names) + "（解鎖新的生平）", 12, C_HEAL])
+	return lines
+
+
+func _comp_name(key: String) -> String:
+	for d in D.companions:
+		if d.key == key:
+			return d.name
+	return key
+
+
 func _win() -> void:
 	if won:
 		return
@@ -1524,7 +1605,7 @@ func _win() -> void:
 		[D.boss.win_text, 13, C_CREAM],
 		[D.boss.win_ref, 11, Color("c9a46b")],
 		["用時 %02d:%02d　Lv.%d　驅散 %d" % [s / 60, s % 60, level, kills], 13, Color("f4ead2")],
-	], "再走一次")
+	] + _finish_run(), "再走一次")
 
 
 # ---------- 失敗 ----------
@@ -1543,21 +1624,20 @@ func _game_over() -> void:
 	tele = []
 	_record_run()
 	# 失敗彩蛋：第一次失敗必定出現，之後偶爾出現；不給任何資源
-	var cfg := ConfigFile.new()
-	cfg.load("user://save.cfg")
-	var first: bool = not cfg.get_value("egg", "seen", false)
+	var summary := _finish_run()
+	var first: bool = not Save.data.egg_seen
 	if (first and D.easter_egg.first_time) or randf() < D.easter_egg.chance:
 		if first:
-			cfg.set_value("egg", "seen", true)
-			cfg.set_value("egg", "baskets", maxi(1, cfg.get_value("egg", "baskets", 0)))
-			cfg.save("user://save.cfg")
-		await ui.play_egg(int(cfg.get_value("egg", "baskets", 1)), ui.get_viewport().get_canvas_transform() * paul.pos)
+			Save.data.egg_seen = true
+			Save.data.baskets = maxi(1, int(Save.data.baskets))
+			Save.save_profile()
+		await ui.play_egg(int(Save.data.baskets), ui.get_viewport().get_canvas_transform() * paul.pos)
 	ui.show_game_over([
 		["旅程中斷", 26, C_GOLD],
 		["四面受敵，卻不被困住；心裡作難，卻不至失望；\n遭逼迫，卻不被丟棄；打倒了，也不至死亡。", 13, C_CREAM],
 		["林後 4:8–9", 11, Color("c9a46b")],
 		["撐了 %02d:%02d　Lv.%d　驅散 %d\n最常被「%s」打散" % [s / 60, s % 60, level, kills, who], 13, Color("f4ead2")],
-	])
+	] + summary)
 
 
 # ---------- 自動測試 ----------

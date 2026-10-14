@@ -2,7 +2,6 @@
   "_說明": "遊戲資料。改這個檔就能調整數值，不用動程式。之後玩家改寫遊戲的入口也從這裡開始。",
   "paul": { "name": "保羅", "speed": 42, "hp": 100 },
   "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
-  "start_party": ["silas", "tim"],
   "companions": [
     { "key": "barn",    "name": "巴拿巴", "skill": "aura", "home": [-21, -10], "tag": "守護" },
     { "key": "luke",    "name": "路加",   "skill": "heal", "home": [20, -11],  "tag": "醫治" },

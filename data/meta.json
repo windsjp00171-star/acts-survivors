@@ -1,0 +1,38 @@
+{
+  "_說明": "局外成長：見證怎麼算、一開始有哪些、商店賣什麼、見證錄目標、默契門檻。",
+  "start_unlocked": ["silas", "tim", "luke", "fruit_joy", "fruit_faith", "armor_shoes"],
+  "default_starter": "silas",
+  "party_cap_base": 3,
+  "witness": { "per_kills": 8, "per_seconds": 6, "per_level": 2, "boss_bonus": 150, "lose_ratio": 0.5 },
+  "affinity": {
+    "_說明": "每局結束，隊伍裡的同伴獲得默契 = 他的等級 × 10（通關再 +20）。每升一級攻擊速度 +3%，並解鎖一段生平。",
+    "per_level_reached": 10,
+    "win_bonus": 20,
+    "thresholds": [30, 80, 160, 280, 450],
+    "bonus_per_level": 0.03
+  },
+  "shop": [
+    { "id": "barn",          "kind": "companion", "name": "巴拿巴加入名單",   "desc": "鼓勵光環，讓範圍內同伴攻擊加快", "cost": 60 },
+    { "id": "apollos",       "kind": "companion", "name": "亞波羅加入名單",   "desc": "直線貫穿的光束，剋謊言", "cost": 100 },
+    { "id": "pri",           "kind": "companion", "name": "百基拉・亞居拉加入名單", "desc": "帳棚屏障，擋住外圈的敵人", "cost": 120 },
+    { "id": "fruit_good",    "kind": "fruit",     "name": "果子：良善",       "desc": "帳棚更強、同伴血量提高", "cost": 60 },
+    { "id": "fruit_peace",   "kind": "fruit",     "name": "果子：和平",       "desc": "同心合意累積更快、比較不會被打散", "cost": 60 },
+    { "id": "armor_belt",    "kind": "armor",     "name": "軍裝：真理的腰帶", "desc": "剋謊言", "cost": 80 },
+    { "id": "armor_shield",  "kind": "armor",     "name": "軍裝：信德的藤牌", "desc": "定時擋下一次攻擊", "cost": 100 },
+    { "id": "slot_4",        "kind": "slot",      "name": "隊伍第 4 個位置",  "desc": "一局最多可以帶 4 位同伴", "cost": 150 },
+    { "id": "slot_5",        "kind": "slot",      "name": "隊伍第 5 個位置",  "desc": "一局最多可以帶 5 位同伴", "cost": 300, "requires": "slot_4" },
+    { "id": "reroll_1",      "kind": "reroll",    "name": "重抽 1 次",        "desc": "每局可以把升級卡重抽 1 次（按 R）", "cost": 120 },
+    { "id": "reroll_2",      "kind": "reroll",    "name": "重抽再 +2 次",     "desc": "每局重抽次數變成 3 次", "cost": 250, "requires": "reroll_1", "amount": 2 }
+  ],
+  "achievements": [
+    { "id": "first_win", "name": "腓立比的地震", "desc": "通關腓立比",                         "stat": "wins",       "min": 1,    "unlock": "moses",  "witness": 100 },
+    { "id": "giant",     "name": "五塊光滑石子", "desc": "累計打倒 5 隻菁英「恐嚇」",           "stat": "elites",     "min": 5,    "unlock": "david",  "witness": 40 },
+    { "id": "strong",    "name": "驢腮骨",       "desc": "一局驅散 1000 隻敵人",                "stat": "best_kills", "min": 1000, "unlock": "samson", "witness": 40 },
+    { "id": "fire",      "name": "火從天降",     "desc": "一局開 5 次五旬節",                   "stat": "best_fevers","min": 5,    "unlock": "elijah", "witness": 40 },
+    { "id": "seven",     "name": "繞城七次",     "desc": "累計出發 7 次",                       "stat": "runs",       "min": 7,    "unlock": "joshua", "witness": 40 },
+    { "id": "evolve",    "name": "生命的改變",   "desc": "第一次進化",                          "stat": "evolutions", "min": 1,    "witness": 60 },
+    { "id": "no_down",   "name": "一個都不少",   "desc": "撐到 5:00，過程中沒有任何同伴倒下",   "stat": "no_down",    "min": 1,    "witness": 60 },
+    { "id": "full",      "name": "同心合意",     "desc": "隊伍坐滿",                            "stat": "full_party", "min": 1,    "witness": 30 },
+    { "id": "tasks",     "name": "忠心的僕人",   "desc": "累計完成 10 個旅程任務",               "stat": "tasks",      "min": 10,   "witness": 80 }
+  ]
+}
