@@ -1,6 +1,6 @@
 {
   "_說明": "遊戲資料。改這個檔就能調整數值，不用動程式。之後玩家改寫遊戲的入口也從這裡開始。",
-  "paul": { "name": "保羅", "speed": 42, "hp": 100 },
+  "paul": { "name": "保羅", "speed": 42, "hp": 100, "skill": "letter", "tag": "書信" },
   "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
   "_companions說明": "skill 對應下面的 skills；tag 是流派；era 顯示在名冊上。站位依加入順序自動排。",
   "companions": [
@@ -48,6 +48,12 @@
       "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 2, "range": 130, "beams": 1, "burst": 0, "lies_mult": 1 },
       "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 3 } ],
       "desc": ["朝敵人射出一道貫穿的光束", "光束更寬更長", "光束末端爆開", "一次兩道光束", "三道光束，對謊言三倍傷害"]
+    },
+    "letter": {
+      "engine": "shot", "look": "letter",
+      "base": { "cooldown": 0.9, "range": 120, "damage": 2, "speed": 190, "count": 1, "pierce": 0, "spread": 14 },
+      "levels": [ { "damage": 3 }, { "count": 2 }, { "pierce": 2, "cooldown": 0.7 }, { "count": 3, "damage": 4, "pierce": 3 } ],
+      "desc": ["保羅的書信：朝最近的敵人丟出書信，直線飛行", "書信更有份量", "一次寫兩封", "書信可以穿透 2 隻，寫得更快", "一次三封、穿透 3 隻（帖後 3:17）"]
     },
     "sling": {
       "engine": "bolt", "look": "stone",
@@ -119,6 +125,8 @@
   "synergy": { "bonus": { "2": 0.25, "3": 0.5 } },
   "_evolutions說明": "同伴滿級（Lv5）且拿到指定果子後，下一個寶箱會進化。有 every 的是定時全畫面地震；有 stats 的是直接覆蓋招式數值。",
   "evolutions": [
+    { "companion": "paul", "fruit": "faith", "name": "美好的仗",
+      "desc": "六封書信扇形射出，幾乎穿透一切（提後 4:7）", "stats": { "count": 6, "pierce": 6, "cooldown": 0.45, "damage": 5, "spread": 18 } },
     { "companion": "silas", "fruit": "joy", "name": "半夜的詩歌",
       "desc": "每 14 秒全畫面地震：所有敵人受傷並暈眩（徒 16:25–26）", "every": 14, "damage": 6, "stun": 1.6 },
     { "companion": "tim", "fruit": "faith", "name": "無愧的工人",

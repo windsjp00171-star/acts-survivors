@@ -168,8 +168,8 @@ func _show_home() -> void:
 	h.add_child(UIKit.sprite_icon(starter, 4))
 	var v := VBoxContainer.new()
 	h.add_child(v)
-	_text(v, "起始同伴：" + _display_name(c), 16, UIKit.GOLD)
-	_text(v, "到「同伴」頁可以換人", 12, UIKit.MUTED)
+	_text(v, "第一位同工：" + _display_name(c), 16, UIKit.GOLD)
+	_text(v, "第一次升級一定會出現他的招募卡；到「同伴」頁可以換人", 12, UIKit.MUTED)
 	_text(v, "隊伍上限 %d 人　每局重抽 %d 次" % [Save.party_cap(), Save.rerolls()], 13, UIKit.INK)
 	var st: Dictionary = Save.data.stats
 	_text(content, "已出發 %d 次　通關 %d 次　最多驅散 %d　見證錄 %d／%d" % [st.runs, st.wins, st.best_kills, Save.data.achievements.size(), Save.meta.achievements.size()], 13, UIKit.INK)
@@ -267,7 +267,7 @@ func _show_companion(key: String) -> void:
 		var nxt := Save.next_threshold(key)
 		var prog := "默契 Lv%d　%s" % [lv, ("下一級還差 %d" % (nxt - Save.affinity_xp(key))) if nxt > 0 else "已滿"]
 		_text(content, prog + "　攻擊速度 +%d%%" % int(lv * Save.meta.affinity.bonus_per_level * 100), 13, UIKit.SKY)
-		var starter := UIKit.button("設為起始同伴" if Save.data.starter != key else "目前的起始同伴", 13, Save.data.starter != key)
+		var starter := UIKit.button("設為第一位同工" if Save.data.starter != key else "目前的第一位同工", 13, Save.data.starter != key)
 		starter.disabled = Save.data.starter == key
 		starter.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 		starter.pressed.connect(func():

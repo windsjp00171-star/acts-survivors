@@ -66,6 +66,8 @@ var t_start := 0.0
 var hits: Array = []      # Boss 攻擊落下的閃光
 
 var paul := {}
+var pa := {}              # 保羅自己的攻擊（書信），用和同伴一樣的出招流程
+var first_recruit := ""   # 第一位同工：第一次升級一定出現他的招募卡
 var comps: Array = []
 var by_key := {}
 var enemies: Array = []
@@ -128,7 +130,7 @@ func _ready() -> void:
 	var starter: String = Save.run_config.get("starter", Save.data.starter)
 	if not by_key.has(starter) or not Save.is_unlocked(starter):
 		starter = Save.meta.default_starter
-	_recruit(by_key[starter])
+	first_recruit = starter
 	rerolls_left = Save.rerolls()
 	var pool: Array = D.tasks.list.duplicate()
 	pool.shuffle()
@@ -224,6 +226,10 @@ func _build_world() -> void:
 
 	paul = {"name": D.paul.name, "pos": Vector2.ZERO, "hp": float(D.paul.hp), "inv": 0.0, "moving": false,
 		"node": _sprite("paul_0", Vector2(-7, -17))}
+	pa = {"key": "paul", "name": D.paul.name, "skill": D.paul.skill, "tag": D.paul.tag, "i": 99, "pos": Vector2.ZERO,
+		"level": 1, "st": _stats(D.paul.skill, 1), "engine": D.skills[D.paul.skill].engine, "look": D.skills[D.paul.skill].get("look", ""),
+		"cd": 0.5, "castfx": 0.0, "down": 0.0, "sleep": 0.0, "off": Vector2.ZERO, "follows": "", "with": "", "aff": 1.0, "syn": 1.0}
+	by_key["paul"] = pa
 	var i := 0
 	for d in D.companions:
 		var home := Vector2.ZERO
@@ -372,6 +378,12 @@ func _make_cards() -> Array:
 			pool.append({"kind": "armor", "key": k, "title": a.name + "　穿上", "tag": a.tag, "desc": a.desc[0]})
 		elif lv > 0 and lv < 3:
 			pool.append({"kind": "armor", "key": k, "title": "%s　Lv%d → %d" % [a.name, lv, lv + 1], "tag": a.tag, "desc": a.desc[lv]})
+	if pa.level < 5:
+		var pd: String = D.skills[pa.skill].desc[pa.level]
+		if pa.level == 4:
+			var pe := _evo_of("paul")
+			pd += "\n滿級＋果子「%s」→ 進化「%s」" % [D.fruits[pe.fruit].name, pe.name]
+		pool.append({"kind": "up", "key": "paul", "title": "%s的書信　Lv%d → %d" % [pa.name, pa.level, pa.level + 1], "tag": pa.tag, "desc": pd})
 	for c in comps:
 		if c.follows != "" or c.skill == "":
 			continue
@@ -394,6 +406,12 @@ func _make_cards() -> Array:
 	if not lc.is_empty():
 		pool.append(lc)
 	pool.shuffle()
+	# 第一位同工：還沒加入前，招募卡一定排第一張
+	if first_recruit != "" and by_key.has(first_recruit) and by_key[first_recruit].level == 0:
+		var fc: Dictionary = by_key[first_recruit]
+		pool = pool.filter(func(cd): return not (cd.kind == "recruit" and cd.key == first_recruit))
+		var nm2: String = fc.name + ("・" + by_key[fc.with].name if fc.with != "" else "")
+		pool.push_front({"kind": "recruit", "key": fc.key, "title": nm2 + "　加入", "tag": fc.tag, "desc": D.skills[fc.skill].desc[0]})
 	# 符合進化條件時，進化卡一定排第一張
 	for evo in _ready_evolutions():
 		var c: Dictionary = by_key[evo.companion]
@@ -979,6 +997,11 @@ func _companion_skills(dt: float) -> void:
 	var barn = by_key.get("barn")
 	var barn_on: bool = barn != null and _active(barn)
 	var speed_mult: float = D.fever.attack_speed if fever > 0.0 else 1.0
+	pa.pos = paul.pos + Vector2(0, 2)
+	pa.castfx = maxf(0.0, pa.castfx - dt)
+	pa.cd -= dt * speed_mult
+	if pa.cd <= 0.0:
+		_cast(pa)
 	for c in comps:
 		if c.skill == "" or not _active(c):
 			continue
@@ -1036,6 +1059,18 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 				for b in n:
 					var ang := (b - (n - 1) / 2.0) * deg_to_rad(28.0)
 					_fire_beam(from, base_dir.rotated(ang), s, c.look, c)
+		"shot":
+			var tg_list := _nearest_enemies(c.pos, s.range, 1)
+			fired = tg_list.size() > 0
+			if fired:
+				var from: Vector2 = c.pos + Vector2(0, -8)
+				var base_dir: Vector2 = (tg_list[0].pos - from).normalized()
+				var n := int(s.count)
+				for i in n:
+					var dir := base_dir.rotated(deg_to_rad((i - (n - 1) / 2.0) * float(s.spread)))
+					bolts.append({"pos": from, "straight": true, "vel": dir * float(s.speed), "dir": dir, "life": float(s.range) * 1.4 / float(s.speed),
+						"pierce": int(s.pierce), "dmg": float(s.damage), "size": 1, "hit": {}, "look": c.look, "owner": c,
+						"split": 0, "child": true, "spd": float(s.speed), "emult": 1.0, "target": {}})
 		"nova":
 			var slams := int(s.slams)
 			for i in slams:
@@ -1147,6 +1182,19 @@ func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary, look := "", src = nu
 
 func _update_projectiles(dt: float) -> void:
 	for b in bolts:
+		if b.get("straight", false):
+			b.pos += b.vel * dt
+			b.life -= dt
+			for e in enemies:
+				if e.dead or b.hit.has(e.node) or e.pos.distance_to(b.pos + Vector2(0, 4)) > e.r + 3.0:
+					continue
+				b.hit[e.node] = true
+				_hurt(e, b.dmg, b.pos - b.vel.normalized() * 4.0, b.owner)
+				b.pierce -= 1
+				if b.pierce < 0:
+					b.life = 0.0
+					break
+			continue
 		var tg: Dictionary = b.target
 		if tg.dead:
 			var nxt := _nearest_enemies(b.pos, 60.0, 1, b.hit)
@@ -1493,6 +1541,8 @@ func _render(dt: float) -> void:
 	var walk := int(t * 5.0) % 2
 	p.node.texture = _tex("paul_%d" % (walk if p.moving else 0))
 	p.node.position = p.pos.round()
+	var pk: float = pa.castfx / 0.18
+	p.node.scale = Vector2(1.0 + 0.15 * pk, 1.0 - 0.1 * pk)
 	p.node.modulate.a = 0.4 if p.inv > 0.0 and int(t * 20.0) % 2 == 1 else 1.0
 	for c in comps:
 		if c.level == 0:
@@ -1685,7 +1735,15 @@ func _draw_air() -> void:
 		var x: float = roundf(b.pos.x)
 		var y: float = roundf(b.pos.y)
 		var col := C_FLAME if on_fire else C_GOLD
-		if b.look == "stone":
+		if b.look == "letter":
+			# 捲起來的書信：米白色、中間一點紅色封印，跟著方向轉
+			var d: Vector2 = b.dir
+			var side := d.orthogonal()
+			var c0: Vector2 = b.pos
+			n.draw_line(c0 - d * 8.0, c0, Color(C_CREAM, 0.35), 2.0)
+			n.draw_colored_polygon(PackedVector2Array([c0 - d * 3 - side * 2, c0 + d * 3 - side * 2, c0 + d * 3 + side * 2, c0 - d * 3 + side * 2]), C_FLAME if on_fire else Color("f4ead2"))
+			n.draw_rect(Rect2(c0.round() - Vector2(0, 0), Vector2(1, 1)), Color("c0392b"))
+		elif b.look == "stone":
 			var sz: int = 3 if b.size >= 2 else 2
 			n.draw_rect(Rect2(x - 1, y - 1, sz + 1, sz + 1), Color("2a2030"))
 			n.draw_rect(Rect2(x, y - 1, sz, sz), Color("d8d0c0") if not on_fire else C_FLAME)
