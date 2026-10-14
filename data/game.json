@@ -114,11 +114,11 @@
   "tasks": {
     "count": 2,
     "list": [
-      { "id": "kills",  "name": "驅散 300",       "stat": "kills",  "goal": 300, "by": 240, "witness": 25 },
+      { "id": "kills",  "name": "驅散 300",       "stat": "kills",  "goal": 300, "by": 180, "witness": 25 },
       { "id": "elites", "name": "打倒菁英 3 隻",   "stat": "elites", "goal": 3,   "by": 0,   "witness": 30 },
-      { "id": "fevers", "name": "開 2 次五旬節",   "stat": "fevers", "goal": 2,   "by": 300, "witness": 25 },
+      { "id": "fevers", "name": "開 2 次五旬節",   "stat": "fevers", "goal": 2,   "by": 210, "witness": 25 },
       { "id": "links",  "name": "肢體連結觸發 40 次", "stat": "links", "goal": 40, "by": 0,   "witness": 30 },
-      { "id": "level",  "name": "升到 Lv12",       "stat": "level",  "goal": 12,  "by": 360, "witness": 25 }
+      { "id": "level",  "name": "升到 Lv10",       "stat": "level",  "goal": 10,  "by": 270, "witness": 25 }
     ]
   },
   "_synergy說明": "同工：同一個流派（tag）的同伴有 2 位、3 位以上時，他們的攻擊速度加成。",
@@ -160,9 +160,9 @@
                 "immune": "ring", "counters": "silas" }
   },
   "_elite_wave說明": "菁英從 from 秒開始每 elite_every 秒出現一隻；peak_from 到 peak_to 是菁英潮，間隔縮短成 peak_every，並會出現考驗型敵人。Boss 出現後停止。",
-  "elite_wave": { "from": 120, "elite_every": 45, "peak_from": 360, "peak_to": 480, "peak_every": 25, "trial_every": 4, "trial_group": 6 },
+  "elite_wave": { "from": 90, "elite_every": 35, "peak_from": 250, "peak_to": 330, "peak_every": 20, "trial_every": 4, "trial_group": 6 },
   "boss": {
-    "at": 600, "name": "捆鎖", "hp": 6000, "speed": 10, "touch_damage": 10,
+    "at": 420, "name": "捆鎖", "hp": 6000, "speed": 10, "touch_damage": 10,
     "warn": 1.1, "break_seconds": 2.2, "break_mult": 2.0, "phase2_at": 0.5,
     "sweep": { "damage": 18, "width": 10, "length": 300 },
     "grid": { "damage": 14, "lines": 3, "width": 8 },
@@ -189,9 +189,9 @@
   "enemies": {
     "fear":   { "name": "懼怕", "hp": 1, "speed": 26, "damage": 3, "scatter": 85, "dies_on_touch": true,  "from": 0,  "weight": 5 },
     "strife": { "name": "紛爭", "hp": 3, "speed": 14, "damage": 5, "scatter": 45, "dies_on_touch": false, "from": 0,  "weight": 3 },
-    "lies":   { "name": "謊言", "hp": 2, "speed": 16, "damage": 3, "scatter": 30, "dies_on_touch": false, "from": 45, "weight": 2,
+    "lies":   { "name": "謊言", "hp": 2, "speed": 16, "damage": 3, "scatter": 30, "dies_on_touch": false, "from": 30, "weight": 2,
                 "shoot": { "every": 2.6, "range": 110, "keep_away": 70, "speed": 50, "damage": 4 } },
-    "sleep":  { "name": "沉睡", "hp": 4, "speed": 9,  "damage": 3, "scatter": 0,  "dies_on_touch": false, "from": 90, "weight": 1.5, "sleep_for": 2 },
+    "sleep":  { "name": "沉睡", "hp": 4, "speed": 9,  "damage": 3, "scatter": 0,  "dies_on_touch": false, "from": 60, "weight": 1.5, "sleep_for": 2 },
     "_各城說明": "下面幾種只在特定城市出現（weight 0，由 stages.json 打開）。sprite 借用現有的圖、tint 換顏色。dash 衝刺、split_into 被打倒時分裂、blink 瞬間移動。",
     "riot":   { "name": "暴動", "sprite": "strife", "tint": [1.0, 0.55, 0.45], "hp": 3, "speed": 15, "damage": 5, "scatter": 60, "dies_on_touch": false, "from": 0, "weight": 0,
                 "dash": { "every": 3.5, "mult": 4.0, "time": 0.45 } },
@@ -206,23 +206,23 @@
     "initial": 15,
     "_scaling說明": "敵人隨時間變強：每列是 [秒數, 倍率]，中間線性內插。hp 血量、damage 傷害、speed 速度。",
     "scaling": {
-      "hp":     [[0, 1], [120, 1.8], [240, 3], [360, 4.5], [480, 6.5], [600, 9], [720, 12]],
-      "damage": [[0, 1], [300, 1.4], [600, 1.8], [720, 2]],
-      "speed":  [[0, 1], [300, 1.15], [600, 1.3]]
+      "hp":     [[0, 1], [90, 1.8], [170, 3], [250, 4.5], [330, 6.5], [420, 9], [500, 12]],
+      "damage": [[0, 1], [210, 1.4], [420, 1.8], [500, 2]],
+      "speed":  [[0, 1], [210, 1.15], [420, 1.3]]
     },
     "_veteran說明": "老練的敵人：同一種敵人的強化版，血量 hp_mult 倍、體型 scale 倍、顏色較深，打倒掉 gems 顆經驗。出現機率隨時間 chance 內插。",
-    "veteran": { "chance": [[0, 0], [90, 0.04], [240, 0.12], [480, 0.22], [720, 0.3]], "hp_mult": 4, "scale": 1.35, "gems": 3 },
+    "veteran": { "chance": [[0, 0], [60, 0.04], [170, 0.12], [330, 0.22], [500, 0.3]], "hp_mult": 4, "scale": 1.35, "gems": 3 },
     "group_min": 3,
     "group_max": 7,
     "curve": [
       [0,   25,  1.2],
-      [60,  60,  0.8],
-      [180, 110, 0.55],
-      [360, 200, 0.35],
-      [480, 260, 0.25],
-      [500, 80,  1.5],
-      [600, 140, 0.6],
-      [720, 260, 0.3]
+      [40,  60,  0.8],
+      [125, 110, 0.55],
+      [250, 200, 0.35],
+      [330, 260, 0.25],
+      [345, 80,  1.5],
+      [420, 140, 0.6],
+      [500, 260, 0.3]
     ],
     "max_enemies": 280
   },

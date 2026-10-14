@@ -1568,7 +1568,7 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 		c.hp = 0.0
 		c.down = D.companion_rules.down_seconds
 		c.vel = Vector2.ZERO
-		if t < 300.0:
+		if t - t_start < 210.0:
 			someone_down = true
 
 
@@ -2197,7 +2197,7 @@ func _finish_run() -> Array:
 			party[c.key] = c.level
 	var res: Dictionary = Save.finish_run({"kills": kills, "seconds": int(t - t_start), "level": level, "won": won,
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
-		"task_witness": task_witness, "lights": run_lights, "no_down": t - t_start >= 300.0 and not someone_down, "full_party": full_party, "party": party})
+		"task_witness": task_witness, "lights": run_lights, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	var lines := [["帶回見證 +%d　（共 %d）" % [res.witness, Save.data.witness], 15, C_SKY]]
 	for a in res.achievements:
 		var txt: String = "見證錄：" + a.name
