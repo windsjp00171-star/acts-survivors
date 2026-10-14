@@ -6,7 +6,7 @@
 
 ## 怎麼玩
 
-**直接玩（Windows）**：下載 `宣教之路-windows.zip`，解壓縮後雙擊 `宣教之路.exe`，不用安裝。Windows 跳出「已保護您的電腦」時按「其他資訊」→「仍要執行」。
+**直接玩（Windows）**：下載 `宣教之路-windows.zip`，解壓縮後雙擊 `ActsSurvivors.exe`，不用安裝。Windows 跳出「已保護您的電腦」時按「其他資訊」→「仍要執行」。
 
 **用 Godot 開專案**：
 
@@ -57,7 +57,7 @@
 `export_presets.cfg` 已設好 Windows 與 Linux。裝好 Godot 4.4.1 的 Export Templates 後：
 
 ```
-godot --headless --path . --export-release "Windows Desktop" build/windows/宣教之路.exe
+godot --headless --path . --export-release "Windows Desktop" build/windows/ActsSurvivors.exe
 ```
 
 ## 開發者：自動測試
