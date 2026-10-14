@@ -79,7 +79,8 @@ var stage := {}           # 這一局的城市（data/stages.json）
 var stage_i := 0
 var epistles := {}        # 已選的書信卡效果
 var founded_now := false  # 這局建立了新的教會
-var trials: Array = []    # 這局打開的熬煉   # 第一位同工：第一次升級一定出現他的招募卡
+var trials: Array = []    # 這局打開的熬煉
+var killed_types := {}    # 圖鑑用：這局打倒過的敵人種類   # 第一位同工：第一次升級一定出現他的招募卡
 var comps: Array = []
 var by_key := {}
 var enemies: Array = []
@@ -802,6 +803,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		_fire_links("kill", src, 0)
 	e.node.queue_free()
 	if by_player:
+		killed_types["boss_" + stage.id if e.get("boss", false) else e.type] = true
 		kills += 1
 		Sfx.play("kill")
 		gems.append({"pos": e.pos, "got": false})
@@ -2385,7 +2387,8 @@ func _finish_run() -> Array:
 	var res: Dictionary = Save.finish_run({"kills": kills, "seconds": int(t - t_start), "level": level, "won": won,
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
 		"task_witness": task_witness, "lights": run_lights, "bread": run_bread,
-		"trial_points": Save.trial_points(trials), "stage": stage.id, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
+		"trial_points": Save.trial_points(trials), "stage": stage.id,
+		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
 	if not trials.is_empty():
 		lines.append(["熬煉 %d 點：見證與餅已加成" % Save.trial_points(trials), 11, C_GOLD])

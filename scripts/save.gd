@@ -22,7 +22,7 @@ func _defaults() -> Dictionary:
 		"witness": 0, "witness_total": 0,
 		"unlocked": meta.start_unlocked.duplicate(), "bought": [],
 		"affinity": {}, "achievements": [], "starter": meta.default_starter,
-		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1, "bread": 0, "bread_total": 0, "ups": {}, "trials_on": [], "trial_best": {},
+		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1, "bread": 0, "bread_total": 0, "ups": {}, "trials_on": [], "trial_best": {}, "codex": {"enemies": [], "evos": [], "fruits": [], "armor": []},
 		"stats": {"runs": 0, "wins": 0, "elites": 0, "best_kills": 0, "best_fevers": 0,
 			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0, "lights": 0},
 	}
@@ -181,6 +181,14 @@ func finish_run(r: Dictionary) -> Dictionary:
 	if r.full_party:
 		st.full_party = 1
 
+	# 圖鑑：把這局遇到的記下來
+	var cx: Dictionary = data.codex
+	for k in ["enemies", "evos", "fruits", "armor"]:
+		if not cx.has(k):
+			cx[k] = []
+		for id in r.get("seen", {}).get(k, []):
+			if not cx[k].has(id):
+				cx[k].append(id)
 	var aff_ups := []
 	var A: Dictionary = meta.affinity
 	for key in r.party:

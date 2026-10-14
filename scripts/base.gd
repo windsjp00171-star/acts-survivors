@@ -11,13 +11,15 @@ var scroll: ScrollContainer
 var witness_label: Label
 var nav_buttons := {}
 var portrait := false
-var tabs_enabled := {"home": true, "roster": true, "shop": true, "ach": true}
+var tabs_enabled := {"home": true, "roster": true, "shop": true, "ach": true, "codex": true}
+var codex: Dictionary
 
 
 func _ready() -> void:
 	G = JSON.parse_string(FileAccess.get_file_as_string("res://data/game.json"))
 	bios = JSON.parse_string(FileAccess.get_file_as_string("res://data/bios.json"))
 	stages = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages
+	codex = JSON.parse_string(FileAccess.get_file_as_string("res://data/codex.json"))
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var vs := get_viewport().get_visible_rect().size
 	portrait = vs.y > vs.x
@@ -38,6 +40,7 @@ func open(tab: String, key := "") -> void:
 				_show_roster()
 		"shop": _show_shop()
 		"ach": _show_achievements()
+		"codex": _show_codex()
 		_: _show_home()
 
 
@@ -98,7 +101,7 @@ func _build() -> void:
 	nav.custom_minimum_size = Vector2(0, 0) if portrait else Vector2(112, 0)
 	nav.add_theme_constant_override("separation", 6)
 	body.add_child(nav)
-	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["ach", "見證錄", _show_achievements]]:
+	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["ach", "見證錄", _show_achievements], ["codex", "圖鑑", _show_codex]]:
 		var b := UIKit.button(item[1], 15)
 		b.custom_minimum_size = Vector2(0, 36) if portrait else Vector2(112, 38)
 		if portrait:
@@ -437,9 +440,52 @@ func _show_achievements() -> void:
 		_text(h, "、".join(reward), 12, UIKit.SKY)
 
 
+# ---------- 圖鑑 ----------
+func _codex_section(title: String, total: int, seen: int) -> void:
+	_text(content, "%s　%d／%d" % [title, seen, total], 15, UIKit.GOLD)
+
+
+func _codex_entry(known: bool, name: String, lines: Array) -> void:
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UIKit.box(Color(0.14, 0.1, 0.17), Color("4a3a50"), 6))
+	content.add_child(box)
+	var v := VBoxContainer.new()
+	box.add_child(v)
+	_text(v, name if known else "？？？", 13, UIKit.CREAM if known else UIKit.MUTED)
+	if known:
+		for ln in lines:
+			_text(v, ln[0], 11, ln[1], true)
+
+
+func _show_codex() -> void:
+	_clear("codex")
+	var cx: Dictionary = Save.data.get("codex", {})
+	var seen_e: Array = cx.get("enemies", [])
+	var en: Array = codex.enemies
+	_codex_section("敵人", en.size(), en.filter(func(e): return seen_e.has(e.id)).size())
+	for e in en:
+		_codex_entry(seen_e.has(e.id), e.name, [[e.what, UIKit.INK], ["「%s」（%s）" % [e.verse, e.ref], UIKit.SKY]])
+	var seen_v: Array = cx.get("evos", [])
+	_codex_section("進化", G.evolutions.size(), G.evolutions.filter(func(v): return seen_v.has(v.companion)).size())
+	for v in G.evolutions:
+		var who: String = G.paul.name if v.companion == "paul" else _comp_def(v.companion).get("name", v.companion)
+		_codex_entry(seen_v.has(v.companion), "%s：%s" % [who, v.name], [[v.desc, UIKit.INK], ["條件：滿級＋果子「%s」" % G.fruits[v.fruit].name, UIKit.MUTED]])
+	var seen_f: Array = cx.get("fruits", [])
+	_codex_section("聖靈果子", G.fruits.size(), G.fruits.keys().filter(func(k): return seen_f.has(k)).size())
+	for k in G.fruits:
+		_codex_entry(seen_f.has(k), G.fruits[k].name, [[G.fruits[k].desc, UIKit.INK]])
+	var seen_a: Array = cx.get("armor", [])
+	_codex_section("全副軍裝（弗 6:13–17）", G.armor.size(), G.armor.keys().filter(func(k): return seen_a.has(k)).size())
+	for k in G.armor:
+		_codex_entry(seen_a.has(k), G.armor[k].name, [[G.armor[k].desc[0], UIKit.INK]])
+	_codex_section("書信卡", stages.size(), stages.filter(func(st): return Save.data.churches.has(st.id)).size())
+	for st in stages:
+		_codex_entry(Save.data.churches.has(st.id), st.epistle.name, [[st.epistle.desc, UIKit.INK], ["建立%s教會後解鎖" % st.name, UIKit.MUTED]])
+
+
 # ---------- 自動截圖測試 ----------
 func auto_shots(shot_path: String) -> void:
-	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["ach", _show_achievements]]:
+	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["ach", _show_achievements], ["codex", _show_codex]]:
 		visible = true
 		step[1].call()
 		await get_tree().create_timer(0.6).timeout

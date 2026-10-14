@@ -59,6 +59,7 @@
 | `data/bios.json` | 同伴生平 |
 | `data/stages.json` | 初代教會關卡（城市、Boss、書信卡） |
 | `data/talks.json` | 營地對話 |
+| `data/codex.json` | 圖鑑（敵人說明與經文） |
 | `scripts/camp.gd` | 安提阿營地（遊戲開啟時的畫面） |
 | `scripts/base.gd` | 營地裡的彈出面板（出發、同伴、解鎖、見證錄） |
 | `scripts/save.gd` | 存檔（`profile.json`） |
