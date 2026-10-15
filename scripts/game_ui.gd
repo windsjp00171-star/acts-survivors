@@ -28,6 +28,9 @@ var xp_fill: ColorRect
 var lv_label: Label
 var time_label: Label
 var boss_in_label: Label
+var tip_box: PanelContainer
+var tip_label: Label
+var tip_until := 0.0
 var kill_label: Label
 var hint_label: Label
 var meter_bg: ColorRect
@@ -197,6 +200,15 @@ func update_hud(st: Dictionary) -> void:
 	pause_btn.visible = not st.over
 	kill_label.position = Vector2(size.x - kill_label.size.x - 52.0, 4)
 	hint_label.modulate.a = clampf((10.0 - st.time) / 2.0, 0.0, 1.0)
+	if tip_box != null and tip_box.visible:
+		var left := tip_until - Time.get_ticks_msec() / 1000.0
+		tip_box.modulate.a = clampf(left / 0.5, 0.0, 1.0)
+		tip_box.visible = left > 0.0 and not st.over
+		# 選卡時放上面、蓋在暗幕上；平常放在下方
+		tip_box.size = tip_box.get_combined_minimum_size()
+		tip_box.position = Vector2(roundf((size.x - tip_box.size.x) / 2.0), 40.0 if st.choosing else size.y - tip_box.size.y - 70.0)
+		if st.choosing and tip_box.get_index() != root.get_child_count() - 1:
+			root.move_child(tip_box, -1)
 	hint_label.position = Vector2(roundf((size.x - hint_label.size.x) / 2.0), size.y - 70.0)
 
 	# 同心合意
@@ -259,6 +271,31 @@ func update_hud(st: Dictionary) -> void:
 		boss_label.position = Vector2(boss_bg.position.x - boss_label.size.x - 8.0, 41)
 	flash.color.a = maxf(0.0, flash.color.a - 0.04)
 	joy_pad.queue_redraw()
+
+
+## 新手教學提示：畫面下方的小框，6 秒後自己消失（不擋操作）
+func show_tip(text: String) -> void:
+	if tip_box == null:
+		tip_box = PanelContainer.new()
+		tip_box.add_theme_stylebox_override("panel", _box(Color(0.08, 0.05, 0.1, 0.88), C_GOLD))
+		tip_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		root.add_child(tip_box)
+		tip_label = label("", 12, C_CREAM)
+		tip_label.get_parent().remove_child(tip_label)
+		tip_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tip_box.add_child(tip_label)
+	var size := vp()
+	tip_label.text = "提示：" + text
+	tip_label.custom_minimum_size.x = minf(size.x - 40.0, 420.0)
+	tip_box.reset_size()
+	tip_box.visible = true
+	tip_box.modulate.a = 1.0
+	root.move_child(tip_box, -1)   # 蓋在升級卡的暗幕上面
+	tip_until = Time.get_ticks_msec() / 1000.0 + 6.0
+
+
+func tip_busy() -> bool:
+	return tip_box != null and tip_box.visible
 
 
 func show_banner(text: String, secs: float) -> void:

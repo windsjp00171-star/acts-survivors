@@ -116,6 +116,7 @@ var grace_dmg := 0.0      # 恩上加恩（可疊加）
 var grace_spd := 0.0      # 如鷹展翅（可疊加）
 var mids_done := 0        # 中途 Boss 出現過幾次
 var run_resonances := 0
+var tip_queue: Array = []  # 新手教學：等著出現的提示
 var run_chests := 0
 var run_midboss := 0
 var build_text := ""      # HUD 左側：同工與肢體連結
@@ -643,6 +644,9 @@ func _level_up() -> void:
 	joy.on = false
 	ui.joy.on = false
 	pending_cards = _make_cards()
+	_tip("cards")
+	if pending_cards.any(func(cd): return cd.kind == "link"):
+		_tip("link")
 	Sfx.play("levelup", 0.0)
 	ui.do_flash(0.5)
 	_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 60.0)
@@ -1004,6 +1008,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
 		if e.d.get("chest", false):
 			chests.append({"pos": e.pos})
+			_tip("chest")
 		if e.get("elite", false):
 			run_elites += 1
 			_fire_links("elite", null, 0)
@@ -1086,6 +1091,31 @@ func _barrier_pieces() -> Array:
 
 
 # ---------- FEVER ----------
+## 新手教學：第一次遇到才出現，看過就記在存檔
+func _tip(id: String) -> void:
+	var seen: Array = Save.data.get("tips_seen", [])
+	if seen.has(id) or tip_queue.has(id) or not D.tips.has(id):
+		return
+	tip_queue.append(id)
+
+
+func _update_tips() -> void:
+	# 升級卡相關的提示要在選卡時就出現，其他的等選完再說
+	if tip_queue.is_empty() or chest_open or paused:
+		return
+	var card_tip: bool = tip_queue[0] in ["cards", "link"]
+	if (choosing and not card_tip) or (ui.tip_busy() and not (choosing and card_tip)):
+		return
+	var id: String = tip_queue.pop_front()
+	var T: Dictionary = D.tips[id]
+	var touch := DisplayServer.is_touchscreen_available()
+	ui.show_tip(T.get("text_touch", T.text) if touch else T.text)
+	if not Save.data.has("tips_seen"):
+		Save.data.tips_seen = []
+	Save.data.tips_seen.append(id)
+	Save.save_profile()
+
+
 func _start_fever() -> void:
 	if meter < 1.0 or fever > 0.0 or over or choosing or paused:
 		return
@@ -1229,6 +1259,16 @@ func _step(dt: float) -> void:
 	for L in links:
 		L.cd = maxf(0.0, L.cd - dt)
 	_update_tasks()
+	_update_tips()
+	if t - t_start > 4.0:
+		_tip("gem")
+	if t - t_start > 25.0:
+		_tip("tasks")
+	if meter >= 1.0 and fever <= 0.0:
+		_tip("fever")
+	var bi := _boss_in()
+	if bi >= 0.0 and bi < 12.0:
+		_tip("boss")
 	_companion_skills(dt)
 	_update_projectiles(dt)
 	_update_enemies(dt)
@@ -1262,6 +1302,7 @@ func _step(dt: float) -> void:
 		if elite_timer <= 0.0:
 			_spawn_special("terror", D.elites.terror, _edge_point(16.0))
 			ui.show_banner("菁英出現：恐嚇", 2.0)
+			_tip("elite")
 			elite_timer = ew.peak_every if peak else ew.elite_every
 	if peak and boss == null:
 		trial_timer -= dt
