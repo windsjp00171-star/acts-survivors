@@ -124,6 +124,42 @@ func up_value(id: String) -> float:
 	return 0.0
 
 
+# ---------- 營地建設 ----------
+func built(id: String) -> bool:
+	return data.get("buildings", []).has(id)
+
+
+## 所有已蓋好的建築加起來的效果
+func building_bonus(key: String) -> float:
+	var v := 0.0
+	for b in meta.buildings:
+		if built(b.id):
+			v += float(b.bonus.get(key, 0.0))
+	return v
+
+
+func buy_building(b: Dictionary) -> bool:
+	if built(b.id) or int(data.witness) < int(b.cost):
+		return false
+	data.witness -= int(b.cost)
+	if not data.has("buildings"):
+		data.buildings = []
+	data.buildings.append(b.id)
+	save_profile()
+	return true
+
+
+## 送餅給同伴：默契增加
+func gift_bread(key: String) -> bool:
+	var G2: Dictionary = meta.gift_bread
+	if int(data.get("bread", 0)) < int(G2.cost):
+		return false
+	data.bread = int(data.bread) - int(G2.cost)
+	data.affinity[key] = affinity_xp(key) + int(G2.affinity)
+	save_profile()
+	return true
+
+
 # ---------- 恩賜樹 ----------
 func gift_rank(tag: String, kind: String) -> int:
 	return int(data.get("gifts", {}).get(tag, {}).get(kind, 0))
@@ -225,7 +261,7 @@ func finish_run(r: Dictionary) -> Dictionary:
 	gain += int(r.get("task_witness", 0))
 	var tp := int(r.get("trial_points", 0))
 	gain = int(gain * (1.0 + tp * float(meta.trials.witness_per_point)))
-	r.bread = int(int(r.get("bread", 0)) * (1.0 + tp * float(meta.trials.bread_per_point)))
+	r.bread = int(int(r.get("bread", 0)) * (1.0 + tp * float(meta.trials.bread_per_point) + building_bonus("bread")))
 	if r.won and tp > 0:
 		var sid: String = r.get("stage", "")
 		data.trial_best[sid] = maxi(int(data.trial_best.get(sid, 0)), tp)
@@ -267,7 +303,7 @@ func finish_run(r: Dictionary) -> Dictionary:
 	var A: Dictionary = meta.affinity
 	for key in r.party:
 		var before := affinity_level(key)
-		data.affinity[key] = affinity_xp(key) + int(r.party[key]) * int(A.per_level_reached) + (int(A.win_bonus) if r.won else 0)
+		data.affinity[key] = affinity_xp(key) + int((int(r.party[key]) * int(A.per_level_reached) + (int(A.win_bonus) if r.won else 0)) * (1.0 + building_bonus("affinity")))
 		if affinity_level(key) > before:
 			aff_ups.append(key)
 

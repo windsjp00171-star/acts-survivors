@@ -212,7 +212,9 @@ func _ready() -> void:
 	# 永久恩典（用餅兌換的）
 	D.paul.hp = float(D.paul.hp) + Save.up_value("vigor")
 	D.paul.speed = float(D.paul.speed) * (1.0 + Save.up_value("run"))
-	D.gems.magnet_radius = float(D.gems.magnet_radius) * (1.0 + Save.up_value("reap"))
+	D.gems.magnet_radius = float(D.gems.magnet_radius) * (1.0 + Save.up_value("reap") + Save.building_bonus("magnet"))
+	D.armor_slots = int(D.armor_slots) + int(Save.building_bonus("armor"))
+	D.companion_rules.down_seconds = float(D.companion_rules.down_seconds) * (1.0 - Save.up_value("rise"))
 	for a in OS.get_cmdline_user_args():
 		if a == "--smoke":
 			smoke = true
@@ -232,6 +234,7 @@ func _ready() -> void:
 		scatter_by[k] = 0
 	xp_need = int(D.leveling.first)
 	t_start = t
+	meter = Save.building_bonus("meter")   # 營地的祭壇：開局就有一些同心合意
 	_build_world()
 	_build_ui()
 	var starter: String = Save.run_config.get("starter", Save.data.starter)
@@ -542,7 +545,7 @@ func _guard() -> float:
 	return 1.0 + fruits.get("good", 0) * D.fruits.good.per_level.guard
 
 func _accord() -> float:
-	return (1.0 + fruits.get("peace", 0) * D.fruits.peace.per_level.accord) * (1.3 if epistles.has("accord_plus") else 1.0)
+	return (1.0 + fruits.get("peace", 0) * D.fruits.peace.per_level.accord) * (1.3 if epistles.has("accord_plus") else 1.0) * (1.0 + Save.up_value("accord"))
 
 
 func _fever_dur() -> float:
@@ -1386,7 +1389,7 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
-			xp_acc += Save.up_value("growth") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
+			xp_acc += Save.up_value("growth") + Save.building_bonus("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
 				xp += 1
@@ -1401,7 +1404,7 @@ func _step(dt: float) -> void:
 			run_bread += 1
 			Sfx.play("gem", 0.0)
 	breads = breads.filter(func(b): return not b.get("got", false))
-	var regen: float = Save.up_value("renew") + float(set_bonus.get("regen", 0.0))
+	var regen: float = Save.up_value("renew") + float(set_bonus.get("regen", 0.0)) + Save.building_bonus("regen")
 	if regen > 0.0 and p.hp > 0.0:
 		p.hp = minf(float(D.paul.hp), p.hp + regen * dt)
 	if gems.size() > 300:
@@ -2208,6 +2211,7 @@ func _damage_paul(n: float) -> void:
 		return
 	if armor.get("breast", 0) > 0:
 		n *= 1.0 - float(D.armor.breast.per[armor.breast - 1])
+	n *= 1.0 - Save.up_value("aegis")
 	paul.hp -= n
 	Sfx.play("hurt")
 	Sfx.buzz(40)
@@ -2785,7 +2789,7 @@ func _open_chest() -> void:
 		results.append({"title": "進化！" + evo.name, "desc": evo.desc, "big": true})
 		break
 	if results.is_empty():
-		var n := randi_range(int(D.chest.rolls_min), int(D.chest.rolls_max))
+		var n := randi_range(int(D.chest.rolls_min), int(D.chest.rolls_max)) + (1 if randf() < Save.up_value("lucky") else 0)
 		for i in n:
 			var pool := _make_cards().filter(func(card): return not card.kind in ["heal", "grace_dmg", "grace_spd", "manna"])
 			if pool.is_empty():

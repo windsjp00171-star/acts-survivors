@@ -474,6 +474,10 @@ func _draw_props() -> void:
 			"log": _log_post(n, p)
 			"depart": _sign(n, p)
 			"banner": _banner(n, p)
+	# 用見證蓋的營地建設
+	for bd in Save.meta.buildings:
+		if Save.built(bd.id):
+			_building(n, _p(bd.pos[0], bd.pos[1]), bd.id)
 	# 營火
 	var fl := 0.5 + 0.5 * sin(t * 9.0) * sin(t * 5.3)
 	n.draw_circle(Vector2(0, 2), 30.0 + fl * 3.0, Color(1.0, 0.6, 0.2, 0.08))
@@ -526,6 +530,46 @@ func _log_post(n: Node2D, p: Vector2) -> void:
 	if panel != null and panel.has_new_log() and int(t * 3.0) % 2 == 0:
 		n.draw_rect(Rect2(p.x - 1, p.y - 33, 3, 7), Color("ffd75e"))
 		n.draw_rect(Rect2(p.x - 1, p.y - 25, 3, 2), Color("ffd75e"))
+
+
+func _building(n: Node2D, p: Vector2, id: String) -> void:
+	var W := Color("5a3f28")
+	match id:
+		"well":
+			n.draw_circle(p + Vector2(0, -3), 7.0, Color("8a8478"))
+			n.draw_circle(p + Vector2(0, -3), 4.5, Color("2a4a6a"))
+			n.draw_rect(Rect2(p.x - 8, p.y - 16, 2, 13), W)
+			n.draw_rect(Rect2(p.x + 6, p.y - 16, 2, 13), W)
+			n.draw_rect(Rect2(p.x - 9, p.y - 18, 18, 2), Color("8a6438"))
+		"tower":
+			n.draw_rect(Rect2(p.x - 6, p.y - 30, 2, 30), W)
+			n.draw_rect(Rect2(p.x + 4, p.y - 30, 2, 30), W)
+			n.draw_rect(Rect2(p.x - 8, p.y - 34, 16, 5), Color("8a6438"))
+			n.draw_colored_polygon(PackedVector2Array([p + Vector2(-9, -34), p + Vector2(9, -34), p + Vector2(0, -42)]), Color("a65a3a"))
+		"altar":
+			n.draw_rect(Rect2(p.x - 9, p.y - 8, 18, 8), Color("9a958a"))
+			n.draw_rect(Rect2(p.x - 9, p.y - 8, 18, 2), Color("c8c2b2"))
+			var fl := 3.0 + sin(t * 8.0) * 1.0
+			n.draw_rect(Rect2(p.x - 2, p.y - 8 - fl, 4, fl), Color("ff8a2a"))
+		"library":
+			n.draw_rect(Rect2(p.x - 12, p.y - 16, 24, 16), Color("c8b898"))
+			n.draw_colored_polygon(PackedVector2Array([p + Vector2(-14, -16), p + Vector2(14, -16), p + Vector2(0, -24)]), Color("8a5a3a"))
+			n.draw_rect(Rect2(p.x - 3, p.y - 8, 6, 8), W)
+		"table":
+			n.draw_rect(Rect2(p.x - 16, p.y - 6, 32, 4), Color("8a6438"))
+			n.draw_rect(Rect2(p.x - 14, p.y - 2, 2, 4), W)
+			n.draw_rect(Rect2(p.x + 12, p.y - 2, 2, 4), W)
+			for i in 4:
+				n.draw_rect(Rect2(p.x - 12 + i * 7, p.y - 8, 3, 2), Color("e0b060"))
+		"garden":
+			for i in 5:
+				var q := p + Vector2(-12 + i * 6, -2 + (i % 2) * 3)
+				n.draw_circle(q, 3.0, Color("5b6b2f"))
+				n.draw_rect(Rect2(q.x, q.y - 2, 1, 1), [Color("ff7aa8"), Color("ffd75e"), Color("c8a0ff")][i % 3])
+		"forge":
+			n.draw_rect(Rect2(p.x - 10, p.y - 12, 20, 12), Color("6a665e"))
+			n.draw_rect(Rect2(p.x - 4, p.y - 8, 8, 6), Color("ff8a2a") if int(t * 4.0) % 2 == 0 else Color("e8481c"))
+			n.draw_rect(Rect2(p.x + 4, p.y - 20, 4, 8), Color("4a4640"))
 
 
 func _sign(n: Node2D, p: Vector2) -> void:

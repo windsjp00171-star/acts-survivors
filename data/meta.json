@@ -28,13 +28,17 @@
   "bread": {
     "drop": { "kill": 0.01, "veteran": 0.2, "elite": 5, "chest": 3, "boss": 25 },
     "upgrades": [
-      { "id": "might",  "name": "剛強", "ref": "弗 6:10",   "desc": "所有攻擊傷害 +5%",       "per": 0.05, "max": 5, "cost": 15, "cost_step": 15 },
-      { "id": "haste",  "name": "殷勤", "ref": "羅 12:11",  "desc": "所有攻擊速度 +4%",       "per": 0.04, "max": 5, "cost": 15, "cost_step": 15 },
-      { "id": "vigor",  "name": "堅忍", "ref": "雅 1:4",    "desc": "保羅血量 +10",           "per": 10,   "max": 5, "cost": 10, "cost_step": 10 },
-      { "id": "renew",  "name": "更新", "ref": "林後 4:16", "desc": "保羅每秒回復 0.2 血",    "per": 0.2,  "max": 3, "cost": 25, "cost_step": 25 },
+      { "id": "might",  "name": "剛強", "ref": "弗 6:10",   "desc": "所有攻擊傷害 +5%",       "per": 0.05, "max": 10, "cost": 15, "cost_step": 15 },
+      { "id": "haste",  "name": "殷勤", "ref": "羅 12:11",  "desc": "所有攻擊速度 +4%",       "per": 0.04, "max": 10, "cost": 15, "cost_step": 15 },
+      { "id": "vigor",  "name": "堅忍", "ref": "雅 1:4",    "desc": "主角血量 +10",           "per": 10,   "max": 10, "cost": 10, "cost_step": 10 },
+      { "id": "renew",  "name": "更新", "ref": "林後 4:16", "desc": "主角每秒回復 0.2 血",    "per": 0.2,  "max": 3, "cost": 25, "cost_step": 25 },
       { "id": "reap",   "name": "收割", "ref": "約 4:35",   "desc": "撿經驗與餅的範圍 +20%",  "per": 0.2,  "max": 3, "cost": 10, "cost_step": 10 },
       { "id": "growth", "name": "長進", "ref": "彼後 3:18", "desc": "經驗 +6%",              "per": 0.06, "max": 3, "cost": 20, "cost_step": 20 },
-      { "id": "run",    "name": "奔跑", "ref": "來 12:1",   "desc": "移動速度 +4%",           "per": 0.04, "max": 3, "cost": 15, "cost_step": 15 }
+      { "id": "run",    "name": "奔跑", "ref": "來 12:1",   "desc": "移動速度 +4%",           "per": 0.04, "max": 3, "cost": 15, "cost_step": 15 },
+      { "id": "aegis",  "name": "盾牌", "ref": "詩 3:3",    "desc": "主角受到的傷害 -3%",     "per": 0.03, "max": 5, "cost": 30, "cost_step": 20 },
+      { "id": "accord", "name": "合一", "ref": "詩 133:1",  "desc": "同心合意累積 +6%",       "per": 0.06, "max": 5, "cost": 25, "cost_step": 20 },
+      { "id": "lucky",  "name": "滿溢", "ref": "瑪 3:10",   "desc": "寶箱有機會多開一項 +10%", "per": 0.1,  "max": 3, "cost": 40, "cost_step": 30 },
+      { "id": "rise",   "name": "扶持", "ref": "傳 4:10",   "desc": "倒下的同伴早一點站起來 -10%", "per": 0.1, "max": 3, "cost": 30, "cost_step": 25 }
     ]
   },
   "_gifts說明": "恩賜樹（像暗黑破壞神 2 的技能樹）：六個流派各一棵，用餅學習。每個節點有 row（第幾層）、col（第幾欄）、req（要先學過哪些節點，至少 1 級）；tiers 是學第 row 層前，這棵樹至少要先點幾點。節點效果只作用在這個流派的同伴（主角也算）。names 依 nodes 的順序。",
@@ -227,6 +231,18 @@
       }
     }
   },
+  "_buildings說明": "營地建設：用見證蓋，蓋好就一直有效，也會出現在營地裡。bonus 的 key：regen 主角每秒回血、meter 開局同心合意、xp 經驗、magnet 撿取範圍、bread 每局帶回的餅、affinity 默契、armor 軍裝欄位。",
+  "buildings": [
+    { "id": "well",    "name": "水井",   "ref": "約 4:14",  "desc": "主角每秒回復 0.2 血",        "cost": 150, "bonus": { "regen": 0.2 },   "pos": [-66, -58] },
+    { "id": "tower",   "name": "瞭望台", "ref": "結 33:7",  "desc": "撿取範圍 +15%",              "cost": 150, "bonus": { "magnet": 0.15 }, "pos": [152, -2] },
+    { "id": "altar",   "name": "祭壇",   "ref": "創 12:7",  "desc": "每局開始時同心合意已有 30%", "cost": 200, "bonus": { "meter": 0.3 },   "pos": [14, -60] },
+    { "id": "library", "name": "書房",   "ref": "提後 4:13", "desc": "經驗 +8%",                  "cost": 250, "bonus": { "xp": 0.08 },     "pos": [52, -58] },
+    { "id": "table",   "name": "愛筵長桌", "ref": "猶 1:12", "desc": "每局帶回的餅 +25%",         "cost": 300, "bonus": { "bread": 0.25 },  "pos": [8, 54] },
+    { "id": "garden",  "name": "園子",   "ref": "歌 4:16",  "desc": "同伴獲得的默契 +30%",        "cost": 300, "bonus": { "affinity": 0.3 }, "pos": [-20, 74] },
+    { "id": "forge",   "name": "工坊",   "ref": "徒 18:3",  "desc": "軍裝可以多穿一件",           "cost": 600, "bonus": { "armor": 1 },     "pos": [134, -36] }
+  ],
+  "_gift_bread說明": "送餅給同伴：在同伴頁花 cost 個餅，默契 +affinity。",
+  "gift_bread": { "cost": 10, "affinity": 15 },
   "_trials說明": "熬煉（難度等級，彼前 1:7）：建立第一間教會後可以在出發前打開。每項有點數，總點數每點見證 +15%、餅 +10%。",
   "trials": {
     "witness_per_point": 0.15,

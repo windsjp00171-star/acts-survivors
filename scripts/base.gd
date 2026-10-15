@@ -430,6 +430,15 @@ func _show_companion(key: String) -> void:
 		var nxt := Save.next_threshold(key)
 		var prog := "默契 Lv%d　%s" % [lv, ("下一級還差 %d" % (nxt - Save.affinity_xp(key))) if nxt > 0 else "已滿"]
 		_text(content, prog + "　攻擊速度 +%d%%" % int(lv * Save.meta.affinity.bonus_per_level * 100), 13, UIKit.SKY)
+		var GB: Dictionary = Save.meta.gift_bread
+		var gift := UIKit.button("送餅給他　餅 %d → 默契 +%d" % [int(GB.cost), int(GB.affinity)], 13)
+		gift.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		gift.disabled = int(Save.data.get("bread", 0)) < int(GB.cost)
+		gift.pressed.connect(func():
+			if Save.gift_bread(key):
+				Sfx.play("heal", 0.0)
+				_show_companion(key))
+		content.add_child(gift)
 		var starter := UIKit.button("設為第一位同工" if Save.data.starter != key else "目前的第一位同工", 13, Save.data.starter != key)
 		starter.disabled = Save.data.starter == key
 		starter.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -483,6 +492,25 @@ func _show_shop() -> void:
 			if Save.buy_up(uu):
 				_show_shop())
 		h2.add_child(b2)
+	_text(content, "營地建設　用「見證」蓋", 16, UIKit.GOLD)
+	_text(content, "蓋好就一直有效，也會出現在營地裡。", 11, UIKit.MUTED, true)
+	for bd in Save.meta.buildings:
+		var done := Save.built(bd.id)
+		var hb := _row(content)
+		var vb := VBoxContainer.new()
+		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		hb.add_child(vb)
+		_text(vb, bd.name + ("　已蓋好" if done else ""), 14, UIKit.MUTED if done else UIKit.INK)
+		_text(vb, "%s（%s）" % [bd.desc, bd.ref], 11, UIKit.MUTED, true)
+		var bb := UIKit.button("已蓋好" if done else ("見證 %d" % int(bd.cost)), 13, not done)
+		bb.custom_minimum_size = Vector2(96, 32)
+		bb.disabled = done or int(Save.data.witness) < int(bd.cost)
+		var bdd: Dictionary = bd
+		bb.pressed.connect(func():
+			if Save.buy_building(bdd):
+				Sfx.play("pick", 0.0)
+				_show_shop())
+		hb.add_child(bb)
 	_text(content, "解鎖　用「見證」兌換", 16, UIKit.GOLD)
 	_text(content, "用見證解鎖。舊約人物要靠「見證錄」的目標解鎖。", 12, UIKit.MUTED, true)
 	for item in Save.meta.shop:
