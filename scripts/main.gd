@@ -872,6 +872,8 @@ func _spawn_one(type: String, at: Vector2) -> void:
 	var vet := randf() < _curve(V.chance, t)
 	var hp: float = ceilf(d.hp * _curve(SC.hp, t) * stage.hp_mult * (float(V.hp_mult) if vet else 1.0))
 	var spr: String = d.get("sprite", type)
+	if d.has("looks"):
+		spr = d.looks[randi() % d.looks.size()]
 	var tint := Color(d.tint[0], d.tint[1], d.tint[2]) if d.has("tint") else Color.WHITE
 	var e := {"type": type, "d": d, "pos": at, "hp": hp, "ph": randf() * TAU, "flash": 0.0, "stun": 0.0,
 		"cd": 0.0, "bcd": 0.0, "shoot": (d.shoot.every * randf()) if d.has("shoot") else 0.0, "r": 6.0,
@@ -2615,6 +2617,10 @@ func _quake() -> void:
 
 # ---------- Boss ----------
 func _boss_tex() -> Texture2D:
+	# 各城市有自己的 Boss 圖（tools/make_enemies.py 產生）；沒有的話用程式畫的鎖鏈
+	var path := "res://assets/sprites/boss_%s.png" % stage.id
+	if ResourceLoader.exists(path):
+		return load(path)
 	var img := Image.create(40, 40, false, Image.FORMAT_RGBA8)
 	var c := Vector2(20, 20)
 	for y in 40:
@@ -2648,12 +2654,13 @@ func _spawn_boss() -> void:
 	var B: Dictionary = D.boss
 	var s := Sprite2D.new()
 	s.texture = _boss_tex()
+	var own_art := ResourceLoader.exists("res://assets/sprites/boss_%s.png" % stage.id)
 	s.centered = false
 	s.offset = Vector2(-20, -30)
 	world.add_child(s)
 	boss = {"type": "boss", "boss": true, "d": {"name": B.name, "damage": B.touch_damage}, "pos": _edge_point(-30.0),
 		"hp": float(B.hp), "max_hp": float(B.hp), "ph": 0.0, "flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "r": 14.0,
-		"sprite": "boss", "tint": Color(B.tint[0], B.tint[1], B.tint[2]) if B.has("tint") else Color.WHITE, "dmul": 1.0, "smul": 1.0, "knock": Vector2.ZERO, "dead": false, "node": s,
+		"sprite": "boss", "tint": Color(B.tint[0], B.tint[1], B.tint[2]) if B.has("tint") and not own_art else Color.WHITE, "dmul": 1.0, "smul": 1.0, "knock": Vector2.ZERO, "dead": false, "node": s,
 		"state": "move", "timer": 2.5, "pattern_i": 0, "pattern": ""}
 	enemies.append(boss)
 	ui.show_banner("Boss：" + B.name, 2.5)
