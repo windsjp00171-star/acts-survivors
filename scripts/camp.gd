@@ -112,7 +112,7 @@ func _build_camp() -> void:
 			if item.has("news") and Save.data.stats.runs > 0:
 				news.append(item.news)
 		var pos := _p(item.pos[0], item.pos[1])
-		if item.kind in ["depart", "shop", "ach"]:
+		if item.kind in ["depart", "shop", "ach", "log"]:
 			spots.append({"kind": item.kind, "key": "", "name": item.name, "pos": pos, "r": 20.0})
 	Save.save_profile()
 
@@ -222,7 +222,7 @@ func _build_hud() -> void:
 	var p2 = load("res://scripts/base.gd").new()
 	panel = p2
 	hud.add_child(panel)
-	panel.tabs_enabled = {"home": true, "roster": true, "shop": _has("shop"), "gifts": _has("shop"), "ach": _has("ach")}
+	panel.tabs_enabled = {"home": true, "roster": true, "shop": _has("shop"), "gifts": _has("shop"), "ach": _has("ach"), "log": true}
 	panel.closed.connect(func(): target = null)
 
 
@@ -416,6 +416,7 @@ func _interact(s: Dictionary) -> void:
 				panel.open("roster", s.key)
 		"shop": panel.open("shop")
 		"ach": panel.open("ach")
+		"log": panel.open("log")
 		_: panel.open("home")
 
 
@@ -447,6 +448,7 @@ func _verb(s: Dictionary) -> String:
 		"comp": return ("跟%s聊聊（默契 +）" if bubbles.has(s.key) else "看%s的生平") % s.name
 		"shop": return "補給帳棚（解鎖）"
 		"ach": return "見證牆"
+		"log": return "製作日誌（看看改了什麼）"
 	return "看旅程地圖、出發"
 
 
@@ -460,6 +462,7 @@ func _draw_props() -> void:
 			"shop": _tent(n, p, 1.0, Color("c9a46b"), Color("a65a8e"))
 			"tent_small": _tent(n, p, 0.7, Color("b89870"), Color("6f6a5a"))
 			"ach": _board(n, p)
+			"log": _log_post(n, p)
 			"depart": _sign(n, p)
 			"banner": _banner(n, p)
 	# 營火
@@ -502,6 +505,18 @@ func _board(n: Node2D, p: Vector2) -> void:
 	var done: int = Save.data.achievements.size()
 	for i in mini(done, 9):
 		n.draw_rect(Rect2(p.x - 11 + (i % 5) * 5, p.y - 19 + (i / 5) * 5, 3, 3), Color("fff4c2"))
+
+
+## 製作日誌告示：木樁上釘一張紙；有新版本還沒看時，上面有閃爍的驚嘆號
+func _log_post(n: Node2D, p: Vector2) -> void:
+	n.draw_rect(Rect2(p.x - 1, p.y - 18, 2, 18), Color("5a3f28"))
+	n.draw_rect(Rect2(p.x - 8, p.y - 22, 16, 12), Color("efe2c0"))
+	n.draw_rect(Rect2(p.x - 8, p.y - 22, 16, 1), Color("c9a46b"))
+	for i in 3:
+		n.draw_rect(Rect2(p.x - 6, p.y - 19 + i * 3, 12 - (i % 2) * 4, 1), Color("8a7a5a"))
+	if panel != null and panel.has_new_log() and int(t * 3.0) % 2 == 0:
+		n.draw_rect(Rect2(p.x - 1, p.y - 33, 3, 7), Color("ffd75e"))
+		n.draw_rect(Rect2(p.x - 1, p.y - 25, 3, 2), Color("ffd75e"))
 
 
 func _sign(n: Node2D, p: Vector2) -> void:

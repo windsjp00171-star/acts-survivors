@@ -13,6 +13,7 @@ var nav_buttons := {}
 var portrait := false
 var tabs_enabled := {"home": true, "roster": true, "shop": true, "gifts": true, "ach": true, "codex": true}
 var gift_tag := "講道"
+var devlog: Dictionary
 var codex: Dictionary
 
 
@@ -21,6 +22,7 @@ func _ready() -> void:
 	bios = JSON.parse_string(FileAccess.get_file_as_string("res://data/bios.json"))
 	stages = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages
 	codex = JSON.parse_string(FileAccess.get_file_as_string("res://data/codex.json"))
+	devlog = JSON.parse_string(FileAccess.get_file_as_string("res://data/devlog.json"))
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var vs := get_viewport().get_visible_rect().size
 	portrait = vs.y > vs.x
@@ -43,6 +45,7 @@ func open(tab: String, key := "") -> void:
 		"gifts": _show_gifts()
 		"ach": _show_achievements()
 		"codex": _show_codex()
+		"log": _show_log()
 		_: _show_home()
 
 
@@ -74,7 +77,7 @@ func _build() -> void:
 
 	var top := HBoxContainer.new()
 	outer.add_child(top)
-	var title := UIKit.label("安提阿", 24, UIKit.GOLD)
+	var title := UIKit.label("安提阿", 20 if portrait else 24, UIKit.GOLD)
 	top.add_child(title)
 	if not portrait:
 		var sub := UIKit.label("　宣教之路的出發地", 12, UIKit.MUTED)
@@ -83,13 +86,13 @@ func _build() -> void:
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(spacer)
-	witness_label = UIKit.label("", 16, UIKit.SKY)
+	witness_label = UIKit.label("", 13 if portrait else 16, UIKit.SKY)
 	top.add_child(witness_label)
 	var gap := Control.new()
-	gap.custom_minimum_size = Vector2(12, 0)
+	gap.custom_minimum_size = Vector2(6 if portrait else 12, 0)
 	top.add_child(gap)
 	var x := UIKit.button("× 關閉", 13)
-	x.custom_minimum_size = Vector2(80, 30)
+	x.custom_minimum_size = Vector2(64 if portrait else 80, 30)
 	x.pressed.connect(close)
 	top.add_child(x)
 
@@ -99,15 +102,16 @@ func _build() -> void:
 	body.add_theme_constant_override("separation", 10)
 	outer.add_child(body)
 
-	var nav: BoxContainer = HBoxContainer.new() if portrait else VBoxContainer.new()
+	# 直式：分頁鈕自動換行（分頁變多也不會把面板撐出畫面）
+	var nav: Container = HFlowContainer.new() if portrait else VBoxContainer.new()
 	nav.custom_minimum_size = Vector2(0, 0) if portrait else Vector2(112, 0)
 	nav.add_theme_constant_override("separation", 6)
+	nav.add_theme_constant_override("h_separation", 6)
+	nav.add_theme_constant_override("v_separation", 6)
 	body.add_child(nav)
-	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["gifts", "恩賜", _show_gifts], ["ach", "見證錄", _show_achievements], ["codex", "圖鑑", _show_codex]]:
+	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["gifts", "恩賜", _show_gifts], ["ach", "見證錄", _show_achievements], ["codex", "圖鑑", _show_codex], ["log", "日誌", _show_log]]:
 		var b := UIKit.button(item[1], 15)
-		b.custom_minimum_size = Vector2(0, 36) if portrait else Vector2(112, 38)
-		if portrait:
-			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.custom_minimum_size = Vector2(76, 34) if portrait else Vector2(112, 38)
 		b.pressed.connect(item[2])
 		nav.add_child(b)
 		nav_buttons[item[0]] = b
@@ -228,7 +232,7 @@ func _show_home() -> void:
 		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(col)
 		var title := "%s　%s" % [stg.name, stg.ref] if open else "？？？"
-		_text(col, title + ("　教會已建立" if founded else ""), 14, UIKit.CREAM if open else UIKit.MUTED)
+		_text(col, title + ("　教會已建立" if founded else ""), 14, UIKit.CREAM if open else UIKit.MUTED, true)
 		_text(col, stg.intro if open else "建立前一間教會後解鎖", 11, UIKit.MUTED, true)
 		if founded:
 			_text(col, "書信卡：" + stg.epistle.name, 11, UIKit.SKY, true)
@@ -245,7 +249,7 @@ func _show_home() -> void:
 	if Save.trials_unlocked():
 		var on: Array = Save.data.trials_on
 		var tp := Save.trial_points(on)
-		_text(content, "熬煉（彼前 1:7）　%d 點：見證 +%d%%、餅 +%d%%" % [tp, roundi(tp * Save.meta.trials.witness_per_point * 100), roundi(tp * Save.meta.trials.bread_per_point * 100)], 15, UIKit.GOLD)
+		_text(content, "熬煉（彼前 1:7）　%d 點：見證 +%d%%、餅 +%d%%" % [tp, roundi(tp * Save.meta.trials.witness_per_point * 100), roundi(tp * Save.meta.trials.bread_per_point * 100)], 15, UIKit.GOLD, true)
 		var best := int(Save.data.trial_best.get(stages[sel].id, 0))
 		if best > 0:
 			_text(content, "%s 最高通過 %d 點" % [stages[sel].name, best], 11, UIKit.SKY)
@@ -544,6 +548,31 @@ func _show_gifts() -> void:
 	_text(content, "（%s）" % tree.ref, 11, UIKit.MUTED)
 
 
+# ---------- 製作日誌 ----------
+func has_new_log() -> bool:
+	return devlog != null and not devlog.entries.is_empty() and Save.data.get("log_seen", "") != devlog.entries[0].version
+
+
+func _show_log() -> void:
+	_clear("log")
+	Save.data.log_seen = devlog.entries[0].version
+	Save.save_profile()
+	_text(content, "製作日誌", 16, UIKit.GOLD)
+	_text(content, "每次改版改了什麼，都寫在這裡。有想法歡迎告訴我們！", 11, UIKit.MUTED, true)
+	for i in devlog.entries.size():
+		var e: Dictionary = devlog.entries[i]
+		var box := PanelContainer.new()
+		box.add_theme_stylebox_override("panel", UIKit.box(Color(0.16, 0.12, 0.1) if i == 0 else Color(0.12, 0.09, 0.14), UIKit.GOLD if i == 0 else Color("4a3a50"), 6))
+		content.add_child(box)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", 3)
+		box.add_child(v)
+		_text(v, "%s　%s" % [e.version, e.title], 15, UIKit.CREAM if i == 0 else UIKit.INK)
+		_text(v, e.date, 11, UIKit.MUTED)
+		for it in e.items:
+			_text(v, "・" + it, 12, UIKit.INK, true)
+
+
 func _show_codex() -> void:
 	_clear("codex")
 	var cx: Dictionary = Save.data.get("codex", {})
@@ -572,7 +601,7 @@ func _show_codex() -> void:
 
 # ---------- 自動截圖測試 ----------
 func auto_shots(shot_path: String) -> void:
-	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["gifts", _show_gifts], ["ach", _show_achievements], ["codex", _show_codex]]:
+	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["gifts", _show_gifts], ["ach", _show_achievements], ["codex", _show_codex], ["log", _show_log]]:
 		visible = true
 		step[1].call()
 		await get_tree().create_timer(0.6).timeout

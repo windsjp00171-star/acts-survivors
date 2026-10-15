@@ -16,6 +16,7 @@
   "_camp說明": "安提阿營地的設施：條件達成才會出現。stat 可以用 runs、wins、elites、best_kills、best_fevers、tasks、witness_total、achievements（已達成數）。kind：depart 出發、shop 解鎖、ach 見證錄，其他是裝飾。pos 是相對營火的位置。",
   "camp": [
     { "id": "sign",   "kind": "depart", "name": "旅程路標",   "pos": [132, 34],   "stat": "runs", "min": 0 },
+    { "id": "log",    "kind": "log",    "name": "製作日誌",   "pos": [56, 62],    "stat": "runs", "min": 0 },
     { "id": "tent",   "kind": "shop",   "name": "補給帳棚",   "pos": [-104, -34], "stat": "runs", "min": 1, "news": "百基拉搭起了補給帳棚：可以用見證解鎖了" },
     { "id": "board",  "kind": "ach",    "name": "見證牆",     "pos": [96, -48],   "stat": "runs", "min": 2, "news": "營地立起了見證牆：看看還有哪些目標" },
     { "id": "tent2",  "kind": "tent_small", "name": "",       "pos": [-128, 30],  "stat": "runs", "min": 4, "news": "來同住的人多了，營地多了一頂帳棚" },

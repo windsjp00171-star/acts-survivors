@@ -115,6 +115,9 @@ var sets_on: Array = []
 var grace_dmg := 0.0      # 恩上加恩（可疊加）
 var grace_spd := 0.0      # 如鷹展翅（可疊加）
 var mids_done := 0        # 中途 Boss 出現過幾次
+var run_resonances := 0
+var run_chests := 0
+var run_midboss := 0
 var build_text := ""      # HUD 左側：同工與肢體連結
 var run_tasks: Array = [] # 旅程任務：{def, done, failed}
 var shots: Array = []
@@ -703,6 +706,12 @@ func _task_value(stat: String) -> int:
 		"fevers": return run_fevers
 		"links": return link_count
 		"level": return level
+		"combo": return combo_best
+		"resonance": return run_resonances
+		"chests": return run_chests
+		"bread": return run_bread
+		"midboss": return run_midboss
+		"party": return _party_count()
 	return 0
 
 
@@ -1005,6 +1014,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			# 中途 Boss 打退了：掉寶箱，真正的 Boss 之後才來
 			chests.append({"pos": e.pos})
 			boss = null
+			run_midboss += 1
 			ui.show_banner("打退了！%s 會在 %d:%02d 捲土重來" % [D.boss.name, int(D.boss.at) / 60, int(D.boss.at) % 60], 2.5)
 		elif e.get("boss", false):
 			_win()
@@ -1593,6 +1603,7 @@ func _combo_add() -> void:
 
 
 func _resonance(tier: int) -> void:
+	run_resonances += 1
 	var C: Dictionary = D.links.combo
 	var dmg: float = float(C.damage[tier])
 	resonances.append({"pos": paul.pos + Vector2(0, -6), "r": 0.0, "tier": tier, "hit": {}, "dmg": dmg})
@@ -2580,6 +2591,7 @@ func _draw_air() -> void:
 # ---------- 寶箱與進化 ----------
 func _open_chest() -> void:
 	chest_open = true
+	run_chests += 1
 	joy.on = false
 	ui.joy.on = false
 	var results := []

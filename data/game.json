@@ -285,15 +285,21 @@
     { "kind": "manna", "title": "天上的嗎哪", "tag": "恩典", "desc": "得到 8 個餅（出 16:15）", "amount": 8 },
     { "kind": "heal", "title": "五餅二魚", "tag": "恩典", "desc": "主角回復 30 血", "hp_below": 0.7 }
   ],
-  "_tasks說明": "旅程任務：每局隨機抽 count 個。stat 可用 kills、elites、fevers、links、level；by 是要在第幾秒前完成（0 = 不限時）。完成給 witness 見證，並在保羅身邊掉一個寶箱。",
+  "_tasks說明": "旅程任務：每局隨機抽 count 個。stat 可用 kills、elites、fevers、links、level、combo（最高連鎖）、resonance（共鳴次數）、chests（開寶箱）、bread（撿餅）、midboss（打退中途 Boss）、party（隊伍人數）；by 是要在第幾秒前完成（0 = 不限時）。完成給 witness 見證，並在保羅身邊掉一個寶箱。",
   "tasks": {
-    "count": 2,
+    "count": 3,
     "list": [
       { "id": "kills",  "name": "驅散 300",       "stat": "kills",  "goal": 300, "by": 180, "witness": 25 },
       { "id": "elites", "name": "打倒菁英 3 隻",   "stat": "elites", "goal": 3,   "by": 0,   "witness": 30 },
       { "id": "fevers", "name": "開 2 次五旬節",   "stat": "fevers", "goal": 2,   "by": 210, "witness": 25 },
       { "id": "links",  "name": "肢體連結觸發 40 次", "stat": "links", "goal": 40, "by": 0,   "witness": 30 },
-      { "id": "level",  "name": "升到 Lv10",       "stat": "level",  "goal": 10,  "by": 270, "witness": 25 }
+      { "id": "level",  "name": "升到 Lv10",       "stat": "level",  "goal": 10,  "by": 270, "witness": 25 },
+      { "id": "combo",  "name": "連鎖達到 ×25",     "stat": "combo",  "goal": 25,  "by": 0,   "witness": 30 },
+      { "id": "reso",   "name": "共鳴 5 次",        "stat": "resonance", "goal": 5, "by": 0,  "witness": 30 },
+      { "id": "chests", "name": "打開 3 個寶箱",     "stat": "chests", "goal": 3,   "by": 0,   "witness": 25 },
+      { "id": "bread",  "name": "撿到 10 個餅",      "stat": "bread",  "goal": 10,  "by": 300, "witness": 20 },
+      { "id": "mid",    "name": "打退中途 Boss", "stat": "midboss", "goal": 1, "by": 230, "witness": 35 },
+      { "id": "party",  "name": "隊伍湊滿 4 人",     "stat": "party",  "goal": 4,   "by": 150, "witness": 25 }
     ]
   },
   "_synergy說明": "同工：同一個流派（tag）的同伴有 2 位、3 位以上時，他們的攻擊速度加成。",
