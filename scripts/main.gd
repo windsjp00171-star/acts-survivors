@@ -258,7 +258,7 @@ func _ready() -> void:
 		var d := 110.0 + randf() * 80.0
 		_spawn_one(_pick_type(), Vector2(cos(a) * d, sin(a) * d * 0.7))
 	_update_chunks()
-	Sfx.music("battle")
+	Sfx.music(stage.music)
 	ground.modulate = Color(stage.tint[0], stage.tint[1], stage.tint[2])
 	ui.show_banner("%s　%s%s" % [stage.name, stage.ref, ("\n熬煉 %d 點" % Save.trial_points(trials)) if not trials.is_empty() else ""], 2.5)
 
@@ -945,6 +945,7 @@ func _start_fever() -> void:
 	fever_kills = 0
 	run_fevers += 1
 	Sfx.play("fever", 0.0)
+	Sfx.music("fever")
 	Sfx.buzz(90)
 	var L: Dictionary = D.fever.light
 	if force_light or randf() < float(L.chance):
@@ -972,6 +973,7 @@ func _start_fever() -> void:
 func _end_fever() -> void:
 	fever = 0.0
 	meter = 0.0
+	Sfx.music("boss" if boss != null and not boss.dead else stage.music)
 	fever_bursts.append({"pos": paul.pos, "r": 0.0, "hit": {}, "mult": float(D.fever.light.burst_mult) if light > 0.0 else 1.0})
 	light = 0.0
 	Sfx.play("burst", 0.0)
@@ -2290,6 +2292,8 @@ func _spawn_boss() -> void:
 		"state": "move", "timer": 2.5, "pattern_i": 0, "pattern": ""}
 	enemies.append(boss)
 	ui.show_banner("Boss：" + B.name, 2.5)
+	if fever <= 0.0:
+		Sfx.music("boss")
 
 
 func _update_boss(b: Dictionary, dt: float) -> void:

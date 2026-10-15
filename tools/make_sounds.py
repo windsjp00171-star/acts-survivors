@@ -1,7 +1,7 @@
 """產生遊戲的音效與音樂（全部用程式合成，沒有外部素材，不用擔心授權）。
 
 用法：python tools/make_sounds.py
-輸出：assets/audio/*.wav（音效）、assets/audio/*.ogg（音樂，需要 ffmpeg）
+輸出：assets/audio/*.wav（音效）。配樂請用 tools/make_music.py
 
 想改聲音：改下面對應的函式，再跑一次。原則是「少而清楚」——
 常出現的聲音（命中、撿經驗）要短、要輕。
@@ -149,59 +149,6 @@ def sfx():
     save_wav("ui", pluck(note(76), 0.12, 0.3), 0.4)
 
 
-# ---------- 音樂（可以無縫循環） ----------
-def music():
-    rng = np.random.default_rng(3)
-    # 營地：慢的撥弦旋律＋低音持續音，D 大調五聲音階
-    bpm = 72
-    beat = 60 / bpm
-    bars = 8
-    sec = bars * 4 * beat
-    y = np.zeros(int(SR * sec))
-    tt = t_axis(sec)
-    y += 0.12 * (np.sin(2 * np.pi * note(38) * tt) + 0.5 * np.sin(2 * np.pi * note(45) * tt))
-    scale = [62, 64, 66, 69, 71, 74, 76]
-    melody = [0, 2, 3, 2, 4, 3, 2, 1, 0, 2, 3, 5, 4, 3, 2, -1, 3, 4, 5, 4, 3, 2, 1, 2, 0, 1, 2, 3, 2, 1, 0, -1]
-    for i, m in enumerate(melody):
-        if m < 0:
-            continue
-        st = int(i * beat * SR)
-        p = pluck(note(scale[m]), 1.6, 0.35) * 0.5
-        y[st:st + len(p)] += p[: len(y) - st]
-        if i % 4 == 0:  # 和聲
-            q = pluck(note(scale[m] - 12), 1.8, 0.2) * 0.3
-            y[st:st + len(q)] += q[: len(y) - st]
-    save_ogg("music_camp", y * np.clip(np.minimum(tt, sec - tt) / 0.05, 0, 1))
-
-    # 戰鬥：低音持續＋框鼓節奏＋零星撥弦，D 多利安
-    bpm = 100
-    beat = 60 / bpm
-    bars = 8
-    sec = bars * 4 * beat
-    tt = t_axis(sec)
-    y = 0.1 * (np.sin(2 * np.pi * note(38) * tt) + 0.6 * np.sin(2 * np.pi * note(45) * tt + 0.3 * np.sin(2 * np.pi * 0.25 * tt)))
-    drum_low = np.sin(2 * np.pi * (70 + 60 * np.exp(-t_axis(0.3) * 30)) * t_axis(0.3)) * np.exp(-t_axis(0.3) * 12)
-    drum_hi = noise(0.08, 0.3) * np.exp(-t_axis(0.08) * 40) * 0.35
-    pattern = [1, 0, 2, 0, 1, 2, 2, 0]  # 八分音符：1 低鼓、2 高鼓
-    for b in range(bars * 8):
-        k = pattern[b % 8]
-        if k == 0:
-            continue
-        st = int(b * beat / 2 * SR)
-        d = drum_low if k == 1 else drum_hi
-        y[st:st + len(d)] += d[: len(y) - st] * 0.6
-    scale = [62, 64, 65, 67, 69, 71, 72, 74]
-    motif = [0, 2, 4, 3, 2, 0, 1, 2]
-    for bar in range(bars):
-        if bar % 2 == 1:
-            continue
-        for i, m in enumerate(motif):
-            st = int((bar * 4 + i * 0.5) * beat * SR)
-            p = pluck(note(scale[(m + (bar // 2) % 3) % len(scale)]), 0.6, 0.3) * 0.3
-            y[st:st + len(p)] += p[: len(y) - st]
-    save_ogg("music_battle", y * np.clip(np.minimum(tt, sec - tt) / 0.03, 0, 1))
-
-
 # ---------- 對話的咕噥聲（像動物森友會那樣） ----------
 def voices():
     """五個母音般的短音節，基準音高 220Hz；遊戲裡每個角色用不同的 pitch_scale 播放。"""
@@ -224,5 +171,5 @@ if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     sfx()
     voices()
-    music()
+    # 配樂在 tools/make_music.py
     print("done:", sorted(os.listdir(OUT)))

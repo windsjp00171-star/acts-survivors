@@ -69,6 +69,8 @@
 | `scripts/game_ui.gd` | 畫面介面（血量、升級卡、寶箱、失敗與通關畫面） |
 | `scripts/ui_kit.gd` | 共用字型、顏色、按鈕 |
 | `tools/runs_report.py` | 每局紀錄報表 |
+| `tools/make_sounds.py` | 產生音效與對話咕噥聲 |
+| `tools/make_music.py` | 產生配樂（中東古風，7 首） |
 | `scenes/base.tscn` | 營地（遊戲開啟時的畫面） |
 | `scenes/main.tscn` | 一局遊戲 |
 | `assets/sprites/` | 像素圖（目前由程式產生） |

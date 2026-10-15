@@ -56,12 +56,20 @@ func music(name: String) -> void:
 		tw.tween_property(music_player, "volume_db", -40.0, 0.8)
 		tw.tween_callback(music_player.stop)
 		return
-	var st = load("res://assets/audio/music_%s.ogg" % name)
+	var path := "res://assets/audio/music_%s.ogg" % name
+	if not ResourceLoader.exists(path):
+		return
+	var st = load(path)
 	st.loop = true
-	music_player.stream = st
-	music_player.volume_db = -30.0
-	music_player.play()
-	create_tween().tween_property(music_player, "volume_db", -12.0, 1.2)
+	# 換歌：舊的很快淡出，新的淡入
+	var tw := create_tween()
+	if music_player.playing:
+		tw.tween_property(music_player, "volume_db", -40.0, 0.35)
+	tw.tween_callback(func():
+		music_player.stream = st
+		music_player.volume_db = -30.0
+		music_player.play())
+	tw.tween_property(music_player, "volume_db", -12.0, 0.8)
 
 
 func toggle(kind: String) -> void:
