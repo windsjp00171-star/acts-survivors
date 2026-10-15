@@ -1559,8 +1559,9 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 				thrusts.append({"from": from, "dir": dir, "len": s.range * _area(), "t": 0.0, "crit": crit, "evo": evolved.has(c.key), "look": c.look, "col": c.col})
 				if c.look == "dash" and c != pa:
 					# 腓利真的衝出去，再被拉回隊伍
-					c.off = dir * minf(s.range * _area() * 0.7, 90.0)
-					c.vel = Vector2.ZERO
+					# 衝到前面，馬上往回跑（不會越跑越遠、回不來）
+					c.off = dir * minf(s.range * _area() * 0.5, 55.0)
+					c.vel = -c.off * 6.0
 				if crit:
 					_ring_pop(from + dir * 20.0, C_GOLD, 14.0)
 		"gather":

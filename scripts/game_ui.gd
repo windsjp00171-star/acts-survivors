@@ -194,7 +194,8 @@ func update_hud(st: Dictionary) -> void:
 	if boss_in_label.visible:
 		boss_in_label.text = "Boss %d:%02d" % [int(bi) / 60, int(bi) % 60]
 		boss_in_label.modulate = Color(1, 1, 1, 1.0 if bi > 20.0 or int(bi * 3.0) % 2 == 0 else 0.4)
-		boss_in_label.position = Vector2(roundf((size.x - boss_in_label.size.x) / 2.0), 26)
+		# 五旬節時「FEVER ×N」佔了這一行，倒數往下移
+		boss_in_label.position = Vector2(roundf((size.x - boss_in_label.size.x) / 2.0), 44 if fever_label.visible else 26)
 	kill_label.text = ("驅散 %d　餅 %d" % [st.kills, st.bread]) if st.get("bread", 0) > 0 else "驅散 %d" % st.kills
 	pause_btn.position = Vector2(size.x - 42.0, 4)
 	pause_btn.visible = not st.over
