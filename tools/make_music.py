@@ -238,96 +238,193 @@ def camp():
     return tr.render()
 
 
-def city(root, mode, bpm, drum, motif, answer, lead=oud, extra=None, drone_note=None):
-    tr = Track(bpm=bpm, bars=20)
-    tr.put(0, drone(hz(drone_note or root - 24), tr.length / SR + 2), 1.0)
-    tr.drums(drum, KIT, 0.8)
-    # 前 4 小節只有鼓和低音，之後旋律進來（主題 → 回應 → 主題 → 變奏）
-    pos = 16.0
-    for phrase in [motif, answer, motif, [(d + 2 if d is not None else None, l) for d, l in answer]]:
-        pos = tr.melody(lead, root, mode, phrase, pos, 1.0)
-    # 卡農琴的快速裝飾音型
-    for bar in range(4, 20, 2):
-        for i in range(8):
-            tr.melody(qanun, root + 12, mode, [([0, 1, 2, 1, 0, -1, 0, 2][i], 0.5)], bar * 4 + i * 0.5, 0.35)
+# ---------- 戰鬥用的樂器 ----------
+def _saw(f, t, n_harm, decay_by_k=0.0):
+    y = np.zeros_like(t)
+    for k in range(1, n_harm + 1):
+        if f * k > 7000:
+            break
+        y += np.sin(2 * np.pi * f * k * t) / k * (np.exp(-t * decay_by_k * k) if decay_by_k else 1.0)
+    return y
+
+
+def bass(f, sec, vel=1.0):
+    """撥奏低音：短、厚"""
+    t = ta(sec)
+    # 手機喇叭放不出很低的音，所以多留一點中頻泛音，聽起來才有「咚咚咚」的推進感
+    return _saw(f, t, 14, 0.6) * np.exp(-t * 8) * np.clip(t / 0.003, 0, 1) * vel * 0.28
+
+
+def spic(f, sec, vel=1.0):
+    """弦樂斷奏：很短的一下，兩把微微走音"""
+    t = ta(min(sec, 0.18))
+    y = _saw(f, t, 10) + _saw(f * 1.004, t, 10)
+    return y * np.exp(-t * 22) * np.clip(t / 0.004, 0, 1) * vel * 0.2
+
+
+def brass(f, sec, vel=1.0):
+    """銅管重音：起音有一點推進，泛音隨著打開"""
+    t = ta(sec)
+    y = np.zeros_like(t)
+    open_ = np.clip(t / 0.08, 0, 1)
+    for k in range(1, 12):
+        if f * k > 6000:
+            break
+        y += np.sin(2 * np.pi * f * k * t) / k * (open_ ** (k * 0.3))
+    env = np.clip(t / 0.03, 0, 1) * (0.55 + 0.45 * np.exp(-t * 5)) * np.clip((sec - t) / 0.1, 0, 1)
+    return y * env * vel * 0.22
+
+
+def mizmar(f, sec, vel=1.0):
+    """米茲馬爾（中東雙簧管）：鼻音、尖、很有出征的感覺"""
+    t = ta(sec)
+    vib = 1 + 0.008 * np.sin(2 * np.pi * 6 * t) * np.clip((t - 0.1) / 0.2, 0, 1)
+    ph = 2 * np.pi * np.cumsum(f * vib) / SR
+    y = np.zeros_like(t)
+    for k in range(1, 16):
+        fk = f * k
+        if fk > 8000:
+            break
+        w = 0.25 / k + np.exp(-((fk - 1400) / 500) ** 2) + 0.6 * np.exp(-((fk - 2700) / 600) ** 2)
+        y += w * np.sin(k * ph)
+    env = np.clip(t / 0.02, 0, 1) * np.clip((sec - t) / 0.06, 0, 1)
+    return y * env * vel * 0.17
+
+
+def taiko(vel=1.0):
+    """大鼓：很低、很長的轟"""
+    t = ta(0.7)
+    f = 55 + 70 * np.exp(-t * 18)
+    ph = 2 * np.pi * np.cumsum(f) / SR
+    body = (np.sin(ph) * 0.45 + np.sin(2 * ph) * 0.5 + np.sin(3.1 * ph) * 0.25) * np.exp(-t * 6)
+    hit = NOISE_LP[: len(t)] * np.exp(-t * 35) * 2.2
+    return (body + hit) * vel * 0.9
+
+
+def snare(vel=1.0):
+    t = ta(0.2)
+    n = NOISE[: len(t)] - lowpass(NOISE[: len(t)], 0.15)
+    body = np.sin(2 * np.pi * 190 * t) * np.exp(-t * 30)
+    return (n * np.exp(-t * 22) * 0.8 + body * 0.6) * vel * 0.75
+
+
+def shaker(vel=1.0):
+    t = ta(0.05)
+    return NOISE_HP[: len(t)] * np.exp(-t * 90) * vel * 0.18
+
+
+KIT.update({"B": taiko, "S": snare, "h": shaker})
+
+
+def battle(root, mode, bpm, prog, motif, answer, lead=mizmar, taiko_a="B.......B..B....", taiko_b="B..B..B.B..B.B..",
+           darbuka="D..T..T.D...T...", extra=None):
+    """戰鬥曲：2 小節前奏 → A 段 8 小節（主題＋回應）→ B 段 6 小節（銅管＋主題高八度）。共 16 小節，可循環。"""
+    tr = Track(bpm=bpm, bars=16)
+    chord = lambda bar: prog[bar % len(prog)]
+    # 鼓
+    for bar in range(16):
+        pat = taiko_a if bar < 10 else taiko_b
+        for i, ch in enumerate(pat):
+            if ch != ".":
+                tr.put(bar * 4 + i / 4, taiko(0.85 + 0.15 * RNG.random()), 1.0)
+        for i in range(16):
+            tr.put(bar * 4 + i / 4, shaker(1.0 if i % 4 == 0 else 0.6), 1.0)
+        if bar >= 2:
+            snare_pat = "....S.......S..." if bar not in (9, 15) else "....S...S.S.SSSS"
+            for i, ch in enumerate(snare_pat):
+                if ch == "S":
+                    tr.put(bar * 4 + i / 4, snare(0.7 + 0.3 * (i >= 8 and bar in (9, 15))), 1.0)
+        for i, ch in enumerate(darbuka):
+            if ch != ".":
+                tr.put(bar * 4 + i / 4, KIT[ch](0.8), 0.45)
+    # 前奏最後一拍：鼓滾
+    for i in range(8):
+        tr.put(7 + i / 8, snare(0.4 + i * 0.08), 1.0)
+    # 低音：奔馳節奏（八分＋兩個十六分）
+    for bar in range(2, 16):
+        r = deg(root - 24, mode, chord(bar))
+        for beat in range(4):
+            for off, v in [(0, 1.0), (0.5, 0.7), (0.75, 0.75)]:
+                tr.put(bar * 4 + beat + off, bass(hz(r + (12 if beat == 3 and off == 0.75 else 0)), 0.25, v), 1.0)
+    # 弦樂斷奏琶音
+    for bar in range(2, 16):
+        c = chord(bar)
+        for i in range(16):
+            d = c + [0, 2, 4, 7, 4, 2, 0, 2][i % 8]
+            tr.put(bar * 4 + i / 4, spic(hz(deg(root - 12, mode, d)), 0.15, 0.9 if i % 4 == 0 else 0.6), 1.0)
+    # B 段：每小節開頭銅管重音（和弦三個音）
+    for bar in range(10, 16):
+        c = chord(bar)
+        for d in (c, c + 2, c + 4):
+            tr.put(bar * 4, brass(hz(deg(root - 12, mode, d)), tr.beat * (1.5 if bar % 2 else 3.5)), 1.0)
+    # 主旋律
+    pos = 8.0
+    pos = tr.melody(lead, root, mode, motif, pos, 1.0)
+    pos = tr.melody(lead, root, mode, answer, pos, 1.0)
+    tr.melody(lead, root, mode, motif, 40.0, 1.0, octave=1)
+    tr.melody(oud, root, mode, motif, 40.0, 0.6)
     if extra:
         extra(tr)
     return tr.render()
 
 
 def philippi():
-    maqsum = "D..T..T.D...T..."   # 中東最常見的節奏型「麥格蘇姆」
     motif = [(0, 1), (1, 0.5), (2, 0.5), (3, 1), (2, 0.5), (1, 0.5), (0, 2), (None, 2), (4, 1), (3, 1), (2, 1), (1, 1), (0, 4)]
     answer = [(4, 1), (5, 0.5), (4, 0.5), (3, 1), (2, 1), (3, 1.5), (2, 0.5), (1, 2), (2, 1), (1, 1), (0, 2), (-1, 2), (0, 2)]
-    return city(62, "hijaz", 100, maqsum, motif, answer)
+    return battle(62, "hijaz", 132, [0, 1, 0, -1], motif, answer)
 
 
 def thessalonica():
-    # 暴動：比較快、鼓比較密
-    malfuf = "D..T..T.D..T.kT."
+    # 暴動：最快、鼓最密
     motif = [(0, 0.5), (0, 0.5), (1, 0.5), (2, 0.5), (3, 1), (4, 1), (3, 0.5), (2, 0.5), (1, 1), (0, 2), (4, 0.5), (4, 0.5), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1), (0, 2)]
     answer = [(7, 1), (6, 0.5), (5, 0.5), (4, 1), (3, 1), (4, 0.5), (3, 0.5), (2, 1), (1, 2), (2, 0.5), (3, 0.5), (2, 1), (1, 1), (0, 1), (-1, 1), (0, 2)]
-
-    def stomp(tr):
-        tr.drums("D...D...D...D.D.", KIT, 0.35)
-    return city(64, "hijaz", 112, malfuf, motif, answer, extra=stomp)
+    return battle(64, "hijaz", 144, [0, 0, 1, -1], motif, answer, taiko_a="B..B....B..B....", taiko_b="B.BB..B.B.BB.BB.",
+                  darbuka="D..T..T.D..T.kT.")
 
 
 def corinth():
-    # 港口城市：和聲小調，奈伊笛主奏，比較抒情但不安
-    saidi = "D..TD...T..T...."
+    # 和聲小調：i - VI - VII - V
     motif = [(4, 2), (3, 1), (2, 1), (3, 1.5), (2, 0.5), (1, 1), (2, 1), (0, 4), (None, 1), (2, 1), (3, 1), (4, 1), (5, 2), (4, 2)]
     answer = [(6, 1.5), (5, 0.5), (4, 1), (3, 1), (2, 2), (3, 1), (2, 1), (1, 1), (0, 1), (-1, 2), (0, 4)]
-
-    def oud_bass(tr):
-        for bar in range(20):
-            tr.melody(oud, 57 - 12, "nahawand", [(0, 1.5), (4, 0.5), (3, 1), (2, 1)], bar * 4, 0.55)
-    return city(57, "nahawand", 104, saidi, motif, answer, lead=ney, extra=oud_bass)
+    return battle(57, "nahawand", 136, [0, 5, 6, 4], motif, answer, darbuka="D..TD...T..T....")
 
 
 def ephesus():
-    # 亞底米的城：暗、低沉的人聲持續、慢一點但重
-    ayoub = "D..kD.T.D..kD.T."
+    # 暗：i - bII - bVII - i，底下加低沉合唱
     motif = [(0, 2), (1, 1), (0, 1), (-1, 2), (0, 2), (3, 2), (2, 1), (1, 1), (0, 4)]
     answer = [(4, 1), (3, 1), (4, 1), (5, 1), (4, 2), (3, 1), (1, 1), (2, 2), (1, 1), (0, 1), (0, 4)]
 
     def chant(tr):
-        for bar in range(0, 20, 2):
-            d = [0, 0, 3, 1, 0, 0, -2, 0, 3, 0][bar // 2]
-            tr.melody(choir, 60 - 12, "kurd", [(d, 8)], bar * 4, 0.8)
-    return city(60, "kurd", 96, ayoub, motif, answer, extra=chant, drone_note=36)
+        for bar in range(2, 16, 2):
+            tr.melody(choir, 48, "kurd", [([0, 1, -1, 0][(bar // 2) % 4], 8)], bar * 4, 0.7)
+    return battle(60, "kurd", 128, [0, 1, -1, 0], motif, answer, darbuka="D..kD.T.D..kD.T.", extra=chant)
 
 
 def boss():
-    tr = Track(bpm=124, bars=8)
-    root = 62
-    tr.put(0, drone(hz(38), tr.length / SR + 2), 1.4)
-    tr.drums("D.DTD.T.D.DTD.TT", KIT, 0.95)
-    tr.drums("F...F...F...F.F.", KIT, 0.5)
-    riff = [(0, 0.5), (1, 0.5), (0, 0.5), (-1, 0.5), (0, 1), (None, 1)]
-    for bar in range(8):
-        shift = [0, 0, 1, 0, 0, 0, 3, 2][bar]
-        tr.melody(oud, root - 12, "hijaz", [(d + shift if d is not None else None, l) for d, l in riff], bar * 4, 1.0)
-    hi = [(4, 1), (5, 1), (4, 1), (3, 1), (2, 2), (1, 2), (4, 1), (5, 1), (7, 2), (5, 2), (4, 2)]
-    tr.melody(qanun, root + 12, "hijaz", hi, 16, 0.7)
-    return tr.render()
+    # Boss：最快、大鼓每拍、銅管不停
+    tr_motif = [(0, 0.5), (1, 0.5), (0, 0.5), (-1, 0.5), (0, 1), (3, 1), (2, 0.5), (1, 0.5), (0, 0.5), (-1, 0.5), (0, 2), (4, 1), (5, 0.5), (4, 0.5), (3, 1), (2, 1), (1, 2), (0, 2)]
+    answer = [(7, 1), (5, 1), (4, 1), (3, 1), (4, 0.5), (3, 0.5), (2, 0.5), (1, 0.5), (0, 2), (4, 1), (3, 1), (1, 1), (2, 1), (0, 4)]
+
+    def stabs(tr):
+        for bar in range(2, 10):
+            for beat in (0, 2):
+                tr.put(bar * 4 + beat, brass(hz(deg(50, "hijaz", [0, 1, 0, -1][bar % 4])), tr.beat * 0.8), 0.9)
+    return battle(62, "hijaz", 150, [0, 1, 0, -1], tr_motif, answer, taiko_a="B...B...B...B.B.", taiko_b="B.B.B.B.B.B.BBBB",
+                  darbuka="D.DTD.T.D.DTD.TT", extra=stabs)
 
 
 def fever():
-    # 五旬節：明亮的大調，合唱、拍手、快節奏
-    tr = Track(bpm=128, bars=8)
-    root = 62
-    tr.put(0, drone(hz(50), tr.length / SR + 2), 0.6)
-    tr.drums("D...T.D.D...T.k.", KIT, 0.8)
-    tr.drums("....C.......C...", KIT, 0.9)
-    for bar in range(0, 8, 2):
-        chord = [[0, 2, 4], [3, 5, 7], [4, 6, 8], [0, 2, 4]][bar // 2]
-        for d in chord:
-            tr.melody(choir, root, "rast", [(d, 8)], bar * 4, 0.55)
+    # 五旬節：明亮大調 I - IV - V - I，拍手、合唱
     tune = [(4, 1), (4, 0.5), (5, 0.5), (6, 1), (4, 1), (7, 2), (6, 1), (5, 1), (4, 1), (5, 0.5), (4, 0.5), (3, 1), (2, 1), (4, 4)]
-    tr.melody(qanun, root + 12, "rast", tune, 0, 0.9)
-    tr.melody(qanun, root + 12, "rast", tune, 16, 0.9)
-    return tr.render()
+    answer = [(7, 1), (6, 0.5), (5, 0.5), (4, 1), (5, 1), (6, 2), (4, 2), (5, 1), (4, 1), (3, 1), (2, 1), (0, 4)]
+
+    def joy(tr):
+        tr.drums("....C.......C...", KIT, 1.0)
+        for bar in range(0, 16, 2):
+            c = [0, 3, 4, 0][(bar // 2) % 4]
+            for d in (c, c + 2, c + 4):
+                tr.melody(choir, 62, "rast", [(d, 8)], bar * 4, 0.5)
+    return battle(62, "rast", 140, [0, 3, 4, 0], tune, answer, lead=qanun, darbuka="D...T.D.D...T.k.", extra=joy)
 
 
 if __name__ == "__main__":
