@@ -17,6 +17,7 @@ const C_HEAL := Color("7be08a")
 const C_RED := Color("e8481c")
 const C_FLAME := Color("ff8a2a")
 const C_VL := Color("6b3a8c")
+const SHARE_URL := "https://windsjp00171-star.github.io/acts-survivors/"
 
 var D: Dictionary
 var tex := {}
@@ -188,6 +189,10 @@ var rains: Array = []      # 義人的禱告：天降大雨的畫面
 var star_t := 10.0         # 拔摩海島：下一次星辰墜落的倒數
 var star_falls: Array = [] # 正在墜落的星 {pos, t, max, r, dmg}
 var lamp_tick := 0.0
+# 五重職事（弗 4:11）：出發前選的呼召
+var calling := "apostle"
+var prophecy := {}         # 先知：預言之地 {pos, r, t}
+var prophecy_t := 12.0
 
 var smoke := false
 var smoke_shot := ""
@@ -254,6 +259,11 @@ func _ready() -> void:
 				D.paul.tag = d.tag
 				D.paul.color = d.get("color", "#ffd75e")
 		D.companions = D.companions.filter(func(d): return d.key != leader)
+	calling = str(Save.run_config.get("calling", Save.data.get("calling", "apostle")))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--calling="):
+			calling = a.substr(10)
+	Save.run_config.calling = calling
 	# 永久恩典（用餅兌換的）
 	D.paul.hp = float(D.paul.hp) + Save.up_value("vigor")
 	D.paul.speed = float(D.paul.speed) * (1.0 + Save.up_value("run"))
@@ -294,6 +304,10 @@ func _ready() -> void:
 	if starter == leader:
 		starter = "tim" if leader != "tim" else "luke"
 	first_recruit = starter
+	if calling == "apostle" and by_key.has(starter):
+		# 使徒：第一位同工的流派一開始就算兩人
+		var stag: String = by_key[starter].tag
+		school_mods["solo_" + stag] = float(school_mods.get("solo_" + stag, 0.0)) + 1.0
 	rerolls_left = Save.rerolls()
 	if not smoke or OS.get_cmdline_user_args().has("--prov"):
 		_use_provisions(Save.take_provisions())
@@ -637,10 +651,10 @@ func _fever_dur() -> float:
 	return float(D.fever.duration) + (3.0 if epistles.has("fever_plus") else 0.0)
 
 func _scatter_mult() -> float:
-	return maxf(0.3, 1.0 - fruits.get("peace", 0) * 0.1)
+	return maxf(0.3, 1.0 - fruits.get("peace", 0) * 0.1) * (0.3 if calling == "shepherd" else 1.0)
 
 func _comp_max_hp() -> float:
-	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1)
+	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1) * (1.3 if calling == "shepherd" else 1.0)
 
 func _speed() -> float:
 	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run"))
@@ -725,9 +739,15 @@ func _make_cards() -> Array:
 		var c: Dictionary = by_key[evo.companion]
 		pool.push_front({"kind": "evolve", "key": c.key, "title": "進化！" + evo.name, "tag": c.tag, "desc": c.name + "：" + evo.desc})
 		break
-	var cards := pool.slice(0, 3)
+	var n_cards := 4 if calling == "teacher" else 3
+	if calling == "teacher":
+		# 教師：有流派卡時一定排進來
+		for sc in pool.filter(func(cd): return cd.kind == "school"):
+			pool.erase(sc)
+			pool.insert(mini(1, pool.size()), sc)
+	var cards := pool.slice(0, n_cards)
 	var fill := _filler_cards()
-	while cards.size() < 3 and not fill.is_empty():
+	while cards.size() < n_cards and not fill.is_empty():
 		cards.append(fill.pop_front())
 	return cards
 
@@ -868,6 +888,9 @@ func _task_text() -> String:
 
 func _refresh_build_text() -> void:
 	var lines := []
+	for CL in D.get("callings", []):
+		if CL.id == calling:
+			lines.append("呼召　%s・%s" % [CL.name, CL.word])
 	for tag in school_tier:
 		if int(school_tier[tag]) > 0:
 			var nc := 0
@@ -924,7 +947,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		if choosing and event.keycode == KEY_R:
 			_reroll()
 			return
-		if choosing and event.keycode >= KEY_1 and event.keycode <= KEY_3:
+		if choosing and event.keycode >= KEY_1 and event.keycode <= KEY_4 and event.keycode - KEY_1 < pending_cards.size():
 			ui.pick(event.keycode - KEY_1)
 			return
 		if not over and not choosing and event.keycode == KEY_SPACE:
@@ -1158,6 +1181,9 @@ func _trial_for_build() -> String:
 func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if e.dead or float(e.get("ally", 0.0)) > 0.0:
 		return
+	if src is Dictionary and calling == "evangelist" and randf() < 0.05 and not e.get("elite", false) and not e.get("boss", false):
+		_convert(e, 5.0)   # 傳福音的：不管哪個流派，這一擊都可能把敵人說服過來
+		return
 	if fever > 0.0:
 		dmg *= 1.5
 	dmg *= _dmg_mult()
@@ -1186,8 +1212,12 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 			praise += 1.0
 		if float(bond_buff.get(src.get("key", ""), 0.0)) > 0.0:
 			dmg *= 2.0   # 同行合擊：加倍
+		if t < float(src.get("cross_until", -1.0)):
+			dmg *= 1.4   # 使徒：跨流派的連結
 	if crit_t > 0.0:
 		dmg *= 2.0   # 同行合擊：我的主，我的神
+	if not prophecy.is_empty() and e.pos.distance_to(prophecy.pos) < prophecy.r:
+		dmg *= 2.0   # 先知：預言之地
 	if e.type == "lies":
 		dmg *= 1.0 + 0.5 * mini(armor.get("belt", 0), 2)
 	if e.get("boss", false) and boss != null and boss.state == "break":
@@ -1586,6 +1616,8 @@ func _step(dt: float) -> void:
 	var luke = by_key.get("luke")
 	var revive_mult: float = luke.st.revive_speed if luke != null and _active(luke) else 1.0
 	if epistles.has("revive_plus"):
+		revive_mult *= 2.0
+	if calling == "shepherd":
 		revive_mult *= 2.0
 	var barn = by_key.get("barn")
 	var barn_on: bool = barn != null and _active(barn)
@@ -2033,6 +2065,8 @@ func _run_link_queue() -> void:
 		if not _active(L.dst):
 			continue
 		var from: Vector2 = paul.pos if _glob(L.kind) else L.src.pos
+		if calling == "apostle" and L.src is Dictionary and L.src.get("tag", "") != L.dst.tag:
+			L.dst.cross_until = t + 0.6   # 使徒：不同流派之間的連結威力加重
 		if _cast(L.dst, true, q.depth):
 			_tag_effect(L.dst)
 			link_count += 1
@@ -2354,14 +2388,21 @@ func _persuade(e: Dictionary, n: int) -> void:
 	e.msg = int(e.get("msg", 0)) + n
 	if e.msg < need:
 		return
+	e.msg = 0
+	_convert(e, _sv("講道", "convert_dur"))
+
+
+## 敵人被說服、倒戈幫你打（同時最多 14 隻）
+func _convert(e: Dictionary, dur: float) -> void:
+	if e.dead or float(e.get("ally", 0.0)) > 0.0:
+		return
 	var allies := 0
 	for o in enemies:
 		if float(o.get("ally", 0.0)) > 0.0:
 			allies += 1
 	if allies >= 14:
 		return
-	e.msg = 0
-	e.ally = _sv("講道", "convert_dur")
+	e.ally = dur
 	e.stun = 0.0
 	e.knock = Vector2.ZERO
 	run_converts += 1
@@ -2381,6 +2422,9 @@ func _update_ally(e: Dictionary, dt: float) -> void:
 			for o in enemies.duplicate():
 				if o != e and not o.dead and o.pos.distance_to(e.pos) < r:
 					_hurt(o, 16.0 + level, e.pos)
+		if calling == "evangelist":
+			for i in 2:
+				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
 		_kill(e, true)
 		return
 	var best = null
@@ -2539,6 +2583,8 @@ func _update_schools_step(dt: float) -> void:
 		hl.t += dt
 	holies = holies.filter(func(hl): return hl.t < 0.7)
 	crit_t = maxf(0.0, crit_t - dt)
+	if calling == "prophet":
+		_update_prophecy(dt)
 	for rn in rains:
 		rn.t += dt
 	rains = rains.filter(func(rn): return rn.t < 1.6)
@@ -2577,6 +2623,37 @@ func _member(k: String) -> Dictionary:
 	return {}
 
 
+## 先知：每隔一陣子，在敵人最多的地方標出「預言之地」，裡面的敵人受到兩倍傷害
+func _update_prophecy(dt: float) -> void:
+	if not prophecy.is_empty():
+		prophecy.t -= dt
+		if prophecy.t <= 0.0:
+			prophecy = {}
+		return
+	prophecy_t -= dt
+	if prophecy_t > 0.0:
+		return
+	prophecy_t = 14.0
+	var v := _view_rect()
+	var foes := enemies.filter(func(e): return not e.dead and v.has_point(e.pos))
+	if foes.is_empty():
+		return
+	var best: Vector2 = foes[0].pos
+	var best_n := -1
+	for i in mini(12, foes.size()):
+		var c0: Vector2 = foes[randi() % foes.size()].pos
+		var n := 0
+		for e in foes:
+			if e.pos.distance_squared_to(c0) < 2500.0:
+				n += 1
+		if n > best_n:
+			best_n = n
+			best = c0
+	prophecy = {"pos": best, "r": 52.0, "t": 8.0}
+	if tag_fx.size() < 12:
+		tag_fx.append({"pos": best + Vector2(-12, 20), "text": "預言之地", "col": Color("c8a0ff"), "t": 0.0})
+
+
 ## 招募卡上的提示：跟隊伍裡的誰是搭檔
 func _bond_hint(k: String) -> String:
 	for B in D.get("bonds", []):
@@ -2597,9 +2674,10 @@ func _bond_check(c: Dictionary) -> void:
 		if t < float(bond_cd.get(i, 0.0)):
 			continue
 		var other := _member(B.b if B.a == c.key else B.a)
-		if other.is_empty() or t - float(other.get("last_cast", -99.0)) > float(D.bond_rules.window):
+		var shep: bool = calling == "shepherd"
+		if other.is_empty() or t - float(other.get("last_cast", -99.0)) > float(D.bond_rules.window) * (1.7 if shep else 1.0):
 			continue
-		bond_cd[i] = t + float(D.bond_rules.cooldown)
+		bond_cd[i] = t + float(D.bond_rules.cooldown) * (0.6 if shep else 1.0)
 		_bond_fx(B, c, other)
 
 
@@ -2669,10 +2747,8 @@ func _bond_fx(B: Dictionary, c: Dictionary, other: Dictionary) -> void:
 			var n := 0
 			for e in foes:
 				if n < 12 and not e.get("boss", false) and not e.get("elite", false) and e.pos.distance_to(paul.pos) < 90.0:
-					e.ally = 6.0
 					e.msg = 0
-					e.stun = 0.0
-					run_converts += 1
+					_convert(e, 6.0)
 					n += 1
 			_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 90.0)
 		"garments":
@@ -3306,7 +3382,8 @@ func _update_stars(dt: float) -> void:
 		for i in int(hz.count):
 			var a := randf() * TAU
 			var at: Vector2 = paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(0.0, 70.0)
-			star_falls.append({"pos": at, "t": float(hz.warn), "max": float(hz.warn), "r": float(hz.radius), "dmg": float(hz.damage) * _curve(D.waves.scaling.damage, t)})
+			var wn: float = float(hz.warn) * (1.5 if calling == "prophet" else 1.0)
+			star_falls.append({"pos": at, "t": wn, "max": wn, "r": float(hz.radius), "dmg": float(hz.damage) * _curve(D.waves.scaling.damage, t)})
 
 
 func _update_chunks() -> void:
@@ -3462,6 +3539,14 @@ func _draw_ground_fx() -> void:
 		if o != paul and o.level == 0:
 			continue
 		n.draw_rect(Rect2(round(o.pos.x) - 4, round(o.pos.y) - 1, 9, 2), Color(0.24, 0.13, 0.05, 0.35))
+	# 先知：預言之地（紫色的圈，中間一隻眼睛）
+	if not prophecy.is_empty():
+		var pc: Vector2 = prophecy.pos.round()
+		_dot_ring(n, pc, prophecy.r, 0.8, Color("c8a0ff"), 3.0, t * 0.6, 2)
+		_dot_ring(n, pc, prophecy.r - 6.0, 0.8, C_GOLD, 5.0, -t * 0.6, 1)
+		n.draw_rect(Rect2(pc.x - 6, pc.y - 2, 13, 5), Color("2a1640"))
+		n.draw_rect(Rect2(pc.x - 5, pc.y - 1, 11, 3), Color("c8a0ff"))
+		n.draw_rect(Rect2(pc.x - 1, pc.y - 2, 3, 5), C_GOLD)
 	# 星辰墜落的落點：紅色虛線圈慢慢收縮
 	for sf in star_falls:
 		if sf.t > 0.0:
@@ -4174,7 +4259,7 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 				tele = _make_tele(b)
 				Sfx.play("warn", 0.0)
 				b.state = "warn"
-				b.timer = B.warn * (0.7 if phase2 else 1.0)
+				b.timer = B.warn * (0.7 if phase2 else 1.0) * (1.4 if calling == "prophet" else 1.0)
 		"warn":
 			b.timer -= dt
 			if b.timer <= 0.0:
@@ -4364,7 +4449,8 @@ func _win() -> void:
 		if stage_i + 1 < all.size():
 			nxt = "　下一站：" + all[stage_i + 1].name
 		lines.append(["解鎖書信卡「%s」%s" % [stage.epistle.name, nxt], 12, C_HEAL])
-	ui.show_game_over(lines + _finish_run(), "再走一次", true)
+	var share := "我在《宣教之路》%s%s！\n「%s」（%s）\n一起來玩：%s" % [stage.name, "建立了教會" if founded_now else "通關了", D.boss.win_text, D.boss.win_ref, SHARE_URL]
+	ui.show_game_over(lines + _finish_run(), "再走一次", true, stage.get("story", ""), share)
 
 
 # ---------- 失敗 ----------
@@ -4398,7 +4484,8 @@ func _game_over() -> void:
 		["四面受敵，卻不被困住；心裡作難，卻不至失望；\n遭逼迫，卻不被丟棄；打倒了，也不至死亡。", 13, C_CREAM],
 		["林後 4:8–9", 11, Color("c9a46b")],
 		["撐了 %02d:%02d　Lv.%d　驅散 %d\n最常被「%s」打散" % [s / 60, s % 60, level, kills, who], 13, Color("f4ead2")],
-	] + summary)
+	] + summary, "再出發", false, stage.get("story", ""),
+		"我在《宣教之路》的%s撐了 %d:%02d，驅散了 %d 個懼怕與謊言。\n「打倒了，也不至死亡。」（林後 4:9）\n一起來玩：%s" % [stage.name, s / 60, s % 60, kills, SHARE_URL])
 
 
 # ---------- 自動測試 ----------

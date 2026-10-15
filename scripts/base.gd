@@ -208,6 +208,35 @@ func _show_home() -> void:
 		for L in leaders:
 			if L.key == lead:
 				_text(content, "%s　血 %d　速度 %d" % [L.desc, int(L.hp), int(L.speed)], 11, UIKit.MUTED, true)
+	# 呼召：五重職事（弗 4:11），條件達成才開放
+	var cur: String = Save.data.get("calling", "apostle")
+	_text(content, "呼召（弗 4:11）", 16, UIKit.GOLD)
+	var cflow := HFlowContainer.new()
+	cflow.add_theme_constant_override("h_separation", 6)
+	cflow.add_theme_constant_override("v_separation", 6)
+	content.add_child(cflow)
+	for CL in G.get("callings", []):
+		var cid: String = CL.id
+		var open: bool = Save.stat_value(CL.unlock.stat) >= int(CL.unlock.min)
+		var cb := UIKit.button(("%s %s" % [CL.icon, CL.name]) if open else "？ " + CL.name, 13, cid == cur and open)
+		cb.custom_minimum_size = Vector2(84, 36)
+		cb.disabled = not open
+		cb.tooltip_text = CL.unlock.text
+		cb.pressed.connect(func():
+			Save.data.calling = cid
+			Save.save_profile()
+			_show_home())
+		cflow.add_child(cb)
+	for CL in G.get("callings", []):
+		if CL.id == cur:
+			_text(content, "%s・%s（%s）：%s" % [CL.name, CL.word, CL.ref, CL.desc], 12, UIKit.SKY, true)
+			_text(content, CL.rule, 12, UIKit.INK, true)
+	var locked := []
+	for CL in G.get("callings", []):
+		if Save.stat_value(CL.unlock.stat) < int(CL.unlock.min):
+			locked.append("%s：%s" % [CL.name, CL.unlock.text])
+	if not locked.is_empty():
+		_text(content, "還沒開放的呼召　" + "、".join(locked), 11, UIKit.MUTED, true)
 	var starter: String = Save.data.starter
 	if not Save.is_unlocked(starter) or starter == lead:
 		starter = Save.meta.default_starter
@@ -246,6 +275,8 @@ func _show_home() -> void:
 		_text(col, stg.intro if open else "建立前一間教會後解鎖", 11, UIKit.MUTED, true)
 		if founded:
 			_text(col, "書信卡：" + stg.epistle.name, 11, UIKit.SKY, true)
+		if open and i == sel and stg.has("story"):
+			_text(col, "這段故事：" + stg.story, 11, UIKit.INK, true)
 		if open and i != sel:
 			var pick := UIKit.button("選這裡", 12)
 			pick.custom_minimum_size = Vector2(72, 30)
@@ -323,6 +354,13 @@ func _show_home() -> void:
 	_text(content, "提示：每局結束都會帶回「見證」，用來解鎖新同伴、果子、軍裝和隊伍位置。完成見證錄的目標可以解鎖舊約人物。", 12, UIKit.MUTED, true)
 
 
+func _calling_ok(cid: String) -> String:
+	for CL in G.get("callings", []):
+		if CL.id == cid and Save.stat_value(CL.unlock.stat) >= int(CL.unlock.min):
+			return cid
+	return "apostle"
+
+
 func _endless_open() -> bool:
 	return Save.data.churches.size() >= int(G.endless.unlock_churches)
 
@@ -339,7 +377,8 @@ func _start() -> void:
 	var sel := clampi(int(Save.data.stage), 0, stages.size() - 1)
 	Save.run_config = {"starter": starter, "stage": sel if _stage_open(sel) else 0,
 		"trials": Save.data.trials_on.duplicate() if Save.trials_unlocked() else [],
-		"endless": _endless_open() and bool(Save.data.get("endless_on", false))}
+		"endless": _endless_open() and bool(Save.data.get("endless_on", false)),
+		"calling": _calling_ok(str(Save.data.get("calling", "apostle")))}
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
@@ -832,6 +871,13 @@ func _show_log() -> void:
 func _show_codex() -> void:
 	_clear("codex")
 	var cx: Dictionary = Save.data.get("codex", {})
+	# 信仰小辭典：一開始就全部看得到，給還不熟悉聖經的玩家
+	var words: Array = codex.get("words", [])
+	if not words.is_empty():
+		_text(content, "信仰小辭典", 16, UIKit.GOLD)
+		_text(content, "遊戲裡的名詞，在聖經裡是什麼意思？", 11, UIKit.MUTED, true)
+		for w in words:
+			_codex_entry(true, w.name, [[w.text, UIKit.INK], ["（%s）" % w.ref, UIKit.SKY]])
 	var seen_e: Array = cx.get("enemies", [])
 	var en: Array = codex.enemies
 	_codex_section("敵人", en.size(), en.filter(func(e): return seen_e.has(e.id)).size())

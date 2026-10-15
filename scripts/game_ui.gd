@@ -443,7 +443,7 @@ const KIND_COL := {"recruit": Color("7be08a"), "up": Color("4fd8ff"), "branch": 
 
 
 ## 一張升級卡的內容：左邊人物圖（有的話）、上面是種類標籤，再來標題、說明
-func _card_body(b: Button, c: Dictionary, i: int, portrait: bool) -> void:
+func _card_body(b: Button, c: Dictionary, i: int, portrait: bool, narrow := false) -> void:
 	var kcol: Color = KIND_COL.get(c.kind, C_CREAM)
 	var m := MarginContainer.new()
 	m.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -479,7 +479,7 @@ func _card_body(b: Button, c: Dictionary, i: int, portrait: bool) -> void:
 	col.add_child(dl)
 	for l in [badge, tl, dl]:
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		l.custom_minimum_size.x = 220 if portrait else 168
+		l.custom_minimum_size.x = 220 if portrait else (126 if narrow else 168)
 		if not portrait:
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
@@ -507,18 +507,19 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 		sub.size.x = size.x - 60.0
 		sub.position = Vector2(30, (34 if not portrait else 90) + 30)
 	cards_box = VBoxContainer.new() if portrait else HBoxContainer.new()
-	cards_box.add_theme_constant_override("separation", 10)
+	var narrow: bool = not portrait and cards.size() >= 4   # 教師：四張卡時窄一點才排得下
+	cards_box.add_theme_constant_override("separation", 6 if narrow else 10)
 	root.add_child(cards_box)
 	card_buttons.clear()
 	for i in cards.size():
 		var c: Dictionary = cards[i]
 		var card := PanelContainer.new()
 		card.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
-		card.custom_minimum_size = Vector2(320, 70) if portrait else Vector2(188, 172)
+		card.custom_minimum_size = Vector2(320, 70) if portrait else (Vector2(144, 172) if narrow else Vector2(188, 172))
 		cards_box.add_child(card)
 		var b := Button.new()
 		card.add_child(b)
-		_card_body(b, c, i, portrait)
+		_card_body(b, c, i, portrait, narrow)
 		var kcol: Color = KIND_COL.get(c.kind, C_BRONZE)
 		b.add_theme_stylebox_override("normal", _box(Color("241a2e"), kcol.darkened(0.25)))
 		b.add_theme_stylebox_override("hover", _box(Color("3a2a40"), C_GOLD))
@@ -648,7 +649,7 @@ func hide_cards() -> void:
 
 
 # ---------- 失敗 ----------
-func show_game_over(lines: Array, button_text := "再出發", home_first := false) -> void:
+func show_game_over(lines: Array, button_text := "再出發", home_first := false, story := "", share := "") -> void:
 	var dim := ColorRect.new()
 	dim.color = Color(0.04, 0.02, 0.06, 0.78)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -657,11 +658,13 @@ func show_game_over(lines: Array, button_text := "再出發", home_first := fals
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_theme_constant_override("separation", 8)
 	root.add_child(box)
+	var line_labels := []
 	for row in lines:
 		var l := label(row[0], row[1], row[2])
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		root.remove_child(l)
 		box.add_child(l)
+		line_labels.append(l)
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
@@ -675,6 +678,39 @@ func show_game_over(lines: Array, button_text := "再出發", home_first := fals
 	btn.custom_minimum_size = Vector2(140, 40)
 	btn.pressed.connect(func(): restart_pressed.emit())
 	row.add_child(btn)
+	if story != "" or share != "":
+		# 這段故事（給還不熟悉聖經的玩家）與分享文字
+		var row2 := HBoxContainer.new()
+		row2.alignment = BoxContainer.ALIGNMENT_CENTER
+		row2.add_theme_constant_override("separation", 12)
+		box.add_child(row2)
+		var story_l := label(story, 12, C_CREAM)
+		root.remove_child(story_l)
+		story_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		story_l.custom_minimum_size = Vector2(minf(520.0, vp().x - 40.0), 0)
+		story_l.visible = false
+		box.add_child(story_l)
+		box.move_child(story_l, row2.get_index())
+		if story != "":
+			var sb := UIKit.button("這段故事", 13)
+			sb.custom_minimum_size = Vector2(120, 32)
+			sb.pressed.connect(func():
+				# 看故事時先收起結算的細節（只留標題），畫面才放得下
+				story_l.visible = not story_l.visible
+				sb.text = "收起故事" if story_l.visible else "這段故事"
+				for j in range(1, line_labels.size()):
+					line_labels[j].visible = not story_l.visible
+				await get_tree().process_frame
+				box.size = Vector2.ZERO
+				box.position = ((vp() - box.size) / 2.0).round())
+			row2.add_child(sb)
+		if share != "":
+			var shb := UIKit.button("複製分享文字", 13)
+			shb.custom_minimum_size = Vector2(140, 32)
+			shb.pressed.connect(func():
+				DisplayServer.clipboard_set(share)
+				shb.text = "已複製，貼給朋友吧！")
+			row2.add_child(shb)
 	for n in names:
 		names[n].visible = false
 	await get_tree().process_frame

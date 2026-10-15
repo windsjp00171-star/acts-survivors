@@ -87,6 +87,8 @@ func party_cap() -> int:
 	for id in data.bought:
 		if id.begins_with("slot_"):
 			n += 1
+	if run_config.get("calling", "") == "apostle":
+		n += 1   # 使徒：隊伍上限 +1
 	return n
 
 

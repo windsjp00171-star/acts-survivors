@@ -270,6 +270,14 @@
   },
   "_music_bpm說明": "每首音樂的速度（要跟 tools/make_music.py 一致），詩歌的「節拍」用它對拍子。",
   "music_bpm": {"philippi": 132, "thessalonica": 144, "athens": 126, "corinth": 136, "ephesus": 128, "jerusalem": 116, "malta": 140, "rome": 120, "boss": 150, "fever": 140},
+  "_callings說明": "五重職事（弗 4:11）：出發前選的「呼召」，改變玩法而不是加數值。unlock 用 Save.stat_value 的統計。效果寫在 main.gd（搜尋 calling）。",
+  "callings": [
+    {"id": "apostle", "name": "使徒", "word": "開拓", "ref": "弗 4:11；羅 15:20", "icon": "⛺", "desc": "開疆闢土、建立教會的人", "rule": "第一位同工的流派一開始就啟動；隊伍上限 +1；不同流派之間的肢體連結威力 +40%", "unlock": {"stat": "runs", "min": 0, "text": ""}},
+    {"id": "shepherd", "name": "牧師", "word": "看顧", "ref": "弗 4:11；約 10:11", "icon": "♥", "desc": "照顧羊群、不讓一隻走失的人", "rule": "同伴不容易被打散、血量 +30%、倒下後起來快一倍；同行合擊更常發動", "unlock": {"stat": "runs", "min": 3, "text": "出發 3 次"}},
+    {"id": "teacher", "name": "教師", "word": "裝備", "ref": "弗 4:11–12；提後 2:2", "icon": "✎", "desc": "把真理講明白、裝備聖徒的人", "rule": "升級時多一張卡可以選；有流派卡時一定會出現", "unlock": {"stat": "wins", "min": 1, "text": "通關 1 次"}},
+    {"id": "evangelist", "name": "傳福音的", "word": "得人", "ref": "弗 4:11；提後 4:5", "icon": "✦", "desc": "把好消息帶給還不認識的人", "rule": "不管哪個流派，打中敵人都有機會說服他倒戈；被說服的敵人離開時留下經驗", "unlock": {"stat": "churches", "min": 2, "text": "建立 2 間教會"}},
+    {"id": "prophet", "name": "先知", "word": "看見", "ref": "弗 4:11；林前 14:3", "icon": "◉", "desc": "聽見神的心意、提醒眾人的人", "rule": "Boss 與星辰的預警更久；每隔一陣子在地上標出「預言之地」，裡面的敵人受到兩倍傷害", "unlock": {"stat": "churches", "min": 4, "text": "建立 4 間教會"}}
+  ],
   "_bonds說明": "同行：兩位同伴都在隊伍裡、而且在 1.2 秒內先後出手，就會發動「合擊」（每組 cooldown 秒一次）。a 或 b 可以是主角。fx 是效果種類（寫在 main.gd 的 _bond_fx）。",
   "bond_rules": {"window": 1.2, "cooldown": 14},
   "bonds": [
