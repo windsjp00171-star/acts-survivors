@@ -408,13 +408,17 @@ func _build_world() -> void:
 
 ## 恩賜樹：依流派加上傷害、攻速、範圍、專屬連結強度與終極恩賜
 func _apply_gifts(c: Dictionary) -> void:
-	var nodes: Array = Save.meta.gifts.nodes
-	var r := func(kind: String) -> int: return Save.gift_rank(c.tag, kind)
-	c.tdmg = 1.0 + r.call("dmg") * float(nodes[0].per)
-	c.aff = float(c.aff) * (1.0 + r.call("speed") * float(nodes[1].per))
-	c.tarea = 1.0 + r.call("area") * float(nodes[2].per)
-	c.tlink = 1.0 + r.call("link") * float(nodes[3].per)
-	c.tult = r.call("ult") > 0
+	var per := {}
+	for nd in Save.meta.gifts.nodes:
+		per[nd.id] = Save.gift_rank(c.tag, nd.id) * float(nd.per)
+	c.tdmg = 1.0 + per.dmg
+	c.aff = float(c.aff) * (1.0 + per.speed)
+	c.tarea = 1.0 + per.area
+	c.tlink = 1.0 + per.link
+	c.telite = 1.0 + per.elite
+	c.tstart = per.start > 0.0
+	c.tlinkcd = 1.0 - per.linkcd
+	c.tult = per.ult > 0.0
 	c.ult_cd = 0.0
 
 
@@ -473,7 +477,7 @@ func _recruit(c: Dictionary) -> void:
 		c.home = SLOTS[_party_count() % SLOTS.size()]
 	else:
 		c.home = by_key[c.follows].home + Vector2(14, 0)
-	_set_level(c, 1)
+	_set_level(c, 2 if c.get("tstart", false) else 1)   # 恩賜樹「直接 Lv2」
 	c.base = paul.pos + c.home + Vector2(randf_range(-30, 30), 40)
 	c.pos = c.base
 	c.node.visible = true
@@ -977,6 +981,8 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		dmg *= 1.0 + float(e.expose)   # 被尼哥底母的燈照到：受到更多傷害
 	if src is Dictionary:
 		dmg *= float(src.get("tdmg", 1.0)) * float(src.get("synd", 1.0))
+		if e.get("elite", false) or e.get("boss", false):
+			dmg *= float(src.get("telite", 1.0))
 		if src == pa and armor.get("sword", 0) > 0:
 			dmg *= 1.0 + float(D.armor.sword.per[armor.sword - 1])
 	if e.type == "lies":
@@ -1634,7 +1640,7 @@ func _fire_links(kind: String, src, depth: int) -> void:
 			continue
 		if not _glob(kind) and L.src != src:
 			continue
-		L.cd = float(D.links.kinds[kind].cooldown) * float(D.links.levels.cooldown_mult[int(L.get("lv", 1)) - 1])
+		L.cd = float(D.links.kinds[kind].cooldown) * float(D.links.levels.cooldown_mult[int(L.get("lv", 1)) - 1]) * float(L.dst.get("tlinkcd", 1.0))
 		link_queue.append({"L": L, "depth": depth + 1})
 
 

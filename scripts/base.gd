@@ -13,6 +13,7 @@ var nav_buttons := {}
 var portrait := false
 var tabs_enabled := {"home": true, "roster": true, "shop": true, "gifts": true, "ach": true, "codex": true}
 var gift_tag := "講道"
+var gift_sel := -1
 var devlog: Dictionary
 var codex: Dictionary
 
@@ -544,7 +545,7 @@ func _show_gifts() -> void:
 	_clear("gifts")
 	var GF: Dictionary = Save.meta.gifts
 	_text(content, "恩賜樹　用「餅」學習", 16, UIKit.GOLD)
-	_text(content, "六個流派各一棵樹。點越多，下面的節點越會打開；樹底的終極恩賜讓這個流派的專屬連結效果，在他自己出手時也會發生。只作用在這個流派的同伴（主角也算）。", 11, UIKit.MUTED, true)
+	_text(content, "每個流派一棵樹。上面的節點學了，才能學連著的下一個；越下面的層數，這棵樹要先累積越多點。點一個節點看說明。", 11, UIKit.MUTED, true)
 	var flow := HFlowContainer.new()
 	flow.add_theme_constant_override("h_separation", 6)
 	flow.add_theme_constant_override("v_separation", 6)
@@ -555,23 +556,63 @@ func _show_gifts() -> void:
 		b.custom_minimum_size = Vector2(72, 32)
 		b.pressed.connect(func():
 			gift_tag = tg
+			gift_sel = -1
 			_show_gifts())
 		flow.add_child(b)
 	var tree: Dictionary = GF.trees[gift_tag]
-	var TL: Dictionary = G.tag_links.get(gift_tag, {})
-	if not TL.is_empty():
-		var base_v := {"講道": "%.1f" % (1.0 + float(TL.get("mult", 0))), "詩歌": str(roundi(float(TL.get("haste", 0)) * 100)), "守護": str(TL.get("max", 0)),
-			"醫治": str(TL.get("heal", 0)), "差派": str(TL.get("combo", 0)), "門徒": str(TL.get("radius", 0))}
-		_text(content, "%s的專屬連結：%s（%s）\n連結觸發時，被連到的人如果是%s流派，就會多這個效果" % [gift_tag, TL.name, TL.desc % base_v.get(gift_tag, ""), gift_tag], 12, UIKit.SKY, true)
 	var members: Array = G.companions.filter(func(c): return c.tag == gift_tag and c.skill != "").map(func(c): return c.name)
 	_text(content, "這個流派：" + "、".join(members), 11, UIKit.MUTED, true)
-	for i in GF.nodes.size():
-		var nd: Dictionary = GF.nodes[i]
-		var rank := Save.gift_rank(gift_tag, nd.kind)
-		var full: bool = rank >= int(nd.max)
+
+	# 樹：3 欄 × 4 層的格子，節點之間畫連線（像暗黑破壞神 2 的技能樹）
+	var cw := 104.0 if portrait else 150.0
+	var ch := 84.0
+	var canvas := Control.new()
+	canvas.custom_minimum_size = Vector2(cw * 3, ch * 4)
+	canvas.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	content.add_child(canvas)
+	var nodes: Array = GF.nodes
+	var center := func(nd: Dictionary) -> Vector2: return Vector2((int(nd.col) + 0.5) * cw, (int(nd.row) + 0.5) * ch + 7.0)
+	canvas.draw.connect(func():
+		for r in GF.tiers.size():
+			# 每一層上方寫這一層要先累積幾點（點夠了變金色）
+			var need := int(GF.tiers[r])
+			if need > 0:
+				canvas.draw_string(UIKit.font(), Vector2(4, r * ch + 11), "第 %d 層：需 %d 點" % [r + 1, need], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIKit.GOLD if Save.gift_points(gift_tag) >= need else UIKit.MUTED)
+		for nd in nodes:
+			for rq in nd.req:
+				var from: Dictionary = nodes.filter(func(x): return x.id == rq)[0]
+				var lit: bool = Save.gift_rank(gift_tag, rq) > 0
+				canvas.draw_line(center.call(from), center.call(nd), UIKit.GOLD if lit else Color("4a3a50"), 3.0 if lit else 2.0))
+	for i in nodes.size():
+		var nd: Dictionary = nodes[i]
+		var rank := Save.gift_rank(gift_tag, nd.id)
 		var open := Save.gift_open(i, gift_tag)
+		var full: bool = rank >= int(nd.max)
+		var nb := Button.new()
+		nb.text = "%s\n%s" % [tree.names[i], "●".repeat(rank) + "○".repeat(int(nd.max) - rank)]
+		nb.add_theme_font_override("font", UIKit.font())
+		nb.add_theme_font_size_override("font_size", 11 if portrait else 12)
+		nb.add_theme_color_override("font_color", UIKit.GOLD if rank > 0 else (UIKit.CREAM if open else UIKit.MUTED))
+		var border: Color = UIKit.GOLD if full or i == gift_sel else (UIKit.BRONZE if open else Color("3a2e44"))
+		nb.add_theme_stylebox_override("normal", UIKit.box(Color(0.22, 0.16, 0.1) if rank > 0 else (Color(0.16, 0.12, 0.18) if open else Color(0.08, 0.06, 0.1)), border, 6))
+		nb.add_theme_stylebox_override("hover", UIKit.box(Color(0.28, 0.2, 0.14), UIKit.GOLD, 6))
+		nb.size = Vector2(cw - 12, ch - 26)
+		nb.position = center.call(nd) - nb.size / 2.0
+		var idx: int = i
+		nb.pressed.connect(func():
+			gift_sel = idx
+			_show_gifts())
+		canvas.add_child(nb)
+	canvas.queue_redraw()
+
+	# 選到的節點：說明與學習鈕
+	if gift_sel >= 0:
+		var nd: Dictionary = nodes[gift_sel]
+		var rank := Save.gift_rank(gift_tag, nd.id)
+		var full: bool = rank >= int(nd.max)
+		var open := Save.gift_open(gift_sel, gift_tag)
 		var box := PanelContainer.new()
-		box.add_theme_stylebox_override("panel", UIKit.box(Color(0.16, 0.12, 0.1) if open else Color(0.1, 0.08, 0.12), UIKit.GOLD if full else (UIKit.BRONZE if open else Color("4a3a50")), 6))
+		box.add_theme_stylebox_override("panel", UIKit.box(Color(0.14, 0.1, 0.16), UIKit.GOLD, 6))
 		content.add_child(box)
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 8)
@@ -579,17 +620,27 @@ func _show_gifts() -> void:
 		var v := VBoxContainer.new()
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(v)
-		var pips := "●".repeat(rank) + "○".repeat(int(nd.max) - rank)
-		_text(v, "%s　%s" % [tree.names[i], pips], 14, UIKit.CREAM if open else UIKit.MUTED)
-		_text(v, nd.desc % gift_tag if open else "這棵樹先點滿 %d 點才會打開" % int(GF.tiers[i]), 11, UIKit.MUTED, true)
-		var cost := Save.gift_cost(i, gift_tag)
-		var bb := UIKit.button("已滿" if full else ("餅 %d" % cost), 13, open and not full)
-		bb.custom_minimum_size = Vector2(88, 32)
+		_text(v, "%s　Lv%d／%d" % [tree.names[gift_sel], rank, int(nd.max)], 15, UIKit.CREAM)
+		_text(v, nd.desc % gift_tag, 12, UIKit.INK, true)
+		if nd.id == "link" or nd.id == "ult":
+			var TL: Dictionary = G.tag_links.get(gift_tag, {})
+			if not TL.is_empty():
+				_text(v, "%s的專屬連結：%s" % [gift_tag, TL.name], 11, UIKit.SKY, true)
+		if not open:
+			var why := []
+			if Save.gift_points(gift_tag) < int(GF.tiers[int(nd.row)]):
+				why.append("這棵樹先累積 %d 點" % int(GF.tiers[int(nd.row)]))
+			for rq in nd.req:
+				if Save.gift_rank(gift_tag, rq) <= 0:
+					why.append("先學「%s」" % tree.names[nodes.find(nodes.filter(func(x): return x.id == rq)[0])])
+			_text(v, "還不能學：" + "、".join(why), 11, UIKit.CREAM, true)
+		var cost := Save.gift_cost(gift_sel, gift_tag)
+		var bb := UIKit.button("已學滿" if full else ("學習　餅 %d" % cost), 13, open and not full)
+		bb.custom_minimum_size = Vector2(110, 34)
 		bb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		bb.disabled = full or not open or int(Save.data.get("bread", 0)) < cost
-		var idx: int = i
 		bb.pressed.connect(func():
-			if Save.buy_gift(idx, gift_tag):
+			if Save.buy_gift(gift_sel, gift_tag):
 				Sfx.play("pick", 0.0)
 				_show_gifts())
 		h.add_child(bb)

@@ -138,25 +138,31 @@ func gift_points(tag: String) -> int:
 
 func gift_cost(i: int, tag: String) -> int:
 	var nd: Dictionary = meta.gifts.nodes[i]
-	return int(nd.cost) + gift_rank(tag, nd.kind) * int(nd.cost_step)
+	return int(nd.cost) + gift_rank(tag, nd.id) * int(nd.cost_step)
 
 
-## 第 i 個節點能不能點：前面要先點滿 tiers[i] 點、還沒滿級、餅夠
+## 第 i 個節點能不能學：這棵樹先點到 tiers[row] 點，而且前置節點都至少學過 1 級
 func gift_open(i: int, tag: String) -> bool:
-	return gift_points(tag) >= int(meta.gifts.tiers[i])
+	var nd: Dictionary = meta.gifts.nodes[i]
+	if gift_points(tag) < int(meta.gifts.tiers[int(nd.row)]):
+		return false
+	for r in nd.req:
+		if gift_rank(tag, r) <= 0:
+			return false
+	return true
 
 
 func buy_gift(i: int, tag: String) -> bool:
 	var nd: Dictionary = meta.gifts.nodes[i]
 	var c := gift_cost(i, tag)
-	if not gift_open(i, tag) or gift_rank(tag, nd.kind) >= int(nd.max) or int(data.bread) < c:
+	if not gift_open(i, tag) or gift_rank(tag, nd.id) >= int(nd.max) or int(data.bread) < c:
 		return false
 	data.bread = int(data.bread) - c
 	if not data.has("gifts"):
 		data.gifts = {}
 	if not data.gifts.has(tag):
 		data.gifts[tag] = {}
-	data.gifts[tag][nd.kind] = gift_rank(tag, nd.kind) + 1
+	data.gifts[tag][nd.id] = gift_rank(tag, nd.id) + 1
 	save_profile()
 	return true
 
