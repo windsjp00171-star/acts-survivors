@@ -110,8 +110,8 @@ func _build() -> void:
 	nav.add_theme_constant_override("v_separation", 6)
 	body.add_child(nav)
 	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["gifts", "恩賜", _show_gifts], ["ach", "見證錄", _show_achievements], ["codex", "圖鑑", _show_codex], ["log", "日誌", _show_log]]:
-		var b := UIKit.button(item[1], 15)
-		b.custom_minimum_size = Vector2(76, 34) if portrait else Vector2(112, 38)
+		var b := UIKit.button(item[1], 15 if portrait else 14)
+		b.custom_minimum_size = Vector2(76, 34) if portrait else Vector2(112, 31)
 		b.pressed.connect(item[2])
 		nav.add_child(b)
 		nav_buttons[item[0]] = b
@@ -273,6 +273,17 @@ func _show_home() -> void:
 				Save.save_profile()
 				_show_home())
 			grid.add_child(tb)
+	# 營地接下來還會出現什麼（小提示）
+	var soon := []
+	var STAT_NAME := {"runs": "出發", "wins": "通關", "witness_total": "累計見證", "achievements": "完成見證錄"}
+	for item in Save.meta.camp:
+		if not Save.camp_built(item) and soon.size() < 2:
+			var left := int(item.min) - Save.camp_stat(item.stat)
+			var nm: String = item.name if item.get("name", "") != "" else "營地新景象"
+			var unit := "次" if item.stat in ["runs", "wins"] else ("個" if item.stat == "achievements" else "")
+			soon.append("・%s：%s再 %d %s" % [nm, STAT_NAME.get(item.stat, item.stat), left, unit])
+	if not soon.is_empty():
+		_text(content, "營地接下來\n" + "\n".join(soon), 11, UIKit.MUTED, true)
 	var st: Dictionary = Save.data.stats
 	_text(content, "已出發 %d 次　通關 %d 次　最多驅散 %d　見證錄 %d／%d" % [st.runs, st.wins, st.best_kills, Save.data.achievements.size(), Save.meta.achievements.size()], 12, UIKit.MUTED, true)
 	var go := UIKit.button("出發：" + stages[sel].name, 18, true)
@@ -301,6 +312,25 @@ func _start() -> void:
 
 
 # ---------- 同伴 ----------
+func _shop_name(id: String) -> String:
+	for it in Save.meta.shop:
+		if it.id == id:
+			return it.name
+	var c := _comp_def(id)
+	return c.get("name", id)
+
+
+## 名冊上的簡短提示：怎麼解鎖
+func _lock_short(key: String) -> String:
+	for item in Save.meta.shop:
+		if item.id == key:
+			return "解鎖：見證 %d" % int(item.cost)
+	for a in Save.meta.achievements:
+		if a.get("unlock", "") == key:
+			return "見證錄：" + ("？？？" if a.get("secret", false) else a.name)
+	return ""
+
+
 func _lock_hint(key: String) -> String:
 	for item in Save.meta.shop:
 		if item.id == key:
@@ -341,7 +371,7 @@ func _show_roster() -> void:
 		n.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		v.add_child(n)
 		var lv := Save.affinity_level(c.key)
-		var sub := UIKit.label(("默契 Lv%d" % lv) if unlocked else c.get("era", ""), 10, UIKit.SKY if unlocked else UIKit.MUTED)
+		var sub := UIKit.label(("默契 Lv%d" % lv) if unlocked else _lock_short(c.key), 10, UIKit.SKY if unlocked else UIKit.CREAM)
 		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		sub.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		v.add_child(sub)
@@ -409,7 +439,7 @@ func _show_companion(key: String) -> void:
 # ---------- 解鎖 ----------
 func _show_shop() -> void:
 	_clear("shop")
-	_text(content, "永久恩典（花餅）", 16, UIKit.GOLD)
+	_text(content, "永久恩典　用「餅」兌換", 16, UIKit.GOLD)
 	_text(content, "餅在旅程中撿到，失敗也會全部帶回來。每一項都有上限。", 11, UIKit.MUTED, true)
 	for u in Save.meta.bread.upgrades:
 		var rank := Save.up_rank(u.id)
@@ -430,17 +460,20 @@ func _show_shop() -> void:
 			if Save.buy_up(uu):
 				_show_shop())
 		h2.add_child(b2)
-	_text(content, "解鎖（花見證）", 16, UIKit.GOLD)
+	_text(content, "解鎖　用「見證」兌換", 16, UIKit.GOLD)
 	_text(content, "用見證解鎖。舊約人物要靠「見證錄」的目標解鎖。", 12, UIKit.MUTED, true)
 	for item in Save.meta.shop:
 		var bought: bool = Save.data.bought.has(item.id)
-		var locked_req: bool = item.has("requires") and not Save.data.bought.has(item.requires)
+		var locked_req: bool = item.has("requires") and not (Save.data.bought.has(item.requires) or Save.data.unlocked.has(item.requires))
 		var h := _row(content)
 		var v := VBoxContainer.new()
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(v)
 		_text(v, item.name, 14, UIKit.MUTED if bought else UIKit.INK)
 		_text(v, item.desc, 11, UIKit.MUTED, true)
+		if locked_req and not bought:
+			var how := _lock_hint(item.requires)
+			_text(v, "需要先解鎖「%s」%s" % [_shop_name(item.requires), ("：" + how) if how != "" else ""], 11, UIKit.CREAM, true)
 		var b := UIKit.button("已解鎖" if bought else ("見證 %d" % int(item.cost)), 13, not bought)
 		b.custom_minimum_size = Vector2(96, 32)
 		b.disabled = bought or locked_req or Save.data.witness < item.cost
@@ -510,7 +543,7 @@ func _codex_entry(known: bool, name: String, lines: Array) -> void:
 func _show_gifts() -> void:
 	_clear("gifts")
 	var GF: Dictionary = Save.meta.gifts
-	_text(content, "恩賜樹（花餅）", 16, UIKit.GOLD)
+	_text(content, "恩賜樹　用「餅」學習", 16, UIKit.GOLD)
 	_text(content, "六個流派各一棵樹。點越多，下面的節點越會打開；樹底的終極恩賜讓這個流派的專屬連結效果，在他自己出手時也會發生。只作用在這個流派的同伴（主角也算）。", 11, UIKit.MUTED, true)
 	var flow := HFlowContainer.new()
 	flow.add_theme_constant_override("h_separation", 6)

@@ -202,7 +202,7 @@ func _ready() -> void:
 				D.paul.tag = d.tag
 				D.paul.color = d.get("color", "#ffd75e")
 		D.companions = D.companions.filter(func(d): return d.key != leader)
-	# 永久恩典（花餅買的）
+	# 永久恩典（用餅兌換的）
 	D.paul.hp = float(D.paul.hp) + Save.up_value("vigor")
 	D.paul.speed = float(D.paul.speed) * (1.0 + Save.up_value("run"))
 	D.gems.magnet_radius = float(D.gems.magnet_radius) * (1.0 + Save.up_value("reap"))

@@ -112,7 +112,7 @@ func camp_built(item: Dictionary) -> bool:
 	return camp_stat(item.stat) >= int(item.min)
 
 
-## 永久恩典（花餅買）
+## 永久恩典（用餅兌換）
 func up_rank(id: String) -> int:
 	return int(data.ups.get(id, 0))
 
@@ -178,7 +178,7 @@ func buy_up(u: Dictionary) -> bool:
 func buy(item: Dictionary) -> bool:
 	if data.bought.has(item.id) or data.witness < item.cost:
 		return false
-	if item.has("requires") and not data.bought.has(item.requires):
+	if item.has("requires") and not (data.bought.has(item.requires) or data.unlocked.has(item.requires)):
 		return false
 	data.witness -= int(item.cost)
 	data.bought.append(item.id)
