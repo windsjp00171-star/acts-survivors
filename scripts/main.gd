@@ -75,6 +75,7 @@ var hits: Array = []      # Boss 攻擊落下的閃光
 var paul := {}
 var pa := {}              # 保羅自己的攻擊（書信），用和同伴一樣的出招流程
 var first_recruit := ""
+var smoke_max_frames := 1800
 var leader := "paul"      # 這一局的主角（同伴的 key；預設保羅）
 var stage := {}           # 這一局的城市（data/stages.json）
 var stage_i := 0
@@ -210,6 +211,8 @@ func _ready() -> void:
 			t = float(a.substr(5))
 		elif a == "--light":
 			force_light = true
+		elif a.begins_with("--frames="):
+			smoke_max_frames = int(a.substr(9))   # 測試用：跑更久（整局約 25000 格）
 		elif a == "--nofever":
 			smoke_nofever = true
 		elif a.begins_with("--preset="):
@@ -963,6 +966,8 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if fever > 0.0:
 		dmg *= 1.5
 	dmg *= _dmg_mult()
+	if float(e.get("exposed_t", 0.0)) > 0.0:
+		dmg *= 1.0 + float(e.expose)   # 被尼哥底母的燈照到：受到更多傷害
 	if src is Dictionary:
 		dmg *= float(src.get("tdmg", 1.0)) * float(src.get("synd", 1.0))
 		if src == pa and armor.get("sword", 0) > 0:
@@ -1003,6 +1008,12 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			nb = 1
 		for i in nb:
 			breads.append({"pos": e.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
+		if src is Dictionary:
+			# 撒該：償還，多掉經驗；馬太：稅吏，有機會多掉餅
+			for i in int(src.st.get("loot", 0)):
+				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
+			if randf() < float(src.st.get("bread_chance", 0.0)):
+				breads.append({"pos": e.pos})
 		if e.get("vet", false):
 			for i in int(D.waves.veteran.gems) - 1:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
@@ -1448,6 +1459,12 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					active += 1
 			var n_new := mini(int(s.rings), 4 - active)
 			fired = n_new > 0
+			if fired and float(s.get("heal_comp", 0.0)) > 0.0:
+				# 馬利亞：晨光擴散時，扶持身邊的同伴（同伴回血）
+				for o in comps:
+					if o.level > 0 and o.down <= 0.0:
+						o.hp = minf(_comp_max_hp(), o.hp + float(s.heal_comp))
+				_ring_pop(c.pos + Vector2(0, -8), c.col, 18.0)
 			for i in maxi(n_new, 0):
 				rings.append({"owner": c, "r": 4.0 - i * 16.0, "dir": 1.0, "returns": int(s.returns), "hit": {},
 					"max": float(s.max_radius) * _area(), "dmg": float(s.damage), "speed": float(s.speed), "stun": float(s.stun),
@@ -1540,6 +1557,10 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 						crit = crit or is_crit
 						_hurt(e, s.damage * (float(s.crit_mult) if is_crit else 1.0), from, c)
 				thrusts.append({"from": from, "dir": dir, "len": s.range * _area(), "t": 0.0, "crit": crit, "evo": evolved.has(c.key), "look": c.look, "col": c.col})
+				if c.look == "dash" and c != pa:
+					# 腓利真的衝出去，再被拉回隊伍
+					c.off = dir * minf(s.range * _area() * 0.7, 90.0)
+					c.vel = Vector2.ZERO
 				if crit:
 					_ring_pop(from + dir * 20.0, C_GOLD, 14.0)
 		"gather":
@@ -1822,6 +1843,9 @@ func _fire_beam(from: Vector2, dir: Vector2, s: Dictionary, look := "", src = nu
 		if along > 0.0 and along < length and across < width + (8.0 if o.get("boss", false) else 0.0):
 			if s.get("stun", 0.0) > 0.0 and not o.get("boss", false):
 				o.stun = s.stun
+			if s.has("expose"):
+				o.exposed_t = 3.0
+				o.expose = float(s.expose)
 			_hurt(o, s.damage * (s.lies_mult if o.type == "lies" else 1.0), from, src)
 	beams.append({"pos": from, "dir": dir, "life": 0.3 if look == "" else 0.5, "len": length, "width": width, "look": look,
 		"evo": src != null and evolved.has(src.key), "col": src.col if src != null else C_GOLD})
@@ -1844,6 +1868,8 @@ func _update_projectiles(dt: float) -> void:
 					continue
 				b.hit[e.node] = true
 				_hurt(e, b.dmg, b.pos - b.vel.normalized() * 4.0, b.owner)
+				if b.owner is Dictionary and float(b.owner.st.get("pin", 0.0)) > 0.0 and not e.get("boss", false):
+					e.stun = maxf(e.stun, float(b.owner.st.pin))   # 哥尼流的標槍把敵人釘住
 				b.pierce -= 1
 				if b.pierce < 0:
 					b.life = 0.0
@@ -1997,6 +2023,8 @@ func _update_enemies(dt: float) -> void:
 		e.flash = maxf(0.0, e.flash - dt)
 		e.cd = maxf(0.0, e.cd - dt)
 		e.bcd = maxf(0.0, e.bcd - dt)
+		if e.has("exposed_t"):
+			e.exposed_t = maxf(0.0, e.exposed_t - dt)
 		e.pos += e.knock * dt
 		e.knock *= 0.85
 		if e.stun > 0.0:
@@ -2257,6 +2285,8 @@ func _render(dt: float) -> void:
 			e.node.modulate = Color(4, 4, 3.5)
 		elif e.stun > 0.0 or (e.get("boss", false) and e.state == "break"):
 			e.node.modulate = Color(1.5, 1.5, 0.8)
+		elif float(e.get("exposed_t", 0.0)) > 0.0:
+			e.node.modulate = Color(1.6, 1.15, 0.6)   # 被燈照亮
 		else:
 			e.node.modulate = e.tint
 
@@ -3073,6 +3103,6 @@ func _smoke_tick() -> void:
 		_set_paused(false)
 	if smoke_shot != "" and smoke_frames == 1700:
 		get_viewport().get_texture().get_image().save_png(smoke_shot)
-	if smoke_frames >= 1800:
+	if smoke_frames >= smoke_max_frames:
 		print("SMOKE DONE t=%.1f fps=%d" % [t, Engine.get_frames_per_second()])
 		get_tree().quit()
