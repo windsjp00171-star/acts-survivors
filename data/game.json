@@ -309,7 +309,7 @@
       { "id": "reso",   "name": "共鳴 5 次",        "stat": "resonance", "goal": 5, "by": 0,  "witness": 30 },
       { "id": "chests", "name": "打開 3 個寶箱",     "stat": "chests", "goal": 3,   "by": 0,   "witness": 25 },
       { "id": "bread",  "name": "撿到 10 個餅",      "stat": "bread",  "goal": 10,  "by": 300, "witness": 20 },
-      { "id": "mid",    "name": "打退中途 Boss", "stat": "midboss", "goal": 1, "by": 230, "witness": 35 },
+      { "id": "mid",    "name": "打退中途 Boss", "stat": "midboss", "goal": 1, "by": 210, "witness": 35 },
       { "id": "party",  "name": "隊伍湊滿 4 人",     "stat": "party",  "goal": 4,   "by": 150, "witness": 25 }
     ]
   },
@@ -387,7 +387,7 @@
   "boss": {
     "at": 420, "name": "捆鎖", "hp": 6000,
     "_mid說明": "中途 Boss：同一隻 Boss 先來一次（血量 hp_mult 倍），打退了掉寶箱和餅，不算通關。",
-    "mid": [ { "at": 210, "hp_mult": 0.3 } ], "speed": 10, "touch_damage": 10,
+    "mid": [ { "at": 180, "hp_mult": 0.2 } ], "speed": 10, "touch_damage": 10,
     "warn": 1.1, "break_seconds": 2.2, "break_mult": 2.0, "phase2_at": 0.5,
     "sweep": { "damage": 18, "width": 10, "length": 300 },
     "grid": { "damage": 14, "lines": 3, "width": 8 },
@@ -441,8 +441,8 @@
     "group_max": 7,
     "curve": [
       [0,   25,  1.2],
-      [40,  60,  0.8],
-      [125, 110, 0.55],
+      [40,  60,  0.6],
+      [125, 110, 0.42],
       [250, 200, 0.35],
       [330, 260, 0.25],
       [345, 80,  1.5],
