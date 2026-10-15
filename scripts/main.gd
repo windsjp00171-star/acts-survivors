@@ -126,6 +126,7 @@ var event_t := 0.0          # 下一次局內事件的時間（距離開局的�
 var events_done: Array = []
 var enemy_hp_bonus := 0.0   # 事件：之後的敵人血量增加
 var move_bonus := 0.0       # 事件：主角移速
+var prov_bread := 0.0       # 市集的行囊：這局帶回的餅加成
 var tip_queue: Array = []  # 新手教學：等著出現的提示
 var run_chests := 0
 var run_midboss := 0
@@ -258,6 +259,8 @@ func _ready() -> void:
 		starter = "tim" if leader != "tim" else "luke"
 	first_recruit = starter
 	rerolls_left = Save.rerolls()
+	if not smoke or OS.get_cmdline_user_args().has("--prov"):
+		_use_provisions(Save.take_provisions())
 	var pool: Array = D.tasks.list.duplicate()
 	pool.shuffle()
 	for i in mini(int(D.tasks.count), pool.size()):
@@ -1253,6 +1256,45 @@ func _barrier_pieces() -> Array:
 
 
 # ---------- FEVER ----------
+## 市集買的行囊：出門時生效
+func _use_provisions(ids: Array) -> void:
+	for id in ids:
+		var item: Dictionary = {}
+		for it in Save.meta.market.items:
+			if it.id == id:
+				item = it
+		for k in item.get("effect", {}):
+			var v = item.effect[k]
+			match k:
+				"picks":
+					var L: Dictionary = D.leveling
+					xp += xp_need + int(L.first + L.step + L.growth)
+				"armor":
+					var cand: Array = D.armor.keys().filter(func(a): return armor.get(a, 0) == 0 and (a == "shoes" or Save.is_unlocked("armor_" + a)))
+					if not cand.is_empty():
+						armor[cand[randi() % cand.size()]] = 1
+						_update_sets()
+				"fruit":
+					var fc: Array = D.fruits.keys().filter(func(f): return fruits.get(f, 0) == 0 and Save.is_unlocked("fruit_" + f))
+					if not fc.is_empty():
+						fruits[fc[randi() % fc.size()]] = 1
+				"reroll":
+					rerolls_left += int(v)
+				"guard":
+					guard = mini(guard + int(v), 5)
+				"starter2":
+					if by_key.has(first_recruit) and by_key[first_recruit].level == 0:
+						_recruit(by_key[first_recruit])
+						_set_level(by_key[first_recruit], 2)
+				"meter":
+					meter = minf(1.0, meter + float(v))
+				"bread":
+					prov_bread += float(v)
+	if not ids.is_empty():
+		ui.show_banner("帶著行囊出發了", 1.5)
+		_refresh_build_text()
+
+
 # ---------- 局內事件（使徒行傳的場景，二選一） ----------
 func _start_event() -> void:
 	var pool: Array = EV.events.filter(func(ev): return not events_done.has(ev.id))
@@ -3348,7 +3390,7 @@ func _finish_run() -> Array:
 			party[c.key] = c.level
 	var res: Dictionary = Save.finish_run({"kills": kills, "seconds": int(t - t_start), "level": level, "won": won,
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
-		"task_witness": task_witness, "lights": run_lights, "bread": run_bread,
+		"task_witness": task_witness, "lights": run_lights, "bread": int(run_bread * (1.0 + prov_bread)),
 		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
 		"combo": combo_best, "party_size": _party_count(), "endless": endless, "sets": sets_on.size(), "leader": leader,
 		"trial_points": Save.trial_points(trials), "stage": stage.id,

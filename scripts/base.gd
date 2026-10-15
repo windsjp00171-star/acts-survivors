@@ -48,6 +48,7 @@ func open(tab: String, key := "") -> void:
 		"ach": _show_achievements()
 		"codex": _show_codex()
 		"log": _show_log()
+		"market": _show_market()
 		_: _show_home()
 
 
@@ -442,6 +443,15 @@ func _show_companion(key: String) -> void:
 		var nxt := Save.next_threshold(key)
 		var prog := "默契 Lv%d　%s" % [lv, ("下一級還差 %d" % (nxt - Save.affinity_xp(key))) if nxt > 0 else "已滿"]
 		_text(content, prog + "　攻擊速度 +%d%%" % int(lv * Save.meta.affinity.bonus_per_level * 100), 13, UIKit.SKY)
+		var PR: Dictionary = Save.meta.pray
+		var pray := UIKit.button("為他代禱　見證 %d → 默契 +%d" % [int(PR.witness), int(PR.affinity)], 13)
+		pray.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+		pray.disabled = int(Save.data.witness) < int(PR.witness)
+		pray.pressed.connect(func():
+			if Save.pray_for(key):
+				Sfx.play("heal", 0.0)
+				_show_companion(key))
+		content.add_child(pray)
 		var GB: Dictionary = Save.meta.gift_bread
 		var gift := UIKit.button("送餅給他　餅 %d → 默契 +%d" % [int(GB.cost), int(GB.affinity)], 13)
 		gift.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
@@ -507,16 +517,20 @@ func _show_shop() -> void:
 	_text(content, "營地建設　用「見證」蓋", 16, UIKit.GOLD)
 	_text(content, "蓋好就一直有效，也會出現在營地裡。", 11, UIKit.MUTED, true)
 	for bd in Save.meta.buildings:
-		var done := Save.built(bd.id)
+		var blv := Save.building_level(bd.id)
+		var bmax := int(bd.get("max", 1))
+		var done := blv >= bmax
 		var hb := _row(content)
 		var vb := VBoxContainer.new()
 		vb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		hb.add_child(vb)
-		_text(vb, bd.name + ("　已蓋好" if done else ""), 14, UIKit.MUTED if done else UIKit.INK)
+		var pips := ("　" + "●".repeat(blv) + "○".repeat(bmax - blv)) if bmax > 1 else ("　已蓋好" if blv > 0 else "")
+		_text(vb, bd.name + pips, 14, UIKit.MUTED if done else UIKit.INK)
 		_text(vb, "%s（%s）" % [bd.desc, bd.ref], 11, UIKit.MUTED, true)
-		var bb := UIKit.button("已蓋好" if done else ("見證 %d" % int(bd.cost)), 13, not done)
-		bb.custom_minimum_size = Vector2(96, 32)
-		bb.disabled = done or int(Save.data.witness) < int(bd.cost)
+		var bcost := Save.building_cost(bd)
+		var bb := UIKit.button("已滿" if done else (("升級　見證 %d" if blv > 0 else "蓋　見證 %d") % bcost), 13, not done)
+		bb.custom_minimum_size = Vector2(110, 32)
+		bb.disabled = done or int(Save.data.witness) < bcost
 		var bdd: Dictionary = bd
 		bb.pressed.connect(func():
 			if Save.buy_building(bdd):
@@ -552,6 +566,22 @@ func _show_achievements() -> void:
 	_clear("ach")
 	var all: Array = Save.meta.achievements
 	var got: int = all.filter(func(a): return Save.data.achievements.has(a.id)).size()
+	# 傳揚見證：見證換餅（見證多了也有地方用）
+	var X: Dictionary = Save.meta.exchange
+	_text(content, "傳揚見證　用見證換餅（%d 見證 → %d 餅）" % [int(X.witness), int(X.bread)], 14, UIKit.SKY)
+	var xr := HFlowContainer.new()
+	xr.add_theme_constant_override("h_separation", 6)
+	content.add_child(xr)
+	for times in [1, 5, 20]:
+		var tb := UIKit.button("見證 %d → 餅 %d" % [int(X.witness) * times, int(X.bread) * times], 12)
+		tb.custom_minimum_size = Vector2(120, 30)
+		tb.disabled = int(Save.data.witness) < int(X.witness) * times
+		var tm: int = times
+		tb.pressed.connect(func():
+			if Save.exchange(tm):
+				Sfx.play("pick", 0.0)
+				_show_achievements())
+		xr.add_child(tb)
 	_text(content, "見證錄　%d／%d" % [got, all.size()], 16, UIKit.GOLD)
 	_text(content, "完成目標會得到見證、餅，有的還會解鎖新同伴。", 11, UIKit.MUTED, true)
 	var group := ""
@@ -731,6 +761,38 @@ func _show_gifts() -> void:
 	_text(side, "（%s）" % tree.ref, 11, UIKit.MUTED)
 
 
+# ---------- 市集 ----------
+func _show_market() -> void:
+	_clear("", "market")
+	_text(content, "市集　用「見證」買行囊", 16, UIKit.GOLD)
+	_text(content, "行囊在下一趟出門時生效，用完就沒了。每趟回營地，貨架會換一批。", 11, UIKit.MUTED, true)
+	for it in Save.market_offers():
+		var got := Save.market_bought(it.id)
+		var h := _row(content)
+		var v := VBoxContainer.new()
+		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(v)
+		_text(v, it.name + ("　已買" if got else ""), 14, UIKit.MUTED if got else UIKit.INK)
+		_text(v, "%s（%s）" % [it.desc, it.ref], 11, UIKit.MUTED, true)
+		var b := UIKit.button("已買" if got else ("見證 %d" % int(it.cost)), 13, not got)
+		b.custom_minimum_size = Vector2(96, 32)
+		b.disabled = got or int(Save.data.witness) < int(it.cost)
+		var item: Dictionary = it
+		b.pressed.connect(func():
+			if Save.buy_provision(item):
+				Sfx.play("pick", 0.0)
+				_show_market())
+		h.add_child(b)
+	var bag: Array = Save.data.get("provisions", [])
+	if not bag.is_empty():
+		var names := []
+		for id in bag:
+			for it in Save.meta.market.items:
+				if it.id == id:
+					names.append(it.name)
+		_text(content, "已備好的行囊：" + "、".join(names), 13, UIKit.SKY, true)
+
+
 # ---------- 製作日誌 ----------
 func has_new_log() -> bool:
 	return devlog != null and not devlog.entries.is_empty() and Save.data.get("log_seen", "") != devlog.entries[0].version
@@ -784,7 +846,7 @@ func _show_codex() -> void:
 
 # ---------- 自動截圖測試 ----------
 func auto_shots(shot_path: String) -> void:
-	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["gifts", _show_gifts], ["ach", _show_achievements], ["codex", _show_codex], ["log", _show_log]]:
+	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["gifts", _show_gifts], ["ach", _show_achievements], ["codex", _show_codex], ["log", _show_log], ["market", _show_market]]:
 		visible = true
 		step[1].call()
 		await get_tree().create_timer(0.6).timeout

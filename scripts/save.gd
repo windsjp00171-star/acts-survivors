@@ -144,26 +144,104 @@ func up_value(id: String) -> float:
 
 
 # ---------- 營地建設 ----------
+func building_level(id: String) -> int:
+	var bd = data.get("buildings", {})
+	if bd is Array:   # 舊存檔：只記蓋了哪些
+		return 1 if bd.has(id) else 0
+	return int(bd.get(id, 0))
+
+
 func built(id: String) -> bool:
-	return data.get("buildings", []).has(id)
+	return building_level(id) > 0
 
 
-## 所有已蓋好的建築加起來的效果
+func building_cost(b: Dictionary) -> int:
+	return int(b.cost) * (building_level(b.id) + 1)
+
+
+## 所有已蓋好的建築加起來的效果（效果 × 等級）
 func building_bonus(key: String) -> float:
 	var v := 0.0
 	for b in meta.buildings:
-		if built(b.id):
-			v += float(b.bonus.get(key, 0.0))
+		v += float(b.bonus.get(key, 0.0)) * building_level(b.id)
 	return v
 
 
 func buy_building(b: Dictionary) -> bool:
-	if built(b.id) or int(data.witness) < int(b.cost):
+	var lv := building_level(b.id)
+	if lv >= int(b.get("max", 1)) or int(data.witness) < building_cost(b):
 		return false
-	data.witness -= int(b.cost)
-	if not data.has("buildings"):
-		data.buildings = []
-	data.buildings.append(b.id)
+	data.witness -= building_cost(b)
+	var bd = data.get("buildings", {})
+	if bd is Array:
+		var conv := {}
+		for id in bd:
+			conv[id] = 1
+		bd = conv
+	bd[b.id] = lv + 1
+	data.buildings = bd
+	save_profile()
+	return true
+
+
+# ---------- 市集：每趟回營地換一批行囊 ----------
+func market_offers() -> Array:
+	var items: Array = meta.market.items.duplicate()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = int(data.stats.runs) * 7919 + 13
+	for i in range(items.size() - 1, 0, -1):
+		var j := rng.randi_range(0, i)
+		var tmp = items[i]
+		items[i] = items[j]
+		items[j] = tmp
+	return items.slice(0, int(meta.market.offers))
+
+
+func market_bought(id: String) -> bool:
+	return data.get("market_run", -1) == int(data.stats.runs) and data.get("market_bought", []).has(id)
+
+
+func buy_provision(item: Dictionary) -> bool:
+	if market_bought(item.id) or int(data.witness) < int(item.cost):
+		return false
+	if data.get("market_run", -1) != int(data.stats.runs):
+		data.market_run = int(data.stats.runs)
+		data.market_bought = []
+	data.witness -= int(item.cost)
+	data.market_bought.append(item.id)
+	if not data.has("provisions"):
+		data.provisions = []
+	data.provisions.append(item.id)
+	save_profile()
+	return true
+
+
+## 出門時拿走行囊（用完就沒了）
+func take_provisions() -> Array:
+	var out: Array = data.get("provisions", [])
+	data.provisions = []
+	save_profile()
+	return out
+
+
+## 傳揚見證：見證換餅
+func exchange(times: int) -> bool:
+	var X: Dictionary = meta.exchange
+	if int(data.witness) < int(X.witness) * times:
+		return false
+	data.witness -= int(X.witness) * times
+	data.bread = int(data.get("bread", 0)) + int(X.bread) * times
+	save_profile()
+	return true
+
+
+## 為同伴代禱：見證換默契
+func pray_for(key: String) -> bool:
+	var P: Dictionary = meta.pray
+	if int(data.witness) < int(P.witness):
+		return false
+	data.witness -= int(P.witness)
+	data.affinity[key] = affinity_xp(key) + int(P.affinity)
 	save_profile()
 	return true
 

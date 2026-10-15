@@ -5,7 +5,7 @@
   "_camp_visible說明": "營火旁同時出現幾位同伴（有話要說的一定會出現，其他隨機）。",
   "camp_visible": 8,
   "party_cap_base": 3,
-  "witness": { "per_kills": 8, "per_seconds": 6, "per_level": 2, "boss_bonus": 150, "lose_ratio": 0.5 },
+  "witness": {"per_kills": 8, "per_seconds": 6, "per_level": 2, "boss_bonus": 150, "lose_ratio": 0.5},
   "affinity": {
     "_說明": "每局結束，隊伍裡的同伴獲得默契 = 他的等級 × 10（通關再 +20）。每升一級攻擊速度 +3%，並解鎖一段生平。",
     "per_level_reached": 10,
@@ -15,1095 +15,194 @@
   },
   "_camp說明": "安提阿營地的設施：條件達成才會出現。stat 可以用 runs、wins、elites、best_kills、best_fevers、tasks、witness_total、achievements（已達成數）。kind：depart 出發、shop 解鎖、ach 見證錄，其他是裝飾。pos 是相對營火的位置。",
   "camp": [
-    { "id": "sign",   "kind": "depart", "name": "旅程路標",   "pos": [132, 34],   "stat": "runs", "min": 0 },
-    { "id": "log",    "kind": "log",    "name": "製作日誌",   "pos": [56, 62],    "stat": "runs", "min": 0 },
-    { "id": "tent",   "kind": "shop",   "name": "補給帳棚",   "pos": [-104, -34], "stat": "runs", "min": 1, "news": "百基拉搭起了補給帳棚：可以用見證解鎖了" },
-    { "id": "board",  "kind": "ach",    "name": "見證牆",     "pos": [96, -48],   "stat": "runs", "min": 2, "news": "營地立起了見證牆：看看還有哪些目標" },
-    { "id": "tent2",  "kind": "tent_small", "name": "",       "pos": [-128, 30],  "stat": "runs", "min": 4, "news": "來同住的人多了，營地多了一頂帳棚" },
-    { "id": "banner", "kind": "banner", "name": "",           "pos": [-30, -62],  "stat": "wins", "min": 1, "news": "腓立比得勝的消息傳回安提阿" },
-    { "id": "lamps",  "kind": "lamps",  "name": "",           "pos": [0, 0],      "stat": "witness_total", "min": 600, "news": "營地點起了油燈" },
-    { "id": "tent3",  "kind": "tent_small", "name": "",       "pos": [-70, 58],   "stat": "achievements", "min": 4, "news": "營地越來越熱鬧了" }
+    {"id": "sign", "kind": "depart", "name": "旅程路標", "pos": [132, 34], "stat": "runs", "min": 0},
+    {"id": "log", "kind": "log", "name": "製作日誌", "pos": [56, 62], "stat": "runs", "min": 0},
+    {"id": "tent", "kind": "shop", "name": "補給帳棚", "pos": [-104, -34], "stat": "runs", "min": 1, "news": "百基拉搭起了補給帳棚：可以用見證解鎖了"},
+    {"id": "board", "kind": "ach", "name": "見證牆", "pos": [96, -48], "stat": "runs", "min": 2, "news": "營地立起了見證牆：看看還有哪些目標"},
+    {"id": "tent2", "kind": "tent_small", "name": "", "pos": [-128, 30], "stat": "runs", "min": 4, "news": "來同住的人多了，營地多了一頂帳棚"},
+    {"id": "banner", "kind": "banner", "name": "", "pos": [-30, -62], "stat": "wins", "min": 1, "news": "腓立比得勝的消息傳回安提阿"},
+    {"id": "lamps", "kind": "lamps", "name": "", "pos": [0, 0], "stat": "witness_total", "min": 600, "news": "營地點起了油燈"},
+    {"id": "tent3", "kind": "tent_small", "name": "", "pos": [-70, 58], "stat": "achievements", "min": 4, "news": "營地越來越熱鬧了"},
+    {"id": "market", "kind": "market", "name": "市集", "pos": [92, 18], "stat": "runs", "min": 2, "news": "呂底亞在營地擺了市集：可以用見證買下一趟的行囊"}
   ],
   "_bread說明": "餅：局內撿到、帶回營地（失敗也全部保留）。在補給帳棚買永久恩典。drop 是掉落機率或數量；每項恩典 per 是每級效果、max 是上限、cost 是第 1 級價格，之後每級再加 cost_step。",
   "bread": {
-    "drop": { "kill": 0.01, "veteran": 0.2, "elite": 5, "chest": 3, "boss": 25 },
+    "drop": {"kill": 0.01, "veteran": 0.2, "elite": 5, "chest": 3, "boss": 25},
     "upgrades": [
-      { "id": "might",  "name": "剛強", "ref": "弗 6:10",   "desc": "所有攻擊傷害 +5%",       "per": 0.05, "max": 10, "cost": 15, "cost_step": 15 },
-      { "id": "haste",  "name": "殷勤", "ref": "羅 12:11",  "desc": "所有攻擊速度 +4%",       "per": 0.04, "max": 10, "cost": 15, "cost_step": 15 },
-      { "id": "vigor",  "name": "堅忍", "ref": "雅 1:4",    "desc": "主角血量 +10",           "per": 10,   "max": 10, "cost": 10, "cost_step": 10 },
-      { "id": "renew",  "name": "更新", "ref": "林後 4:16", "desc": "主角每秒回復 0.2 血",    "per": 0.2,  "max": 3, "cost": 25, "cost_step": 25 },
-      { "id": "reap",   "name": "收割", "ref": "約 4:35",   "desc": "撿經驗與餅的範圍 +20%",  "per": 0.2,  "max": 3, "cost": 10, "cost_step": 10 },
-      { "id": "growth", "name": "長進", "ref": "彼後 3:18", "desc": "經驗 +6%",              "per": 0.06, "max": 3, "cost": 20, "cost_step": 20 },
-      { "id": "run",    "name": "奔跑", "ref": "來 12:1",   "desc": "移動速度 +4%",           "per": 0.04, "max": 3, "cost": 15, "cost_step": 15 },
-      { "id": "aegis",  "name": "盾牌", "ref": "詩 3:3",    "desc": "主角受到的傷害 -3%",     "per": 0.03, "max": 5, "cost": 30, "cost_step": 20 },
-      { "id": "accord", "name": "合一", "ref": "詩 133:1",  "desc": "同心合意累積 +6%",       "per": 0.06, "max": 5, "cost": 25, "cost_step": 20 },
-      { "id": "lucky",  "name": "滿溢", "ref": "瑪 3:10",   "desc": "寶箱有機會多開一項 +10%", "per": 0.1,  "max": 3, "cost": 40, "cost_step": 30 },
-      { "id": "rise",   "name": "扶持", "ref": "傳 4:10",   "desc": "倒下的同伴早一點站起來 -10%", "per": 0.1, "max": 3, "cost": 30, "cost_step": 25 }
+      {"id": "might", "name": "剛強", "ref": "弗 6:10", "desc": "所有攻擊傷害 +5%", "per": 0.05, "max": 10, "cost": 15, "cost_step": 15},
+      {"id": "haste", "name": "殷勤", "ref": "羅 12:11", "desc": "所有攻擊速度 +4%", "per": 0.04, "max": 10, "cost": 15, "cost_step": 15},
+      {"id": "vigor", "name": "堅忍", "ref": "雅 1:4", "desc": "主角血量 +10", "per": 10, "max": 10, "cost": 10, "cost_step": 10},
+      {"id": "renew", "name": "更新", "ref": "林後 4:16", "desc": "主角每秒回復 0.2 血", "per": 0.2, "max": 3, "cost": 25, "cost_step": 25},
+      {"id": "reap", "name": "收割", "ref": "約 4:35", "desc": "撿經驗與餅的範圍 +20%", "per": 0.2, "max": 3, "cost": 10, "cost_step": 10},
+      {"id": "growth", "name": "長進", "ref": "彼後 3:18", "desc": "經驗 +6%", "per": 0.06, "max": 3, "cost": 20, "cost_step": 20},
+      {"id": "run", "name": "奔跑", "ref": "來 12:1", "desc": "移動速度 +4%", "per": 0.04, "max": 3, "cost": 15, "cost_step": 15},
+      {"id": "aegis", "name": "盾牌", "ref": "詩 3:3", "desc": "主角受到的傷害 -3%", "per": 0.03, "max": 5, "cost": 30, "cost_step": 20},
+      {"id": "accord", "name": "合一", "ref": "詩 133:1", "desc": "同心合意累積 +6%", "per": 0.06, "max": 5, "cost": 25, "cost_step": 20},
+      {"id": "lucky", "name": "滿溢", "ref": "瑪 3:10", "desc": "寶箱有機會多開一項 +10%", "per": 0.1, "max": 3, "cost": 40, "cost_step": 30},
+      {"id": "rise", "name": "扶持", "ref": "傳 4:10", "desc": "倒下的同伴早一點站起來 -10%", "per": 0.1, "max": 3, "cost": 30, "cost_step": 25}
     ]
   },
   "_gifts說明": "恩賜樹（像暗黑破壞神 2 的技能樹）：六個流派各一棵，用餅學習。每個節點有 row（第幾層）、col（第幾欄）、req（要先學過哪些節點，至少 1 級）；tiers 是學第 row 層前，這棵樹至少要先點幾點。節點效果只作用在這個流派的同伴（主角也算）。names 與 refs（每個節點的經文出處）依 nodes 的順序。",
   "gifts": {
-    "tiers": [
-      0,
-      3,
-      6,
-      10
-    ],
+    "tiers": [0, 3, 6, 10],
     "nodes": [
-      {
-        "id": "dmg",
-        "row": 0,
-        "col": 0,
-        "per": 0.06,
-        "max": 5,
-        "cost": 15,
-        "cost_step": 10,
-        "req": [],
-        "desc": "%s 同伴傷害 +6%%／級"
-      },
-      {
-        "id": "speed",
-        "row": 0,
-        "col": 1,
-        "per": 0.05,
-        "max": 5,
-        "cost": 15,
-        "cost_step": 10,
-        "req": [],
-        "desc": "%s 同伴攻擊速度 +5%%／級"
-      },
-      {
-        "id": "area",
-        "row": 0,
-        "col": 2,
-        "per": 0.08,
-        "max": 3,
-        "cost": 25,
-        "cost_step": 15,
-        "req": [],
-        "desc": "%s 同伴的範圍、射程 +8%%／級"
-      },
-      {
-        "id": "elite",
-        "row": 1,
-        "col": 0,
-        "per": 0.12,
-        "max": 3,
-        "cost": 40,
-        "cost_step": 20,
-        "req": [
-          "dmg"
-        ],
-        "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"
-      },
-      {
-        "id": "start",
-        "row": 1,
-        "col": 1,
-        "per": 1,
-        "max": 1,
-        "cost": 80,
-        "cost_step": 0,
-        "req": [
-          "speed"
-        ],
-        "desc": "%s 同伴加入時直接是 Lv2"
-      },
-      {
-        "id": "linkcd",
-        "row": 1,
-        "col": 2,
-        "per": 0.12,
-        "max": 3,
-        "cost": 40,
-        "cost_step": 20,
-        "req": [
-          "area"
-        ],
-        "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"
-      },
-      {
-        "id": "link",
-        "row": 2,
-        "col": 2,
-        "per": 0.5,
-        "max": 3,
-        "cost": 50,
-        "cost_step": 25,
-        "req": [
-          "linkcd"
-        ],
-        "desc": "%s 專屬連結效果 +50%%／級"
-      },
-      {
-        "id": "ult",
-        "row": 3,
-        "col": 1,
-        "per": 1,
-        "max": 1,
-        "cost": 200,
-        "cost_step": 0,
-        "req": [
-          "elite",
-          "link"
-        ],
-        "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
-      }
+      {"id": "dmg", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
+      {"id": "speed", "row": 0, "col": 1, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +5%%／級"},
+      {"id": "area", "row": 0, "col": 2, "per": 0.08, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴的範圍、射程 +8%%／級"},
+      {"id": "elite", "row": 1, "col": 0, "per": 0.12, "max": 3, "cost": 40, "cost_step": 20, "req": ["dmg"], "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"},
+      {"id": "start", "row": 1, "col": 1, "per": 1, "max": 1, "cost": 80, "cost_step": 0, "req": ["speed"], "desc": "%s 同伴加入時直接是 Lv2"},
+      {"id": "linkcd", "row": 1, "col": 2, "per": 0.12, "max": 3, "cost": 40, "cost_step": 20, "req": ["area"], "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"},
+      {"id": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["linkcd"], "desc": "%s 專屬連結效果 +50%%／級"},
+      {"id": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["elite", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
     ],
     "trees": {
       "講道": {
-        "names": [
-          "務要傳道",
-          "傳遍天下",
-          "得時不得時",
-          "道的鋒利",
-          "雙刃的劍",
-          "真光照亮",
-          "駁倒謬論",
-          "道的大能",
-          "道成肉身"
-        ],
-        "refs": [
-          "提後 4:2",
-          "太 24:14",
-          "提後 4:2",
-          "來 4:12",
-          "來 4:12",
-          "約 1:9",
-          "多 1:9",
-          "西 3:16",
-          "約 1:14"
-        ],
+        "names": ["務要傳道", "傳遍天下", "得時不得時", "道的鋒利", "雙刃的劍", "真光照亮", "駁倒謬論", "道的大能", "道成肉身"],
+        "refs": ["提後 4:2", "太 24:14", "提後 4:2", "來 4:12", "來 4:12", "約 1:9", "多 1:9", "西 3:16", "約 1:14"],
         "nodes": [
-          {
-            "id": "dmg",
-            "kind": "dmg",
-            "row": 0,
-            "col": 0,
-            "per": 0.06,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴傷害 +6%%／級"
-          },
-          {
-            "id": "area",
-            "kind": "area",
-            "row": 0,
-            "col": 1,
-            "per": 0.08,
-            "max": 3,
-            "cost": 25,
-            "cost_step": 15,
-            "req": [],
-            "desc": "%s 同伴的範圍、射程 +8%%／級"
-          },
-          {
-            "id": "speed",
-            "kind": "speed",
-            "row": 0,
-            "col": 2,
-            "per": 0.05,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴攻擊速度 +5%%／級"
-          },
-          {
-            "id": "crit",
-            "kind": "crit",
-            "row": 1,
-            "col": 0,
-            "per": 0.08,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "dmg"
-            ],
-            "desc": "%s 同伴每一擊有 8%%／級機率造成兩倍傷害"
-          },
-          {
-            "id": "beams",
-            "kind": "stat",
-            "row": 1,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 90,
-            "cost_step": 0,
-            "req": [
-              "area"
-            ],
-            "desc": "%s 同伴的光束多一道",
-            "stat": "beams",
-            "add": 1
-          },
-          {
-            "id": "expose",
-            "kind": "expose",
-            "row": 1,
-            "col": 2,
-            "per": 0.1,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "speed"
-            ],
-            "desc": "%s 同伴打中的敵人被照亮 2 秒：受到的傷害 +10%%／級"
-          },
-          {
-            "id": "elite",
-            "kind": "elite",
-            "row": 2,
-            "col": 0,
-            "per": 0.12,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "crit"
-            ],
-            "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"
-          },
-          {
-            "id": "link",
-            "kind": "link",
-            "row": 2,
-            "col": 2,
-            "per": 0.5,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "expose"
-            ],
-            "desc": "%s 專屬連結效果 +50%%／級"
-          },
-          {
-            "id": "ult",
-            "kind": "ult",
-            "row": 3,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 200,
-            "cost_step": 0,
-            "req": [
-              "elite",
-              "link"
-            ],
-            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
-          }
+          {"id": "dmg", "kind": "dmg", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
+          {"id": "area", "kind": "area", "row": 0, "col": 1, "per": 0.08, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴的範圍、射程 +8%%／級"},
+          {"id": "speed", "kind": "speed", "row": 0, "col": 2, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +5%%／級"},
+          {"id": "crit", "kind": "crit", "row": 1, "col": 0, "per": 0.08, "max": 3, "cost": 40, "cost_step": 20, "req": ["dmg"], "desc": "%s 同伴每一擊有 8%%／級機率造成兩倍傷害"},
+          {"id": "beams", "kind": "stat", "row": 1, "col": 1, "per": 1, "max": 1, "cost": 90, "cost_step": 0, "req": ["area"], "desc": "%s 同伴的光束多一道", "stat": "beams", "add": 1},
+          {"id": "expose", "kind": "expose", "row": 1, "col": 2, "per": 0.1, "max": 3, "cost": 40, "cost_step": 20, "req": ["speed"], "desc": "%s 同伴打中的敵人被照亮 2 秒：受到的傷害 +10%%／級"},
+          {"id": "elite", "kind": "elite", "row": 2, "col": 0, "per": 0.12, "max": 3, "cost": 50, "cost_step": 25, "req": ["crit"], "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"},
+          {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["expose"], "desc": "%s 專屬連結效果 +50%%／級"},
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["elite", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
         ],
         "ref": "提後 4:2"
       },
       "詩歌": {
-        "names": [
-          "心被恩感",
-          "歌聲遠揚",
-          "對口唱和",
-          "讚美的大能",
-          "晨歌",
-          "同心讚美",
-          "和聲回響",
-          "和聲相連",
-          "新歌"
-        ],
-        "refs": [
-          "西 3:16",
-          "詩 96:1",
-          "弗 5:19",
-          "代下 20:22",
-          "詩 59:16",
-          "羅 15:6",
-          "代下 5:13",
-          "詩 133:1",
-          "啟 5:9"
-        ],
+        "names": ["心被恩感", "歌聲遠揚", "對口唱和", "讚美的大能", "晨歌", "同心讚美", "和聲回響", "和聲相連", "新歌"],
+        "refs": ["西 3:16", "詩 96:1", "弗 5:19", "代下 20:22", "詩 59:16", "羅 15:6", "代下 5:13", "詩 133:1", "啟 5:9"],
         "nodes": [
-          {
-            "id": "area",
-            "kind": "area",
-            "row": 0,
-            "col": 0,
-            "per": 0.1,
-            "max": 3,
-            "cost": 25,
-            "cost_step": 15,
-            "req": [],
-            "desc": "%s 同伴的範圍 +10%%／級"
-          },
-          {
-            "id": "speed",
-            "kind": "speed",
-            "row": 0,
-            "col": 1,
-            "per": 0.05,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴攻擊速度 +5%%／級"
-          },
-          {
-            "id": "dmg",
-            "kind": "dmg",
-            "row": 0,
-            "col": 2,
-            "per": 0.05,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴傷害 +5%%／級"
-          },
-          {
-            "id": "stun",
-            "kind": "stat",
-            "row": 1,
-            "col": 0,
-            "per": 0.2,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "area"
-            ],
-            "desc": "%s 同伴有暈眩效果的招式，暈眩 +0.2 秒／級",
-            "stat": "stun",
-            "add": 0.2
-          },
-          {
-            "id": "rings",
-            "kind": "stat",
-            "row": 1,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 90,
-            "cost_step": 0,
-            "req": [
-              "speed"
-            ],
-            "desc": "%s 同伴的聲波一次多一圈",
-            "stat": "rings",
-            "add": 1
-          },
-          {
-            "id": "meter",
-            "kind": "meter",
-            "row": 1,
-            "col": 2,
-            "per": 0.004,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "dmg"
-            ],
-            "desc": "%s 同伴每驅散一隻，同心合意 +0.4%%／級"
-          },
-          {
-            "id": "returns",
-            "kind": "stat",
-            "row": 2,
-            "col": 0,
-            "per": 1,
-            "max": 1,
-            "cost": 80,
-            "cost_step": 0,
-            "req": [
-              "stun"
-            ],
-            "desc": "%s 同伴的聲波擴散到底會再收回來打一次",
-            "stat": "returns",
-            "add": 1
-          },
-          {
-            "id": "link",
-            "kind": "link",
-            "row": 2,
-            "col": 2,
-            "per": 0.5,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "meter"
-            ],
-            "desc": "%s 專屬連結效果 +50%%／級"
-          },
-          {
-            "id": "ult",
-            "kind": "ult",
-            "row": 3,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 200,
-            "cost_step": 0,
-            "req": [
-              "returns",
-              "link"
-            ],
-            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
-          }
+          {"id": "area", "kind": "area", "row": 0, "col": 0, "per": 0.1, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴的範圍 +10%%／級"},
+          {"id": "speed", "kind": "speed", "row": 0, "col": 1, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +5%%／級"},
+          {"id": "dmg", "kind": "dmg", "row": 0, "col": 2, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +5%%／級"},
+          {"id": "stun", "kind": "stat", "row": 1, "col": 0, "per": 0.2, "max": 3, "cost": 40, "cost_step": 20, "req": ["area"], "desc": "%s 同伴有暈眩效果的招式，暈眩 +0.2 秒／級", "stat": "stun", "add": 0.2},
+          {"id": "rings", "kind": "stat", "row": 1, "col": 1, "per": 1, "max": 1, "cost": 90, "cost_step": 0, "req": ["speed"], "desc": "%s 同伴的聲波一次多一圈", "stat": "rings", "add": 1},
+          {"id": "meter", "kind": "meter", "row": 1, "col": 2, "per": 0.004, "max": 3, "cost": 40, "cost_step": 20, "req": ["dmg"], "desc": "%s 同伴每驅散一隻，同心合意 +0.4%%／級"},
+          {"id": "returns", "kind": "stat", "row": 2, "col": 0, "per": 1, "max": 1, "cost": 80, "cost_step": 0, "req": ["stun"], "desc": "%s 同伴的聲波擴散到底會再收回來打一次", "stat": "returns", "add": 1},
+          {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["meter"], "desc": "%s 專屬連結效果 +50%%／級"},
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["returns", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
         ],
         "ref": "西 3:16"
       },
       "守護": {
-        "names": [
-          "保守",
-          "看顧",
-          "庇蔭",
-          "大能的盾",
-          "預備的牆",
-          "四圍的城牆",
-          "彼此守望",
-          "牆垣",
-          "四圍的火城"
-        ],
-        "refs": [
-          "詩 121:7",
-          "詩 121:4",
-          "詩 91:1",
-          "詩 3:3",
-          "結 22:30",
-          "賽 26:1",
-          "結 3:17",
-          "賽 60:18",
-          "亞 2:5"
-        ],
+        "names": ["保守", "看顧", "庇蔭", "大能的盾", "預備的牆", "四圍的城牆", "彼此守望", "牆垣", "四圍的火城"],
+        "refs": ["詩 121:7", "詩 121:4", "詩 91:1", "詩 3:3", "結 22:30", "賽 26:1", "結 3:17", "賽 60:18", "亞 2:5"],
         "nodes": [
-          {
-            "id": "dr",
-            "kind": "dr",
-            "row": 0,
-            "col": 0,
-            "per": 0.08,
-            "max": 3,
-            "cost": 25,
-            "cost_step": 15,
-            "req": [],
-            "desc": "%s 同伴受到的傷害 -8%%／級"
-          },
-          {
-            "id": "dmg",
-            "kind": "dmg",
-            "row": 0,
-            "col": 1,
-            "per": 0.06,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴傷害 +6%%／級"
-          },
-          {
-            "id": "area",
-            "kind": "area",
-            "row": 0,
-            "col": 2,
-            "per": 0.08,
-            "max": 3,
-            "cost": 25,
-            "cost_step": 15,
-            "req": [],
-            "desc": "%s 同伴的範圍 +8%%／級"
-          },
-          {
-            "id": "thorns",
-            "kind": "thorns",
-            "row": 1,
-            "col": 0,
-            "per": 4,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "dr"
-            ],
-            "desc": "%s 同伴被打時，身邊的敵人受到 4 點／級的反擊傷害"
-          },
-          {
-            "id": "knock",
-            "kind": "stat",
-            "row": 1,
-            "col": 1,
-            "per": 0.25,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "dmg"
-            ],
-            "desc": "%s 同伴的擊退 +25%%／級",
-            "stat": "knock",
-            "mul": 0.25
-          },
-          {
-            "id": "guardcap",
-            "kind": "guardcap",
-            "row": 1,
-            "col": 2,
-            "per": 1,
-            "max": 2,
-            "cost": 60,
-            "cost_step": 30,
-            "req": [
-              "area"
-            ],
-            "desc": "主角的護盾上限 +1／級（全隊）"
-          },
-          {
-            "id": "start",
-            "kind": "start",
-            "row": 2,
-            "col": 0,
-            "per": 1,
-            "max": 1,
-            "cost": 80,
-            "cost_step": 0,
-            "req": [
-              "thorns"
-            ],
-            "desc": "%s 同伴加入時直接是 Lv2"
-          },
-          {
-            "id": "link",
-            "kind": "link",
-            "row": 2,
-            "col": 2,
-            "per": 0.5,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "guardcap"
-            ],
-            "desc": "%s 專屬連結效果 +50%%／級"
-          },
-          {
-            "id": "ult",
-            "kind": "ult",
-            "row": 3,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 200,
-            "cost_step": 0,
-            "req": [
-              "start",
-              "link"
-            ],
-            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
-          }
+          {"id": "dr", "kind": "dr", "row": 0, "col": 0, "per": 0.08, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴受到的傷害 -8%%／級"},
+          {"id": "dmg", "kind": "dmg", "row": 0, "col": 1, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
+          {"id": "area", "kind": "area", "row": 0, "col": 2, "per": 0.08, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴的範圍 +8%%／級"},
+          {"id": "thorns", "kind": "thorns", "row": 1, "col": 0, "per": 4, "max": 3, "cost": 40, "cost_step": 20, "req": ["dr"], "desc": "%s 同伴被打時，身邊的敵人受到 4 點／級的反擊傷害"},
+          {"id": "knock", "kind": "stat", "row": 1, "col": 1, "per": 0.25, "max": 3, "cost": 40, "cost_step": 20, "req": ["dmg"], "desc": "%s 同伴的擊退 +25%%／級", "stat": "knock", "mul": 0.25},
+          {"id": "guardcap", "kind": "guardcap", "row": 1, "col": 2, "per": 1, "max": 2, "cost": 60, "cost_step": 30, "req": ["area"], "desc": "主角的護盾上限 +1／級（全隊）"},
+          {"id": "start", "kind": "start", "row": 2, "col": 0, "per": 1, "max": 1, "cost": 80, "cost_step": 0, "req": ["thorns"], "desc": "%s 同伴加入時直接是 Lv2"},
+          {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["guardcap"], "desc": "%s 專屬連結效果 +50%%／級"},
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["start", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
         ],
         "ref": "詩 121:7"
       },
       "醫治": {
-        "names": [
-          "裹傷",
-          "按手",
-          "抹油",
-          "醫治的恩賜",
-          "起來行走",
-          "扶持軟弱",
-          "彼此代求",
-          "代求",
-          "得醫治"
-        ],
-        "refs": [
-          "路 10:34",
-          "可 16:18",
-          "雅 5:14",
-          "林前 12:9",
-          "徒 3:6",
-          "帖前 5:14",
-          "雅 5:16",
-          "提前 2:1",
-          "賽 53:5"
-        ],
+        "names": ["裹傷", "按手", "抹油", "醫治的恩賜", "起來行走", "扶持軟弱", "彼此代求", "代求", "得醫治"],
+        "refs": ["路 10:34", "可 16:18", "雅 5:14", "林前 12:9", "徒 3:6", "帖前 5:14", "雅 5:16", "提前 2:1", "賽 53:5"],
         "nodes": [
-          {
-            "id": "heal",
-            "kind": "healmul",
-            "row": 0,
-            "col": 0,
-            "per": 0.15,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴的治療量 +15%%／級"
-          },
-          {
-            "id": "speed",
-            "kind": "speed",
-            "row": 0,
-            "col": 1,
-            "per": 0.05,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴出手速度 +5%%／級"
-          },
-          {
-            "id": "dr",
-            "kind": "dr",
-            "row": 0,
-            "col": 2,
-            "per": 0.06,
-            "max": 3,
-            "cost": 25,
-            "cost_step": 15,
-            "req": [],
-            "desc": "%s 同伴受到的傷害 -6%%／級"
-          },
-          {
-            "id": "leech",
-            "kind": "leech",
-            "row": 1,
-            "col": 0,
-            "per": 0.5,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "heal"
-            ],
-            "desc": "%s 同伴每驅散一隻，主角回 0.5 血／級"
-          },
-          {
-            "id": "start",
-            "kind": "start",
-            "row": 1,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 80,
-            "cost_step": 0,
-            "req": [
-              "speed"
-            ],
-            "desc": "%s 同伴加入時直接是 Lv2"
-          },
-          {
-            "id": "revive",
-            "kind": "revive",
-            "row": 1,
-            "col": 2,
-            "per": 0.12,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "dr"
-            ],
-            "desc": "倒下的同伴站起來的時間 -12%%／級（全隊）"
-          },
-          {
-            "id": "linkcd",
-            "kind": "linkcd",
-            "row": 2,
-            "col": 0,
-            "per": 0.12,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "leech"
-            ],
-            "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"
-          },
-          {
-            "id": "link",
-            "kind": "link",
-            "row": 2,
-            "col": 2,
-            "per": 0.5,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "revive"
-            ],
-            "desc": "%s 專屬連結效果 +50%%／級"
-          },
-          {
-            "id": "ult",
-            "kind": "ult",
-            "row": 3,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 200,
-            "cost_step": 0,
-            "req": [
-              "linkcd",
-              "link"
-            ],
-            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
-          }
+          {"id": "heal", "kind": "healmul", "row": 0, "col": 0, "per": 0.15, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴的治療量 +15%%／級"},
+          {"id": "speed", "kind": "speed", "row": 0, "col": 1, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴出手速度 +5%%／級"},
+          {"id": "dr", "kind": "dr", "row": 0, "col": 2, "per": 0.06, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴受到的傷害 -6%%／級"},
+          {"id": "leech", "kind": "leech", "row": 1, "col": 0, "per": 0.5, "max": 3, "cost": 40, "cost_step": 20, "req": ["heal"], "desc": "%s 同伴每驅散一隻，主角回 0.5 血／級"},
+          {"id": "start", "kind": "start", "row": 1, "col": 1, "per": 1, "max": 1, "cost": 80, "cost_step": 0, "req": ["speed"], "desc": "%s 同伴加入時直接是 Lv2"},
+          {"id": "revive", "kind": "revive", "row": 1, "col": 2, "per": 0.12, "max": 3, "cost": 50, "cost_step": 25, "req": ["dr"], "desc": "倒下的同伴站起來的時間 -12%%／級（全隊）"},
+          {"id": "linkcd", "kind": "linkcd", "row": 2, "col": 0, "per": 0.12, "max": 3, "cost": 40, "cost_step": 20, "req": ["leech"], "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"},
+          {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["revive"], "desc": "%s 專屬連結效果 +50%%／級"},
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["linkcd", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
         ],
         "ref": "雅 5:16"
       },
       "差派": {
-        "names": [
-          "我在這裡",
-          "腳蹤佳美",
-          "往普天下去",
-          "兩個兩個",
-          "勇往直前",
-          "接力奔跑",
-          "分頭出去",
-          "不住地奔跑",
-          "直到地極"
-        ],
-        "refs": [
-          "賽 6:8",
-          "羅 10:15",
-          "可 16:15",
-          "路 10:1",
-          "腓 3:14",
-          "來 12:1",
-          "太 10:5",
-          "林前 9:24",
-          "徒 1:8"
-        ],
+        "names": ["我在這裡", "腳蹤佳美", "往普天下去", "兩個兩個", "勇往直前", "接力奔跑", "分頭出去", "不住地奔跑", "直到地極"],
+        "refs": ["賽 6:8", "羅 10:15", "可 16:15", "路 10:1", "腓 3:14", "來 12:1", "太 10:5", "林前 9:24", "徒 1:8"],
         "nodes": [
-          {
-            "id": "speed",
-            "kind": "speed",
-            "row": 0,
-            "col": 0,
-            "per": 0.06,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴攻擊速度 +6%%／級"
-          },
-          {
-            "id": "move",
-            "kind": "move",
-            "row": 0,
-            "col": 1,
-            "per": 0.04,
-            "max": 3,
-            "cost": 25,
-            "cost_step": 15,
-            "req": [],
-            "desc": "主角移動速度 +4%%／級（全隊）"
-          },
-          {
-            "id": "dmg",
-            "kind": "dmg",
-            "row": 0,
-            "col": 2,
-            "per": 0.05,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴傷害 +5%%／級"
-          },
-          {
-            "id": "count",
-            "kind": "stat",
-            "row": 1,
-            "col": 0,
-            "per": 1,
-            "max": 1,
-            "cost": 90,
-            "cost_step": 0,
-            "req": [
-              "speed"
-            ],
-            "desc": "%s 同伴一次多射一發",
-            "stat": "count",
-            "add": 1
-          },
-          {
-            "id": "combo",
-            "kind": "combo",
-            "row": 1,
-            "col": 1,
-            "per": 0.2,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "move"
-            ],
-            "desc": "%s 同伴每次出手，連鎖多撐 0.2 秒／級"
-          },
-          {
-            "id": "pierce",
-            "kind": "stat",
-            "row": 1,
-            "col": 2,
-            "per": 1,
-            "max": 2,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "dmg"
-            ],
-            "desc": "%s 同伴的投射物多穿透 1 隻／級",
-            "stat": "pierce",
-            "add": 1
-          },
-          {
-            "id": "linkcd",
-            "kind": "linkcd",
-            "row": 2,
-            "col": 0,
-            "per": 0.12,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "count"
-            ],
-            "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"
-          },
-          {
-            "id": "link",
-            "kind": "link",
-            "row": 2,
-            "col": 2,
-            "per": 0.5,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "combo"
-            ],
-            "desc": "%s 專屬連結效果 +50%%／級"
-          },
-          {
-            "id": "ult",
-            "kind": "ult",
-            "row": 3,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 200,
-            "cost_step": 0,
-            "req": [
-              "linkcd",
-              "link"
-            ],
-            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
-          }
+          {"id": "speed", "kind": "speed", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +6%%／級"},
+          {"id": "move", "kind": "move", "row": 0, "col": 1, "per": 0.04, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "主角移動速度 +4%%／級（全隊）"},
+          {"id": "dmg", "kind": "dmg", "row": 0, "col": 2, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +5%%／級"},
+          {"id": "count", "kind": "stat", "row": 1, "col": 0, "per": 1, "max": 1, "cost": 90, "cost_step": 0, "req": ["speed"], "desc": "%s 同伴一次多射一發", "stat": "count", "add": 1},
+          {"id": "combo", "kind": "combo", "row": 1, "col": 1, "per": 0.2, "max": 3, "cost": 40, "cost_step": 20, "req": ["move"], "desc": "%s 同伴每次出手，連鎖多撐 0.2 秒／級"},
+          {"id": "pierce", "kind": "stat", "row": 1, "col": 2, "per": 1, "max": 2, "cost": 50, "cost_step": 25, "req": ["dmg"], "desc": "%s 同伴的投射物多穿透 1 隻／級", "stat": "pierce", "add": 1},
+          {"id": "linkcd", "kind": "linkcd", "row": 2, "col": 0, "per": 0.12, "max": 3, "cost": 40, "cost_step": 20, "req": ["count"], "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"},
+          {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["combo"], "desc": "%s 專屬連結效果 +50%%／級"},
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["linkcd", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
         ],
         "ref": "賽 6:8"
       },
       "門徒": {
-        "names": [
-          "跟從",
-          "撇下網",
-          "蒙召",
-          "剛強壯膽",
-          "同負一軛",
-          "得人如得魚",
-          "彼此相愛",
-          "彼此洗腳",
-          "背起十字架"
-        ],
-        "refs": [
-          "可 1:17",
-          "可 1:18",
-          "弗 4:1",
-          "書 1:9",
-          "太 11:29",
-          "路 5:10",
-          "約 13:34",
-          "約 13:14",
-          "路 9:23"
-        ],
+        "names": ["跟從", "撇下網", "蒙召", "剛強壯膽", "同負一軛", "得人如得魚", "彼此相愛", "彼此洗腳", "背起十字架"],
+        "refs": ["可 1:17", "可 1:18", "弗 4:1", "書 1:9", "太 11:29", "路 5:10", "約 13:34", "約 13:14", "路 9:23"],
         "nodes": [
-          {
-            "id": "dmg",
-            "kind": "dmg",
-            "row": 0,
-            "col": 0,
-            "per": 0.06,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴傷害 +6%%／級"
-          },
-          {
-            "id": "speed",
-            "kind": "speed",
-            "row": 0,
-            "col": 1,
-            "per": 0.05,
-            "max": 5,
-            "cost": 15,
-            "cost_step": 10,
-            "req": [],
-            "desc": "%s 同伴攻擊速度 +5%%／級"
-          },
-          {
-            "id": "xp",
-            "kind": "xp",
-            "row": 0,
-            "col": 2,
-            "per": 0.05,
-            "max": 3,
-            "cost": 25,
-            "cost_step": 15,
-            "req": [],
-            "desc": "經驗 +5%%／級（全隊）"
-          },
-          {
-            "id": "elite",
-            "kind": "elite",
-            "row": 1,
-            "col": 0,
-            "per": 0.12,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "dmg"
-            ],
-            "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"
-          },
-          {
-            "id": "start",
-            "kind": "start",
-            "row": 1,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 80,
-            "cost_step": 0,
-            "req": [
-              "speed"
-            ],
-            "desc": "%s 同伴加入時直接是 Lv2"
-          },
-          {
-            "id": "loot",
-            "kind": "loot",
-            "row": 1,
-            "col": 2,
-            "per": 0.08,
-            "max": 3,
-            "cost": 40,
-            "cost_step": 20,
-            "req": [
-              "xp"
-            ],
-            "desc": "%s 同伴驅散的敵人有 8%%／級機率多掉一顆經驗"
-          },
-          {
-            "id": "crit",
-            "kind": "crit",
-            "row": 2,
-            "col": 0,
-            "per": 0.06,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "elite"
-            ],
-            "desc": "%s 同伴每一擊有 6%%／級機率造成兩倍傷害"
-          },
-          {
-            "id": "link",
-            "kind": "link",
-            "row": 2,
-            "col": 2,
-            "per": 0.5,
-            "max": 3,
-            "cost": 50,
-            "cost_step": 25,
-            "req": [
-              "loot"
-            ],
-            "desc": "%s 專屬連結效果 +50%%／級"
-          },
-          {
-            "id": "ult",
-            "kind": "ult",
-            "row": 3,
-            "col": 1,
-            "per": 1,
-            "max": 1,
-            "cost": 200,
-            "cost_step": 0,
-            "req": [
-              "crit",
-              "link"
-            ],
-            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
-          }
+          {"id": "dmg", "kind": "dmg", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
+          {"id": "speed", "kind": "speed", "row": 0, "col": 1, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +5%%／級"},
+          {"id": "xp", "kind": "xp", "row": 0, "col": 2, "per": 0.05, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "經驗 +5%%／級（全隊）"},
+          {"id": "elite", "kind": "elite", "row": 1, "col": 0, "per": 0.12, "max": 3, "cost": 40, "cost_step": 20, "req": ["dmg"], "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"},
+          {"id": "start", "kind": "start", "row": 1, "col": 1, "per": 1, "max": 1, "cost": 80, "cost_step": 0, "req": ["speed"], "desc": "%s 同伴加入時直接是 Lv2"},
+          {"id": "loot", "kind": "loot", "row": 1, "col": 2, "per": 0.08, "max": 3, "cost": 40, "cost_step": 20, "req": ["xp"], "desc": "%s 同伴驅散的敵人有 8%%／級機率多掉一顆經驗"},
+          {"id": "crit", "kind": "crit", "row": 2, "col": 0, "per": 0.06, "max": 3, "cost": 50, "cost_step": 25, "req": ["elite"], "desc": "%s 同伴每一擊有 6%%／級機率造成兩倍傷害"},
+          {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["loot"], "desc": "%s 專屬連結效果 +50%%／級"},
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["crit", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
         ],
         "ref": "可 1:17"
       }
     },
     "_說明": "每棵樹有自己的 nodes（9 個）：kind 決定效果（dmg 傷害、speed 攻速、area 範圍、crit 會心、expose 照亮、elite 菁英、stat 改招式數值、meter 同心合意、dr 減傷、thorns 反擊、guardcap 護盾上限、healmul 治療量、leech 驅散回血、revive 倒地時間、move 移動、combo 連鎖、xp 經驗、loot 多掉經驗、start 直接 Lv2、linkcd 連結間隔、link 專屬連結、ult 終極）。"
   },
-  "_buildings說明": "營地建設：用見證蓋，蓋好就一直有效，也會出現在營地裡。bonus 的 key：regen 主角每秒回血、meter 開局同心合意、xp 經驗、magnet 撿取範圍、bread 每局帶回的餅、affinity 默契、armor 軍裝欄位。",
+  "_buildings說明": "營地建設：用見證蓋，可以升級到 max 級（第 n 級的價格是 cost × n），效果是 bonus × 等級。蓋好就一直有效，也會出現在營地裡。bonus 的 key：regen 主角每秒回血、meter 開局同心合意、xp 經驗、magnet 撿取範圍、bread 每局帶回的餅、affinity 默契、armor 軍裝欄位。",
   "buildings": [
-    { "id": "well",    "name": "水井",   "ref": "約 4:14",  "desc": "主角每秒回復 0.2 血",        "cost": 150, "bonus": { "regen": 0.2 },   "pos": [-66, -58] },
-    { "id": "tower",   "name": "瞭望台", "ref": "結 33:7",  "desc": "撿取範圍 +15%",              "cost": 150, "bonus": { "magnet": 0.15 }, "pos": [152, -2] },
-    { "id": "altar",   "name": "祭壇",   "ref": "創 12:7",  "desc": "每局開始時同心合意已有 30%", "cost": 200, "bonus": { "meter": 0.3 },   "pos": [14, -60] },
-    { "id": "library", "name": "書房",   "ref": "提後 4:13", "desc": "經驗 +8%",                  "cost": 250, "bonus": { "xp": 0.08 },     "pos": [52, -58] },
-    { "id": "table",   "name": "愛筵長桌", "ref": "猶 1:12", "desc": "每局帶回的餅 +25%",         "cost": 300, "bonus": { "bread": 0.25 },  "pos": [8, 54] },
-    { "id": "garden",  "name": "園子",   "ref": "歌 4:16",  "desc": "同伴獲得的默契 +30%",        "cost": 300, "bonus": { "affinity": 0.3 }, "pos": [-20, 74] },
-    { "id": "forge",   "name": "工坊",   "ref": "徒 18:3",  "desc": "軍裝可以多穿一件",           "cost": 600, "bonus": { "armor": 1 },     "pos": [134, -36] }
+    {"id": "well", "name": "水井", "ref": "約 4:14", "desc": "主角每秒回復 0.2 血／級", "cost": 150, "bonus": {"regen": 0.2}, "pos": [-66, -58], "max": 3},
+    {"id": "tower", "name": "瞭望台", "ref": "結 33:7", "desc": "撿取範圍 +15%／級", "cost": 150, "bonus": {"magnet": 0.15}, "pos": [152, -2], "max": 3},
+    {"id": "altar", "name": "祭壇", "ref": "創 12:7", "desc": "每局開始時同心合意 +20%／級", "cost": 200, "bonus": {"meter": 0.2}, "pos": [14, -60], "max": 3},
+    {"id": "library", "name": "書房", "ref": "提後 4:13", "desc": "經驗 +8%／級", "cost": 250, "bonus": {"xp": 0.08}, "pos": [52, -58], "max": 3},
+    {"id": "table", "name": "愛筵長桌", "ref": "猶 1:12", "desc": "每局帶回的餅 +25%／級", "cost": 300, "bonus": {"bread": 0.25}, "pos": [8, 54], "max": 3},
+    {"id": "garden", "name": "園子", "ref": "歌 4:16", "desc": "同伴獲得的默契 +30%／級", "cost": 300, "bonus": {"affinity": 0.3}, "pos": [-20, 74], "max": 3},
+    {"id": "forge", "name": "工坊", "ref": "徒 18:3", "desc": "軍裝可以多穿一件", "cost": 600, "bonus": {"armor": 1}, "pos": [134, -36], "max": 1}
   ],
   "_gift_bread說明": "送餅給同伴：在同伴頁花 cost 個餅，默契 +affinity。",
-  "gift_bread": { "cost": 10, "affinity": 15 },
+  "gift_bread": {"cost": 10, "affinity": 15},
   "_trials說明": "熬煉（難度等級，彼前 1:7）：建立第一間教會後可以在出發前打開。每項有點數，總點數每點見證 +15%、餅 +10%。",
   "trials": {
     "witness_per_point": 0.15,
     "bread_per_point": 0.1,
     "list": [
-      { "id": "swift",    "name": "急流",       "ref": "賽 43:2",   "desc": "敵人速度 +20%",               "points": 1 },
-      { "id": "many",     "name": "大軍",       "ref": "詩 3:6",    "desc": "敵人數量 +30%",               "points": 2 },
-      { "id": "hard",     "name": "剛硬",       "ref": "出 7:13",   "desc": "敵人血量 +40%",               "points": 2 },
-      { "id": "sharp",    "name": "火箭",       "ref": "弗 6:16",   "desc": "敵人傷害 +40%",               "points": 2 },
-      { "id": "lion",     "name": "吼叫的獅子", "ref": "彼前 5:8",  "desc": "Boss 血量 +50%、預警變短",    "points": 2 },
-      { "id": "simple",   "name": "單純",       "ref": "太 6:22",   "desc": "這局不能重抽",                "points": 1 },
-      { "id": "alone",    "name": "獨行",       "ref": "提後 4:16", "desc": "隊伍上限 -1",                 "points": 2 }
+      {"id": "swift", "name": "急流", "ref": "賽 43:2", "desc": "敵人速度 +20%", "points": 1},
+      {"id": "many", "name": "大軍", "ref": "詩 3:6", "desc": "敵人數量 +30%", "points": 2},
+      {"id": "hard", "name": "剛硬", "ref": "出 7:13", "desc": "敵人血量 +40%", "points": 2},
+      {"id": "sharp", "name": "火箭", "ref": "弗 6:16", "desc": "敵人傷害 +40%", "points": 2},
+      {"id": "lion", "name": "吼叫的獅子", "ref": "彼前 5:8", "desc": "Boss 血量 +50%、預警變短", "points": 2},
+      {"id": "simple", "name": "單純", "ref": "太 6:22", "desc": "這局不能重抽", "points": 1},
+      {"id": "alone", "name": "獨行", "ref": "提後 4:16", "desc": "隊伍上限 -1", "points": 2}
     ]
   },
   "shop": [
-    { "id": "barn",          "kind": "companion", "name": "巴拿巴加入名單",   "desc": "鼓勵光環，讓範圍內同伴攻擊加快", "cost": 60 },
-    { "id": "apollos",       "kind": "companion", "name": "亞波羅加入名單",   "desc": "直線貫穿的光束，剋謊言", "cost": 100 },
-    { "id": "pri",           "kind": "companion", "name": "百基拉・亞居拉加入名單", "desc": "帳棚屏障，擋住外圈的敵人", "cost": 120 },
-    { "id": "peter",         "kind": "companion", "name": "彼得加入名單",     "desc": "【門徒】撒網把敵人拉在一起", "cost": 140 },
-    { "id": "john",          "kind": "companion", "name": "約翰加入名單",     "desc": "【門徒】連鎖閃電", "cost": 140 },
-    { "id": "thomas",        "kind": "companion", "name": "多馬加入名單",     "desc": "【門徒】近身刺擊，會心爆發", "cost": 120 },
-    { "id": "matthew",       "kind": "companion", "name": "馬太加入名單",     "desc": "【門徒】分散的錢幣", "cost": 120 },
-    { "id": "andrew",        "kind": "companion", "name": "安得烈加入名單",   "desc": "【門徒】把經驗與餅帶過來", "cost": 100 },
-    { "id": "leader_tim",    "kind": "leader",    "name": "主角：提摩太",     "desc": "出發時可以選提摩太當主角：血少、跑得快", "cost": 150 },
-    { "id": "leader_peter",  "kind": "leader",    "name": "主角：彼得",       "desc": "血厚、走得慢，撒網", "cost": 200, "requires": "peter" },
-    { "id": "leader_philip", "kind": "leader",    "name": "主角：腓利",       "desc": "跑得最快，長距離衝刺", "cost": 200, "requires": "philip" },
-    { "id": "leader_lydia",  "kind": "leader",    "name": "主角：呂底亞",     "desc": "鋪紫布定住敵人", "cost": 200, "requires": "lydia" },
-    { "id": "armor_breast",  "kind": "armor",     "name": "軍裝：公義的護心鏡", "desc": "主角受到的傷害減少", "cost": 100 },
-    { "id": "armor_helmet",  "kind": "armor",     "name": "軍裝：救恩的頭盔", "desc": "經驗增加", "cost": 100 },
-    { "id": "fruit_good",    "kind": "fruit",     "name": "果子：良善",       "desc": "帳棚更強、同伴血量提高", "cost": 60 },
-    { "id": "armor_belt",    "kind": "armor",     "name": "軍裝：真理的腰帶", "desc": "剋謊言", "cost": 80 },
-    { "id": "armor_shield",  "kind": "armor",     "name": "軍裝：信德的藤牌", "desc": "定時擋下一次攻擊", "cost": 100 },
-    { "id": "slot_4",        "kind": "slot",      "name": "隊伍第 4 個位置",  "desc": "一局最多可以帶 4 位同伴", "cost": 150 },
-    { "id": "slot_5",        "kind": "slot",      "name": "隊伍第 5 個位置",  "desc": "一局最多可以帶 5 位同伴", "cost": 300, "requires": "slot_4" },
-    { "id": "reroll_1",      "kind": "reroll",    "name": "重抽 1 次",        "desc": "每局可以把升級卡重抽 1 次（按 R）", "cost": 120 },
-    { "id": "reroll_2",      "kind": "reroll",    "name": "重抽再 +2 次",     "desc": "每局重抽次數變成 3 次", "cost": 250, "requires": "reroll_1", "amount": 2 }
+    {"id": "barn", "kind": "companion", "name": "巴拿巴加入名單", "desc": "鼓勵光環，讓範圍內同伴攻擊加快", "cost": 60},
+    {"id": "apollos", "kind": "companion", "name": "亞波羅加入名單", "desc": "直線貫穿的光束，剋謊言", "cost": 100},
+    {"id": "pri", "kind": "companion", "name": "百基拉・亞居拉加入名單", "desc": "帳棚屏障，擋住外圈的敵人", "cost": 120},
+    {"id": "peter", "kind": "companion", "name": "彼得加入名單", "desc": "【門徒】撒網把敵人拉在一起", "cost": 140},
+    {"id": "john", "kind": "companion", "name": "約翰加入名單", "desc": "【門徒】連鎖閃電", "cost": 140},
+    {"id": "thomas", "kind": "companion", "name": "多馬加入名單", "desc": "【門徒】近身刺擊，會心爆發", "cost": 120},
+    {"id": "matthew", "kind": "companion", "name": "馬太加入名單", "desc": "【門徒】分散的錢幣", "cost": 120},
+    {"id": "andrew", "kind": "companion", "name": "安得烈加入名單", "desc": "【門徒】把經驗與餅帶過來", "cost": 100},
+    {"id": "leader_tim", "kind": "leader", "name": "主角：提摩太", "desc": "出發時可以選提摩太當主角：血少、跑得快", "cost": 150},
+    {"id": "leader_peter", "kind": "leader", "name": "主角：彼得", "desc": "血厚、走得慢，撒網", "cost": 200, "requires": "peter"},
+    {"id": "leader_philip", "kind": "leader", "name": "主角：腓利", "desc": "跑得最快，長距離衝刺", "cost": 200, "requires": "philip"},
+    {"id": "leader_lydia", "kind": "leader", "name": "主角：呂底亞", "desc": "鋪紫布定住敵人", "cost": 200, "requires": "lydia"},
+    {"id": "armor_breast", "kind": "armor", "name": "軍裝：公義的護心鏡", "desc": "主角受到的傷害減少", "cost": 100},
+    {"id": "armor_helmet", "kind": "armor", "name": "軍裝：救恩的頭盔", "desc": "經驗增加", "cost": 100},
+    {"id": "fruit_good", "kind": "fruit", "name": "果子：良善", "desc": "帳棚更強、同伴血量提高", "cost": 60},
+    {"id": "armor_belt", "kind": "armor", "name": "軍裝：真理的腰帶", "desc": "剋謊言", "cost": 80},
+    {"id": "armor_shield", "kind": "armor", "name": "軍裝：信德的藤牌", "desc": "定時擋下一次攻擊", "cost": 100},
+    {"id": "slot_4", "kind": "slot", "name": "隊伍第 4 個位置", "desc": "一局最多可以帶 4 位同伴", "cost": 150},
+    {"id": "slot_5", "kind": "slot", "name": "隊伍第 5 個位置", "desc": "一局最多可以帶 5 位同伴", "cost": 300, "requires": "slot_4"},
+    {"id": "reroll_1", "kind": "reroll", "name": "重抽 1 次", "desc": "每局可以把升級卡重抽 1 次（按 R）", "cost": 120},
+    {"id": "reroll_2", "kind": "reroll", "name": "重抽再 +2 次", "desc": "每局重抽次數變成 3 次", "cost": 250, "requires": "reroll_1", "amount": 2}
   ],
   "_achievements說明": "見證錄（成就）：stat 達到 min 就完成，給 witness 見證、bread 餅，unlock 解鎖同伴。group 是分類；secret 完成前名稱顯示？？？。stat 可用 stats 裡的統計，或 churches、companions、gift_points、bread_total、codex_enemies、affinity_max。",
   "achievements": [
@@ -1160,5 +259,21 @@
     {"id": "fever50", "name": "聖靈充滿", "desc": "累計開 50 次五旬節", "stat": "fevers_total", "min": 50, "group": "挑戰", "witness": 100},
     {"id": "with", "name": "常與你們同在", "desc": "？？？（在五旬節時遇見）", "stat": "lights", "min": 1, "witness": 50, "unlock": "mary", "group": "隱藏", "secret": true},
     {"id": "lights5", "name": "以馬內利", "desc": "？？？（在五旬節時遇見 5 次）", "stat": "lights", "min": 5, "group": "隱藏", "witness": 150, "secret": true}
-  ]
+  ],
+  "_market說明": "市集：每趟回營地換一批（offers 個），用見證買「行囊」，下一局出門時生效、用完就沒了。effect：picks 開局先選幾張升級卡、armor 隨機一件軍裝、fruit 隨機一個果子、reroll 多幾次重抽、guard 開局護盾層數、starter2 第一位同工開局就加入（Lv2）、meter 開局同心合意、bread 這局帶回的餅加成。",
+  "market": {
+    "offers": 4,
+    "items": [
+      {"id": "ration", "name": "乾糧", "ref": "太 14:20", "desc": "開局先選 2 張升級卡", "cost": 60, "effect": {"picks": 2}},
+      {"id": "armor", "name": "舊軍裝", "ref": "弗 6:11", "desc": "開局隨機穿上一件已解鎖的軍裝", "cost": 70, "effect": {"armor": 1}},
+      {"id": "fruit", "name": "一籃果子", "ref": "加 5:22", "desc": "開局隨機得到一個已解鎖的聖靈果子", "cost": 70, "effect": {"fruit": 1}},
+      {"id": "scroll", "name": "新的書卷", "ref": "提後 4:13", "desc": "這局多 2 次重抽", "cost": 40, "effect": {"reroll": 2}},
+      {"id": "oil", "name": "香膏", "ref": "可 14:3", "desc": "開局主角有 3 層護盾", "cost": 50, "effect": {"guard": 3}},
+      {"id": "letter", "name": "推薦信", "ref": "林後 3:1", "desc": "第一位同工開局就加入，而且是 Lv2", "cost": 80, "effect": {"starter2": 1}},
+      {"id": "lamp", "name": "油燈", "ref": "太 25:4", "desc": "開局同心合意 50%", "cost": 45, "effect": {"meter": 0.5}},
+      {"id": "basket", "name": "空籃子", "ref": "約 6:13", "desc": "這局帶回的餅 +50%", "cost": 60, "effect": {"bread": 0.5}}
+    ]
+  },
+  "exchange": {"witness": 10, "bread": 3},
+  "pray": {"witness": 15, "affinity": 15}
 }
