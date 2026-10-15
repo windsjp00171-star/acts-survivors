@@ -201,6 +201,15 @@ var cones: Array = []      # 米利暗的鼓聲（畫面）
 var hz_t := -1.0           # 下一次發生的時間（距離開局的秒數）
 var spots: Array = []      # 地上的壇、帳棚、火堆 {kind, pos, life, ...}
 var altar_buff := 0.0      # 雅典：認識未識之神的加成剩下的秒數
+# 聖物（像流亡黯道的傳奇裝備）、膏抹（輔助寶石）、屬性（燃燒、浸濕、感電）
+var relics := {}           # 聖物 id → true
+var relic_pending := false # 撿到的寶箱要讓你選聖物
+var loaves_n := 0          # 五餅二魚：撿到的經驗
+var shadow_t := 0.0
+var dove_t := 0.0
+var chaining := false      # 連鎖膏抹：避免一跳再跳
+var elem_of := {}          # 同伴 key → fire / water / shock
+var run_relics := 0
 # 五重職事（弗 4:11）：出發前選的呼召
 var calling := "apostle"
 var prophecy := {}         # 先知：預言之地 {pos, r, t}
@@ -361,6 +370,17 @@ func _ready() -> void:
 			fruits = {"joy": 1, "faith": 1, "good": 1, "peace": 1}
 			for evo in _ready_evolutions():
 				_evolve(evo)
+	for a in OS.get_cmdline_user_args():
+		# 測試用：--relics=hair,mantle　--anoint=tim:multi,chain
+		if a.begins_with("--relics="):
+			for id in a.substr(9).split(","):
+				_take_relic(id)
+		if a.begins_with("--anoint="):
+			var who: String = a.substr(9).get_slice(":", 0)
+			var ao := _who(who)
+			if not ao.is_empty():
+				ao.anoints = Array(a.substr(9).get_slice(":", 1).split(","))
+				_set_level(ao, maxi(1, ao.level))
 	if smoke_preset == "sets":
 		# 測試用：套裝＋新觸發條件＋流派專屬效果
 		for k in ["silas", "tim", "luke", "barn"]:
@@ -493,6 +513,9 @@ func _build_world() -> void:
 		i += 1
 	for c in comps + [pa]:
 		_apply_gifts(c)
+	for el in ["fire", "water", "shock"]:
+		for k in D.elements.get(el, []):
+			elem_of[k] = el
 	# 恩賜樹第 5 層：改寫流派規則
 	for tag in Save.meta.gifts.trees:
 		for nd in Save.gift_nodes(tag):
@@ -588,6 +611,7 @@ func _set_level(c: Dictionary, lv: int) -> void:
 		for sm in c.get("tstats", []):
 			if c.st.has(sm.stat):
 				c.st[sm.stat] = float(c.st[sm.stat]) * (1.0 + float(sm.mul)) + float(sm.add)
+		_mod_stats(c)
 	if not comps.is_empty() and not pa.is_empty():
 		_update_synergy()
 
@@ -669,7 +693,7 @@ func _comp_max_hp() -> float:
 	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1) * (1.3 if calling == "shepherd" else 1.0)
 
 func _speed() -> float:
-	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run"))
+	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run")) * (0.85 if relics.has("ark") else 1.0)
 
 
 func _make_cards() -> Array:
@@ -739,6 +763,12 @@ func _make_cards() -> Array:
 		pool.append(lc)
 	for sc in _school_cards():
 		pool.append(sc)
+	var ac := _anoint_card()
+	if not ac.is_empty():
+		pool.append(ac)
+	if relics.has("rod"):
+		for f in pool.filter(func(cd): return cd.kind == "fruit"):
+			pool.append(f)   # 亞倫發芽的杖：果子卡更常出現
 	pool.shuffle()
 	# 第一位同工：還沒加入前，招募卡一定排第一張
 	if first_recruit != "" and by_key.has(first_recruit) and by_key[first_recruit].level == 0:
@@ -787,6 +817,8 @@ func _level_up() -> void:
 	_tip("cards")
 	if pending_cards.any(func(cd): return cd.kind == "link"):
 		_tip("link")
+	if pending_cards.any(func(cd): return cd.kind == "anoint"):
+		_tip("anoint")
 	Sfx.play("levelup", 0.0)
 	ui.do_flash(0.5)
 	_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 60.0)
@@ -838,6 +870,16 @@ func _apply_card(card: Dictionary) -> void:
 		ui.show_banner("肢體連結！", 1.2)
 	elif card.kind == "event":
 		_event_effects(card.effects)
+	elif card.kind == "relic":
+		_take_relic(card.key)
+	elif card.kind == "anoint":
+		var ao := _who(card.key)
+		if not ao.is_empty():
+			if not ao.has("anoints"):
+				ao.anoints = []
+			ao.anoints.append(card.aid)
+			_set_level(ao, ao.level)
+			_ring_pop(ao.pos + Vector2(0, -8), Color("c8a0ff"), 24.0)
 	elif card.kind == "school":
 		school_cards[card.key] = true
 		for k in card.mod:
@@ -910,6 +952,19 @@ func _refresh_build_text() -> void:
 				if k.begins_with(tag + ":"):
 					nc += 1
 			lines.append("流派　%s「%s」%d 階%s" % [tag, D.schools[tag].name, school_tier[tag], ("＋%d 卡" % nc) if nc > 0 else ""])
+	if not relics.is_empty():
+		var rn := []
+		for r in D.relics:
+			if relics.has(r.id):
+				rn.append(r.name)
+		lines.append("聖物　" + "、".join(rn))
+	for o in [pa] + comps:
+		if not o.get("anoints", []).is_empty() and o.level > 0:
+			var an := []
+			for a in D.anoints:
+				if o.anoints.has(a.id):
+					an.append(a.name)
+			lines.append("膏抹　%s：%s" % [o.name, "、".join(an)])
 	var brs := []
 	for c in [pa] + comps:
 		if c.get("branch", -1) >= 0:
@@ -1056,6 +1111,8 @@ func _bot_pick(cards: Array) -> int:
 			"heal": sc = 50.0 if paul.hp < float(D.paul.hp) * 0.5 else 5.0
 			"event": sc = 20.0
 			"school": sc = 45.0
+			"relic": sc = 50.0
+			"anoint": sc = 38.0
 			_: sc = 10.0
 		sc += randf() * 6.0
 		if sc > best_score:
@@ -1230,6 +1287,10 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		dmg *= 2.0   # 同行合擊：我的主，我的神
 	if altar_buff > 0.0:
 		dmg *= 1.0 + float(stage.get("hazard", {}).get("buff", 0.0))   # 雅典：認識未識之神
+	if relics.has("hair"):
+		dmg *= 1.0 + clampf(1.0 - paul.hp / float(D.paul.hp), 0.0, 1.0)   # 參孫的頭髮
+	if not e.get("burning_hit", false):
+		dmg *= _apply_element(e, dmg, src)
 	if not prophecy.is_empty() and e.pos.distance_to(prophecy.pos) < prophecy.r:
 		dmg *= 2.0   # 先知：預言之地
 		e.slow_t = 1.0   # 也走得慢
@@ -1248,6 +1309,8 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		sparks.append({"pos": e.pos + Vector2(randf_range(-3, 3), randf_range(-8, -2)), "t": 0.0, "col": hcol})
 	if parts.size() < 400 and not _fx_lite():
 		_burst(e.pos + Vector2(0, -5), 2, hcol, hcol.darkened(0.4))
+	if src is Dictionary and not e.get("burning_hit", false):
+		_anoint_on_hit(e, dmg, src)
 	if e.hp <= 0:
 		_kill(e, true, src)
 	elif src is Dictionary and src.get("tag", "") == "講道" and _school_on("講道"):
@@ -1291,13 +1354,23 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 				if randf() < _sv("門徒", "minion_chance") * (1.0 + _sv("門徒", "minion_chance_mult")):
 					for i in (2 if _sv("門徒", "minion_pair") > 0.0 else 1):
 						_spawn_minion(e.pos)
+		if float(e.get("burn_t", 0.0)) > 0.0 and not e.get("boss", false):
+			# 燒死的敵人爆開，把火傳給旁邊的
+			blasts.append({"pos": e.pos, "t": 0.0, "r": 20.0, "col": C_FLAME, "evo": false})
+			for o in enemies:
+				if not o.dead and o != e and o.pos.distance_to(e.pos) < 20.0:
+					o.burn_t = 3.0
+					o.burn_dps = maxf(float(o.get("burn_dps", 0.0)), float(e.get("burn_dps", 2.0)))
+		if src is Dictionary and src.get("anoints", []).has("trigger") and t >= float(src.get("trig_cd", 0.0)) and src.level > 0:
+			src.trig_cd = t + 0.8
+			delayed.append({"t": 0.05, "fn": _cast.bind(src, true, 1)})
 		if feast_t > 0.0:
 			gems.append({"pos": e.pos + Vector2(randf_range(-5, 5), randf_range(-4, 4)), "got": false})
 		if e.get("vet", false):
 			for i in int(D.waves.veteran.gems) - 1:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
 		if e.d.get("chest", false):
-			chests.append({"pos": e.pos})
+			chests.append({"pos": e.pos, "relic": randf() < float(D.relic_rules.elite_chance)})
 			_tip("chest")
 		if e.get("elite", false):
 			run_elites += 1
@@ -1306,8 +1379,8 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			for i in int(e.d.split_count):
 				_spawn_one(e.d.split_into, e.pos + Vector2(randf_range(-8, 8), randf_range(-6, 6)))
 		if e.get("boss", false) and e.get("mid", false):
-			# 中途 Boss 打退了：掉寶箱，真正的 Boss 之後才來
-			chests.append({"pos": e.pos})
+			# 中途 Boss 打退了：掉寶箱（一定能選聖物），真正的 Boss 之後才來
+			chests.append({"pos": e.pos, "relic": true})
 			boss = null
 			run_midboss += 1
 			if endless:
@@ -1701,6 +1774,7 @@ func _step(dt: float) -> void:
 	_update_enemies(dt)
 	_update_schools_step(dt)
 	_update_engines(dt)
+	_update_ailments(dt)
 	_run_link_queue()
 	enemies = enemies.filter(func(e): return not e.dead)
 	for f in link_fx:
@@ -1760,6 +1834,8 @@ func _step(dt: float) -> void:
 	for ch in chests:
 		if p.pos.distance_to(ch.pos) < 10.0 and not chest_open:
 			ch.got = true
+			if ch.get("relic", false):
+				relic_pending = true
 			_open_chest()
 	chests = chests.filter(func(ch): return not ch.get("got", false))
 
@@ -1783,6 +1859,10 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
+			if relics.has("loaves"):
+				loaves_n += 1
+				if loaves_n % 60 == 0:
+					chests.append({"pos": p.pos + Vector2(randf_range(-30, 30), randf_range(-24, 24))})
 			xp_acc += Save.up_value("growth") + Save.building_bonus("xp") + Save.gift_global("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
@@ -1852,7 +1932,7 @@ func _companion_skills(dt: float) -> void:
 			continue
 		var s: Dictionary = c.st
 		c.ult_cd = maxf(0.0, float(c.get("ult_cd", 0.0)) - dt)
-		var mult: float = speed_mult * c.aff * c.syn * _school_speed(c) * (2.0 if float(bond_buff.get(c.key, 0.0)) > 0.0 else 1.0)
+		var mult: float = speed_mult * c.aff * c.syn * _school_speed(c) * (2.0 if float(bond_buff.get(c.key, 0.0)) > 0.0 else 1.0) * (0.7 if relics.has("ladder") else 1.0)
 		if barn_on and c != barn and c.pos.distance_to(barn.pos) < _aura_r(barn):
 			mult *= barn.st.attack_speed
 		c.cd -= dt * mult
@@ -2172,6 +2252,13 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			combo_t = minf(float(D.links.combo.window), combo_t + float(s.get("combo_keep", 0.0)) + float(c.get("tcombo", 0.0)))
 		_fire_links("cast", c, depth)
 		_bond_check(c)
+		if not triggered:
+			if c.get("anoints", []).has("echo"):
+				c.echo_n = int(c.get("echo_n", 0)) + 1
+				if c.echo_n % 3 == 0:
+					delayed.append({"t": 0.2, "fn": _cast.bind(c, true, 1)})
+			if relics.has("mantle") and randf() < 0.25:
+				delayed.append({"t": 0.15, "fn": _cast.bind(c, true, 1)})
 	return fired
 
 
@@ -2185,7 +2272,7 @@ func _fire_links(kind: String, src, depth: int) -> void:
 			continue
 		if not _glob(kind) and L.src != src:
 			continue
-		L.cd = float(D.links.kinds[kind].cooldown) * float(D.links.levels.cooldown_mult[int(L.get("lv", 1)) - 1]) * float(L.dst.get("tlinkcd", 1.0))
+		L.cd = float(D.links.kinds[kind].cooldown) * float(D.links.levels.cooldown_mult[int(L.get("lv", 1)) - 1]) * float(L.dst.get("tlinkcd", 1.0)) * (0.5 if relics.has("ladder") else 1.0)
 		link_queue.append({"L": L, "depth": depth + 1})
 
 
@@ -2612,7 +2699,7 @@ func _shield_shock(at: Vector2) -> void:
 # 醫治：滿溢
 func _heal_paul(n: float) -> void:
 	_anoint_add(paul.hp + n - float(D.paul.hp))
-	paul.hp = minf(float(D.paul.hp), paul.hp + n)
+	paul.hp = minf(_hp_cap(), maxf(paul.hp, minf(float(D.paul.hp), paul.hp + n)))
 
 
 func _anoint_add(v: float) -> void:
@@ -3215,11 +3302,15 @@ func _draw_engines(n: Node2D) -> void:
 		for pt in _orbit_points(c):
 			var ox: float = roundf(pt.x)
 			var oy: float = roundf(pt.y)
-			n.draw_rect(Rect2(ox - 3, oy - 7, 7, 9), Color("1a1408"))
-			n.draw_rect(Rect2(ox - 2, oy - 4, 5, 5), Color("f0e0b0"))
+			# 祭司：白袍、頭巾，手上的羊角往外吹
+			n.draw_rect(Rect2(ox - 3, oy - 9, 7, 11), Color("1a1408"))
+			n.draw_rect(Rect2(ox - 2, oy - 8, 5, 2), Color("f4f0e8"))
 			n.draw_rect(Rect2(ox - 1, oy - 6, 3, 2), Color("e0a878"))
-			n.draw_rect(Rect2(ox + 2, oy - 5, 3, 1), C_GOLD)
-			n.draw_rect(Rect2(ox + 4, oy - 6, 1, 3), C_GOLD)
+			n.draw_rect(Rect2(ox - 2, oy - 4, 5, 5), Color("f4f0e8"))
+			n.draw_rect(Rect2(ox, oy - 4, 1, 5), Color("3a7ad0"))
+			n.draw_rect(Rect2(ox + 3, oy - 5, 2, 1), C_GOLD)
+			n.draw_rect(Rect2(ox + 5, oy - 7, 2, 4), C_GOLD)
+			n.draw_rect(Rect2(ox + 6, oy - 6, 1, 2), C_CREAM)
 	# 迴力皮袋（轉動的十字）
 	for b in boomers:
 		var bp: Vector2 = b.pos.round()
@@ -3241,10 +3332,13 @@ func _draw_engines(n: Node2D) -> void:
 			var face: float = 1.0 if ln.to.x >= ln.from.x else -1.0
 			n.draw_rect(Rect2(lx - 7, ly - 7, 15, 8), Color("2a1a08"))
 			n.draw_rect(Rect2(lx - 6, ly - 6, 12, 5), Color("d8a040"))
-			n.draw_rect(Rect2(lx + face * 5 - 3, ly - 10, 7, 7), Color("2a1a08"))
-			n.draw_rect(Rect2(lx + face * 5 - 2, ly - 9, 5, 5), Color("a86a20"))
-			n.draw_rect(Rect2(lx + face * 5 - 1, ly - 8, 3, 3), Color("e8c060"))
-			n.draw_rect(Rect2(lx + face * 6, ly - 7, 1, 1), Color("1a1408"))
+			# 頭：一圈深色鬃毛包著淺色的臉，嘴巴是閉著的（封住獅子的口）
+			var hx: float = lx + face * 5
+			n.draw_rect(Rect2(hx - 4, ly - 11, 9, 9), Color("2a1a08"))
+			n.draw_rect(Rect2(hx - 3, ly - 10, 7, 7), Color("8a4a14"))
+			n.draw_rect(Rect2(hx - 2 + face, ly - 9, 4, 5), Color("e8c060"))
+			n.draw_rect(Rect2(hx + face * 2, ly - 8, 1, 1), Color("1a1408"))
+			n.draw_rect(Rect2(hx - 1 + face * 2, ly - 6, 2, 1), Color("8a4a14"))
 			var lg := int(t * 8.0) % 2 if ln.jump <= 0.0 else 0
 			n.draw_rect(Rect2(lx - 5, ly - 1, 2, 2 + lg), Color("a86a20"))
 			n.draw_rect(Rect2(lx + 3, ly - 1, 2, 3 - lg), Color("a86a20"))
@@ -3311,6 +3405,206 @@ func _draw_engines(n: Node2D) -> void:
 			n.draw_rect(Rect2(qx + 1, qy + 1, 1, 2), C_FLAME)
 			n.draw_rect(Rect2(qx, qy + 3, 1, 1), C_FLAME)
 			n.draw_rect(Rect2(qx, qy + 5, 1, 1), C_FLAME)
+
+
+# ---------- 聖物、膏抹、屬性 ----------
+## 聖物與膏抹改的招式數值（每次重算等級時套用）
+func _mod_stats(c: Dictionary) -> void:
+	var st: Dictionary = c.st
+	var eng: String = c.get("engine", "")
+	var an: Array = c.get("anoints", [])
+	if an.has("multi") and st.has("count"):
+		st.count = float(st.count) + 2.0
+		st.damage = float(st.get("damage", 1.0)) * 0.7
+	if an.has("pierce") and st.has("pierce"):
+		st.pierce = float(st.pierce) + 2.0
+	if an.has("expand"):
+		for k in ["radius", "max_radius", "length", "width", "range", "height", "reach", "spit_r"]:
+			if st.has(k):
+				st[k] = float(st[k]) * 1.4
+		st.cooldown = float(st.get("cooldown", 1.0)) * 1.25
+	if an.has("swift"):
+		st.cooldown = float(st.get("cooldown", 1.0)) * 0.75
+		if st.has("damage"):
+			st.damage = float(st.damage) * 0.85
+	if relics.has("staff"):
+		if eng == "beam" and st.has("beams"):
+			st.beams = float(st.beams) + 2.0
+			st.damage = float(st.damage) * 0.75
+		elif eng == "shot" and st.has("count"):
+			st.count = float(st.count) + 2.0
+			st.damage = float(st.damage) * 0.75
+	if relics.has("sling") and eng == "bolt" and float(st.get("count", 1.0)) > 1.0:
+		st.damage = float(st.damage) * float(st.count) * 2.5 / 2.0
+		st.count = 1.0
+		st.pierce = float(st.get("pierce", 0.0)) + 3.0
+	elif relics.has("sling") and eng == "bolt":
+		st.damage = float(st.damage) * 1.25
+		st.pierce = float(st.get("pierce", 0.0)) + 3.0
+
+
+func _refresh_all_stats() -> void:
+	for o in comps + [pa]:
+		if o.level > 0 and o.get("skill", "") != "":
+			_set_level(o, o.level)
+
+
+## 寶箱打開後：從三件聖物裡選一件
+func _offer_relic() -> void:
+	var pool: Array = D.relics.filter(func(r): return not relics.has(r.id))
+	if pool.is_empty() or relics.size() >= int(D.relic_rules.max):
+		return
+	pool.shuffle()
+	choosing = true
+	joy.on = false
+	ui.joy.on = false
+	pending_cards = []
+	for r in pool.slice(0, 3):
+		pending_cards.append({"kind": "relic", "key": r.id, "title": r.name, "tag": r.ref, "desc": r.desc + "\n" + r.story})
+	Sfx.play("chest", 0.0)
+	_tip("relic")
+	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, _card_delay(), 0, "聖物：選一件（一局最多 %d 件）" % int(D.relic_rules.max), "每一件都會改變這一局的玩法")
+
+
+func _take_relic(id: String) -> void:
+	relics[id] = true
+	run_relics += 1
+	if smoke:
+		print("RELIC ", id)
+	if id == "rod":
+		for k in fruits:
+			fruits[k] = mini(int(fruits[k]) + 1, 5)
+	_refresh_all_stats()
+	for r in D.relics:
+		if r.id == id:
+			ui.show_banner("聖物：%s（%s）" % [r.name, r.ref], 2.0)
+	_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 50.0)
+
+
+## 升級時偶爾出現的膏抹卡：選一位有空格、招式合用的同伴
+func _anoint_card() -> Dictionary:
+	if randf() > float(D.anoint_rules.chance):
+		return {}
+	var who := []
+	for o in comps + [pa]:
+		if o.level > 0 and o.get("skill", "") != "" and o.get("anoints", []).size() < int(D.anoint_rules.slots) and o.follows == "":
+			who.append(o)
+	who.shuffle()
+	for o in who:
+		var eng: String = o.get("engine", "")
+		var opts: Array = D.anoints.filter(func(a): return not o.get("anoints", []).has(a.id) and (a.engines.has("all") or a.engines.has(eng)))
+		if opts.is_empty():
+			continue
+		var a: Dictionary = opts.pick_random()
+		return {"kind": "anoint", "key": o.key, "aid": a.id, "title": "膏抹「%s」→ %s" % [a.name, o.name], "tag": o.tag, "desc": a.desc + "\n（每位同伴最多 %d 種）" % int(D.anoint_rules.slots)}
+	return {}
+
+
+func _who(k: String) -> Dictionary:
+	if not pa.is_empty() and pa.key == k:
+		return pa
+	return by_key.get(k, {})
+
+
+## 屬性：打中時附上燃燒、浸濕、感電（回傳傷害倍率）
+func _apply_element(e: Dictionary, dmg: float, src) -> float:
+	var mult := 1.0
+	if float(e.get("shock_t", 0.0)) > 0.0:
+		mult *= 1.25
+	if not (src is Dictionary):
+		return mult
+	var el: String = elem_of.get(src.get("key", ""), "")
+	match el:
+		"fire":
+			e.burn_t = 3.0
+			e.burn_dps = maxf(float(e.get("burn_dps", 0.0)) * 0.5, dmg * 0.35)
+		"water":
+			e.wet_t = 3.0
+		"shock":
+			if float(e.get("wet_t", 0.0)) > 0.0:
+				mult *= 2.0   # 浸濕的敵人被雷打到：加倍
+				e.wet_t = 0.0
+				if sparks.size() < 120:
+					sparks.append({"pos": e.pos + Vector2(0, -8), "t": 0.0, "col": Color("ffe14d")})
+			e.shock_t = 3.0
+	return mult
+
+
+## 膏抹：連鎖、餘燼、觸發
+func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
+	var an: Array = src.get("anoints", [])
+	if an.is_empty():
+		return
+	if an.has("chain") and not chaining and t >= float(src.get("chain_cd", 0.0)):
+		src.chain_cd = t + 0.12
+		var nx := _nearest_enemies(e.pos, 55.0, 1, {e.node: true})
+		if not nx.is_empty():
+			chaining = true
+			zaps.append({"pts": [e.pos + Vector2(0, -4), nx[0].pos + Vector2(0, -4)], "t": 0.0, "evo": false, "col": src.get("col", C_GOLD)})
+			_hurt(nx[0], dmg * 0.5 / maxf(0.01, _dmg_mult()), Vector2.INF, src)
+			chaining = false
+	if an.has("ember") and t >= float(src.get("ember_cd", 0.0)) and spots.size() < 40:
+		src.ember_cd = t + 0.6
+		spots.append({"kind": "ember", "pos": e.pos, "life": 3.0, "tick": 0.0, "dmg": maxf(2.0, float(src.st.get("damage", 2.0)) * 0.5), "owner": src})
+
+
+func _update_ailments(dt: float) -> void:
+	for e in enemies:
+		if e.dead:
+			continue
+		if e.has("wet_t"):
+			e.wet_t = maxf(0.0, float(e.wet_t) - dt)
+		if e.has("shock_t"):
+			e.shock_t = maxf(0.0, float(e.shock_t) - dt)
+		if float(e.get("burn_t", 0.0)) > 0.0:
+			e.burn_t -= dt
+			e.burn_tick = float(e.get("burn_tick", 0.0)) - dt
+			if e.burn_tick <= 0.0:
+				e.burn_tick = 0.5
+				e.burning_hit = true
+				_hurt(e, float(e.burn_dps) * 0.5 / maxf(0.01, _dmg_mult()), Vector2.INF)
+				e.burning_hit = false
+	# 聖物：彼得的影子、挪亞的鴿子
+	if relics.has("shadow"):
+		shadow_t -= dt
+		if shadow_t <= 0.0:
+			shadow_t = 0.3
+			for e in enemies.duplicate():
+				if not e.dead and e.pos.distance_to(paul.pos) < 18.0:
+					_hurt(e, 5.0 + level * 0.6, paul.pos)
+	if relics.has("dove") and paul.hp < float(D.paul.hp) * 0.5:
+		dove_t -= dt
+		if dove_t <= 0.0:
+			dove_t = 8.0
+			guard = mini(guard + 1, 5)
+			paul.hp = minf(_hp_cap(), paul.hp + 5.0)
+			_ring_pop(paul.pos + Vector2(0, -10), C_CREAM, 18.0)
+
+
+## 參孫的頭髮：治療最多回到 80%
+func _hp_cap() -> float:
+	return float(D.paul.hp) * (0.8 if relics.has("hair") else 1.0)
+
+
+func _draw_ailments(n: Node2D) -> void:
+	var blink := int(t * 8.0) % 2
+	for e in enemies:
+		if e.dead:
+			continue
+		var x: float = roundf(e.pos.x)
+		var y: float = roundf(e.pos.y)
+		if float(e.get("burn_t", 0.0)) > 0.0:
+			n.draw_rect(Rect2(x - 4 + blink, y - 14 - blink, 2, 3), C_FLAME)
+			n.draw_rect(Rect2(x + 2 - blink, y - 12, 2, 3), C_RED)
+			n.draw_rect(Rect2(x - 1, y - 16 + blink, 1, 2), C_GOLD)
+		if float(e.get("wet_t", 0.0)) > 0.0:
+			n.draw_rect(Rect2(x - 5, y - 4 + blink, 1, 2), Color("8fd0ff"))
+			n.draw_rect(Rect2(x + 4, y - 6 + blink * 2, 1, 2), Color("8fd0ff"))
+		if float(e.get("shock_t", 0.0)) > 0.0 and blink == 0:
+			n.draw_rect(Rect2(x - 6, y - 10, 2, 1), Color("ffe14d"))
+			n.draw_rect(Rect2(x - 5, y - 9, 1, 2), Color("ffe14d"))
+			n.draw_rect(Rect2(x + 4, y - 12, 2, 1), Color("ffe14d"))
+			n.draw_rect(Rect2(x + 5, y - 11, 1, 2), Color("ffe14d"))
 
 
 func _nova(c: Dictionary, s: Dictionary) -> void:
@@ -3751,6 +4045,9 @@ func _damage_paul(n: float) -> void:
 func _damage_companion(c: Dictionary, n: float) -> void:
 	if c.hurt_cd > 0.0:
 		return
+	if relics.has("ark") and not paul.moving:
+		c.hurt_cd = 0.3   # 約櫃：主角站定時同伴不受傷
+		return
 	if int(c.get("garment", 0)) > 0:
 		# 多加縫的衣服擋下這一次
 		c.garment -= 1
@@ -3960,6 +4257,14 @@ func _update_spots(dt: float) -> void:
 						breads.append({"pos": sp.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
 					ui.show_banner("在帳棚裡歇一下腳：護盾 +%d" % int(hz.guard), 1.5)
 					_ring_pop(sp.pos, Color("9fd8ff"), 30.0)
+			"ember":
+				sp.tick -= dt
+				if sp.tick <= 0.0:
+					sp.tick = 0.5
+					for e in enemies.duplicate():
+						if not e.dead and e.pos.distance_to(sp.pos) < 14.0:
+							e.burn_t = maxf(float(e.get("burn_t", 0.0)), 1.5)
+							e.burn_dps = maxf(float(e.get("burn_dps", 0.0)), float(sp.dmg))
 			"bonfire":
 				sp.tick -= dt
 				if sp.tick <= 0.0:
@@ -3977,6 +4282,11 @@ func _draw_spots(n: Node2D) -> void:
 		var y: float = roundf(sp.pos.y)
 		var blinking: bool = sp.life < 2.0 and int(t * 8.0) % 2 == 0
 		match sp.kind:
+			"ember":
+				var fl2 := int(t * 10.0 + x) % 2
+				_dot_ring(n, Vector2(x, y), 12.0, 0.75, C_FLAME, 4.0, t * 2.0, 1)
+				n.draw_rect(Rect2(x - 2, y - 4 - fl2, 5, 4), C_RED)
+				n.draw_rect(Rect2(x - 1, y - 5 + fl2, 3, 4), C_FLAME)
 			"altar":
 				# 石壇：灰白色的方台，上面刻著字；站上去時下面的圈慢慢填滿
 				_dot_ring(n, Vector2(x, y), 14.0, 0.75, C_GOLD, 3.0, t, 2)
@@ -4488,6 +4798,7 @@ func _draw_air() -> void:
 			n.draw_rect(Rect2(lx - 1, ly - 7 - fl, 3, 3), C_FLAME)
 			n.draw_rect(Rect2(lx, ly - 7 - fl, 1, 2), C_CREAM)
 	_draw_engines(n)
+	_draw_ailments(n)
 	_draw_schools(n)
 	for dn in dnums:
 		var k2: float = dn.t / 0.7
@@ -4810,6 +5121,12 @@ func _evolve(evo: Dictionary) -> void:
 
 func _on_chest_closed() -> void:
 	chest_open = false
+	if relic_pending:
+		relic_pending = false
+		if relics.size() < int(D.relic_rules.max):
+			_offer_relic()
+			if choosing:
+				return
 	if xp >= xp_need:
 		_level_up()
 
@@ -5098,9 +5415,9 @@ func _finish_run() -> Array:
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
 		"task_witness": task_witness, "lights": run_lights, "bread": int(run_bread * (1.0 + prov_bread)),
 		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
-		"combo": combo_best, "party_size": _party_count(), "converts": run_converts, "minions": run_minions, "songs": run_songs, "holies": run_holies, "shocks": run_shocks, "bonds": run_bonds, "school": school_tier.values().max() if not school_tier.is_empty() else 0, "endless": endless, "sets": sets_on.size(), "leader": leader,
+		"combo": combo_best, "party_size": _party_count(), "converts": run_converts, "minions": run_minions, "songs": run_songs, "holies": run_holies, "shocks": run_shocks, "bonds": run_bonds, "relics": run_relics, "school": school_tier.values().max() if not school_tier.is_empty() else 0, "endless": endless, "sets": sets_on.size(), "leader": leader,
 		"trial_points": Save.trial_points(trials), "stage": stage.id,
-		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
+		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys(), "relics": relics.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
 	if not trials.is_empty():
 		lines.append(["熬煉 %d 點：見證與餅已加成" % Save.trial_points(trials), 11, C_GOLD])

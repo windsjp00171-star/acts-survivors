@@ -883,6 +883,10 @@ func _show_codex() -> void:
 	_codex_section("敵人", en.size(), en.filter(func(e): return seen_e.has(e.id)).size())
 	for e in en:
 		_codex_entry(seen_e.has(e.id), e.name, [[e.what, UIKit.INK], ["「%s」（%s）" % [e.verse, e.ref], UIKit.SKY]])
+	var seen_r: Array = cx.get("relics", [])
+	_codex_section("聖物", G.get("relics", []).size(), G.get("relics", []).filter(func(r): return seen_r.has(r.id)).size())
+	for r in G.get("relics", []):
+		_codex_entry(seen_r.has(r.id), "%s（%s）" % [r.name, r.ref], [[r.desc, UIKit.INK], [r.story, UIKit.MUTED]])
 	var seen_v: Array = cx.get("evos", [])
 	_codex_section("進化", G.evolutions.size(), G.evolutions.filter(func(v): return seen_v.has(v.companion)).size())
 	for v in G.evolutions:

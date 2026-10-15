@@ -393,7 +393,7 @@ func finish_run(r: Dictionary) -> Dictionary:
 	if r.full_party:
 		st.full_party = 1
 	# 見證錄用的統計（累計 add、最高 best）
-	for k in ["resonances", "midbosses", "chests", "links", "kills_total", "fevers_total", "converts", "minions", "songs", "holies", "shocks", "bonds"]:
+	for k in ["resonances", "midbosses", "chests", "links", "kills_total", "fevers_total", "converts", "minions", "songs", "holies", "shocks", "bonds", "relics"]:
 		st[k] = int(st.get(k, 0)) + int(r.get(k.replace("_total", ""), 0))
 	for k in ["combo", "level", "party_size", "sets", "school"]:
 		st["best_" + k] = maxi(int(st.get("best_" + k, 0)), int(r.get(k, 0)))
@@ -406,7 +406,7 @@ func finish_run(r: Dictionary) -> Dictionary:
 
 	# 圖鑑：把這局遇到的記下來
 	var cx: Dictionary = data.codex
-	for k in ["enemies", "evos", "fruits", "armor"]:
+	for k in ["enemies", "evos", "fruits", "armor", "relics"]:
 		if not cx.has(k):
 			cx[k] = []
 		for id in r.get("seen", {}).get(k, []):

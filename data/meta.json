@@ -239,6 +239,7 @@
     {"id": "holies", "name": "福杯滿溢", "desc": "累計放出 20 次聖光（詩 23:5）", "stat": "holies", "min": 20, "group": "流派", "witness": 80, "bread": 20},
     {"id": "shocks", "name": "神是我的盾牌", "desc": "護盾累計擋下 50 次並反擊（詩 3:3）", "stat": "shocks", "min": 50, "group": "流派", "witness": 80, "bread": 20},
     {"id": "bonds", "name": "兩個人總比一個人好", "desc": "累計發動 30 次同行合擊（傳 4:9）", "stat": "bonds", "min": 30, "group": "流派", "witness": 100, "bread": 30},
+    {"id": "relics10", "name": "寶貝放在瓦器裡", "desc": "累計拿到 10 件聖物（林後 4:7）", "stat": "relics", "min": 10, "group": "流派", "witness": 100, "bread": 30},
     {"id": "gideon", "name": "三百人", "desc": "累計觸發共鳴 30 次", "stat": "resonances", "min": 30, "unlock": "gideon", "witness": 80, "group": "同伴"},
     {"id": "daniel", "name": "一日三次禱告", "desc": "建立 3 間教會", "stat": "churches", "min": 3, "unlock": "daniel", "witness": 80, "group": "同伴"},
     {"id": "jonah", "name": "逃了又回來", "desc": "累計出發 15 次", "stat": "runs", "min": 15, "unlock": "jonah", "witness": 80, "group": "同伴"},
