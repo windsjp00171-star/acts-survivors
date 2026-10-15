@@ -94,9 +94,9 @@
     },
     "jawbone": {
       "engine": "nova",
-      "base": { "cooldown": 2.6, "radius": 30, "damage": 3, "knock": 70, "slams": 1 },
-      "levels": [ { "radius": 38 }, { "damage": 5 }, { "cooldown": 1.9 }, { "slams": 2, "radius": 46, "knock": 110 } ],
-      "desc": ["驢腮骨：定期重擊身邊一圈，把敵人震飛", "範圍變大", "威力提升", "砸得更頻繁", "連砸兩下，範圍更大、震得更遠（士 15:16）"],
+      "base": { "cooldown": 2.2, "radius": 32, "damage": 7, "knock": 80, "slams": 1, "stun": 0.4, "tough": 0.5 },
+      "levels": [ { "radius": 40 }, { "damage": 11 }, { "cooldown": 1.7, "stun": 0.7 }, { "slams": 2, "radius": 48, "knock": 110, "damage": 14 } ],
+      "desc": ["驢腮骨：重擊身邊一圈，震飛並暈眩敵人；參孫自己受到的傷害減半", "範圍變大", "威力大幅提升", "砸得更頻繁、暈得更久", "連砸兩下，範圍更大、更重（士 15:16）"],
       "branches": [ { "name": "橫掃", "desc": "重擊範圍更大", "add": {"radius": 12} }, { "name": "連擊", "desc": "砸得更頻繁", "add": {"cooldown": -0.7} } ]
     },
     "sea": {
@@ -177,11 +177,11 @@
       "branches": [ { "name": "重槍", "desc": "標槍更重", "add": {"damage": 4} }, { "name": "列隊", "desc": "多擲一支", "add": {"count": 1} } ]
     },
     "sew": {
-      "engine": "heal",
-      "base": { "cooldown": 1.6, "amount": 2, "revive_speed": 1, "instant_revive": 0 },
-      "levels": [ { "amount": 3 }, { "cooldown": 1.2 }, { "revive_speed": 2 }, { "instant_revive": 1, "cooldown": 0.9 } ],
-      "desc": ["廣行善事：很頻繁的小治療，最容易觸發「一同得安慰」連結", "每次多補一點", "補得更頻繁", "倒下的同伴站起來的速度加倍", "補得極快，直接扶起倒下的同伴（徒 9:36）"],
-      "branches": [ { "name": "勤快", "desc": "補得更頻繁", "add": {"cooldown": -0.3} }, { "name": "厚衣", "desc": "每次多補兩點", "add": {"amount": 2} } ]
+      "engine": "garment",
+      "base": { "cooldown": 4.0, "count": 2, "max": 1, "paul": 0 },
+      "levels": [ { "count": 3 }, { "cooldown": 3.2 }, { "max": 2 }, { "count": 5, "paul": 1 } ],
+      "desc": ["縫衣服：定時替血最少的 2 位同伴披上衣服，可以擋下一次傷害", "一次縫 3 件", "縫得更快", "每人最多可以疊 2 件", "一次 5 件，也替主角加一層護盾（徒 9:39）"],
+      "branches": [ { "name": "勤快", "desc": "縫得更快", "add": {"cooldown": -0.8} }, { "name": "厚衣", "desc": "每次多縫兩件", "add": {"count": 2} } ]
     },
     "errand": {
       "engine": "bolt",
@@ -338,7 +338,7 @@
     { "companion": "david", "fruit": "faith", "name": "戰役是耶和華的",
       "desc": "一次甩 5 顆，對菁英與 Boss 十倍傷害（撒上 17:47）", "stats": { "count": 5, "elite_mult": 10 } },
     { "companion": "samson", "fruit": "good", "name": "最後一次的力量",
-      "desc": "連砸三下，範圍極大（士 16:28）", "stats": { "slams": 3, "radius": 64, "damage": 12 } },
+      "desc": "連砸三下，範圍極大，暈眩一秒（士 16:28）", "stats": { "slams": 3, "radius": 66, "damage": 24, "stun": 1.0 } },
     { "companion": "moses", "fruit": "peace", "name": "向海伸杖",
       "desc": "一次分開三道巨大的水道（出 14:21）", "stats": { "beams": 3, "width": 34, "length": 260 } },
     { "companion": "elijah", "fruit": "joy", "name": "火車火馬",
@@ -364,7 +364,7 @@
     { "companion": "cornelius", "fruit": "peace", "name": "全家敬畏神",
       "desc": "一次擲五支標槍，幾乎穿透一切（徒 10:2）", "stats": { "count": 5, "pierce": 10, "damage": 10 } },
     { "companion": "dorcas", "fruit": "good", "name": "大比大，起來",
-      "desc": "治療快到不停，倒下的立刻扶起（徒 9:40）", "stats": { "cooldown": 0.6, "amount": 5, "instant_revive": 1 } },
+      "desc": "全隊都披上衣服、每人可疊 3 件，縫得極快（徒 9:40）", "stats": { "cooldown": 2.0, "count": 8, "max": 3, "paul": 1 } },
     { "companion": "mark", "fruit": "peace", "name": "於我的職事有益",
       "desc": "一次四支、穿透兩隻，連鎖幾乎不會斷（提後 4:11）", "stats": { "count": 4, "pierce": 2, "cooldown": 0.2, "combo_keep": 1.5 } },
     { "companion": "james", "fruit": "faith", "name": "大有功效",

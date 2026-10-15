@@ -1625,6 +1625,16 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			for i in int(s.get("bread", 0)):
 				breads.append({"pos": paul.pos + Vector2(randf_range(-12, 12), randf_range(-8, 8))})
 			gathers.append({"pos": paul.pos, "r": r, "t": 0.0})
+		"garment":
+			# 多加縫衣服：血最少的幾位同伴披上衣服，可以擋下一次傷害
+			var cands := comps.filter(func(o): return o.level > 0 and o.down <= 0.0 and int(o.get("garment", 0)) < int(s.max))
+			cands.sort_custom(func(a, b): return float(a.hp) < float(b.hp))
+			fired = not cands.is_empty() or int(s.paul) > 0
+			for i in mini(int(s.count), cands.size()):
+				cands[i].garment = int(cands[i].get("garment", 0)) + 1
+				_ring_pop(cands[i].pos + Vector2(0, -12), c.col, 10.0)
+			if int(s.paul) > 0:
+				guard = mini(guard + 1, 3)
 		"nova":
 			var slams := int(s.slams)
 			for i in slams:
@@ -1864,6 +1874,8 @@ func _nova(c: Dictionary, s: Dictionary) -> void:
 			_hurt(e, s.damage, center, c)
 			if not e.get("boss", false):
 				e.knock += (e.pos - center).normalized() * float(s.knock)
+				if float(s.get("stun", 0.0)) > 0.0:
+					e.stun = maxf(e.stun, float(s.stun))
 	if float(s.get("heal", 0.0)) > 0.0:
 		# 雅各：禱告順便幫保羅回血
 		paul.hp = minf(float(D.paul.hp), paul.hp + float(s.heal))
@@ -2230,6 +2242,14 @@ func _damage_paul(n: float) -> void:
 func _damage_companion(c: Dictionary, n: float) -> void:
 	if c.hurt_cd > 0.0:
 		return
+	if int(c.get("garment", 0)) > 0:
+		# 多加縫的衣服擋下這一次
+		c.garment -= 1
+		c.hurt_cd = 0.4
+		_ring_pop(c.pos + Vector2(0, -8), Color("e8d8b0"), 12.0)
+		return
+	if c.st.has("tough"):
+		n *= float(c.st.tough)   # 參孫：受到的傷害減半
 	c.hp -= n
 	c.hurt_cd = 0.4
 	_fire_links("hurt", null, 0)
@@ -2763,6 +2783,10 @@ func _draw_air() -> void:
 			continue
 		if c == paul:
 			continue
+		for gi in int(c.get("garment", 0)):
+			# 頭上的小衣服：一件一個
+			n.draw_rect(Rect2(x - 5 + gi * 4, y - 26, 3, 3), Color("e8d8b0"))
+			n.draw_rect(Rect2(x - 4 + gi * 4, y - 25, 1, 1), Color("c87a5a"))
 		if c.hp < max_hp and c.down <= 0.0:
 			n.draw_rect(Rect2(x - 5, y - 21, 10, 2), Color("0b080d"))
 			n.draw_rect(Rect2(x - 5, y - 21, roundf(10.0 * c.hp / max_hp), 2), C_HEAL if c.hp > max_hp * 0.35 else C_RED)

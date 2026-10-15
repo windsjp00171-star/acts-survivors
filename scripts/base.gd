@@ -413,6 +413,10 @@ func _show_roster() -> void:
 
 func _show_companion(key: String) -> void:
 	_clear("roster", "detail:" + key)
+	var top_back := UIKit.button("← 返回名冊", 13)
+	top_back.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	top_back.pressed.connect(_show_roster)
+	content.add_child(top_back)
 	var c := _comp_def(key)
 	var unlocked := Save.is_unlocked(key)
 	var h := _row(content)
