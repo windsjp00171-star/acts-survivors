@@ -38,7 +38,13 @@
     { "key": "james",     "name": "雅各",   "skill": "prayer",  "tag": "醫治", "era": "新約", "color": "#c8a0ff" },
     { "key": "mary",      "name": "馬利亞", "skill": "dawn",    "tag": "詩歌", "era": "福音書", "color": "#ffb8a0" },
     { "key": "zacchaeus", "name": "撒該",   "skill": "fig",     "tag": "門徒", "era": "福音書", "color": "#b06ab0" },
-    { "key": "nicodemus", "name": "尼哥底母", "skill": "lamp",  "tag": "講道", "era": "福音書", "color": "#ffa040" }
+    { "key": "nicodemus", "name": "尼哥底母", "skill": "lamp",  "tag": "講道", "era": "福音書", "color": "#ffa040" },
+    { "key": "gideon", "name": "基甸", "skill": "jars", "tag": "詩歌", "era": "舊約", "color": "#ff9a3a" },
+    { "key": "daniel", "name": "但以理", "skill": "lion", "tag": "講道", "era": "舊約", "color": "#d8a040" },
+    { "key": "jonah", "name": "約拿", "skill": "fish", "tag": "差派", "era": "舊約", "color": "#5a8ab0" },
+    { "key": "noah", "name": "挪亞", "skill": "flood", "tag": "守護", "era": "舊約", "color": "#3a7ad0" },
+    { "key": "esther", "name": "以斯帖", "skill": "decree", "tag": "醫治", "era": "舊約", "color": "#c060c0" },
+    { "key": "miriam", "name": "米利暗", "skill": "timbrel", "tag": "詩歌", "era": "舊約", "color": "#ff6a8a" }
   ],
   "_skills說明": "branches 是升到 Lv3 時的二選一（add 會加在數值上，之後的升級也保留）。base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。engine 是借用哪一種招式的運作方式（bolt 追蹤、ring 擴散圈、beam 直線、nova 身邊重擊、strike 預兆後落下、shot 直線飛行、net 撒網、chain 連鎖閃電、thrust 近身刺擊、gather 收聚），look 是外觀。",
   "skills": {
@@ -184,11 +190,11 @@
       "branches": [ { "name": "勤快", "desc": "縫得更快", "add": {"cooldown": -0.8} }, { "name": "厚衣", "desc": "每次多縫兩件", "add": {"count": 2} } ]
     },
     "errand": {
-      "engine": "bolt",
-      "base": { "cooldown": 0.35, "range": 120, "damage": 1, "speed": 260, "count": 1, "split": 0, "pierce": 0, "size": 1, "combo_keep": 0.5 },
-      "levels": [ { "count": 2 }, { "damage": 2 }, { "cooldown": 0.25 }, { "count": 3, "pierce": 1, "combo_keep": 0.8 } ],
-      "desc": ["跑腿的：又快又密的小光箭；每次出手都讓連鎖多撐 0.5 秒", "一次射 2 支", "光箭更重", "射得更快", "一次 3 支、可穿透，連鎖撐得更久"],
-      "branches": [ { "name": "續航", "desc": "連鎖每次多撐 0.4 秒", "add": {"combo_keep": 0.4} }, { "name": "密集", "desc": "多射一支", "add": {"count": 1} } ]
+      "engine": "boomerang", "look": "errand",
+      "base": { "cooldown": 1.3, "range": 90, "damage": 3, "speed": 170, "count": 1, "pierce": 99, "combo_keep": 0.5 },
+      "levels": [ { "count": 2 }, { "damage": 5 }, { "range": 115, "cooldown": 1.0 }, { "count": 3, "combo_keep": 0.8, "damage": 7 } ],
+      "desc": ["跑腿的：丟出會飛回來的皮袋，去程和回程都打得到；每次出手讓連鎖多撐 0.5 秒", "一次兩個", "打得更重", "飛得更遠、更常出手", "一次三個，連鎖撐得更久（提後 4:11）"],
+      "branches": [ { "name": "續航", "desc": "連鎖每次多撐 0.4 秒", "add": {"combo_keep": 0.4} }, { "name": "遠行", "desc": "飛得更遠", "add": {"range": 30} } ]
     },
     "prayer": {
       "engine": "nova",
@@ -198,18 +204,60 @@
       "branches": [ { "name": "迫切", "desc": "禱告更頻繁", "add": {"cooldown": -0.7} }, { "name": "醫治", "desc": "每次多回 3 血", "add": {"heal": 3} } ]
     },
     "dawn": {
-      "engine": "ring", "look": "dawn",
-      "base": { "cooldown": 2.4, "max_radius": 60, "damage": 2, "speed": 50, "rings": 1, "returns": 0, "stun": 0.4, "thick": 1, "knock": 5, "heal_comp": 3 },
-      "levels": [ { "max_radius": 76 }, { "returns": 1 }, { "stun": 0.8, "damage": 3 }, { "rings": 2, "thick": 2, "max_radius": 92 } ],
-      "desc": ["天還黑的時候：晨光一圈圈擴散使敵人暈眩，同時讓同伴回 3 血", "晨光更大", "擴散到底會再收回來", "暈眩更久、威力提升", "一次兩圈，晨光更大（約 20:1）"],
-      "branches": [ { "name": "破曉", "desc": "晨光傳得更遠", "add": {"max_radius": 24} }, { "name": "驚喜", "desc": "暈眩更久", "add": {"stun": 0.5} } ]
+      "engine": "zone", "look": "dawn",
+      "base": { "cooldown": 3.0, "life": 4.0, "radius": 30, "damage": 2, "tick": 0.5, "heal_comp": 2, "max": 2 },
+      "levels": [ { "radius": 36 }, { "damage": 3 }, { "life": 5.5, "max": 3 }, { "heal_comp": 4, "radius": 44, "damage": 4 } ],
+      "desc": ["帶著香膏：在地上留下一片香氣，同伴站在裡面會回血，敵人進來會受傷", "香氣更大", "敵人受到的傷害提升", "香氣留得更久，最多三片", "回血更多、範圍最大（可 16:1）"],
+      "branches": [ { "name": "馨香", "desc": "範圍更大", "add": {"radius": 10} }, { "name": "長存", "desc": "多留 2 秒", "add": {"life": 2.0} } ]
     },
     "fig": {
-      "engine": "bolt", "look": "fig",
-      "base": { "cooldown": 0.8, "range": 140, "damage": 2, "speed": 170, "count": 2, "split": 0, "pierce": 0, "size": 1, "loot": 1 },
-      "levels": [ { "count": 3 }, { "damage": 3 }, { "count": 4 }, { "count": 5, "cooldown": 0.6 } ],
-      "desc": ["爬上桑樹：丟下一把果子；被他驅散的敵人多掉一顆經驗", "一次丟 3 顆", "果子更重", "一次丟 4 顆", "一次 5 顆、丟得更快（路 19:4）"],
-      "branches": [ { "name": "滿手", "desc": "多丟兩顆", "add": {"count": 2} }, { "name": "熟果", "desc": "果子更重", "add": {"damage": 2} } ]
+      "engine": "turret", "look": "fig",
+      "base": { "cooldown": 5.0, "life": 8.0, "fire_every": 0.8, "range": 110, "damage": 2, "speed": 170, "count": 1, "max": 2, "loot": 1 },
+      "levels": [ { "count": 2 }, { "damage": 3 }, { "life": 11.0, "max": 3 }, { "count": 3, "fire_every": 0.55 } ],
+      "desc": ["爬上桑樹：在附近種一棵桑樹，樹會一直往敵人丟果子；被果子驅散的敵人多掉一顆經驗", "一次丟兩顆", "果子更重", "樹留得更久，最多三棵", "一次三顆、丟得更快（路 19:4）"],
+      "branches": [ { "name": "茂盛", "desc": "樹多留 4 秒", "add": {"life": 4.0} }, { "name": "熟果", "desc": "果子更重", "add": {"damage": 2} } ]
+    },
+    "jars": {
+      "engine": "trap", "look": "jars",
+      "base": { "cooldown": 2.6, "count": 2, "life": 10.0, "radius": 26, "damage": 6, "confuse": 2.0, "max": 6 },
+      "levels": [ { "count": 3 }, { "damage": 9 }, { "confuse": 3.0, "max": 9 }, { "count": 4, "radius": 34, "damage": 12 } ],
+      "desc": ["瓶子與火把：在身邊擺下瓶子，敵人碰到就打破、火把亮起，周圍的敵人受傷並且亂了陣腳、互相攻擊", "一次擺三個", "火把更猛", "亂得更久，可以擺更多", "一次四個、範圍更大（士 7:20–22）"],
+      "branches": [ { "name": "三百人", "desc": "多擺一個", "add": {"count": 1} }, { "name": "大亂", "desc": "亂得更久", "add": {"confuse": 1.0} } ]
+    },
+    "lion": {
+      "engine": "pet", "look": "lion",
+      "base": { "cooldown": 1.6, "damage": 6, "radius": 16, "stun": 0.4, "reach": 90, "lions": 1 },
+      "levels": [ { "damage": 9 }, { "cooldown": 1.2 }, { "radius": 22, "stun": 0.7 }, { "lions": 2, "damage": 12 } ],
+      "desc": ["獅子坑：一頭被封住口的獅子跟著你，撲向附近的敵人", "撲得更重", "撲得更頻繁", "撲擊範圍更大、暈得更久", "兩頭獅子（但 6:22）"],
+      "branches": [ { "name": "猛撲", "desc": "撲得更遠", "add": {"reach": 40} }, { "name": "獅吼", "desc": "暈得更久", "add": {"stun": 0.5} } ]
+    },
+    "fish": {
+      "engine": "swallow", "look": "fish",
+      "base": { "cooldown": 4.0, "length": 70, "width": 16, "count": 4, "damage": 6, "hold": 2.0, "spit_r": 30 },
+      "levels": [ { "count": 6 }, { "damage": 9 }, { "length": 90, "width": 22, "spit_r": 38 }, { "count": 9, "damage": 13, "hold": 1.5 } ],
+      "desc": ["大魚：大魚冒出來，把一排敵人吞下去；過一會兒吐成一團砸出去，吞得越多砸得越重", "一次吞六隻", "咬得更重", "吞得更大口、吐得更遠", "一次吞九隻、吐得更快（拿 2:10）"],
+      "branches": [ { "name": "大口", "desc": "多吞兩隻", "add": {"count": 2} }, { "name": "快吐", "desc": "更快吐出來", "add": {"hold": -0.6} } ]
+    },
+    "flood": {
+      "engine": "wave", "look": "flood",
+      "base": { "cooldown": 7.0, "damage": 5, "push": 160, "speed": 170, "height": 90, "waves": 1 },
+      "levels": [ { "height": 130 }, { "damage": 8 }, { "cooldown": 5.5, "push": 220 }, { "waves": 2, "height": 180, "damage": 11 } ],
+      "desc": ["洪水：一道洪水從畫面一側整片推過去，把敵人沖走", "洪水更寬", "沖得更重", "更常發生、沖得更遠", "連來兩道，幾乎蓋滿畫面（創 7:17）"],
+      "branches": [ { "name": "大淵", "desc": "洪水更寬", "add": {"height": 40} }, { "name": "急流", "desc": "沖得更遠", "add": {"push": 80} } ]
+    },
+    "decree": {
+      "engine": "rescue", "look": "decree",
+      "base": { "cooldown": 3.0, "range": 140, "damage": 4, "expose": 0.5, "mark_t": 4.0, "save_cd": 45.0, "save_heal": 0.4, "save_r": 110 },
+      "levels": [ { "damage": 6 }, { "expose": 0.8 }, { "save_cd": 35.0, "save_heal": 0.5 }, { "save_cd": 25.0, "save_r": 150, "damage": 9 } ],
+      "desc": ["此時此刻：用王后的權柄標記最強的敵人（受到的傷害 +50%）；主角血量很低時，會爆發一次大範圍保護、主角回血", "標記時打得更重", "被標記的敵人受到的傷害 +80%", "保護更常發動、回血更多", "保護最常發動、範圍最大（斯 4:14）"],
+      "branches": [ { "name": "權柄", "desc": "標記更久", "add": {"mark_t": 2.0} }, { "name": "挺身", "desc": "保護更常發動", "add": {"save_cd": -10.0} } ]
+    },
+    "timbrel": {
+      "engine": "cone", "look": "timbrel",
+      "base": { "cooldown": 1.4, "range": 55, "angle": 50, "damage": 4, "knock": 60, "pulses": 1 },
+      "levels": [ { "range": 66 }, { "damage": 6 }, { "pulses": 2 }, { "angle": 75, "range": 80, "damage": 8 } ],
+      "desc": ["擊鼓跳舞：朝前方打出一片扇形的鼓聲，震退敵人", "打得更遠", "打得更重", "連打兩下", "扇形更寬更遠（出 15:20）"],
+      "branches": [ { "name": "齊唱", "desc": "扇形更寬", "add": {"angle": 25} }, { "name": "急鼓", "desc": "打得更頻繁", "add": {"cooldown": -0.4} } ]
     },
     "lamp": {
       "engine": "beam", "look": "lamp",
@@ -219,11 +267,11 @@
       "branches": [ { "name": "長燈", "desc": "光照得更遠", "add": {"length": 50} }, { "name": "雙燈", "desc": "多一道光", "add": {"beams": 1} } ]
     },
     "trumpet": {
-      "engine": "ring", "look": "horn",
-      "base": { "cooldown": 3.0, "max_radius": 64, "damage": 1, "speed": 90, "rings": 1, "returns": 0, "stun": 0, "thick": 1, "knock": 60 },
-      "levels": [ { "knock": 90, "max_radius": 80 }, { "damage": 2 }, { "rings": 2 }, { "stun": 1.0, "max_radius": 110, "thick": 2 } ],
-      "desc": ["吹角：號角聲一圈圈把敵人震退", "震得更遠、範圍更大", "威力提升", "一次吹兩聲", "號角更響，被震到的敵人暈眩（書 6:20）"],
-      "branches": [ { "name": "響亮", "desc": "號角傳得更遠、震得更強", "add": {"max_radius": 30, "knock": 40} }, { "name": "急促", "desc": "吹得更頻繁", "add": {"cooldown": -1.0} } ]
+      "engine": "orbit", "look": "horn",
+      "base": { "cooldown": 6.0, "count": 3, "radius": 30, "spin": 2.2, "damage": 2, "hit_every": 0.5, "max_radius": 70, "shout": 6, "knock": 120 },
+      "levels": [ { "count": 4 }, { "damage": 3, "radius": 36 }, { "count": 5, "shout": 10 }, { "count": 7, "max_radius": 95, "knock": 160 } ],
+      "desc": ["繞城：吹角的祭司繞著隊伍轉，碰到的敵人受傷；每隔一陣子一聲大呼，把身邊的敵人震開", "四位祭司", "繞得更大、更重", "五位祭司，大呼更響", "七位祭司繞城，大呼震得最遠（書 6:15–20）"],
+      "branches": [ { "name": "急行", "desc": "繞得更快", "add": {"spin": 1.0} }, { "name": "大呼", "desc": "大呼範圍更大", "add": {"max_radius": 25} } ]
     }
   },
   "_fruits說明": "聖靈果子：全隊被動，每種最多 5 級。per_level 是每級加的比例。",
@@ -300,7 +348,12 @@
     {"a": "david", "b": "samson", "name": "以色列的勇士", "ref": "撒上 17:50", "fx": "giant", "desc": "對畫面上血最多的一隻敵人（含 Boss）造成重擊"},
     {"a": "mary", "b": "john", "name": "看你的母親", "ref": "約 19:27", "fx": "care", "desc": "主角回滿血，得到 2 層護盾"},
     {"a": "thomas", "b": "john", "name": "我的主，我的神", "ref": "約 20:28", "fx": "crit", "desc": "6 秒內全隊每一擊都是會心一擊（兩倍傷害）"},
-    {"a": "nicodemus", "b": "john", "name": "重生", "ref": "約 3:3", "fx": "rebirth", "desc": "同心合意 +40%"}
+    {"a": "nicodemus", "b": "john", "name": "重生", "ref": "約 3:3", "fx": "rebirth", "desc": "同心合意 +40%"},
+    {"a": "moses", "b": "miriam", "name": "海邊的歌", "ref": "出 15:20–21", "fx": "haste", "desc": "全隊攻擊加快 40%，持續 5 秒，連擊 +3"},
+    {"a": "jonah", "b": "peter", "name": "約拿的兒子西門", "ref": "太 16:17", "fx": "pull", "desc": "把身邊一大圈的敵人拉到同一點並受到傷害"},
+    {"a": "daniel", "b": "esther", "name": "在外邦的宮中", "ref": "但 6:3；斯 4:16", "fx": "care", "desc": "主角回滿血，得到 2 層護盾"},
+    {"a": "noah", "b": "moses", "name": "經過水中", "ref": "彼前 3:20；來 11:29", "fx": "walls", "desc": "從主角爆出巨大的衝擊波，把敵人全部推開"},
+    {"a": "gideon", "b": "david", "name": "耶和華的戰爭", "ref": "士 7:18；撒上 17:47", "fx": "giant", "desc": "對畫面上血最多的一隻敵人（含 Boss）造成重擊"}
   ],
   "_schools說明": "流派規則：隊伍裡同流派有 2、3、4 人時，tiers 依序生效（主角也算）。cards 是升級時會出現的「流派卡」，mod 會改寫規則（數值是加上去的）。恩賜樹的 mod 節點也改同一組數值。",
   "schools": {
@@ -472,7 +525,7 @@
     { "companion": "andrew", "fruit": "peace", "name": "五餅二魚",
       "desc": "收聚時全隊回血，還會多變出一個餅（約 6:9–11）", "stats": { "heal": 15, "cooldown": 3.5, "bread": 1 } },
     { "companion": "joshua", "fruit": "joy", "name": "城牆塌陷",
-      "desc": "連吹三聲，震飛一切（書 6:20）", "stats": { "rings": 3, "knock": 160, "damage": 4 } },
+      "desc": "七位祭司繞城，大呼震飛一切（書 6:20）", "stats": { "count": 7, "max_radius": 120, "knock": 220, "damage": 5 } },
     { "companion": "stephen", "fruit": "faith", "name": "看見天開了",
       "desc": "一次降下 6 道大光柱，被連結觸發時威力四倍（徒 7:56）", "stats": { "count": 6, "radius": 30, "linked_mult": 4 } },
     { "companion": "philip", "fruit": "joy", "name": "被提去",
@@ -484,15 +537,27 @@
     { "companion": "dorcas", "fruit": "good", "name": "大比大，起來",
       "desc": "全隊都披上衣服、每人可疊 3 件，縫得極快（徒 9:40）", "stats": { "cooldown": 2.0, "count": 8, "max": 3, "paul": 1 } },
     { "companion": "mark", "fruit": "peace", "name": "於我的職事有益",
-      "desc": "一次四支、穿透兩隻，連鎖幾乎不會斷（提後 4:11）", "stats": { "count": 4, "pierce": 2, "cooldown": 0.2, "combo_keep": 1.5 } },
+      "desc": "一次四個皮袋、飛得最遠，連鎖幾乎不會斷（提後 4:11）", "stats": { "count": 4, "range": 130, "combo_keep": 1.5, "damage": 9 } },
     { "companion": "james", "fruit": "faith", "name": "大有功效",
       "desc": "連跪三次，範圍極大，每次都回血（雅 5:16）", "stats": { "slams": 3, "radius": 70, "damage": 10, "heal": 6 } },
     { "companion": "mary", "fruit": "joy", "name": "我已經看見了主",
-      "desc": "一次三圈晨光，暈眩更久（約 20:18）", "stats": { "rings": 3, "stun": 1.4, "max_radius": 100 } },
+      "desc": "香氣最大、回血最多，敵人進來會暈眩（約 20:18）", "stats": { "radius": 56, "heal_comp": 6, "stun": 0.6, "max": 4 } },
     { "companion": "zacchaeus", "fruit": "good", "name": "四倍償還",
-      "desc": "果子威力四倍（路 19:8）", "stats": { "damage": 12, "count": 6 } },
+      "desc": "果子威力四倍，樹最多四棵（路 19:8）", "stats": { "damage": 12, "count": 4, "max": 4 } },
     { "companion": "nicodemus", "fruit": "faith", "name": "重生",
-      "desc": "四道寬光，末端全部爆開（約 3:3）", "stats": { "beams": 4, "burst": 1, "width": 14, "damage": 6 } }
+      "desc": "四道寬光，末端全部爆開（約 3:3）", "stats": { "beams": 4, "burst": 1, "width": 14, "damage": 6 } },
+    { "companion": "gideon", "fruit": "peace", "name": "耶和華和基甸的刀",
+      "desc": "一次擺五個瓶子，亂了陣腳的敵人互相攻擊得更久（士 7:20）", "stats": {"count": 5, "confuse": 4.0, "damage": 14} },
+    { "companion": "daniel", "fruit": "faith", "name": "封住獅子的口",
+      "desc": "三頭獅子，撲擊範圍更大（但 6:22）", "stats": {"lions": 3, "radius": 28, "damage": 14} },
+    { "companion": "jonah", "fruit": "joy", "name": "尼尼微全城悔改",
+      "desc": "一次吞十二隻，吐出來的範圍更大（拿 3:10）", "stats": {"count": 12, "spit_r": 52, "damage": 16} },
+    { "companion": "noah", "fruit": "good", "name": "方舟",
+      "desc": "連來三道洪水，被沖到的敵人暈眩（創 7:23）", "stats": {"waves": 3, "height": 200, "damage": 13} },
+    { "companion": "esther", "fruit": "good", "name": "為這個時候",
+      "desc": "保護每 18 秒就能發動一次，回血更多（斯 4:14）", "stats": {"save_cd": 18.0, "save_heal": 0.6, "damage": 12} },
+    { "companion": "miriam", "fruit": "joy", "name": "海邊的歌",
+      "desc": "連打三下，扇形幾乎是半圓（出 15:21）", "stats": {"pulses": 3, "angle": 90, "range": 90} }
   ],
   "elites": {
     "terror": { "name": "恐嚇", "sprite": "terror", "scale": 2.2, "tint": [1.0, 1.0, 1.0], "hp": 70, "speed": 18, "damage": 8,

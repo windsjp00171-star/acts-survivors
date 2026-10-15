@@ -189,6 +189,14 @@ var rains: Array = []      # 義人的禱告：天降大雨的畫面
 var star_t := 10.0         # 拔摩海島：下一次星辰墜落的倒數
 var star_falls: Array = [] # 正在墜落的星 {pos, t, max, r, dmg}
 var lamp_tick := 0.0
+# 新的攻擊方式
+var boomers: Array = []    # 馬可的皮袋
+var trees: Array = []      # 撒該的桑樹
+var zones: Array = []      # 馬利亞的香氣
+var jars: Array = []       # 基甸的瓶子
+var fishes: Array = []     # 約拿的大魚
+var floods: Array = []     # 挪亞的洪水
+var cones: Array = []      # 米利暗的鼓聲（畫面）
 # 五重職事（弗 4:11）：出發前選的呼召
 var calling := "apostle"
 var prophecy := {}         # 先知：預言之地 {pos, r, t}
@@ -1683,6 +1691,7 @@ func _step(dt: float) -> void:
 	_update_projectiles(dt)
 	_update_enemies(dt)
 	_update_schools_step(dt)
+	_update_engines(dt)
 	_run_link_queue()
 	enemies = enemies.filter(func(e): return not e.dead)
 	for f in link_fx:
@@ -2023,6 +2032,117 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			cand.shuffle()
 			for i in mini(int(s.count), cand.size()):
 				fires.append({"pos": cand[i].pos, "t": float(s.delay), "max": float(s.delay), "r": float(s.radius) * _area(), "dmg": float(s.damage), "owner": c, "evo": evolved.has(c.key), "look": c.look})
+		"boomerang":
+			# 馬可：皮袋飛出去再飛回來，去程回程都打得到
+			var tl := _nearest_enemies(c.pos, float(s.range) * _area() + 30.0, 1)
+			fired = not tl.is_empty()
+			if fired:
+				var bdir: Vector2 = (tl[0].pos - c.pos).normalized()
+				var nb := int(s.count)
+				for i in nb:
+					boomers.append({"pos": c.pos + Vector2(0, -8), "dir": bdir.rotated(deg_to_rad((i - (nb - 1) / 2.0) * 25.0)), "dist": 0.0,
+						"range": float(s.range) * _area(), "spd": float(s.speed), "back": false, "hit": {}, "owner": c,
+						"dmg": float(s.damage), "life": 4.0, "evo": evolved.has(c.key)})
+		"turret":
+			# 撒該：種一棵桑樹，樹會自己丟果子
+			var mine := trees.filter(func(tr): return tr.owner == c)
+			if mine.size() >= int(s.max):
+				trees.erase(mine[0])
+			var ang := randf() * TAU
+			trees.append({"pos": paul.pos + Vector2(cos(ang), sin(ang) * 0.7) * randf_range(24.0, 44.0), "life": float(s.life), "max": float(s.life), "cd": 0.3, "owner": c})
+			_ring_pop(trees[-1].pos, c.col, 14.0)
+		"orbit":
+			# 約書亞：繞城的祭司一直在轉（在 _update_engines），出手時是一聲大呼
+			var rr: float = float(s.max_radius) * _area()
+			blasts.append({"pos": paul.pos + Vector2(0, -6), "t": 0.0, "r": rr, "col": c.col, "evo": evolved.has(c.key)})
+			for e in enemies.duplicate():
+				if not e.dead and e.pos.distance_to(paul.pos) < rr:
+					_hurt(e, float(s.shout), paul.pos, c)
+					if not e.get("boss", false):
+						e.knock += (e.pos - paul.pos).normalized() * float(s.knock)
+		"zone":
+			# 馬利亞：地上留下一片香氣
+			var mz := zones.filter(func(z): return z.owner == c)
+			if mz.size() >= int(s.max):
+				zones.erase(mz[0])
+			var tl2 := _nearest_enemies(paul.pos, 60.0, 1)
+			var zp: Vector2 = paul.pos.lerp(tl2[0].pos, 0.5) if not tl2.is_empty() else paul.pos + Vector2(randf_range(-10, 10), 6)
+			zones.append({"pos": zp, "life": float(s.life), "max": float(s.life), "r": float(s.radius) * _area(), "tick": 0.0, "owner": c})
+		"trap":
+			# 基甸：擺下瓶子，敵人碰到就打破、火把亮起
+			for i in int(s.count):
+				var mj := jars.filter(func(j): return j.owner == c)
+				if mj.size() >= int(s.max):
+					jars.erase(mj[0])
+				var ja := randf() * TAU
+				jars.append({"pos": paul.pos + Vector2(cos(ja), sin(ja) * 0.75) * randf_range(18.0, 52.0), "life": float(s.life), "owner": c})
+		"pet":
+			# 但以理：獅子撲向附近的敵人
+			_ensure_lions(c, int(s.lions))
+			fired = false
+			for ln in c.lions:
+				var tl3 := _nearest_enemies(ln.pos, float(s.reach) * _area(), 1)
+				if tl3.is_empty() or ln.jump > 0.0:
+					continue
+				fired = true
+				ln.from = ln.pos
+				ln.to = tl3[0].pos
+				ln.jump = 0.25
+		"swallow":
+			# 約拿：大魚吞下一排敵人，過一會兒吐出來砸出去
+			var tl4 := _nearest_enemies(c.pos, float(s.length) * _area() + 20.0, 1)
+			fired = not tl4.is_empty()
+			if fired:
+				var from: Vector2 = c.pos + Vector2(0, -4)
+				var fdir: Vector2 = (tl4[0].pos - from).normalized()
+				var flen: float = float(s.length) * _area()
+				var cand := []
+				for e in enemies:
+					var rel: Vector2 = e.pos - from
+					var along: float = rel.dot(fdir)
+					if not e.dead and along > 0.0 and along < flen and absf(rel.cross(fdir)) < float(s.width) and float(e.get("ally", 0.0)) <= 0.0:
+						cand.append(e)
+				cand.sort_custom(func(a, b): return a.pos.distance_squared_to(from) < b.pos.distance_squared_to(from))
+				var eaten := 0
+				for e in cand.slice(0, int(s.count)):
+					if not e.get("boss", false) and not e.get("elite", false) and float(e.hp) <= float(s.damage) * 4.0 * _dmg_mult():
+						eaten += 1
+						_kill(e, true, c)   # 吞下去了
+					else:
+						_hurt(e, float(s.damage), from, c)
+				fishes.append({"pos": from + fdir * flen * 0.5, "dir": fdir, "len": flen, "t": 0.0, "hold": maxf(0.6, float(s.hold)),
+					"eaten": eaten, "owner": c, "dmg": float(s.damage), "r": float(s.spit_r) * _area(), "done": false})
+		"wave":
+			# 挪亞：洪水從畫面一側整片推過去
+			var v := _view_rect()
+			var tl5 := _nearest_enemies(paul.pos, 200.0, 1)
+			var side: float = 1.0 if tl5.is_empty() or tl5[0].pos.x >= paul.pos.x else -1.0
+			for i in int(s.waves):
+				var sd: float = side if i % 2 == 0 else -side
+				floods.append({"x": v.position.x - 10.0 if sd > 0.0 else v.end.x + 10.0, "dir": sd, "y": paul.pos.y + (i - (int(s.waves) - 1) / 2.0) * 30.0,
+					"h": float(s.height) * _area(), "spd": float(s.speed), "hit": {}, "dmg": float(s.damage), "push": float(s.push), "owner": c,
+					"end": v.end.x + 20.0 if sd > 0.0 else v.position.x - 20.0, "delay": i * 0.35, "evo": evolved.has(c.key)})
+		"rescue":
+			# 以斯帖：標記最強的敵人（受到更多傷害）；保護在 _esther_save
+			var best = null
+			for e in _nearest_enemies(c.pos, float(s.range), 30):
+				if best == null or float(e.hp) > float(best.hp):
+					best = e
+			fired = best != null
+			if fired:
+				best.exposed_t = float(s.mark_t)
+				best.expose = maxf(float(best.get("expose", 0.0)), float(s.expose))
+				best.crowned_t = float(s.mark_t)
+				_hurt(best, float(s.damage), Vector2.INF, c)
+				_ring_pop(best.pos + Vector2(0, -10), c.col, 12.0)
+		"cone":
+			# 米利暗：朝前方打出扇形的鼓聲
+			var tl6 := _nearest_enemies(c.pos, float(s.range) * _area() + 20.0, 1)
+			fired = not tl6.is_empty()
+			if fired:
+				var cdir: Vector2 = (tl6[0].pos - c.pos).normalized()
+				for i in int(s.pulses):
+					delayed.append({"t": i * 0.18, "fn": _cone_hit.bind(c, s, cdir)})
 		_:
 			fired = false
 			if not triggered:
@@ -2799,6 +2919,375 @@ func _bond_fx(B: Dictionary, c: Dictionary, other: Dictionary) -> void:
 				meter = minf(1.0, meter + 0.4)
 
 
+# ---------- 新的攻擊方式：迴力、桑樹、繞城、香氣、瓶子、獅子、大魚、洪水、鼓聲 ----------
+func _ensure_lions(c: Dictionary, n: int) -> void:
+	if not c.has("lions"):
+		c.lions = []
+	while c.lions.size() < n:
+		c.lions.append({"pos": c.pos + Vector2(10, 4), "jump": 0.0, "from": c.pos, "to": c.pos, "ph": randf() * TAU})
+
+
+func _cone_hit(c: Dictionary, s: Dictionary, dir: Vector2) -> void:
+	if c.level == 0:
+		return
+	var r: float = float(s.range) * _area()
+	var half := deg_to_rad(float(s.angle))
+	var from: Vector2 = c.pos + Vector2(0, -6)
+	cones.append({"pos": from, "dir": dir, "r": r, "half": half, "t": 0.0, "col": c.col, "evo": evolved.has(c.key)})
+	for e in enemies.duplicate():
+		var rel: Vector2 = e.pos - from
+		if e.dead or rel.length() > r + (8.0 if e.get("boss", false) else 0.0) or absf(dir.angle_to(rel)) > half:
+			continue
+		_hurt(e, float(s.damage), Vector2.INF, c)
+		if not e.get("boss", false):
+			e.knock += rel.normalized() * float(s.knock)
+
+
+## 以斯帖：主角血量很低時，「此時此刻」爆發一次保護
+func _esther_save() -> void:
+	var es := _member("esther")
+	if es.is_empty() or es.get("skill", "") == "":
+		return
+	var s: Dictionary = es.st
+	if paul.hp > float(D.paul.hp) * 0.3 or t < float(es.get("save_ready", 0.0)):
+		return
+	es.save_ready = t + float(s.save_cd)
+	paul.hp = minf(float(D.paul.hp), paul.hp + float(D.paul.hp) * float(s.save_heal))
+	paul.inv = 2.0
+	var r: float = float(s.save_r)
+	blasts.append({"pos": paul.pos + Vector2(0, -6), "t": 0.0, "r": r, "col": es.col, "evo": true})
+	holies.append({"pos": paul.pos, "t": 0.0, "r": r})
+	ui.show_banner("此時此刻！（斯 4:14）", 1.6)
+	shake = 0.3
+	for e in enemies.duplicate():
+		if not e.dead and e.pos.distance_to(paul.pos) < r and not e.get("boss", false):
+			e.knock += (e.pos - paul.pos).normalized() * 260.0
+			e.stun = maxf(e.stun, 2.0)
+
+
+## 被基甸的火把嚇到：亂了陣腳，去撞別的敵人
+func _update_confused(e: Dictionary, dt: float) -> void:
+	e.confused -= dt
+	var best = null
+	var bd := 120.0 * 120.0
+	for o in enemies:
+		if o.dead or o == e or float(o.get("ally", 0.0)) > 0.0 or float(o.get("confused", 0.0)) > 0.0:
+			continue
+		var d2: float = o.pos.distance_squared_to(e.pos)
+		if d2 < bd:
+			bd = d2
+			best = o
+	if best == null:
+		e.pos += Vector2(cos(t * 3.0 + e.ph), sin(t * 2.0 + e.ph)) * float(e.d.speed) * dt
+		return
+	var to: Vector2 = best.pos - e.pos
+	if to.length() > 4.0:
+		e.pos += to.normalized() * float(e.d.speed) * 1.2 * dt
+	if e.cd <= 0.0 and sqrt(bd) < float(e.r) + 6.0:
+		e.cd = 0.6
+		_hurt(best, maxf(4.0, float(e.d.damage) * 1.5), e.pos)
+
+
+func _update_engines(dt: float) -> void:
+	# 迴力皮袋
+	for b in boomers:
+		b.life -= dt
+		if not b.back:
+			b.pos += b.dir * b.spd * dt
+			b.dist += b.spd * dt
+			if b.dist >= b.range:
+				b.back = true
+				b.hit = {}
+		else:
+			var to: Vector2 = b.owner.pos + Vector2(0, -8) - b.pos
+			if to.length() < 6.0:
+				b.life = 0.0
+			b.pos += to.normalized() * b.spd * 1.25 * dt
+		for e in enemies:
+			if not e.dead and not b.hit.has(e.node) and e.pos.distance_to(b.pos + Vector2(0, 4)) < float(e.r) + 4.0:
+				b.hit[e.node] = true
+				_hurt(e, b.dmg, b.pos, b.owner)
+	boomers = boomers.filter(func(b): return b.life > 0.0)
+	# 桑樹
+	for tr in trees:
+		tr.life -= dt
+		tr.cd -= dt
+		var c: Dictionary = tr.owner
+		if tr.cd <= 0.0 and c.level > 0:
+			var s: Dictionary = c.st
+			tr.cd = float(s.fire_every)
+			var tl := _nearest_enemies(tr.pos, float(s.range), int(s.count))
+			for i in tl.size():
+				bolts.append({"pos": tr.pos + Vector2(0, -14), "target": tl[i], "life": 1.5, "pierce": 0, "split": 0, "child": false,
+					"dmg": float(s.damage), "size": 1, "hit": {}, "spd": float(s.speed), "emult": 1.0, "look": "fig", "owner": c, "evo": evolved.has(c.key)})
+	trees = trees.filter(func(tr): return tr.life > 0.0)
+	# 繞城的祭司
+	for c in comps:
+		if c.get("engine", "") != "orbit" or not _active(c):
+			continue
+		var s: Dictionary = c.st
+		c.orbit_ang = float(c.get("orbit_ang", 0.0)) + float(s.spin) * dt
+		if not c.has("orbit_hit"):
+			c.orbit_hit = {}
+		var pts := _orbit_points(c)
+		for e in enemies:
+			if e.dead or t < float(c.orbit_hit.get(e.node, 0.0)):
+				continue
+			for pt in pts:
+				if pt.distance_squared_to(e.pos) < 70.0:
+					c.orbit_hit[e.node] = t + float(s.hit_every)
+					_hurt(e, float(s.damage), pt, c)
+					break
+		if c.orbit_hit.size() > 300:
+			c.orbit_hit = {}
+	# 香氣
+	for z in zones:
+		z.life -= dt
+		z.tick -= dt
+		if z.tick <= 0.0 and z.owner.level > 0:
+			var s: Dictionary = z.owner.st
+			z.tick = float(s.tick)
+			for e in enemies.duplicate():
+				if not e.dead and e.pos.distance_to(z.pos) < z.r:
+					_hurt(e, float(s.damage), Vector2.INF, z.owner)
+					if float(s.get("stun", 0.0)) > 0.0 and not e.get("boss", false):
+						e.stun = maxf(e.stun, float(s.stun))
+			for o in comps:
+				if o.level > 0 and o.down <= 0.0 and o.pos.distance_to(z.pos) < z.r:
+					o.hp = minf(_comp_max_hp(), o.hp + float(s.heal_comp))
+			if paul.pos.distance_to(z.pos) < z.r:
+				_heal_paul(float(s.heal_comp) * 0.5)
+	zones = zones.filter(func(z): return z.life > 0.0)
+	# 瓶子：敵人碰到就打破
+	for j in jars:
+		j.life -= dt
+		if j.life <= 0.0:
+			continue
+		for e in enemies:
+			if not e.dead and float(e.get("ally", 0.0)) <= 0.0 and e.pos.distance_to(j.pos) < 8.0:
+				j.life = 0.0
+				var c: Dictionary = j.owner
+				var s: Dictionary = c.st
+				var rr: float = float(s.radius) * _area()
+				blasts.append({"pos": j.pos, "t": 0.0, "r": rr, "col": C_FLAME, "evo": evolved.has(c.key)})
+				_burst(j.pos, 8, C_FLAME, C_GOLD)
+				for o in enemies.duplicate():
+					if not o.dead and o.pos.distance_to(j.pos) < rr:
+						_hurt(o, float(s.damage), j.pos, c)
+						if not o.get("boss", false):
+							o.confused = float(s.confuse)
+				break
+	jars = jars.filter(func(j): return j.life > 0.0)
+	# 獅子
+	for c in comps:
+		if c.get("engine", "") != "pet" or c.level == 0:
+			continue
+		_ensure_lions(c, int(c.st.lions))
+		for i in c.lions.size():
+			var ln: Dictionary = c.lions[i]
+			if ln.jump > 0.0:
+				ln.jump -= dt
+				var k: float = 1.0 - clampf(ln.jump / 0.25, 0.0, 1.0)
+				ln.pos = ln.from.lerp(ln.to, k)
+				if ln.jump <= 0.0:
+					var s: Dictionary = c.st
+					var rr: float = float(s.radius) * _area()
+					blasts.append({"pos": ln.pos, "t": 0.0, "r": rr, "col": c.col, "evo": evolved.has(c.key)})
+					for e in enemies.duplicate():
+						if not e.dead and e.pos.distance_to(ln.pos) < rr + (8.0 if e.get("boss", false) else 0.0):
+							_hurt(e, float(s.damage), ln.pos, c)
+							if not e.get("boss", false):
+								e.stun = maxf(e.stun, float(s.stun))
+			else:
+				var home: Vector2 = c.pos + Vector2(12 + i * 8, 6)
+				var to: Vector2 = home - ln.pos
+				if to.length() > 3.0:
+					ln.pos += to.normalized() * minf(to.length() * 4.0, 140.0) * dt
+				if to.length() > 160.0:
+					ln.pos = home
+	# 大魚：時間到吐出來
+	for f in fishes:
+		f.t += dt
+		if f.t >= f.hold and not f.done:
+			f.done = true
+			var tl := _nearest_enemies(f.pos, 140.0, 1)
+			var at: Vector2 = tl[0].pos if not tl.is_empty() else f.pos + f.dir * 60.0
+			fires.append({"pos": at, "t": 0.35, "max": 0.35, "r": f.r, "dmg": f.dmg * (1.0 + 0.6 * f.eaten), "owner": f.owner, "evo": evolved.has(f.owner.key), "look": "spit"})
+	fishes = fishes.filter(func(f): return f.t < f.hold + 0.4)
+	# 洪水
+	for w in floods:
+		if w.delay > 0.0:
+			w.delay -= dt
+			continue
+		w.x += w.dir * w.spd * dt
+		for e in enemies:
+			if e.dead or w.hit.has(e.node):
+				continue
+			if absf(e.pos.y - w.y) < w.h / 2.0 and absf(e.pos.x - w.x) < 8.0:
+				w.hit[e.node] = true
+				_hurt(e, w.dmg, Vector2.INF, w.owner)
+				if not e.get("boss", false):
+					e.knock += Vector2(w.dir * w.push, 0)
+					if w.evo:
+						e.stun = maxf(e.stun, 0.6)
+	floods = floods.filter(func(w): return (w.x < w.end) if w.dir > 0.0 else (w.x > w.end))
+	for cn in cones:
+		cn.t += dt
+	cones = cones.filter(func(cn): return cn.t < 0.22)
+	for e in enemies:
+		if e.has("crowned_t"):
+			e.crowned_t = maxf(0.0, float(e.crowned_t) - dt)
+
+
+func _orbit_points(c: Dictionary) -> Array:
+	var s: Dictionary = c.st
+	var out := []
+	var n := int(s.count)
+	var r: float = float(s.radius) * _area()
+	for i in n:
+		var a: float = float(c.get("orbit_ang", 0.0)) + i * TAU / n
+		out.append(paul.pos + Vector2(cos(a), sin(a) * 0.8) * r + Vector2(0, -4))
+	return out
+
+
+func _draw_engines(n: Node2D) -> void:
+	# 香氣（地上一片粉金色的點，實心）
+	for z in zones:
+		var k: float = clampf(z.life / z.max, 0.0, 1.0)
+		var zc: Vector2 = z.pos.round()
+		_dot_ring(n, zc, z.r, 0.75, z.owner.col, 4.0, t * 0.5, 2)
+		_dot_ring(n, zc, z.r * 0.6, 0.75, C_CREAM, 5.0, -t * 0.7, 1)
+		for i in 4:
+			var py: float = fmod(t * 14.0 + i * 7.0, 18.0)
+			var px: float = zc.x + sin(i * 2.1 + t) * z.r * 0.5
+			n.draw_rect(Rect2(roundf(px), zc.y - py, 2, 2), z.owner.col if k > 0.3 else C_CREAM)
+	# 瓶子
+	for j in jars:
+		var jx: float = roundf(j.pos.x)
+		var jy: float = roundf(j.pos.y)
+		n.draw_rect(Rect2(jx - 3, jy - 6, 7, 7), Color("2a1408"))
+		n.draw_rect(Rect2(jx - 2, jy - 5, 5, 5), Color("b8703a"))
+		n.draw_rect(Rect2(jx - 1, jy - 7, 3, 2), Color("2a1408"))
+		var fl := int(t * 8.0 + jx) % 2
+		n.draw_rect(Rect2(jx, jy - 9 - fl, 1, 2), C_FLAME)
+	# 桑樹
+	for tr in trees:
+		var tx: float = roundf(tr.pos.x)
+		var ty: float = roundf(tr.pos.y)
+		n.draw_rect(Rect2(tx - 2, ty - 12, 4, 12), Color("2a1a10"))
+		n.draw_rect(Rect2(tx - 1, ty - 12, 2, 12), Color("8a5a30"))
+		n.draw_circle(Vector2(tx, ty - 18), 10.0, Color("1a3010"))
+		n.draw_circle(Vector2(tx, ty - 18), 9.0, Color("4a7a2a"))
+		n.draw_circle(Vector2(tx - 3, ty - 21), 4.0, Color("6a9a3a"))
+		for i in 4:
+			n.draw_rect(Rect2(tx - 6 + i * 4, ty - 17 + (i % 2) * 4, 2, 2), Color("8a4a8a"))
+		if tr.life < 1.5 and int(t * 8.0) % 2 == 0:
+			n.draw_rect(Rect2(tx - 1, ty - 30, 2, 2), C_CREAM)
+	# 繞城的祭司（拿著號角的小人）
+	for c in comps:
+		if c.get("engine", "") != "orbit" or not _active(c):
+			continue
+		for pt in _orbit_points(c):
+			var ox: float = roundf(pt.x)
+			var oy: float = roundf(pt.y)
+			n.draw_rect(Rect2(ox - 3, oy - 7, 7, 9), Color("1a1408"))
+			n.draw_rect(Rect2(ox - 2, oy - 4, 5, 5), Color("f0e0b0"))
+			n.draw_rect(Rect2(ox - 1, oy - 6, 3, 2), Color("e0a878"))
+			n.draw_rect(Rect2(ox + 2, oy - 5, 3, 1), C_GOLD)
+			n.draw_rect(Rect2(ox + 4, oy - 6, 1, 3), C_GOLD)
+	# 迴力皮袋（轉動的十字）
+	for b in boomers:
+		var bp: Vector2 = b.pos.round()
+		var a: float = t * 18.0
+		var u := Vector2(cos(a), sin(a)) * 4.0
+		var col: Color = C_GOLD if b.evo else b.owner.col
+		n.draw_line(bp - u, bp + u, Color("1a1420"), 4.0)
+		n.draw_line(bp - u.orthogonal(), bp + u.orthogonal(), Color("1a1420"), 4.0)
+		n.draw_line(bp - u, bp + u, col, 2.0)
+		n.draw_line(bp - u.orthogonal(), bp + u.orthogonal(), col, 2.0)
+		n.draw_rect(Rect2(bp.x - 1, bp.y - 1, 2, 2), C_CREAM)
+	# 獅子
+	for c in comps:
+		if c.get("engine", "") != "pet" or c.level == 0 or not c.has("lions"):
+			continue
+		for ln in c.lions:
+			var lx: float = roundf(ln.pos.x)
+			var ly: float = roundf(ln.pos.y) - (4.0 if ln.jump > 0.0 else 0.0)
+			var face: float = 1.0 if ln.to.x >= ln.from.x else -1.0
+			n.draw_rect(Rect2(lx - 7, ly - 7, 15, 8), Color("2a1a08"))
+			n.draw_rect(Rect2(lx - 6, ly - 6, 12, 5), Color("d8a040"))
+			n.draw_rect(Rect2(lx + face * 5 - 3, ly - 10, 7, 7), Color("2a1a08"))
+			n.draw_rect(Rect2(lx + face * 5 - 2, ly - 9, 5, 5), Color("a86a20"))
+			n.draw_rect(Rect2(lx + face * 5 - 1, ly - 8, 3, 3), Color("e8c060"))
+			n.draw_rect(Rect2(lx + face * 6, ly - 7, 1, 1), Color("1a1408"))
+			var lg := int(t * 8.0) % 2 if ln.jump <= 0.0 else 0
+			n.draw_rect(Rect2(lx - 5, ly - 1, 2, 2 + lg), Color("a86a20"))
+			n.draw_rect(Rect2(lx + 3, ly - 1, 2, 3 - lg), Color("a86a20"))
+			n.draw_rect(Rect2(lx - face * 7, ly - 6, 2, 1), Color("a86a20"))
+	# 大魚（從地面冒出來，張口再闔上）
+	for f in fishes:
+		if f.t > f.hold:
+			continue
+		var k: float = clampf(f.t / 0.3, 0.0, 1.0) * clampf((f.hold - f.t) / 0.3, 0.0, 1.0)
+		var c0: Vector2 = f.pos.round()
+		var side: Vector2 = f.dir.orthogonal()
+		var hl: float = f.len * 0.5 * k
+		var body := PackedVector2Array([c0 - f.dir * hl, c0 - side * 7.0 * k, c0 + f.dir * hl, c0 + side * 7.0 * k])
+		n.draw_colored_polygon(body, Color("1a2a3a"))
+		var inner := PackedVector2Array([c0 - f.dir * (hl - 2.0), c0 - side * 5.0 * k, c0 + f.dir * (hl - 2.0), c0 + side * 5.0 * k])
+		n.draw_colored_polygon(inner, Color("5a8ab0"))
+		n.draw_line(c0 - f.dir * hl * 0.6, c0 + f.dir * hl * 0.6, Color("a8c8e0"), 1.0)
+		var tail: Vector2 = c0 - f.dir * hl
+		n.draw_colored_polygon(PackedVector2Array([tail, tail - f.dir * 6.0 + side * 6.0 * k, tail - f.dir * 6.0 - side * 6.0 * k]), Color("3a6a90"))
+		n.draw_rect(Rect2((c0 + f.dir * hl * 0.6 + side * 2.0).round(), Vector2(2, 2)), Color.WHITE)
+	# 洪水（一道直立的水牆，白色浪頭）
+	for w in floods:
+		if w.delay > 0.0:
+			continue
+		var x: float = roundf(w.x)
+		var y0: float = roundf(w.y - w.h / 2.0)
+		n.draw_rect(Rect2(x - w.dir * 10.0 - 6.0, y0, 12, w.h), Color("1a3a6a"))
+		n.draw_rect(Rect2(x - w.dir * 10.0 - 5.0, y0 + 1, 10, w.h - 2), Color("3a7ad0"))
+		n.draw_rect(Rect2(x - 2, y0, 4, w.h), Color("8fd0ff"))
+		for i in range(0, int(w.h), 6):
+			var fx: float = x + (2.0 if (i / 6 + int(t * 10.0)) % 2 == 0 else -1.0) * w.dir
+			n.draw_rect(Rect2(fx, y0 + i, 2, 3), Color.WHITE)
+	# 鼓聲（實心的扇形）
+	for cn in cones:
+		var k: float = cn.t / 0.22
+		var rr: float = cn.r * (0.5 + 0.5 * k)
+		var pts := PackedVector2Array([cn.pos])
+		for i in 9:
+			var a: float = cn.dir.angle() - cn.half + cn.half * 2.0 * i / 8.0
+			pts.append(cn.pos + Vector2(cos(a), sin(a)) * rr)
+		var outline := pts.duplicate()
+		outline.append(cn.pos)
+		var col: Color = C_GOLD if cn.evo else cn.col
+		n.draw_polyline(outline, col.darkened(0.6), 4.0)
+		n.draw_polyline(outline, col, 2.0)
+		for i in range(1, 9, 2):
+			n.draw_rect(Rect2(pts[i].round() - Vector2(1, 1), Vector2(3, 3)), C_CREAM)
+	# 以斯帖的標記：被標記的敵人頭上一頂金冠
+	for e in enemies:
+		if float(e.get("crowned_t", 0.0)) > 0.0 and not e.dead:
+			var cx: float = roundf(e.pos.x)
+			var cy: float = roundf(e.pos.y) - 24.0
+			n.draw_rect(Rect2(cx - 4, cy, 9, 4), Color("3a1a30"))
+			n.draw_rect(Rect2(cx - 3, cy + 1, 7, 2), C_GOLD)
+			for i in 3:
+				n.draw_rect(Rect2(cx - 3 + i * 3, cy - 2, 1, 2), C_GOLD)
+	# 亂了陣腳的敵人：頭上的問號
+	for e in enemies:
+		if float(e.get("confused", 0.0)) > 0.0 and not e.dead:
+			var qx: float = roundf(e.pos.x)
+			var qy: float = roundf(e.pos.y) - 22.0
+			n.draw_rect(Rect2(qx - 2, qy - 1, 5, 8), Color("2a1408"))
+			n.draw_rect(Rect2(qx - 1, qy, 3, 1), C_FLAME)
+			n.draw_rect(Rect2(qx + 1, qy + 1, 1, 2), C_FLAME)
+			n.draw_rect(Rect2(qx, qy + 3, 1, 1), C_FLAME)
+			n.draw_rect(Rect2(qx, qy + 5, 1, 1), C_FLAME)
+
+
 func _nova(c: Dictionary, s: Dictionary) -> void:
 	if c.level == 0:
 		return
@@ -2934,7 +3423,7 @@ func _update_projectiles(dt: float) -> void:
 		f.t -= dt
 		if f.t <= 0.0 and not f.get("hit", false):
 			f.hit = true
-			blasts.append({"pos": f.pos, "t": 0.0, "r": f.r, "col": C_GOLD if f.evo else C_FLAME, "evo": f.evo})
+			blasts.append({"pos": f.pos, "t": 0.0, "r": f.r, "col": Color("5a8ab0") if f.get("look", "") == "spit" else (C_GOLD if f.evo else C_FLAME), "evo": f.evo})
 			_burst(f.pos, 8, C_FLAME, C_GOLD)
 			for e in enemies:
 				if not e.dead and e.pos.distance_to(f.pos) < f.r + (8.0 if e.get("boss", false) else 0.0):
@@ -3020,6 +3509,9 @@ func _update_enemies(dt: float) -> void:
 		e.knock *= 0.85
 		if float(e.get("ally", 0.0)) > 0.0:
 			_update_ally(e, dt)
+			continue
+		if float(e.get("confused", 0.0)) > 0.0:
+			_update_confused(e, dt)
 			continue
 		if e.has("slow_t"):
 			e.slow_t = maxf(0.0, e.slow_t - dt)
@@ -3217,6 +3709,7 @@ func _damage_paul(n: float) -> void:
 		n *= 1.0 - float(D.armor.breast.per[armor.breast - 1])
 	n *= 1.0 - Save.up_value("aegis")
 	paul.hp -= n
+	_esther_save()
 	Sfx.play("hurt")
 	Sfx.buzz(40)
 	paul.inv = 0.6
@@ -3711,8 +4204,15 @@ func _draw_air() -> void:
 		else:
 			var a: float = 1.0 + f.t / 0.35
 			if f.get("evo", false):
-				n.draw_rect(Rect2(f.pos.x - 7, f.pos.y - 70, 15, 70), Color(C_CREAM, a * 0.35))
-			if f.get("look", "") == "glory":
+				n.draw_rect(Rect2(f.pos.x - 6, f.pos.y - 70, 1, 70), C_CREAM)
+				n.draw_rect(Rect2(f.pos.x + 6, f.pos.y - 70, 1, 70), C_CREAM)
+			if f.get("look", "") == "spit":
+				# 約拿的大魚吐出來：一團水砸下來
+				n.draw_rect(Rect2(f.pos.x - 4, f.pos.y - 50, 9, 50), Color("1a3a6a"))
+				n.draw_rect(Rect2(f.pos.x - 3, f.pos.y - 50, 7, 50), Color("5a8ab0"))
+				n.draw_rect(Rect2(f.pos.x - 1, f.pos.y - 50, 2, 50), Color("a8d8f0"))
+				n.draw_arc(f.pos, f.r * (1.2 - a * 0.2), 0.0, TAU, 24, Color("5a8ab0"), 2.0)
+			elif f.get("look", "") == "glory":
 				# 司提反：天開了，白金色寬光柱，落點一圈光
 				n.draw_rect(Rect2(f.pos.x - 5, f.pos.y - 90, 11, 90), Color(Color.WHITE, a * 0.4))
 				n.draw_rect(Rect2(f.pos.x - 2, f.pos.y - 90, 5, 90), Color(C_CREAM, a))
@@ -3826,6 +4326,7 @@ func _draw_air() -> void:
 			var fl := int(t * 10.0 + lx) % 2
 			n.draw_rect(Rect2(lx - 1, ly - 7 - fl, 3, 3), C_FLAME)
 			n.draw_rect(Rect2(lx, ly - 7 - fl, 1, 2), C_CREAM)
+	_draw_engines(n)
 	_draw_schools(n)
 	for dn in dnums:
 		var k2: float = dn.t / 0.7
