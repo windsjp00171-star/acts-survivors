@@ -296,6 +296,9 @@
     "chest":  { "text": "寶箱掉出來了，走過去就會打開" },
     "boss":   { "text": "Boss 快來了！看到紅色預警範圍要先躲開" }
   },
+  "_endless說明": "無盡模式：建立 unlock_churches 間教會後，在出發頁可以打開。7:00 的 Boss 打倒後不會結束；from 秒之後敵人每分鐘血量、傷害、出怪速度依 growth 複利成長，Boss 每 boss_every 秒再來一次、每次血量多 boss_growth。撐越久見證越多，不會變成發呆割草。",
+  "endless": { "unlock_churches": 3, "from": 420, "growth": { "hp": 0.28, "damage": 0.12, "speed": 0.03, "spawn": 0.1 },
+               "boss_every": 150, "boss_growth": 0.6, "max_enemies": 340 },
   "_tasks說明": "旅程任務：每局隨機抽 count 個。stat 可用 kills、elites、fevers、links、level、combo（最高連鎖）、resonance（共鳴次數）、chests（開寶箱）、bread（撿餅）、midboss（打退中途 Boss）、party（隊伍人數）；by 是要在第幾秒前完成（0 = 不限時）。完成給 witness 見證，並在保羅身邊掉一個寶箱。",
   "tasks": {
     "count": 3,

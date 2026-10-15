@@ -116,6 +116,9 @@ var sets_on: Array = []
 var grace_dmg := 0.0      # 恩上加恩（可疊加）
 var grace_spd := 0.0      # 如鷹展翅（可疊加）
 var mids_done := 0        # 中途 Boss 出現過幾次
+var endless := false      # 無盡模式
+var endless_boss_t := 0.0 # 無盡模式：下一隻 Boss 的時間
+var endless_bosses := 0
 var run_resonances := 0
 var tip_queue: Array = []  # 新手教學：等著出現的提示
 var run_chests := 0
@@ -164,6 +167,10 @@ func _ready() -> void:
 	D.boss.merge(stage.boss, true)
 	# 熬煉（難度條件）
 	trials = Save.run_config.get("trials", [])
+	endless = bool(Save.run_config.get("endless", false)) or OS.get_cmdline_user_args().has("--endless")
+	if endless:
+		D.waves.max_enemies = int(D.endless.max_enemies)
+		endless_boss_t = float(D.boss.at)
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--trials="):
 			trials = a.substr(9).split(",")
@@ -920,7 +927,7 @@ func _spawn_one(type: String, at: Vector2) -> void:
 	var SC: Dictionary = D.waves.scaling
 	var V: Dictionary = D.waves.veteran
 	var vet := randf() < _curve(V.chance, t)
-	var hp: float = ceilf(d.hp * _curve(SC.hp, t) * stage.hp_mult * (float(V.hp_mult) if vet else 1.0))
+	var hp: float = ceilf(d.hp * _curve(SC.hp, t) * stage.hp_mult * (float(V.hp_mult) if vet else 1.0) * _endless_mult("hp"))
 	var spr: String = d.get("sprite", type)
 	if d.has("looks"):
 		spr = d.looks[randi() % d.looks.size()]
@@ -928,7 +935,7 @@ func _spawn_one(type: String, at: Vector2) -> void:
 	var e := {"type": type, "d": d, "pos": at, "hp": hp, "ph": randf() * TAU, "flash": 0.0, "stun": 0.0,
 		"cd": 0.0, "bcd": 0.0, "shoot": (d.shoot.every * randf()) if d.has("shoot") else 0.0, "r": 6.0,
 		"sprite": spr, "tint": tint * Color(0.7, 0.5, 0.6) if vet else tint, "roar": 2.0, "vet": vet,
-		"dmul": _curve(SC.damage, t) * stage.dmg_mult, "smul": _curve(SC.speed, t),
+		"dmul": _curve(SC.damage, t) * stage.dmg_mult * _endless_mult("damage"), "smul": _curve(SC.speed, t) * _endless_mult("speed"),
 		"dash_cd": randf() * 3.0, "dash_t": 0.0, "blink_cd": 2.0 + randf() * 2.0,
 		"knock": Vector2.ZERO, "dead": false, "node": _sprite(spr + "_0", Vector2(-10, -13))}
 	var sc: float = float(d.get("scale", 1.0)) * (float(V.scale) if vet else 1.0)
@@ -947,7 +954,7 @@ func _spawn_special(key: String, def: Dictionary, at: Vector2) -> void:
 			d[k] = def[k]
 	var scale: float = def.get("scale", 1.0)
 	var SC: Dictionary = D.waves.scaling
-	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * _curve(SC.hp, t) * stage.hp_mult, "ph": randf() * TAU,
+	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * _curve(SC.hp, t) * stage.hp_mult * _endless_mult("hp"), "ph": randf() * TAU,
 		"dmul": _curve(SC.damage, t) * stage.dmg_mult, "smul": _curve(SC.speed, t),
 		"flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "shoot": 0.0, "r": 6.0 * scale, "sprite": def.sprite,
 		"tint": Color(def.tint[0], def.tint[1], def.tint[2]), "roar": 2.0, "elite": scale > 1.0,
@@ -1044,7 +1051,10 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			chests.append({"pos": e.pos})
 			boss = null
 			run_midboss += 1
-			ui.show_banner("打退了！%s 會在 %d:%02d 捲土重來" % [D.boss.name, int(D.boss.at) / 60, int(D.boss.at) % 60], 2.5)
+			if endless:
+				ui.show_banner("打退了！下一隻在 %d:%02d" % [int(endless_boss_t) / 60, int(endless_boss_t) % 60], 2.5)
+			else:
+				ui.show_banner("打退了！%s 會在 %d:%02d 捲土重來" % [D.boss.name, int(D.boss.at) / 60, int(D.boss.at) % 60], 2.5)
 		elif e.get("boss", false):
 			_win()
 		_burst(e.pos, 6, C_GOLD if fever > 0.0 else C_VL, C_CREAM)
@@ -1341,7 +1351,13 @@ func _step(dt: float) -> void:
 	if mids_done < mids.size() and t >= float(mids[mids_done].at) and boss == null and t < float(D.boss.at) - 30.0:
 		_spawn_boss(float(mids[mids_done].hp_mult))
 		mids_done += 1
-	if t >= D.boss.at and not boss_spawned and (boss == null or boss.get("mid", false)):
+	if endless:
+		# 無盡模式：Boss 一次比一次硬，打倒了也不會結束
+		if t >= endless_boss_t and boss == null:
+			_spawn_boss(1.0 + endless_bosses * float(D.endless.boss_growth), true)
+			endless_bosses += 1
+			endless_boss_t = t + float(D.endless.boss_every)
+	elif t >= D.boss.at and not boss_spawned and (boss == null or boss.get("mid", false)):
 		_spawn_boss()
 
 	for ch in chests:
@@ -1359,7 +1375,7 @@ func _step(dt: float) -> void:
 	spawn_timer -= dt
 	if spawn_timer <= 0.0 and enemies.size() < mini(int(wave.x), int(D.waves.max_enemies)):
 		_spawn_group()
-		spawn_timer = wave.y
+		spawn_timer = wave.y / _endless_mult("spawn")
 
 	var G: Dictionary = D.gems
 	for g in gems:
@@ -2887,10 +2903,19 @@ func _boss_tex() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
+## 無盡模式：from 秒之後，每分鐘依 growth 複利變強
+func _endless_mult(kind: String) -> float:
+	if not endless or t <= float(D.endless.from):
+		return 1.0
+	return pow(1.0 + float(D.endless.growth[kind]), (t - float(D.endless.from)) / 60.0)
+
+
 ## 下一隻 Boss 還有幾秒（-1：Boss 正在場上或都打完了）
 func _boss_in() -> float:
 	if boss != null or won:
 		return -1.0
+	if endless and t >= float(D.boss.at) - 30.0:
+		return maxf(0.0, endless_boss_t - t)
 	var mids: Array = D.boss.get("mid", [])
 	if mids_done < mids.size() and float(mids[mids_done].at) < float(D.boss.at) - 30.0:
 		return maxf(0.0, float(mids[mids_done].at) - t)
@@ -2898,8 +2923,8 @@ func _boss_in() -> float:
 
 
 ## hp_mult < 1：中途 Boss（打退了不算通關）
-func _spawn_boss(hp_mult := 1.0) -> void:
-	var mid := hp_mult < 1.0
+func _spawn_boss(hp_mult := 1.0, keep_going := false) -> void:
+	var mid := hp_mult < 1.0 or keep_going
 	if not mid:
 		boss_spawned = true
 	var B: Dictionary = D.boss
@@ -3059,7 +3084,7 @@ func _finish_run() -> Array:
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
 		"task_witness": task_witness, "lights": run_lights, "bread": run_bread,
 		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
-		"combo": combo_best, "party_size": _party_count(), "sets": sets_on.size(), "leader": leader,
+		"combo": combo_best, "party_size": _party_count(), "endless": endless, "sets": sets_on.size(), "leader": leader,
 		"trial_points": Save.trial_points(trials), "stage": stage.id,
 		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]

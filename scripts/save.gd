@@ -220,8 +220,8 @@ func finish_run(r: Dictionary) -> Dictionary:
 	var gain := int(r.kills / W.per_kills + r.seconds / W.per_seconds + r.level * W.per_level)
 	if r.won:
 		gain += int(W.boss_bonus)
-	else:
-		gain = int(gain * W.lose_ratio)
+	elif not r.get("endless", false):
+		gain = int(gain * W.lose_ratio)   # 無盡模式本來就是撐到倒下，不打折
 	gain += int(r.get("task_witness", 0))
 	var tp := int(r.get("trial_points", 0))
 	gain = int(gain * (1.0 + tp * float(meta.trials.witness_per_point)))
@@ -248,6 +248,8 @@ func finish_run(r: Dictionary) -> Dictionary:
 		st[k] = int(st.get(k, 0)) + int(r.get(k.replace("_total", ""), 0))
 	for k in ["combo", "level", "party_size", "sets"]:
 		st["best_" + k] = maxi(int(st.get("best_" + k, 0)), int(r.get(k, 0)))
+	if r.get("endless", false):
+		st.endless_best = maxi(int(st.get("endless_best", 0)), int(r.seconds))
 	if r.won and r.get("leader", "paul") != "paul":
 		st.leader_wins = int(st.get("leader_wins", 0)) + 1
 	if r.won:

@@ -247,6 +247,23 @@ func _show_home() -> void:
 				Save.save_profile()
 				_show_home())
 			row.add_child(pick)
+	# 無盡模式：建立幾間教會後才能開
+	if _endless_open():
+		var eon: bool = Save.data.get("endless_on", false)
+		var eb := UIKit.button("%s 無盡模式　Boss 打倒後繼續，敵人每分鐘都更強" % ["●" if eon else "○"], 13, eon)
+		eb.custom_minimum_size = Vector2(0, 40)
+		eb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		eb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		eb.pressed.connect(func():
+			Save.data.endless_on = not Save.data.get("endless_on", false)
+			Save.save_profile()
+			_show_home())
+		content.add_child(eb)
+		var best := int(Save.data.stats.get("endless_best", 0))
+		if best > 0:
+			_text(content, "無盡模式最久撐了 %d:%02d" % [best / 60, best % 60], 11, UIKit.SKY)
+	else:
+		_text(content, "無盡模式：建立 %d 間教會後開放（目前 %d 間）" % [int(G.endless.unlock_churches), Save.data.churches.size()], 11, UIKit.MUTED, true)
 	if Save.trials_unlocked():
 		var on: Array = Save.data.trials_on
 		var tp := Save.trial_points(on)
@@ -297,6 +314,10 @@ func _show_home() -> void:
 	_text(content, "提示：每局結束都會帶回「見證」，用來解鎖新同伴、果子、軍裝和隊伍位置。完成見證錄的目標可以解鎖舊約人物。", 12, UIKit.MUTED, true)
 
 
+func _endless_open() -> bool:
+	return Save.data.churches.size() >= int(G.endless.unlock_churches)
+
+
 func _stage_open(i: int) -> bool:
 	# 已經建立過的城一定開著（中間插入新城市時，舊存檔不會被鎖住）
 	return i == 0 or Save.data.churches.has(stages[i - 1].id) or Save.data.churches.has(stages[i].id)
@@ -308,7 +329,8 @@ func _start() -> void:
 		starter = Save.meta.default_starter
 	var sel := clampi(int(Save.data.stage), 0, stages.size() - 1)
 	Save.run_config = {"starter": starter, "stage": sel if _stage_open(sel) else 0,
-		"trials": Save.data.trials_on.duplicate() if Save.trials_unlocked() else []}
+		"trials": Save.data.trials_on.duplicate() if Save.trials_unlocked() else [],
+		"endless": _endless_open() and bool(Save.data.get("endless_on", false))}
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
 
