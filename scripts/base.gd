@@ -14,6 +14,7 @@ var portrait := false
 var tabs_enabled := {"home": true, "roster": true, "shop": true, "gifts": true, "ach": true, "codex": true}
 var gift_tag := "講道"
 var gift_sel := 0
+var cur_tab := ""
 var devlog: Dictionary
 var codex: Dictionary
 
@@ -131,10 +132,17 @@ func _build() -> void:
 	scroll.add_child(content)
 
 
-func _clear(active: String) -> void:
+func _clear(active: String, page := "") -> void:
 	for c in content.get_children():
 		c.queue_free()
-	scroll.scroll_vertical = 0
+	# 同一頁重畫（例如點了熬煉、學了恩賜）時保留捲動位置，換頁才回到最上面
+	if page == "":
+		page = active
+	if page == cur_tab:
+		_keep_scroll(scroll.scroll_vertical)
+	else:
+		scroll.scroll_vertical = 0
+	cur_tab = page
 	witness_label.text = "見證 %d　餅 %d" % [Save.data.witness, int(Save.data.get("bread", 0))]
 	for k in nav_buttons:
 		nav_buttons[k].add_theme_stylebox_override("normal", UIKit.box(Color("3a2a40") if k == active else UIKit.PANEL, UIKit.GOLD if k == active else UIKit.BRONZE, 6))
@@ -404,7 +412,7 @@ func _show_roster() -> void:
 
 
 func _show_companion(key: String) -> void:
-	_clear("roster")
+	_clear("roster", "detail:" + key)
 	var c := _comp_def(key)
 	var unlocked := Save.is_unlocked(key)
 	var h := _row(content)
@@ -591,6 +599,14 @@ func _codex_entry(known: bool, name: String, lines: Array) -> void:
 
 
 # ---------- 恩賜樹 ----------
+## 內容重建、版面算好之後，把捲動放回原來的位置
+func _keep_scroll(v: int) -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if is_instance_valid(scroll):
+		scroll.scroll_vertical = v
+
+
 func _show_gifts() -> void:
 	_clear("gifts")
 	var GF: Dictionary = Save.meta.gifts
@@ -682,6 +698,8 @@ func _show_gifts() -> void:
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(v)
 		_text(v, "%s　Lv%d／%d" % [tree.names[gift_sel], rank, int(nd.max)], 15, UIKit.CREAM)
+		if tree.has("refs"):
+			_text(v, "（%s）" % tree.refs[gift_sel], 11, UIKit.SKY)
 		_text(v, nd.desc % gift_tag, 12, UIKit.INK, true)
 		if nd.id == "link" or nd.id == "ult":
 			var TL: Dictionary = G.tag_links.get(gift_tag, {})
