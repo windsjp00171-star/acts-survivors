@@ -294,7 +294,8 @@
     "fever":  { "text": "同心合意滿了！按空白鍵開五旬節，全隊爆發", "text_touch": "同心合意滿了！點「五旬節」按鈕，全隊爆發" },
     "elite":  { "text": "菁英出現了：比較硬，打倒會掉寶箱" },
     "chest":  { "text": "寶箱掉出來了，走過去就會打開" },
-    "boss":   { "text": "Boss 快來了！看到紅色預警範圍要先躲開" }
+    "boss":   { "text": "Boss 快來了！看到紅色預警範圍要先躲開" },
+    "event":  { "text": "旅程中會遇到使徒行傳裡的事件：二選一，各有好處和代價" }
   },
   "_endless說明": "無盡模式：建立 unlock_churches 間教會後，在出發頁可以打開。7:00 的 Boss 打倒後不會結束；from 秒之後敵人每分鐘血量、傷害、出怪速度依 growth 複利成長，Boss 每 boss_every 秒再來一次、每次血量多 boss_growth。撐越久見證越多，不會變成發呆割草。",
   "endless": { "unlock_churches": 3, "from": 420, "growth": { "hp": 0.28, "damage": 0.12, "speed": 0.03, "spawn": 0.1 },
@@ -427,15 +428,15 @@
                 "split_into": "pride_small", "split_count": 2 },
     "pride_small": { "name": "自高", "sprite": "pride", "tint": [1.0, 0.95, 0.8], "hp": 1, "speed": 24, "damage": 2, "scatter": 30, "dies_on_touch": true, "from": 0, "weight": 0, "scale": 0.7 },
     "sorcery": { "name": "邪術", "sprite": "sorcery", "hp": 4, "speed": 10, "damage": 5, "scatter": 50, "dies_on_touch": false, "from": 0, "weight": 0,
-                "blink": { "every": 4.0, "min": 28, "max": 46 } },
-    "idol":    { "name": "偶像", "hp": 10, "speed": 6, "damage": 5, "scatter": 20, "dies_on_touch": false, "from": 0, "weight": 0,
+                "blink": { "every": 6.0, "min": 60, "max": 85 } },
+    "idol":    { "name": "偶像", "hp": 8, "speed": 6, "damage": 4, "scatter": 20, "dies_on_touch": false, "from": 0, "weight": 0,
                 "shoot": { "every": 3.2, "range": 120, "keep_away": 0, "speed": 45, "damage": 4 } },
     "curious": { "name": "好奇", "hp": 2, "speed": 22, "damage": 3, "scatter": 40, "dies_on_touch": true, "from": 0, "weight": 0,
-                "blink": { "every": 3.0, "min": 30, "max": 60 } },
+                "blink": { "every": 5.0, "min": 65, "max": 95 } },
     "accuser": { "name": "誣告", "hp": 5, "speed": 15, "damage": 6, "scatter": 50, "dies_on_touch": false, "from": 0, "weight": 0,
-                "dash": { "every": 3.0, "mult": 4.5, "time": 0.4 } },
-    "viper":   { "name": "毒蛇", "hp": 2, "speed": 34, "damage": 5, "scatter": 30, "dies_on_touch": true, "from": 0, "weight": 0 },
-    "power":   { "name": "權勢", "hp": 16, "speed": 9, "damage": 8, "scatter": 70, "dies_on_touch": false, "from": 0, "weight": 0, "scale": 1.15 }
+                "dash": { "every": 4.0, "mult": 3.5, "time": 0.4 } },
+    "viper":   { "name": "毒蛇", "hp": 2, "speed": 30, "damage": 4, "scatter": 30, "dies_on_touch": true, "from": 0, "weight": 0 },
+    "power":   { "name": "權勢", "hp": 12, "speed": 9, "damage": 7, "scatter": 70, "dies_on_touch": false, "from": 0, "weight": 0, "scale": 1.15 }
   },
   "waves": {
     "_說明": "curve 每列是 [秒數, 場上目標隻數, 每群間隔秒數]，中間線性內插。照設計文件的一座城節奏：開局 → 成形 → 菁英潮高峰 → 喘息 → Boss 前再升高。超過最後一列就維持最後一列。",

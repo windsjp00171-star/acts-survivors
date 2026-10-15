@@ -1,0 +1,88 @@
+{
+  "_說明": "局內事件：旅程中途隨機發生使徒行傳的場景，二選一。first 是第一次可能出現的秒數，every 是之後大約每隔幾秒，max_per_run 是一局最多幾次（Boss 在場、五旬節、選卡時不會出現）。每個選項的 effects 可以用：heal_paul（主角回血，數字或 \"full\"）、heal_team（同伴回滿）、stun_all（全場暈眩秒數）、meter（同心合意，0–1）、chests（掉幾個寶箱）、lose_armor（失去一件軍裝）、hurt_paul（主角扣血比例）、dmg（全隊傷害，可疊加）、spd（全隊攻速）、move（主角移速）、level（立刻升幾級）、enemy_hp（之後的敵人血量倍率增加）、bread（餅）、witness（結算多給見證）、guard（主角護盾層數）、down_one（一位同伴倒下）、recruit（招募一位還沒加入的同伴，隊伍滿了就改成升一級）、elites（立刻出現幾隻菁英）。歡迎補充，請附經文出處。",
+  "first": 70,
+  "every": [90, 130],
+  "max_per_run": 3,
+  "events": [
+    {
+      "id": "earthquake", "title": "半夜的地震", "ref": "徒 16:25–26",
+      "text": "半夜，監牢的地基搖動，監門全開，鎖鍊都鬆開了。",
+      "choices": [
+        { "label": "繼續唱詩讚美", "desc": "全場敵人暈眩 4 秒，同心合意立刻滿", "effects": { "stun_all": 4, "meter": 1.0 } },
+        { "label": "攔住要自殺的獄卒", "desc": "主角回滿血，這局結算見證 +40", "effects": { "heal_paul": "full", "witness": 40 } }
+      ]
+    },
+    {
+      "id": "shipwreck", "title": "船擱淺了", "ref": "徒 27:41–44",
+      "text": "船頭膠住不動，船尾被浪的猛力衝壞了。",
+      "choices": [
+        { "label": "把貨物拋在海裡", "desc": "失去一件軍裝，換得 3 個寶箱", "effects": { "lose_armor": 1, "chests": 3 } },
+        { "label": "抓著船板上岸", "desc": "主角扣 30% 血，全隊傷害 +8%（這局）", "effects": { "hurt_paul": 0.3, "dmg": 0.08 } }
+      ]
+    },
+    {
+      "id": "eutychus", "title": "猶推古打盹", "ref": "徒 20:9–12",
+      "text": "保羅講論了很久，一個少年人睡著了，從三層樓上掉了下去。",
+      "choices": [
+        { "label": "下去伏在他身上", "desc": "一位同伴暫時倒下，之後全隊攻速 +6%", "effects": { "down_one": 1, "spd": 0.06 } },
+        { "label": "講到天亮", "desc": "立刻升一級，但之後的敵人血量 +10%", "effects": { "level": 1, "enemy_hp": 0.1 } }
+      ]
+    },
+    {
+      "id": "books", "title": "焚燒邪術的書", "ref": "徒 19:19–20",
+      "text": "行邪術的把書拿來，在眾人面前焚燒，書價算起來有五萬塊錢。",
+      "choices": [
+        { "label": "點火", "desc": "這局多得 15 個餅", "effects": { "bread": 15 } },
+        { "label": "主的道大大興旺", "desc": "全隊傷害 +6%（這局）", "effects": { "dmg": 0.06 } }
+      ]
+    },
+    {
+      "id": "macedonia", "title": "馬其頓的異象", "ref": "徒 16:9–10",
+      "text": "夜間有異象：一個馬其頓人站著求他說：請你過到馬其頓來幫助我們。",
+      "choices": [
+        { "label": "立刻起身", "desc": "一位新同伴加入（隊伍滿了就改成升一級）", "effects": { "recruit": 1 } },
+        { "label": "先一同禱告", "desc": "同心合意立刻滿，主角回 30 血", "effects": { "meter": 1.0, "heal_paul": 30 } }
+      ]
+    },
+    {
+      "id": "lystra", "title": "在路司得被石頭打", "ref": "徒 14:19–20",
+      "text": "眾人用石頭打保羅，以為他死了，就拖到城外。",
+      "choices": [
+        { "label": "起來，再進城去", "desc": "主角扣 40% 血，這局結算見證 +60", "effects": { "hurt_paul": 0.4, "witness": 60 } },
+        { "label": "門徒圍著他", "desc": "同伴全部回滿血，主角得到 2 層護盾", "effects": { "heal_team": 1, "guard": 2 } }
+      ]
+    },
+    {
+      "id": "tentmaker", "title": "織帳棚的手藝", "ref": "徒 18:3",
+      "text": "亞居拉和百基拉與保羅同業，就和他們同住做工。",
+      "choices": [
+        { "label": "一起做工", "desc": "這局多得 12 個餅，掉一個寶箱", "effects": { "bread": 12, "chests": 1 } },
+        { "label": "安息日在會堂辯論", "desc": "立刻升一級", "effects": { "level": 1 } }
+      ]
+    },
+    {
+      "id": "eunuch", "title": "曠野路上的車", "ref": "徒 8:26–39",
+      "text": "腓利跑過去，聽見太監在念先知以賽亞的書。",
+      "choices": [
+        { "label": "在水邊施洗", "desc": "主角回滿血，同伴全部回滿血", "effects": { "heal_paul": "full", "heal_team": 1 } },
+        { "label": "被主的靈提去", "desc": "主角移動速度 +10%（這局）", "effects": { "move": 0.1 } }
+      ]
+    },
+    {
+      "id": "riot", "title": "銀匠的騷動", "ref": "徒 19:23–29",
+      "text": "合城都轟動起來，眾人齊心擁進戲園裡去。",
+      "choices": [
+        { "label": "迎上前去", "desc": "立刻出現 2 隻菁英（打倒掉寶箱）", "effects": { "elites": 2 } },
+        { "label": "門徒攔阻他", "desc": "全場敵人暈眩 2 秒，主角得到 1 層護盾", "effects": { "stun_all": 2, "guard": 1 } }
+      ]
+    },
+    {
+      "id": "viper", "title": "柴堆裡的毒蛇", "ref": "徒 28:3–6",
+      "text": "有一條毒蛇因為熱了出來，咬住保羅的手。",
+      "choices": [
+        { "label": "把蛇甩在火裡", "desc": "主角扣 20% 血，之後全隊傷害 +5%", "effects": { "hurt_paul": 0.2, "dmg": 0.05 } },
+        { "label": "按手醫治島上的病人", "desc": "同伴全部回滿血，同心合意 +50%", "effects": { "heal_team": 1, "meter": 0.5 } }
+      ]
+    }
+  ]
+}

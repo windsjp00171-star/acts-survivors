@@ -76,6 +76,7 @@ var paul := {}
 var pa := {}              # 保羅自己的攻擊（書信），用和同伴一樣的出招流程
 var first_recruit := ""
 var smoke_max_frames := 1800
+var bot := false            # 測試用：比較會玩的機器人（--bot）
 var leader := "paul"      # 這一局的主角（同伴的 key；預設保羅）
 var stage := {}           # 這一局的城市（data/stages.json）
 var stage_i := 0
@@ -120,6 +121,11 @@ var endless := false      # 無盡模式
 var endless_boss_t := 0.0 # 無盡模式：下一隻 Boss 的時間
 var endless_bosses := 0
 var run_resonances := 0
+var EV: Dictionary          # data/events.json
+var event_t := 0.0          # 下一次局內事件的時間（距離開局的秒數）
+var events_done: Array = []
+var enemy_hp_bonus := 0.0   # 事件：之後的敵人血量增加
+var move_bonus := 0.0       # 事件：主角移速
 var tip_queue: Array = []  # 新手教學：等著出現的提示
 var run_chests := 0
 var run_midboss := 0
@@ -156,6 +162,8 @@ var smoke_nofever := false
 
 func _ready() -> void:
 	D = JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
+	EV = JSON.parse_string(FileAccess.get_file_as_string("res://data/events.json"))
+	event_t = float(EV.first)
 	var stages: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages
 	stage_i = clampi(int(Save.run_config.get("stage", 0)), 0, stages.size() - 1)
 	for a in OS.get_cmdline_user_args():
@@ -227,6 +235,9 @@ func _ready() -> void:
 			t = float(a.substr(5))
 		elif a == "--light":
 			force_light = true
+		elif a == "--bot":
+			bot = true
+			Engine.time_scale = 4.0   # 機器人模擬：時間跑快 4 倍
 		elif a.begins_with("--frames="):
 			smoke_max_frames = int(a.substr(9))   # 測試用：跑更久（整局約 25000 格）
 		elif a == "--nofever":
@@ -584,7 +595,7 @@ func _comp_max_hp() -> float:
 	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1)
 
 func _speed() -> float:
-	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12)
+	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus)
 
 
 func _make_cards() -> Array:
@@ -743,6 +754,8 @@ func _apply_card(card: Dictionary) -> void:
 	elif card.kind == "link":
 		links.append({"src": by_key[card.src], "dst": by_key[card.dst], "kind": card.key, "cd": 0.0, "lv": 1})
 		ui.show_banner("肢體連結！", 1.2)
+	elif card.kind == "event":
+		_event_effects(card.effects)
 	elif card.kind == "grace_dmg":
 		grace_dmg += float(card.amount)
 	elif card.kind == "grace_spd":
@@ -881,9 +894,79 @@ func _move_vector() -> Vector2:
 		var d: Vector2 = joy.pos - joy.origin
 		if d.length() > 4.0:
 			return d.normalized() * minf(1.0, d.length() / 36.0)
+	if smoke and bot:
+		return _bot_move()
 	if smoke:
 		return Vector2.from_angle(t * 0.6) * 0.8
 	return Vector2.ZERO
+
+
+## 測試機器人：躲開附近的敵人與 Boss 預警、空檔時去撿經驗和寶箱
+func _bot_move() -> Vector2:
+	var p: Vector2 = paul.pos
+	var push := Vector2.ZERO
+	for e in enemies:
+		if e.dead:
+			continue
+		var d: Vector2 = p - e.pos
+		var l := d.length()
+		var reach := 60.0 if e.get("boss", false) else 38.0
+		if l < reach and l > 0.01:
+			push += d / l * (reach - l) / reach * (3.0 if e.get("boss", false) else 1.0)
+	for sh in tele:
+		if sh.kind == "circle":
+			var d2: Vector2 = p - sh.c
+			if d2.length() < sh.r + 12.0:
+				push += d2.normalized() * 6.0
+		else:
+			var ab: Vector2 = sh.b - sh.a
+			var q: Vector2 = sh.a + ab * clampf((p - sh.a).dot(ab) / maxf(ab.length_squared(), 1.0), 0.0, 1.0)
+			var d3: Vector2 = p - q
+			if d3.length() < sh.w + 12.0:
+				push += (d3.normalized() if d3.length() > 0.01 else ab.orthogonal().normalized()) * 6.0
+	var pull := Vector2.ZERO
+	var best := 1e9
+	for ch in chests:
+		var dc: float = p.distance_to(ch.pos)
+		if dc < best:
+			best = dc
+			pull = (ch.pos - p).normalized() * 1.2
+	if pull == Vector2.ZERO:
+		for g in gems:
+			var dg: float = p.distance_to(g.pos)
+			if dg < best and dg < 140.0:
+				best = dg
+				pull = (g.pos - p).normalized() * 0.6
+	# 不要離起點太遠（太遠會撿不到東西、被包圍）
+	pull += -p / 400.0
+	var v := push * 2.0 + pull
+	return v.normalized() if v.length() > 0.05 else Vector2.ZERO
+
+
+## 測試機器人選卡：進化 > 招募 > 升級最高等的人 > 果子 > 軍裝 > 連結 > 其他
+func _bot_pick(cards: Array) -> int:
+	var best := 0
+	var best_score := -1e9
+	for i in cards.size():
+		var cd: Dictionary = cards[i]
+		var sc := 0.0
+		match cd.kind:
+			"evolve": sc = 100.0
+			"recruit": sc = 60.0
+			"branch": sc = 55.0
+			"up": sc = 40.0 + (float(by_key[cd.key].level) * 3.0 if by_key.has(cd.key) else 0.0)
+			"fruit": sc = 35.0
+			"armor": sc = 30.0
+			"link", "link_up": sc = 28.0
+			"epistle": sc = 26.0
+			"heal": sc = 50.0 if paul.hp < float(D.paul.hp) * 0.5 else 5.0
+			"event": sc = 20.0
+			_: sc = 10.0
+		sc += randf() * 6.0
+		if sc > best_score:
+			best_score = sc
+			best = i
+	return best
 
 
 # ---------- 敵人 ----------
@@ -956,7 +1039,7 @@ func _spawn_one(type: String, at: Vector2) -> void:
 	var SC: Dictionary = D.waves.scaling
 	var V: Dictionary = D.waves.veteran
 	var vet := randf() < _curve(V.chance, t)
-	var hp: float = ceilf(d.hp * _curve(SC.hp, t) * stage.hp_mult * (float(V.hp_mult) if vet else 1.0) * _endless_mult("hp"))
+	var hp: float = ceilf(d.hp * _curve(SC.hp, t) * stage.hp_mult * (float(V.hp_mult) if vet else 1.0) * _endless_mult("hp") * (1.0 + enemy_hp_bonus))
 	var spr: String = d.get("sprite", type)
 	if d.has("looks"):
 		spr = d.looks[randi() % d.looks.size()]
@@ -1170,6 +1253,93 @@ func _barrier_pieces() -> Array:
 
 
 # ---------- FEVER ----------
+# ---------- 局內事件（使徒行傳的場景，二選一） ----------
+func _start_event() -> void:
+	var pool: Array = EV.events.filter(func(ev): return not events_done.has(ev.id))
+	event_t = t - t_start + randf_range(float(EV.every[0]), float(EV.every[1]))
+	if pool.is_empty():
+		return
+	var ev: Dictionary = pool[randi() % pool.size()]
+	events_done.append(ev.id)
+	choosing = true
+	joy.on = false
+	ui.joy.on = false
+	pending_cards = []
+	for i in ev.choices.size():
+		var ch: Dictionary = ev.choices[i]
+		pending_cards.append({"kind": "event", "key": str(i), "title": ch.label, "tag": ev.ref, "desc": ch.desc, "effects": ch.effects})
+	Sfx.play("chest", 0.0)
+	_tip("event")
+	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, _card_delay(), 0, "%s（%s）" % [ev.title, ev.ref], ev.text)
+	if smoke:
+		print("EVENT ", ev.id)
+		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_event.png")):
+			await get_tree().create_timer(0.3).timeout
+			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_event.png"))
+
+
+func _event_effects(fx: Dictionary) -> void:
+	for k in fx:
+		var v = fx[k]
+		match k:
+			"heal_paul":
+				paul.hp = float(D.paul.hp) if str(v) == "full" else minf(float(D.paul.hp), paul.hp + float(v))
+				heals.append({"who": paul, "t": 0.0})
+			"heal_team":
+				for c in comps:
+					if c.level > 0:
+						c.down = 0.0
+						c.hp = _comp_max_hp()
+			"stun_all":
+				for e in enemies:
+					if not e.dead and not e.get("boss", false):
+						e.stun = maxf(e.stun, float(v))
+			"meter":
+				meter = minf(1.0, meter + float(v))
+			"chests":
+				for i in int(v):
+					chests.append({"pos": paul.pos + Vector2.from_angle(i * 2.1) * 30.0})
+			"lose_armor":
+				if not armor.is_empty():
+					armor.erase(armor.keys()[randi() % armor.size()])
+			"hurt_paul":
+				paul.hp = maxf(1.0, paul.hp - float(D.paul.hp) * float(v))
+			"dmg":
+				grace_dmg += float(v)
+			"spd":
+				grace_spd += float(v)
+			"move":
+				move_bonus += float(v)
+			"level":
+				xp = maxi(xp, xp_need)
+			"enemy_hp":
+				enemy_hp_bonus += float(v)
+			"bread":
+				run_bread += int(v)
+			"witness":
+				task_witness += int(v)
+			"guard":
+				guard = mini(guard + int(v), 5)
+			"down_one":
+				var up := comps.filter(func(c): return c.level > 0 and c.down <= 0.0 and c.follows == "")
+				if not up.is_empty():
+					var c: Dictionary = up[randi() % up.size()]
+					c.hp = 0.0
+					c.down = float(D.companion_rules.down_seconds)
+			"recruit":
+				var cand := comps.filter(func(c): return c.level == 0 and c.follows == "" and c.skill != "" and Save.is_unlocked(c.key))
+				if not cand.is_empty() and _party_count() < Save.party_cap():
+					var c: Dictionary = cand[randi() % cand.size()]
+					_recruit(c)
+					ui.show_banner("%s 加入了！" % c.name, 1.6)
+				else:
+					xp = maxi(xp, xp_need)
+			"elites":
+				for i in int(v):
+					_spawn_special("terror", D.elites.terror, _edge_point(16.0))
+	_refresh_build_text()
+
+
 ## 新手教學：第一次遇到才出現，看過就記在存檔
 func _tip(id: String) -> void:
 	var seen: Array = Save.data.get("tips_seen", [])
@@ -1339,6 +1509,9 @@ func _step(dt: float) -> void:
 		L.cd = maxf(0.0, L.cd - dt)
 	_update_tasks()
 	_update_tips()
+	if not choosing and not chest_open and not over and boss == null and fever <= 0.0 \
+			and t - t_start >= event_t and events_done.size() < int(EV.max_per_run):
+		_start_event()
 	if t - t_start > 4.0:
 		_tip("gem")
 	if t - t_start > 25.0:
@@ -1475,7 +1648,7 @@ func _step(dt: float) -> void:
 	_update_wind(dt)
 	_collide_solids()
 
-	if xp >= xp_need and not over and not chest_open:
+	if xp >= xp_need and not over and not chest_open and not choosing:
 		_level_up()
 
 
@@ -2157,13 +2330,22 @@ func _update_enemies(dt: float) -> void:
 				_ring_pop(e.pos, Color("e8481c"), 8.0)
 		if d.has("blink"):
 			# 邪術：瞬間移動到保羅附近
+			# 先在落點出現紫色預兆，0.7 秒後才真的過去；落地後愣一下、不能馬上撞人
 			e.blink_cd -= dt
-			if e.blink_cd <= 0.0 and dist > 60.0:
+			if e.has("blink_to"):
+				e.blink_wait -= dt
+				if e.blink_wait <= 0.0:
+					_ring_pop(e.pos, Color("a060ff"), 10.0)
+					e.pos = e.blink_to
+					e.erase("blink_to")
+					_ring_pop(e.pos, Color("a060ff"), 14.0)
+					e.stun = 0.5
+					e.blink_safe = 0.8
+			elif e.blink_cd <= 0.0 and dist > 90.0:
 				e.blink_cd = float(d.blink.every)
-				_ring_pop(e.pos, Color("a060ff"), 10.0)
 				var a := randf() * TAU
-				e.pos = p.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(d.blink.min, d.blink.max)
-				_ring_pop(e.pos, Color("a060ff"), 14.0)
+				e.blink_to = p.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(d.blink.min, d.blink.max)
+				e.blink_wait = 0.7
 		var wob: float = sin(t * 2.2 + e.ph) * 0.5
 		e.pos += (dir * go + dir.orthogonal() * wob) * d.speed * e.smul * dt
 
@@ -2202,7 +2384,8 @@ func _update_enemies(dt: float) -> void:
 			continue
 
 		# 碰到保羅
-		if p.pos.distance_to(e.pos + Vector2(0, 5)) < e.r and p.inv <= 0.0:
+		e.blink_safe = maxf(0.0, float(e.get("blink_safe", 0.0)) - dt)
+		if p.pos.distance_to(e.pos + Vector2(0, 5)) < e.r and p.inv <= 0.0 and e.blink_safe <= 0.0:
 			_damage_paul(d.damage * e.dmul)
 			e.knock -= dir * 80.0
 			if d.dies_on_touch:
@@ -2509,6 +2692,12 @@ func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, 
 
 func _draw_ground_fx() -> void:
 	var n := ground_fx
+	# 瞬移的預兆：落點的紫色圈慢慢收縮
+	for e in enemies:
+		if e.has("blink_to") and not e.dead:
+			var k: float = clampf(float(e.blink_wait) / 0.7, 0.0, 1.0)
+			n.draw_arc(e.blink_to, 4.0 + k * 10.0, 0.0, TAU, 16, Color(Color("a060ff"), 0.9), 1.5)
+			n.draw_circle(e.blink_to, 3.0, Color(Color("a060ff"), 0.35))
 	for o in [paul] + comps:
 		if o != paul and o.level == 0:
 			continue
@@ -3264,6 +3453,11 @@ func _smoke_tick() -> void:
 		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_chest.png")):
 			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_chest.png"))
 		ui._close_chest()
+	if over and smoke_shot == "":
+		# 不截圖時：一結束就印結果離開（大量模擬用）
+		print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d" % [stage.id, t - t_start, won, level, kills, _party_count()])
+		get_tree().quit()
+		return
 	if over and smoke_shot != "":
 		smoke_over += 1
 		if smoke_over == 170:
@@ -3271,6 +3465,7 @@ func _smoke_tick() -> void:
 		if smoke_over == 900:
 			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_over.png"))
 			print("SMOKE DONE (over) t=%.1f won=%s" % [t, won])
+			print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d" % [stage.id, t - t_start, won, level, kills, _party_count()])
 			get_tree().quit()
 		return
 	if smoke_shot != "" and tele.size() > 0 and smoke_frames % 10 == 5 and not FileAccess.file_exists(smoke_shot.replace(".png", "_tele.png")):
@@ -3285,7 +3480,7 @@ func _smoke_tick() -> void:
 		ui.card_ready_at = 0.0
 		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_cards.png")):
 			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_cards.png"))
-		ui.pick(randi() % pending_cards.size())
+		ui.pick(_bot_pick(pending_cards) if bot else randi() % pending_cards.size())
 	if meter >= 1.0 and fever <= 0.0 and not smoke_nofever:
 		_start_fever()
 	if smoke_frames % 300 == 0:

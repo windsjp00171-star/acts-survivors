@@ -437,9 +437,9 @@ func _draw_joy() -> void:
 
 # ---------- 升級卡 ----------
 const KIND_NAME := {"recruit": "新同伴", "up": "升級", "branch": "分支", "evolve": "進化", "fruit": "聖靈果子", "armor": "軍裝",
-	"epistle": "書信", "link": "肢體連結", "link_up": "強化連結", "heal": "恩典", "grace_dmg": "恩典", "grace_spd": "恩典", "manna": "恩典"}
+	"epistle": "書信", "event": "事件", "link": "肢體連結", "link_up": "強化連結", "heal": "恩典", "grace_dmg": "恩典", "grace_spd": "恩典", "manna": "恩典"}
 const KIND_COL := {"recruit": Color("7be08a"), "up": Color("4fd8ff"), "branch": Color("4fd8ff"), "evolve": Color("ffd75e"),
-	"fruit": Color("ff9ae0"), "armor": Color("c9a46b"), "epistle": Color("fff4c2"), "link": Color("ff8a2a"), "link_up": Color("ff8a2a")}
+	"fruit": Color("ff9ae0"), "armor": Color("c9a46b"), "epistle": Color("fff4c2"), "event": Color("c8a0ff"), "link": Color("ff8a2a"), "link_up": Color("ff8a2a")}
 
 
 ## 一張升級卡的內容：左邊人物圖（有的話）、上面是種類標籤，再來標題、說明
@@ -484,7 +484,7 @@ func _card_body(b: Button, c: Dictionary, i: int, portrait: bool) -> void:
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
-func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
+func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text := "升級！選一個", sub_text := "") -> void:
 	hide_cards()
 	var size := vp()
 	var portrait := size.y > size.x
@@ -493,9 +493,19 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	dim.name = "CardDim"
 	root.add_child(dim)
-	var title := label("升級！選一個", 20, C_GOLD)
+	var title := label(title_text, 20, C_GOLD)
 	title.name = "CardTitle"
-	title.position = Vector2(roundf((size.x - 140) / 2.0), 34 if not portrait else 90)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.size.x = size.x
+	title.position = Vector2(0, 34 if not portrait else 90)
+	if sub_text != "":
+		# 事件的情境說明
+		var sub := label(sub_text, 13, C_CREAM)
+		sub.name = "CardSub"
+		sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		sub.size.x = size.x - 60.0
+		sub.position = Vector2(30, (34 if not portrait else 90) + 30)
 	cards_box = VBoxContainer.new() if portrait else HBoxContainer.new()
 	cards_box.add_theme_constant_override("separation", 10)
 	root.add_child(cards_box)
@@ -626,7 +636,7 @@ func pick(i: int) -> void:
 
 
 func hide_cards() -> void:
-	for n in ["CardDim", "CardTitle", "CardReroll"]:
+	for n in ["CardDim", "CardTitle", "CardSub", "CardReroll"]:
 		var node := root.get_node_or_null(n)
 		if node:
 			root.remove_child(node)
