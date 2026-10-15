@@ -935,9 +935,13 @@ func _spawn_one(type: String, at: Vector2) -> void:
 	if d.has("looks"):
 		spr = d.looks[randi() % d.looks.size()]
 	var tint := Color(d.tint[0], d.tint[1], d.tint[2]) if d.has("tint") else Color.WHITE
+	# 獵手：不追主角、改追同伴，顏色偏紅
+	var hunter := type != "fear" and not d.has("shoot") and randf() < _curve(D.waves.hunter.chance, t)
+	if hunter:
+		tint *= Color(1.25, 0.75, 0.75)
 	var e := {"type": type, "d": d, "pos": at, "hp": hp, "ph": randf() * TAU, "flash": 0.0, "stun": 0.0,
 		"cd": 0.0, "bcd": 0.0, "shoot": (d.shoot.every * randf()) if d.has("shoot") else 0.0, "r": 6.0,
-		"sprite": spr, "tint": tint * Color(0.7, 0.5, 0.6) if vet else tint, "roar": 2.0, "vet": vet,
+		"sprite": spr, "tint": tint * Color(0.7, 0.5, 0.6) if vet else tint, "roar": 2.0, "vet": vet, "hunter": hunter,
 		"dmul": _curve(SC.damage, t) * stage.dmg_mult * _endless_mult("damage"), "smul": _curve(SC.speed, t) * _endless_mult("speed"),
 		"dash_cd": randf() * 3.0, "dash_t": 0.0, "blink_cd": 2.0 + randf() * 2.0,
 		"knock": Vector2.ZERO, "dead": false, "node": _sprite(spr + "_0", Vector2(-10, -13))}
@@ -2068,7 +2072,7 @@ func _update_enemies(dt: float) -> void:
 			e.stun -= dt
 			continue
 		var target: Vector2 = p.pos + Vector2(0, -4)
-		if e.type == "fear":
+		if e.type == "fear" or e.get("hunter", false):
 			var bd := 1e9
 			for c in comps:
 				if c.level == 0 or c.down > 0.0:
@@ -2137,7 +2141,7 @@ func _update_enemies(dt: float) -> void:
 					c.sleep = d.sleep_for
 					scatter_by[e.type] += 1
 				if fever <= 0.0:
-					_damage_companion(c, d.damage * e.dmul)
+					_damage_companion(c, d.damage * e.dmul * float(D.waves.hunter.comp_damage))
 				if d.dies_on_touch:
 					_kill(e, fever > 0.0)
 				else:

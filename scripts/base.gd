@@ -13,7 +13,7 @@ var nav_buttons := {}
 var portrait := false
 var tabs_enabled := {"home": true, "roster": true, "shop": true, "gifts": true, "ach": true, "codex": true}
 var gift_tag := "講道"
-var gift_sel := -1
+var gift_sel := 0
 var devlog: Dictionary
 var codex: Dictionary
 
@@ -595,31 +595,42 @@ func _show_gifts() -> void:
 	_clear("gifts")
 	var GF: Dictionary = Save.meta.gifts
 	_text(content, "恩賜樹　用「餅」學習", 16, UIKit.GOLD)
-	_text(content, "每個流派一棵樹。上面的節點學了，才能學連著的下一個；越下面的層數，這棵樹要先累積越多點。點一個節點看說明。", 11, UIKit.MUTED, true)
+	_text(content, "上面的節點學了才能學連著的下一個；越下面的層要先累積越多點。", 11, UIKit.MUTED, true)
 	var flow := HFlowContainer.new()
 	flow.add_theme_constant_override("h_separation", 6)
 	flow.add_theme_constant_override("v_separation", 6)
 	content.add_child(flow)
 	for tag in GF.trees:
 		var tg: String = tag
-		var b := UIKit.button("%s %d" % [tg, Save.gift_points(tg)], 13, tg == gift_tag)
-		b.custom_minimum_size = Vector2(72, 32)
+		var b := UIKit.button("%s %d" % [tg, Save.gift_points(tg)], 13 if portrait else 12, tg == gift_tag)
+		b.custom_minimum_size = Vector2(72, 32) if portrait else Vector2(62, 28)
 		b.pressed.connect(func():
 			gift_tag = tg
-			gift_sel = -1
+			gift_sel = 0
 			_show_gifts())
 		flow.add_child(b)
 	var tree: Dictionary = GF.trees[gift_tag]
 	var members: Array = G.companions.filter(func(c): return c.tag == gift_tag and c.skill != "").map(func(c): return c.name)
-	_text(content, "這個流派：" + "、".join(members), 11, UIKit.MUTED, true)
 
 	# 樹：3 欄 × 4 層的格子，節點之間畫連線（像暗黑破壞神 2 的技能樹）
-	var cw := 104.0 if portrait else 150.0
+	# 說明與學習鈕放在樹旁邊：橫式在右邊、直式在上面（都不用往下拉）
+	var area: BoxContainer = VBoxContainer.new() if portrait else HBoxContainer.new()
+	area.add_theme_constant_override("separation", 10)
+	content.add_child(area)
+	var side := VBoxContainer.new()
+	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	side.add_theme_constant_override("separation", 6)
+	var cw := 104.0 if portrait else 100.0
 	var ch := 84.0
 	var canvas := Control.new()
 	canvas.custom_minimum_size = Vector2(cw * 3, ch * 4)
 	canvas.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	content.add_child(canvas)
+	if portrait:
+		area.add_child(side)
+		area.add_child(canvas)
+	else:
+		area.add_child(canvas)
+		area.add_child(side)
 	var nodes: Array = GF.nodes
 	var center := func(nd: Dictionary) -> Vector2: return Vector2((int(nd.col) + 0.5) * cw, (int(nd.row) + 0.5) * ch + 7.0)
 	canvas.draw.connect(func():
@@ -663,8 +674,8 @@ func _show_gifts() -> void:
 		var open := Save.gift_open(gift_sel, gift_tag)
 		var box := PanelContainer.new()
 		box.add_theme_stylebox_override("panel", UIKit.box(Color(0.14, 0.1, 0.16), UIKit.GOLD, 6))
-		content.add_child(box)
-		var h := HBoxContainer.new()
+		side.add_child(box)
+		var h: BoxContainer = HBoxContainer.new() if portrait else VBoxContainer.new()
 		h.add_theme_constant_override("separation", 8)
 		box.add_child(h)
 		var v := VBoxContainer.new()
@@ -694,7 +705,8 @@ func _show_gifts() -> void:
 				Sfx.play("pick", 0.0)
 				_show_gifts())
 		h.add_child(bb)
-	_text(content, "（%s）" % tree.ref, 11, UIKit.MUTED)
+	_text(side, "這個流派：" + "、".join(members), 11, UIKit.MUTED, true)
+	_text(side, "（%s）" % tree.ref, 11, UIKit.MUTED)
 
 
 # ---------- 製作日誌 ----------
