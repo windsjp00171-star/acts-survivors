@@ -398,6 +398,54 @@ func _draw_joy() -> void:
 
 
 # ---------- 升級卡 ----------
+const KIND_NAME := {"recruit": "新同伴", "up": "升級", "branch": "分支", "evolve": "進化", "fruit": "聖靈果子", "armor": "軍裝",
+	"epistle": "書信", "link": "肢體連結", "link_up": "強化連結", "heal": "恩典", "grace_dmg": "恩典", "grace_spd": "恩典", "manna": "恩典"}
+const KIND_COL := {"recruit": Color("7be08a"), "up": Color("4fd8ff"), "branch": Color("4fd8ff"), "evolve": Color("ffd75e"),
+	"fruit": Color("ff9ae0"), "armor": Color("c9a46b"), "epistle": Color("fff4c2"), "link": Color("ff8a2a"), "link_up": Color("ff8a2a")}
+
+
+## 一張升級卡的內容：左邊人物圖（有的話）、上面是種類標籤，再來標題、說明
+func _card_body(b: Button, c: Dictionary, i: int, portrait: bool) -> void:
+	var kcol: Color = KIND_COL.get(c.kind, C_CREAM)
+	var m := MarginContainer.new()
+	m.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side in ["left", "right", "top", "bottom"]:
+		m.add_theme_constant_override("margin_" + side, 8)
+	m.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.get_parent().add_child(m)   # 內容放在按鈕上面一層；外層容器跟著內容長高
+	var row: BoxContainer = HBoxContainer.new() if portrait else VBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	m.add_child(row)
+	var key: String = c.get("key", "")
+	if c.kind in ["recruit", "up", "branch", "evolve"] and ResourceLoader.exists("res://assets/sprites/%s_0.png" % key):
+		var ic := UIKit.sprite_icon(key + ("_evo" if c.kind == "evolve" and ResourceLoader.exists("res://assets/sprites/%s_evo_0.png" % key) else ""), 3)
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		row.add_child(ic)
+	var col := VBoxContainer.new()
+	col.add_theme_constant_override("separation", 2)
+	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	col.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(col)
+	var badge := label("%d　%s・%s" % [i + 1, KIND_NAME.get(c.kind, ""), c.get("tag", "")], 11, kcol)
+	badge.get_parent().remove_child(badge)
+	col.add_child(badge)
+	var tl := label(c.title, 15, C_CREAM)
+	tl.get_parent().remove_child(tl)
+	tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(tl)
+	var dl := label(c.desc, 12, C_INK)
+	dl.get_parent().remove_child(dl)
+	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	col.add_child(dl)
+	for l in [badge, tl, dl]:
+		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		l.custom_minimum_size.x = 220 if portrait else 168
+		if not portrait:
+			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+
 func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
 	hide_cards()
 	var size := vp()
@@ -416,16 +464,15 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
 	card_buttons.clear()
 	for i in cards.size():
 		var c: Dictionary = cards[i]
+		var card := PanelContainer.new()
+		card.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
+		card.custom_minimum_size = Vector2(320, 70) if portrait else Vector2(188, 172)
+		cards_box.add_child(card)
 		var b := Button.new()
-		b.text = "%d　%s\n【%s】\n%s" % [i + 1, c.title, c.tag, c.desc]
-		b.custom_minimum_size = Vector2(300, 74) if portrait else Vector2(184, 150)
-		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		b.alignment = HORIZONTAL_ALIGNMENT_LEFT if portrait else HORIZONTAL_ALIGNMENT_CENTER
-		b.add_theme_font_override("font", font)
-		b.add_theme_font_size_override("font_size", 13)
-		b.add_theme_color_override("font_color", C_INK)
-		b.add_theme_color_override("font_hover_color", C_CREAM)
-		b.add_theme_stylebox_override("normal", _box(Color("241a2e"), C_BRONZE))
+		card.add_child(b)
+		_card_body(b, c, i, portrait)
+		var kcol: Color = KIND_COL.get(c.kind, C_BRONZE)
+		b.add_theme_stylebox_override("normal", _box(Color("241a2e"), kcol.darkened(0.25)))
 		b.add_theme_stylebox_override("hover", _box(Color("3a2a40"), C_GOLD))
 		b.add_theme_stylebox_override("focus", _box(Color("3a2a40"), C_GOLD))
 		b.add_theme_stylebox_override("pressed", _box(Color("5a4420"), C_CREAM))
@@ -433,12 +480,11 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
 		b.add_theme_color_override("font_disabled_color", C_INK)
 		var idx := i
 		b.pressed.connect(func(): pick(idx))
-		cards_box.add_child(b)
 		card_buttons.append(b)
 	# 剛跳出時先鎖住（變暗），避免滑動移動時手指誤觸
 	for b in card_buttons:
 		b.disabled = true
-		b.modulate.a = 0.55
+		b.get_parent().modulate.a = 0.55
 	await get_tree().process_frame
 	if cards_box == null:
 		return
@@ -451,7 +497,7 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0) -> void:
 		for b in card_buttons:
 			if is_instance_valid(b):
 				b.disabled = false
-				b.modulate.a = 1.0
+				b.get_parent().modulate.a = 1.0
 		if not card_buttons.is_empty() and is_instance_valid(card_buttons[0]):
 			card_buttons[0].grab_focus())
 	if rerolls > 0:
@@ -499,10 +545,12 @@ func show_pause(build_text: String) -> void:
 	home.custom_minimum_size = Vector2(200, 34)
 	home.pressed.connect(func(): home_pressed.emit())
 	v.add_child(home)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 8)
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 8)
+	row.add_theme_constant_override("v_separation", 6)
+	row.alignment = FlowContainer.ALIGNMENT_CENTER
 	v.add_child(row)
-	var kinds := [["sfx", "音效"], ["music", "音樂"]]
+	var kinds := [["sfx", "音效"], ["music", "音樂"], ["dnum", "傷害數字"]]
 	if OS.has_feature("mobile"):
 		kinds.append(["vibe", "震動"])
 	for kind in kinds:
