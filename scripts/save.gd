@@ -145,7 +145,7 @@ func buy(item: Dictionary) -> bool:
 		return false
 	data.witness -= int(item.cost)
 	data.bought.append(item.id)
-	if item.kind in ["companion", "fruit", "armor"] and not data.unlocked.has(item.id):
+	if item.kind in ["companion", "fruit", "armor", "leader"] and not data.unlocked.has(item.id):
 		data.unlocked.append(item.id)
 	save_profile()
 	return true

@@ -60,7 +60,7 @@ func setup(name_list: Array, touch: bool) -> void:
 	tint = _rect(Color(1.0, 0.6, 0.15, 0.0), Vector2.ZERO, Vector2.ONE)
 	tint.set_anchors_preset(Control.PRESET_FULL_RECT)
 
-	label("保羅", 13, C_GOLD).position = Vector2(12, 4)
+	label(name_list[0], 13, C_GOLD).position = Vector2(12, 4)
 	_rect(C_DARK, Vector2(10, 26), Vector2(124, 9))
 	hp_fill = _rect(C_HEAL, Vector2(12, 28), Vector2(120, 5))
 	lv_label = label("Lv.1", 11, C_SKY)
@@ -76,7 +76,7 @@ func setup(name_list: Array, touch: bool) -> void:
 	root.add_child(pause_btn)
 
 	for n in name_list:
-		var l := label(n, 11, C_GOLD if n == "保羅" else C_INK, 2)
+		var l := label(n, 11, C_GOLD if n == name_list[0] else C_INK, 2)
 		l.modulate.a = 0.85
 		names[n] = l
 

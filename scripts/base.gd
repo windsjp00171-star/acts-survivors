@@ -165,8 +165,35 @@ func _display_name(c: Dictionary) -> String:
 # ---------- 出發 ----------
 func _show_home() -> void:
 	_clear("home")
+	# 主角：保羅以外的人要先在解鎖商店買
+	var lead: String = Save.data.get("leader", "paul")
+	var leaders: Array = G.leaders.filter(func(L): return L.key == "paul" or Save.is_unlocked("leader_" + L.key))
+	if not leaders.any(func(L): return L.key == lead):
+		lead = "paul"
+	if leaders.size() > 1:
+		_text(content, "主角", 16, UIKit.GOLD)
+		var flow := HFlowContainer.new()
+		flow.add_theme_constant_override("h_separation", 6)
+		flow.add_theme_constant_override("v_separation", 6)
+		content.add_child(flow)
+		for L in leaders:
+			var key: String = L.key
+			var nm: String = G.paul.name if key == "paul" else _comp_def(key).name
+			var b := UIKit.button(nm, 13, key == lead)
+			b.icon = UIKit.sprite_icon(key, 2).texture
+			b.expand_icon = true
+			b.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			b.custom_minimum_size = Vector2(84, 40)
+			b.pressed.connect(func():
+				Save.data.leader = key
+				Save.save_profile()
+				_show_home())
+			flow.add_child(b)
+		for L in leaders:
+			if L.key == lead:
+				_text(content, "%s　血 %d　速度 %d" % [L.desc, int(L.hp), int(L.speed)], 11, UIKit.MUTED, true)
 	var starter: String = Save.data.starter
-	if not Save.is_unlocked(starter):
+	if not Save.is_unlocked(starter) or starter == lead:
 		starter = Save.meta.default_starter
 	var c := _comp_def(starter)
 	var h := _row(content)

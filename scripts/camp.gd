@@ -116,10 +116,18 @@ func _build_camp() -> void:
 			spots.append({"kind": item.kind, "key": "", "name": item.name, "pos": pos, "r": 20.0})
 	Save.save_profile()
 
-	# 已加入的同伴圍著營火（百基拉・亞居拉站一起）
-	var list := []
+	# 營火旁只隨機出現幾位（有話要說的一定在），人再多也不會塞滿（百基拉・亞居拉站一起）
+	var all := []
 	for c in G.companions:
 		if Save.is_unlocked(c.key) and c.get("follows", "") == "":
+			all.append(c)
+	var pending := _choose_talks(all)
+	all.shuffle()
+	var list := all.filter(func(c): return pending.has(c.key))
+	for c in all:
+		if list.size() >= int(Save.meta.get("camp_visible", 8)):
+			break
+		if not list.has(c):
 			list.append(c)
 	for i in list.size():
 		var c: Dictionary = list[i]
@@ -219,24 +227,26 @@ func _build_hud() -> void:
 
 
 ## 每次從旅程回來，挑幾位同伴有話要說
-func _pick_bubbles() -> void:
+## 這次回營地有誰要聊天（每次回來挑一次；同一次回來保留還沒聊完的）
+func _choose_talks(unlocked: Array) -> Array:
 	T = JSON.parse_string(FileAccess.get_file_as_string("res://data/talks.json"))
 	var runs: int = Save.data.stats.runs
 	if runs == 0 or int(Save.data.get("talk_run", -1)) == runs:
-		# 同一次回營地已經挑過：保留還沒聊完的
-		for k in Save.data.get("talk_pending", []):
-			_add_bubble(k)
-		return
+		return Save.data.get("talk_pending", [])
 	Save.data.talk_run = runs
 	var cands := []
-	for p in people:
-		var seen: int = int(Save.data.get("talks_seen", {}).get(p.key, 0))
-		if T.talks.has(p.key) and seen < T.talks[p.key].size():
-			cands.append(p.key)
+	for c in unlocked:
+		var seen: int = int(Save.data.get("talks_seen", {}).get(c.key, 0))
+		if T.talks.has(c.key) and seen < T.talks[c.key].size():
+			cands.append(c.key)
 	cands.shuffle()
 	Save.data.talk_pending = cands.slice(0, int(T.per_visit))
 	Save.save_profile()
-	for k in Save.data.talk_pending:
+	return Save.data.talk_pending
+
+
+func _pick_bubbles() -> void:
+	for k in Save.data.get("talk_pending", []):
 		_add_bubble(k)
 
 

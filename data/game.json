@@ -1,6 +1,14 @@
 {
   "_說明": "遊戲資料。改這個檔就能調整數值，不用動程式。之後玩家改寫遊戲的入口也從這裡開始。",
   "paul": { "name": "保羅", "speed": 42, "hp": 100, "skill": "letter", "tag": "書信" },
+  "_leaders說明": "出發時可以選的主角。key 對應同伴（名字、招式、流派從同伴拿），hp 與 speed 是主角自己的。選了誰，那一局他就不會再當同伴出現。paul 以外要先在解鎖商店買（id 是 leader_ 加 key）。",
+  "leaders": [
+    { "key": "paul",  "hp": 100, "speed": 42, "desc": "書信直線飛行、可以穿透。血量與速度都中等" },
+    { "key": "peter", "hp": 130, "speed": 38, "desc": "血厚、走得慢，撒網把敵人拉在一起" },
+    { "key": "tim",   "hp": 80,  "speed": 48, "desc": "血少、跑得快，追蹤光箭又密又準" },
+    { "key": "philip", "hp": 90, "speed": 50, "desc": "跑得最快，長距離衝刺" },
+    { "key": "lydia", "hp": 110, "speed": 40, "desc": "鋪紫布定住敵人，適合打連結" }
+  ],
   "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
   "_companions說明": "skill 對應下面的 skills；tag 是流派；era 顯示在名冊上。站位依加入順序自動排。",
   "companions": [
@@ -20,7 +28,17 @@
     { "key": "john",    "name": "約翰",   "skill": "thunder", "tag": "門徒", "era": "福音書" },
     { "key": "thomas",  "name": "多馬",   "skill": "touch",   "tag": "門徒", "era": "福音書" },
     { "key": "matthew", "name": "馬太",   "skill": "coin",    "tag": "門徒", "era": "福音書" },
-    { "key": "andrew",  "name": "安得烈", "skill": "bring",   "tag": "門徒", "era": "福音書" }
+    { "key": "andrew",  "name": "安得烈", "skill": "bring",   "tag": "門徒", "era": "福音書" },
+    { "key": "stephen",   "name": "司提反", "skill": "glory",   "tag": "講道", "era": "新約" },
+    { "key": "philip",    "name": "腓利",   "skill": "run",     "tag": "差派", "era": "新約" },
+    { "key": "lydia",     "name": "呂底亞", "skill": "purple",  "tag": "守護", "era": "新約" },
+    { "key": "cornelius", "name": "哥尼流", "skill": "pilum",   "tag": "守護", "era": "新約" },
+    { "key": "dorcas",    "name": "多加",   "skill": "sew",     "tag": "醫治", "era": "新約" },
+    { "key": "mark",      "name": "馬可",   "skill": "errand",  "tag": "差派", "era": "新約" },
+    { "key": "james",     "name": "雅各",   "skill": "prayer",  "tag": "醫治", "era": "新約" },
+    { "key": "mary",      "name": "馬利亞", "skill": "dawn",    "tag": "詩歌", "era": "福音書" },
+    { "key": "zacchaeus", "name": "撒該",   "skill": "fig",     "tag": "門徒", "era": "福音書" },
+    { "key": "nicodemus", "name": "尼哥底母", "skill": "lamp",  "tag": "講道", "era": "福音書" }
   ],
   "_skills說明": "branches 是升到 Lv3 時的二選一（add 會加在數值上，之後的升級也保留）。base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。engine 是借用哪一種招式的運作方式（bolt 追蹤、ring 擴散圈、beam 直線、nova 身邊重擊、strike 預兆後落下、shot 直線飛行、net 撒網、chain 連鎖閃電、thrust 近身刺擊、gather 收聚），look 是外觀。",
   "skills": {
@@ -130,6 +148,76 @@
       "desc": ["帶人來：把附近的經驗與餅帶到保羅身邊，並把身邊的敵人推開", "帶得更遠", "帶得更頻繁", "推得更用力", "整個畫面都帶來，順便幫保羅回血（約 1:41）"],
       "branches": [ { "name": "遠方", "desc": "帶得更遠", "add": {"radius": 60} }, { "name": "推開", "desc": "推得更遠、傷得更重", "add": {"knock": 60, "damage": 3} } ]
     },
+    "glory": {
+      "engine": "strike", "look": "glory",
+      "base": { "cooldown": 2.2, "range": 150, "count": 1, "radius": 18, "damage": 5, "delay": 0.5, "linked_mult": 2 },
+      "levels": [ { "count": 2 }, { "radius": 24 }, { "linked_mult": 3, "damage": 7 }, { "count": 3, "cooldown": 1.6 } ],
+      "desc": ["滿有恩惠能力：天上降下光柱；被連結觸發時威力兩倍", "一次降下 2 道光", "光柱範圍變大", "被連結觸發時威力三倍", "一次 3 道，降得更快（徒 6:8）"],
+      "branches": [ { "name": "連結者", "desc": "被連結觸發時再多一倍", "add": {"linked_mult": 1} }, { "name": "多道", "desc": "多降一道光", "add": {"count": 1} } ]
+    },
+    "run": {
+      "engine": "thrust", "look": "dash",
+      "base": { "cooldown": 1.0, "range": 90, "width": 8, "damage": 4, "crit": 0.1, "crit_mult": 2 },
+      "levels": [ { "range": 120 }, { "damage": 6 }, { "width": 12, "cooldown": 0.8 }, { "range": 160, "crit": 0.25 } ],
+      "desc": ["跑過去：朝敵人衝出一道長長的直線", "衝得更遠", "衝得更重", "衝得更寬、更頻繁", "衝得極遠，常常打出會心（徒 8:30）"],
+      "branches": [ { "name": "遠行", "desc": "衝得更遠", "add": {"range": 40} }, { "name": "快腿", "desc": "衝得更頻繁", "add": {"cooldown": -0.25} } ]
+    },
+    "purple": {
+      "engine": "net", "look": "purple",
+      "base": { "cooldown": 3.0, "range": 130, "radius": 34, "damage": 2, "pull": 0, "stun": 1.2 },
+      "levels": [ { "radius": 42 }, { "stun": 1.6 }, { "cooldown": 2.3, "damage": 4 }, { "radius": 56, "stun": 2.0 } ],
+      "desc": ["賣紫色布的：鋪開一大片紫布，蓋住的敵人動彈不得", "布鋪得更大", "定得更久", "鋪得更頻繁、更痛", "大片紫布，定住 2 秒（徒 16:14）"],
+      "branches": [ { "name": "大匹", "desc": "布鋪得更大", "add": {"radius": 14} }, { "name": "厚布", "desc": "定得更久", "add": {"stun": 0.6} } ]
+    },
+    "pilum": {
+      "engine": "shot", "look": "pilum",
+      "base": { "cooldown": 1.3, "range": 140, "damage": 5, "speed": 220, "count": 1, "pierce": 3, "spread": 10 },
+      "levels": [ { "damage": 7 }, { "count": 2 }, { "pierce": 6 }, { "count": 3, "damage": 9, "cooldown": 1.0 } ],
+      "desc": ["百夫長：擲出羅馬標槍，直線穿透 3 隻", "標槍更重", "一次擲兩支", "穿透 6 隻", "一次三支、更重更快（徒 10:1）"],
+      "branches": [ { "name": "重槍", "desc": "標槍更重", "add": {"damage": 4} }, { "name": "列隊", "desc": "多擲一支", "add": {"count": 1} } ]
+    },
+    "sew": {
+      "engine": "heal",
+      "base": { "cooldown": 1.6, "amount": 2, "revive_speed": 1, "instant_revive": 0 },
+      "levels": [ { "amount": 3 }, { "cooldown": 1.2 }, { "revive_speed": 2 }, { "instant_revive": 1, "cooldown": 0.9 } ],
+      "desc": ["廣行善事：很頻繁的小治療，最容易觸發「一同得安慰」連結", "每次多補一點", "補得更頻繁", "倒下的同伴站起來的速度加倍", "補得極快，直接扶起倒下的同伴（徒 9:36）"],
+      "branches": [ { "name": "勤快", "desc": "補得更頻繁", "add": {"cooldown": -0.3} }, { "name": "厚衣", "desc": "每次多補兩點", "add": {"amount": 2} } ]
+    },
+    "errand": {
+      "engine": "bolt",
+      "base": { "cooldown": 0.35, "range": 120, "damage": 1, "speed": 260, "count": 1, "split": 0, "pierce": 0, "size": 1, "combo_keep": 0.5 },
+      "levels": [ { "count": 2 }, { "damage": 2 }, { "cooldown": 0.25 }, { "count": 3, "pierce": 1, "combo_keep": 0.8 } ],
+      "desc": ["跑腿的：又快又密的小光箭；每次出手都讓連鎖多撐 0.5 秒", "一次射 2 支", "光箭更重", "射得更快", "一次 3 支、可穿透，連鎖撐得更久"],
+      "branches": [ { "name": "續航", "desc": "連鎖每次多撐 0.4 秒", "add": {"combo_keep": 0.4} }, { "name": "密集", "desc": "多射一支", "add": {"count": 1} } ]
+    },
+    "prayer": {
+      "engine": "nova",
+      "base": { "cooldown": 3.0, "radius": 34, "damage": 4, "knock": 50, "slams": 1, "heal": 2 },
+      "levels": [ { "radius": 42 }, { "damage": 6 }, { "cooldown": 2.3, "heal": 3 }, { "slams": 2, "radius": 50 } ],
+      "desc": ["跪下禱告：身邊一圈震開敵人，順便幫保羅回一點血", "範圍變大", "威力提升", "禱告更頻繁、回得更多", "連跪兩次，範圍更大（雅 5:16）"],
+      "branches": [ { "name": "迫切", "desc": "禱告更頻繁", "add": {"cooldown": -0.7} }, { "name": "醫治", "desc": "每次多回 3 血", "add": {"heal": 3} } ]
+    },
+    "dawn": {
+      "engine": "ring", "look": "dawn",
+      "base": { "cooldown": 2.4, "max_radius": 60, "damage": 2, "speed": 50, "rings": 1, "returns": 0, "stun": 0.4, "thick": 1 },
+      "levels": [ { "max_radius": 76 }, { "returns": 1 }, { "stun": 0.8, "damage": 3 }, { "rings": 2, "thick": 2, "max_radius": 92 } ],
+      "desc": ["天還黑的時候：晨光一圈圈擴散，敵人會短暫暈眩", "晨光更大", "擴散到底會再收回來", "暈眩更久、威力提升", "一次兩圈，晨光更大（約 20:1）"],
+      "branches": [ { "name": "破曉", "desc": "晨光傳得更遠", "add": {"max_radius": 24} }, { "name": "驚喜", "desc": "暈眩更久", "add": {"stun": 0.5} } ]
+    },
+    "fig": {
+      "engine": "bolt", "look": "fig",
+      "base": { "cooldown": 0.8, "range": 140, "damage": 2, "speed": 170, "count": 2, "split": 0, "pierce": 0, "size": 1 },
+      "levels": [ { "count": 3 }, { "damage": 3 }, { "count": 4 }, { "count": 5, "cooldown": 0.6 } ],
+      "desc": ["爬上桑樹：從高處丟下一把果子", "一次丟 3 顆", "果子更重", "一次丟 4 顆", "一次 5 顆、丟得更快（路 19:4）"],
+      "branches": [ { "name": "滿手", "desc": "多丟兩顆", "add": {"count": 2} }, { "name": "熟果", "desc": "果子更重", "add": {"damage": 2} } ]
+    },
+    "lamp": {
+      "engine": "beam", "look": "lamp",
+      "base": { "cooldown": 2.0, "length": 110, "width": 7, "damage": 3, "range": 120, "beams": 1, "burst": 0, "lies_mult": 2 },
+      "levels": [ { "width": 10 }, { "burst": 1 }, { "beams": 2, "lies_mult": 3 }, { "length": 160, "damage": 5 } ],
+      "desc": ["夜裡來見耶穌：提燈照出一道光，對謊言兩倍傷害", "光更寬", "光的末端爆開", "兩道光，對謊言三倍傷害", "光照得更遠更強（約 3:2）"],
+      "branches": [ { "name": "長燈", "desc": "光照得更遠", "add": {"length": 50} }, { "name": "雙燈", "desc": "多一道光", "add": {"beams": 1} } ]
+    },
     "trumpet": {
       "engine": "ring", "look": "horn",
       "base": { "cooldown": 3.0, "max_radius": 64, "damage": 1, "speed": 90, "rings": 1, "returns": 0, "stun": 0, "thick": 1, "knock": 60 },
@@ -215,7 +303,27 @@
     { "companion": "andrew", "fruit": "peace", "name": "五餅二魚",
       "desc": "收聚時全隊回血，還會多變出一個餅（約 6:9–11）", "stats": { "heal": 15, "cooldown": 3.5, "bread": 1 } },
     { "companion": "joshua", "fruit": "joy", "name": "城牆塌陷",
-      "desc": "連吹三聲，震飛一切（書 6:20）", "stats": { "rings": 3, "knock": 160, "damage": 4 } }
+      "desc": "連吹三聲，震飛一切（書 6:20）", "stats": { "rings": 3, "knock": 160, "damage": 4 } },
+    { "companion": "stephen", "fruit": "faith", "name": "看見天開了",
+      "desc": "一次降下 6 道大光柱，被連結觸發時威力四倍（徒 7:56）", "stats": { "count": 6, "radius": 30, "linked_mult": 4 } },
+    { "companion": "philip", "fruit": "joy", "name": "被提去",
+      "desc": "衝刺貫穿半個畫面，又快又寬（徒 8:39）", "stats": { "range": 240, "width": 16, "cooldown": 0.5, "crit": 0.4 } },
+    { "companion": "lydia", "fruit": "good", "name": "敞開的家",
+      "desc": "紫布大到蓋住一大片，定住 2.5 秒（徒 16:15）", "stats": { "radius": 64, "stun": 2.5, "damage": 6 } },
+    { "companion": "cornelius", "fruit": "peace", "name": "全家敬畏神",
+      "desc": "一次擲五支標槍，幾乎穿透一切（徒 10:2）", "stats": { "count": 5, "pierce": 10, "damage": 10 } },
+    { "companion": "dorcas", "fruit": "good", "name": "大比大，起來",
+      "desc": "治療快到不停，倒下的立刻扶起（徒 9:40）", "stats": { "cooldown": 0.6, "amount": 5, "instant_revive": 1 } },
+    { "companion": "mark", "fruit": "peace", "name": "於我的職事有益",
+      "desc": "一次四支、穿透兩隻，連鎖幾乎不會斷（提後 4:11）", "stats": { "count": 4, "pierce": 2, "cooldown": 0.2, "combo_keep": 1.5 } },
+    { "companion": "james", "fruit": "faith", "name": "大有功效",
+      "desc": "連跪三次，範圍極大，每次都回血（雅 5:16）", "stats": { "slams": 3, "radius": 70, "damage": 10, "heal": 6 } },
+    { "companion": "mary", "fruit": "joy", "name": "我已經看見了主",
+      "desc": "一次三圈晨光，暈眩更久（約 20:18）", "stats": { "rings": 3, "stun": 1.4, "max_radius": 100 } },
+    { "companion": "zacchaeus", "fruit": "good", "name": "四倍償還",
+      "desc": "果子威力四倍（路 19:8）", "stats": { "damage": 12, "count": 6 } },
+    { "companion": "nicodemus", "fruit": "faith", "name": "重生",
+      "desc": "四道寬光，末端全部爆開（約 3:3）", "stats": { "beams": 4, "burst": 1, "width": 14, "damage": 6 } }
   ],
   "elites": {
     "terror": { "name": "恐嚇", "sprite": "fear", "scale": 2.2, "tint": [1.0, 0.7, 1.0], "hp": 70, "speed": 18, "damage": 8,
