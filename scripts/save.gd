@@ -391,9 +391,9 @@ func finish_run(r: Dictionary) -> Dictionary:
 	if r.full_party:
 		st.full_party = 1
 	# 見證錄用的統計（累計 add、最高 best）
-	for k in ["resonances", "midbosses", "chests", "links", "kills_total", "fevers_total"]:
+	for k in ["resonances", "midbosses", "chests", "links", "kills_total", "fevers_total", "converts", "minions", "songs", "holies", "shocks", "bonds"]:
 		st[k] = int(st.get(k, 0)) + int(r.get(k.replace("_total", ""), 0))
-	for k in ["combo", "level", "party_size", "sets"]:
+	for k in ["combo", "level", "party_size", "sets", "school"]:
 		st["best_" + k] = maxi(int(st.get("best_" + k, 0)), int(r.get(k, 0)))
 	if r.get("endless", false):
 		st.endless_best = maxi(int(st.get("endless_best", 0)), int(r.seconds))

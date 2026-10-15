@@ -153,6 +153,42 @@ var cam: Camera2D
 var ui: GameUI
 
 # 自動測試用（godot -- --smoke）
+# 流派規則（data/game.json 的 schools）：同流派 2/3/4 人啟動、升級
+var school_tier := {}      # 流派 → 0..3
+var school_mods := {}      # 流派卡與恩賜第 5 層改寫的數值（加上去）
+var school_cards := {}     # 已拿過的流派卡 "流派:id"
+var praise := 0.0          # 詩歌：讚美
+var anoint := 0.0          # 醫治：恩膏
+var guard_regen := 0.0     # 守護：下一層護盾長回來的倒數
+var trail: Array = []      # 差派：腳蹤 {pos, life, max}
+var trail_t := 0.0
+var trail_tick := 0.0
+var minions: Array = []    # 門徒：小門徒 {pos, life, cd, hop}
+var minion_strike_t := 0.0
+var beat_clock := 0.0      # 詩歌：拍子時鐘（有音樂時跟著音樂）
+var beat_last_mpos := -1.0
+var beat_i := -1
+var beat_now := false      # 這一格剛好落在拍子上
+var beat_down := false     # 而且是重拍
+var songs: Array = []      # 全場詩歌的畫面
+var holies: Array = []     # 聖光的畫面
+var run_converts := 0
+var run_minions := 0
+var run_songs := 0
+var run_holies := 0
+var run_shocks := 0
+# 同行合擊（data/game.json 的 bonds）
+var bond_cd := {}          # 第幾組 → 下次可以發動的時間
+var bond_buff := {}        # 同伴 key → 加倍剩下的秒數
+var bonds_seen := {}
+var crit_t := 0.0          # 全隊會心一擊剩下的秒數
+var feast_t := 0.0         # 掉兩倍經驗剩下的秒數
+var run_bonds := 0
+var rains: Array = []      # 義人的禱告：天降大雨的畫面
+var star_t := 10.0         # 拔摩海島：下一次星辰墜落的倒數
+var star_falls: Array = [] # 正在墜落的星 {pos, t, max, r, dmg}
+var lamp_tick := 0.0
+
 var smoke := false
 var smoke_shot := ""
 var smoke_frames := 0
@@ -431,6 +467,12 @@ func _build_world() -> void:
 		i += 1
 	for c in comps + [pa]:
 		_apply_gifts(c)
+	# 恩賜樹第 5 層：改寫流派規則
+	for tag in Save.meta.gifts.trees:
+		for nd in Save.gift_nodes(tag):
+			if nd.kind == "mod" and Save.gift_rank(tag, nd.id) > 0:
+				for k in nd.mod:
+					school_mods[k] = float(school_mods.get(k, 0.0)) + float(nd.mod[k]) * Save.gift_rank(tag, nd.id)
 
 
 ## 恩賜樹：依流派加上傷害、攻速、範圍、專屬連結強度與終極恩賜
@@ -444,6 +486,8 @@ func _apply_gifts(c: Dictionary) -> void:
 				continue
 			if nd.kind == "stat":
 				stats.append({"stat": nd.stat, "add": float(nd.get("add", 0.0)) * r, "mul": float(nd.get("mul", 0.0)) * r})
+			elif nd.kind == "mod":
+				continue
 			elif nd.kind == "healmul":
 				for k in ["amount", "heal", "heal_comp"]:
 					stats.append({"stat": k, "add": 0.0, "mul": float(nd.per) * r})
@@ -564,6 +608,7 @@ func _update_synergy() -> void:
 		c.syn = 1.0 + float(bonus.get(str(n), 0.0))
 		if c.level > 0 and c.syn > before and ui != null:
 			ui.show_banner("同工：%s ×%d　攻擊加快" % [c.tag, n], 1.6)
+	_update_schools()
 
 ## 隊伍人數（百基拉・亞居拉算一位）
 func _party_count() -> int:
@@ -598,7 +643,7 @@ func _comp_max_hp() -> float:
 	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1)
 
 func _speed() -> float:
-	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus)
+	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run"))
 
 
 func _make_cards() -> Array:
@@ -649,7 +694,7 @@ func _make_cards() -> Array:
 			continue
 		if c.level == 0:
 			var nm: String = c.name + ("・" + by_key[c.with].name if c.with != "" else "")
-			pool.append({"kind": "recruit", "key": c.key, "title": nm + "　加入", "tag": c.tag, "desc": desc[0]})
+			pool.append({"kind": "recruit", "key": c.key, "title": nm + "　加入", "tag": c.tag, "desc": desc[0] + _bond_hint(c.key)})
 		elif c.level < 5:
 			var d2: String = desc[c.level]
 			var evo := _evo_of(c.key)
@@ -666,6 +711,8 @@ func _make_cards() -> Array:
 	var lc := _link_card()
 	if not lc.is_empty():
 		pool.append(lc)
+	for sc in _school_cards():
+		pool.append(sc)
 	pool.shuffle()
 	# 第一位同工：還沒加入前，招募卡一定排第一張
 	if first_recruit != "" and by_key.has(first_recruit) and by_key[first_recruit].level == 0:
@@ -759,6 +806,12 @@ func _apply_card(card: Dictionary) -> void:
 		ui.show_banner("肢體連結！", 1.2)
 	elif card.kind == "event":
 		_event_effects(card.effects)
+	elif card.kind == "school":
+		school_cards[card.key] = true
+		for k in card.mod:
+			school_mods[k] = float(school_mods.get(k, 0.0)) + float(card.mod[k])
+		ui.show_banner("流派卡：" + card.title, 1.6)
+		_ring_pop(paul.pos + Vector2(0, -8), TAG_COL.get(card.tag, C_GOLD), 36.0)
 	elif card.kind == "grace_dmg":
 		grace_dmg += float(card.amount)
 	elif card.kind == "grace_spd":
@@ -815,10 +868,13 @@ func _task_text() -> String:
 
 func _refresh_build_text() -> void:
 	var lines := []
-	var cnt := _tag_counts()
-	for tag in cnt:
-		if cnt[tag] >= 2:
-			lines.append("同工　%s ×%d" % [tag, cnt[tag]])
+	for tag in school_tier:
+		if int(school_tier[tag]) > 0:
+			var nc := 0
+			for k in school_cards:
+				if k.begins_with(tag + ":"):
+					nc += 1
+			lines.append("流派　%s「%s」%d 階%s" % [tag, D.schools[tag].name, school_tier[tag], ("＋%d 卡" % nc) if nc > 0 else ""])
 	var brs := []
 	for c in [pa] + comps:
 		if c.get("branch", -1) >= 0:
@@ -964,6 +1020,7 @@ func _bot_pick(cards: Array) -> int:
 			"epistle": sc = 26.0
 			"heal": sc = 50.0 if paul.hp < float(D.paul.hp) * 0.5 else 5.0
 			"event": sc = 20.0
+			"school": sc = 45.0
 			_: sc = 10.0
 		sc += randf() * 6.0
 		if sc > best_score:
@@ -1068,7 +1125,7 @@ func _spawn_one(type: String, at: Vector2) -> void:
 func _spawn_special(key: String, def: Dictionary, at: Vector2) -> void:
 	var d := {"name": def.name, "hp": def.hp, "speed": def.speed, "damage": def.damage, "scatter": def.get("scatter", 0),
 		"dies_on_touch": false}
-	for k in ["roar_every", "roar_radius", "roar_force", "chest", "immune"]:
+	for k in ["roar_every", "roar_radius", "roar_force", "chest", "immune", "shoot", "dash", "drain", "summon"]:
 		if def.has(k):
 			d[k] = def[k]
 	var scale: float = def.get("scale", 1.0)
@@ -1077,6 +1134,7 @@ func _spawn_special(key: String, def: Dictionary, at: Vector2) -> void:
 		"dmul": _curve(SC.damage, t) * stage.dmg_mult, "smul": _curve(SC.speed, t),
 		"flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "shoot": 0.0, "r": 6.0 * scale, "sprite": def.sprite,
 		"tint": Color(def.tint[0], def.tint[1], def.tint[2]), "roar": 2.0, "elite": scale > 1.0,
+		"dash_cd": 2.0, "dash_t": 0.0, "blink_cd": 2.0, "sum_cd": 2.0,
 		"knock": Vector2.ZERO, "dead": false, "node": _sprite(def.sprite + "_0", Vector2(-10, -13))}
 	e.node.scale = Vector2(scale, scale)
 	enemies.append(e)
@@ -1098,7 +1156,7 @@ func _trial_for_build() -> String:
 
 
 func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
-	if e.dead:
+	if e.dead or float(e.get("ally", 0.0)) > 0.0:
 		return
 	if fever > 0.0:
 		dmg *= 1.5
@@ -1116,6 +1174,20 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 			e.expose = maxf(float(e.get("expose", 0.0)), float(src.texpose))
 		if src == pa and armor.get("sword", 0) > 0:
 			dmg *= 1.0 + float(D.armor.sword.per[armor.sword - 1])
+		# 流派規則
+		var stag: String = src.get("tag", "")
+		if float(src.get("beat_mult", 1.0)) > 1.0:
+			dmg *= float(src.beat_mult)   # 詩歌：重拍
+			if not e.get("boss", false):
+				e.stun = maxf(e.stun, 0.3)
+		if (src == pa or stag == "守護") and guard > 0:
+			dmg *= 1.0 + _sv("守護", "shield_sword") * guard   # 以盾為劍
+		if stag == "詩歌" and _school_on("詩歌"):
+			praise += 1.0
+		if float(bond_buff.get(src.get("key", ""), 0.0)) > 0.0:
+			dmg *= 2.0   # 同行合擊：加倍
+	if crit_t > 0.0:
+		dmg *= 2.0   # 同行合擊：我的主，我的神
 	if e.type == "lies":
 		dmg *= 1.0 + 0.5 * mini(armor.get("belt", 0), 2)
 	if e.get("boss", false) and boss != null and boss.state == "break":
@@ -1126,10 +1198,15 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if from != Vector2.INF:
 		e.knock += (e.pos - from).normalized() * 40.0
 	_dmg_number(e, dmg, src)
+	var hcol: Color = src.get("col", C_GOLD) if src is Dictionary else C_GOLD
 	if sparks.size() < 120:
-		sparks.append({"pos": e.pos + Vector2(randf_range(-3, 3), randf_range(-8, -2)), "t": 0.0})
+		sparks.append({"pos": e.pos + Vector2(randf_range(-3, 3), randf_range(-8, -2)), "t": 0.0, "col": hcol})
+	if parts.size() < 400:
+		_burst(e.pos + Vector2(0, -5), 2, hcol, hcol.darkened(0.4))
 	if e.hp <= 0:
 		_kill(e, true, src)
+	elif src is Dictionary and src.get("tag", "") == "講道" and _school_on("講道"):
+		_persuade(e, 1)
 
 
 func _kill(e: Dictionary, by_player: bool, src = null) -> void:
@@ -1165,6 +1242,12 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
 			if randf() < float(src.st.get("bread_chance", 0.0)):
 				breads.append({"pos": e.pos})
+			if src.get("tag", "") == "門徒" and _school_on("門徒"):
+				if randf() < _sv("門徒", "minion_chance") * (1.0 + _sv("門徒", "minion_chance_mult")):
+					for i in (2 if _sv("門徒", "minion_pair") > 0.0 else 1):
+						_spawn_minion(e.pos)
+		if feast_t > 0.0:
+			gems.append({"pos": e.pos + Vector2(randf_range(-5, 5), randf_range(-4, 4)), "got": false})
 		if e.get("vet", false):
 			for i in int(D.waves.veteran.gems) - 1:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
@@ -1218,7 +1301,7 @@ func _ring_pop(at: Vector2, col: Color, size: float) -> void:
 func _nearest_enemies(from: Vector2, max_d: float, n: int, skip := {}) -> Array:
 	var cand := []
 	for e in enemies:
-		if e.dead or skip.has(e.node):
+		if e.dead or skip.has(e.node) or float(e.get("ally", 0.0)) > 0.0:
 			continue
 		var d: float = from.distance_squared_to(e.pos)
 		if d < max_d * max_d:
@@ -1563,10 +1646,13 @@ func _step(dt: float) -> void:
 	var bi := _boss_in()
 	if bi >= 0.0 and bi < 12.0:
 		_tip("boss")
+	_update_beat(dt)
 	_companion_skills(dt)
 	_update_projectiles(dt)
 	_update_enemies(dt)
+	_update_schools_step(dt)
 	_run_link_queue()
+	enemies = enemies.filter(func(e): return not e.dead)
 	for f in link_fx:
 		f.t += dt
 	link_fx = link_fx.filter(func(f): return f.t < 0.6)
@@ -1594,8 +1680,9 @@ func _step(dt: float) -> void:
 	if t >= ew.from and boss == null:
 		elite_timer -= dt
 		if elite_timer <= 0.0:
-			_spawn_special("terror", D.elites.terror, _edge_point(16.0))
-			ui.show_banner("菁英出現：恐嚇", 2.0)
+			var ek: String = Array(stage.get("elites", ["terror"])).pick_random()
+			_spawn_special(ek, D.elites[ek], _edge_point(16.0))
+			ui.show_banner("菁英出現：" + D.elites[ek].name, 2.0)
 			_tip("elite")
 			elite_timer = (ew.peak_every if peak else ew.elite_every) * float(stage.get("elite_mult", 1.0))
 	if peak and boss == null:
@@ -1688,6 +1775,8 @@ func _step(dt: float) -> void:
 		_update_chunks()
 		chunk_timer = 0.4
 	_update_wind(dt)
+	_update_stars(dt)
+	_update_lamps(dt)
 	_collide_solids()
 
 	if xp >= xp_need and not over and not chest_open and not choosing:
@@ -1703,21 +1792,23 @@ func _companion_skills(dt: float) -> void:
 	pa.ult_cd = maxf(0.0, float(pa.get("ult_cd", 0.0)) - dt)
 	pa.pos = paul.pos + Vector2(0, 2)
 	pa.castfx = maxf(0.0, pa.castfx - dt)
-	pa.cd -= dt * speed_mult * (1.0 + Save.up_value("haste")) * float(pa.aff)
-	if pa.cd <= 0.0:
+	pa.cd -= dt * speed_mult * (1.0 + Save.up_value("haste")) * float(pa.aff) * _school_speed(pa)
+	if pa.cd <= 0.0 and _beat_ready(pa):
 		_cast(pa)
+		_on_beat_cast(pa)
 	for c in comps:
 		if c.skill == "" or not _active(c):
 			continue
 		var s: Dictionary = c.st
 		c.ult_cd = maxf(0.0, float(c.get("ult_cd", 0.0)) - dt)
-		var mult: float = speed_mult * c.aff * c.syn
+		var mult: float = speed_mult * c.aff * c.syn * _school_speed(c) * (2.0 if float(bond_buff.get(c.key, 0.0)) > 0.0 else 1.0)
 		if barn_on and c != barn and c.pos.distance_to(barn.pos) < _aura_r(barn):
 			mult *= barn.st.attack_speed
 		c.cd -= dt * mult
-		if c.cd > 0.0:
+		if c.cd > 0.0 or not _beat_ready(c):
 			continue
 		_cast(c)
+		_on_beat_cast(c)
 
 
 ## 讓同伴出一次招。triggered = 被別的招式觸發（不重設冷卻）。回傳是否真的出手。
@@ -1761,7 +1852,8 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					"max": float(s.max_radius) * _area(), "dmg": float(s.damage), "speed": float(s.speed), "stun": float(s.stun),
 					"thick": int(s.thick), "knock": float(s.get("knock", 0.0)), "look": c.look, "evo": evolved.has(c.key)})
 		"heal":
-			paul.hp = minf(D.paul.hp, paul.hp + s.amount)
+			_heal_paul(float(s.amount))
+			_anoint_add(_sv("醫治", "anoint_bonus"))
 			heals.append({"who": paul, "t": 0.0})
 			_ring_pop(c.pos + Vector2(0, -8), C_HEAL, 40.0)
 			if evolved.has(c.key):
@@ -1776,6 +1868,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					o.down = 0.0
 					o.hp = _comp_max_hp() * D.companion_rules.revive_hp
 				if o.down <= 0.0:
+					_anoint_add((o.hp + float(s.amount) - _comp_max_hp()) * 0.3)
 					o.hp = minf(_comp_max_hp(), o.hp + s.amount)
 					heals.append({"who": o, "t": 0.0})
 					_ring_pop(o.pos + Vector2(0, -8), C_HEAL, 12.0)
@@ -1869,7 +1962,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					if not e.get("boss", false):
 						e.knock += (e.pos - paul.pos).normalized() * float(s.knock)
 			if float(s.heal) > 0.0:
-				paul.hp = minf(float(D.paul.hp), paul.hp + float(s.heal))
+				_heal_paul(float(s.heal))
 				heals.append({"who": paul, "t": 0.0})
 				if evolved.has(c.key):
 					for o in comps:
@@ -1913,6 +2006,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			# 馬可、差派恩賜：出手讓連鎖多撐一下
 			combo_t = minf(float(D.links.combo.window), combo_t + float(s.get("combo_keep", 0.0)) + float(c.get("tcombo", 0.0)))
 		_fire_links("cast", c, depth)
+		_bond_check(c)
 	return fired
 
 
@@ -1949,6 +2043,7 @@ func _run_link_queue() -> void:
 			for i in 5:
 				var pt: Vector2 = from.lerp(L.dst.pos, i / 4.0) + Vector2(0, -8)
 				_mote(pt, C_GOLD if q.depth < 2 else C_FLAME)
+			_minions_strike()
 			if int(L.get("lv", 1)) >= int(D.links.levels.double_at):
 				delayed.append({"t": 0.15, "fn": _cast.bind(L.dst, true, int(D.links.max_depth))})
 			_combo_add()
@@ -2083,9 +2178,9 @@ func _tag_effect(c: Dictionary) -> void:
 			haste_t = float(T.secs)
 			haste_amt = maxf(haste_amt if haste_t > 0.0 else 0.0, float(T.haste) * k)
 		"守護":
-			guard = mini(_guard_max(c), guard + 1)
+			guard = mini(maxi(_guard_max(c), _school_guard_cap()), guard + 1)
 		"醫治":
-			paul.hp = minf(float(D.paul.hp), paul.hp + float(T.heal) * k)
+			_heal_paul(float(T.heal) * k)
 			heals.append({"who": paul, "t": 0.0})
 		"差派":
 			if combo > 0:
@@ -2113,6 +2208,519 @@ func _update_sets() -> void:
 			paul.hp += float(st.bonus.hp)
 		ui.show_banner("套裝：%s　%s" % [st.name, st.desc], 2.0)
 		_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 40.0)
+
+
+# ---------- 流派規則（同流派 2 人啟動、3、4 人升級） ----------
+func _school_count(tag: String) -> int:
+	var n := 0
+	for c in comps:
+		if c.level > 0 and c.follows == "" and c.engine != "" and c.tag == tag:
+			n += 1
+	if not pa.is_empty() and pa.get("tag", "") == tag:
+		n += 1
+	return n + int(school_mods.get("solo_" + tag, 0.0))
+
+
+func _update_schools() -> void:
+	if not D.has("schools"):
+		return
+	for tag in D.schools:
+		var before: int = school_tier.get(tag, 0)
+		var tier: int = clampi(_school_count(tag) - 1, 0, 3)
+		school_tier[tag] = tier
+		if tier > before and ui != null:
+			var S: Dictionary = D.schools[tag]
+			ui.show_banner("流派規則・%s「%s」%s" % [tag, S.name, "啟動！" if before == 0 else "升到 %d 階" % tier], 2.4)
+			_ring_pop(paul.pos + Vector2(0, -8), TAG_COL.get(tag, C_GOLD), 50.0)
+			_tip("school")
+
+
+func _school_on(tag: String) -> bool:
+	return int(school_tier.get(tag, 0)) > 0
+
+
+## 流派規則的數值：這一階的基本值＋流派卡、恩賜的改寫（流派沒啟動時是 0）
+func _sv(tag: String, key: String) -> float:
+	var tier: int = school_tier.get(tag, 0)
+	if tier <= 0:
+		return 0.0
+	return float(D.schools[tag].tiers[tier - 1].get(key, 0.0)) + float(school_mods.get(key, 0.0))
+
+
+## 升級時出現的流派卡：每個已啟動的流派最多一張
+func _school_cards() -> Array:
+	var out := []
+	var flags := ["offbeat", "yoke", "holy_garment", "minion_pair", "convert_boom", "convert_elite", "newsong", "revive_all"]
+	for tag in school_tier:
+		if int(school_tier[tag]) <= 0:
+			continue
+		var opts: Array = D.schools[tag].cards.filter(func(sc):
+			if school_cards.has(tag + ":" + sc.id):
+				return false
+			for k in sc.mod:
+				if flags.has(k) and float(school_mods.get(k, 0.0)) > 0.0:
+					return false   # 恩賜已經給了同樣的開關
+			return true)
+		if opts.is_empty():
+			continue
+		var sc: Dictionary = opts.pick_random()
+		out.append({"kind": "school", "key": tag + ":" + sc.id, "title": sc.name, "tag": tag, "mod": sc.mod,
+			"desc": "「%s」規則改寫：%s\n（%s）" % [D.schools[tag].name, sc.desc, sc.ref]})
+	return out
+
+
+## 差派：主角在走時攻擊更快、站著變慢；站在腳蹤上再快一點
+func _school_speed(c: Dictionary) -> float:
+	if c.get("tag", "") != "差派" or not _school_on("差派"):
+		return 1.0
+	var m: float = (1.0 + _sv("差派", "move_haste")) if paul.moving else 0.75
+	var relay := _sv("差派", "relay")
+	if relay > 0.0:
+		for f in trail:
+			if f.pos.distance_squared_to(c.pos) < 144.0:
+				m *= 1.0 + relay
+				break
+	return m
+
+
+# 詩歌：拍子
+func _update_beat(dt: float) -> void:
+	beat_now = false
+	if not _school_on("詩歌"):
+		return
+	beat_clock += dt
+	var mp: AudioStreamPlayer = Sfx.music_player
+	if mp.playing and is_equal_approx(Engine.time_scale, 1.0):
+		var mpos := mp.get_playback_position()
+		if mpos != beat_last_mpos:
+			beat_clock = mpos + AudioServer.get_time_since_last_mix()
+		beat_last_mpos = mpos
+	var bpm := float(D.get("music_bpm", {}).get(Sfx.music_name, 128))
+	var bi := int(floor(beat_clock * bpm / 60.0))
+	if bi == beat_i:
+		return
+	beat_i = bi
+	beat_now = true
+	beat_down = bi % 4 == 0 or (_sv("詩歌", "offbeat") > 0.0 and bi % 4 == 2)
+	var m: float = _sv("詩歌", "downbeat_mult") if beat_down else 1.0
+	for c in comps + [pa]:
+		if c.get("tag", "") == "詩歌":
+			c.beat_mult = m
+
+
+## 詩歌同伴只在拍子上出手
+func _beat_ready(c: Dictionary) -> bool:
+	return c.get("tag", "") != "詩歌" or not _school_on("詩歌") or beat_now
+
+
+func _on_beat_cast(c: Dictionary) -> void:
+	if c.get("tag", "") != "詩歌" or not _school_on("詩歌") or not beat_down:
+		return
+	_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 22.0)
+	_mote(c.pos + Vector2(0, -14), C_GOLD)
+	if fever <= 0.0:
+		meter = minf(1.0, meter + _sv("詩歌", "downbeat_meter"))
+
+
+func _praise_song() -> void:
+	praise = 0.0
+	run_songs += 1
+	var mult := 1.0 + _sv("詩歌", "praise_boom_mult")
+	var dmg := (12.0 + level * 1.2) * mult
+	var v := _view_rect()
+	songs.append({"pos": paul.pos + Vector2(0, -8), "t": 0.0})
+	shake = maxf(shake, 0.2)
+	Sfx.play("levelup", 0.0)
+	ui.show_banner("讚美！全場的詩歌", 1.4)
+	for e in enemies.duplicate():
+		if not e.dead and v.has_point(e.pos):
+			_hurt(e, dmg * (0.4 if e.get("boss", false) else 1.0), paul.pos)
+			if not e.get("boss", false):
+				e.stun = maxf(e.stun, 1.0)
+	if _sv("詩歌", "newsong") > 0.0:
+		haste_t = 5.0
+		haste_amt = maxf(haste_amt, 0.3)
+
+
+# 講道：說服
+func _persuade(e: Dictionary, n: int) -> void:
+	if e.dead or e.get("boss", false) or float(e.get("ally", 0.0)) > 0.0:
+		return
+	var need := maxi(1, int(_sv("講道", "msg_need")))
+	if e.get("elite", false):
+		if _sv("講道", "convert_elite") <= 0.0:
+			return
+		need *= 3
+	e.msg = int(e.get("msg", 0)) + n
+	if e.msg < need:
+		return
+	var allies := 0
+	for o in enemies:
+		if float(o.get("ally", 0.0)) > 0.0:
+			allies += 1
+	if allies >= 14:
+		return
+	e.msg = 0
+	e.ally = _sv("講道", "convert_dur")
+	e.stun = 0.0
+	e.knock = Vector2.ZERO
+	run_converts += 1
+	_ring_pop(e.pos + Vector2(0, -4), C_GOLD, 16.0)
+	for i in 3:
+		_mote(e.pos + Vector2(0, -6), C_GOLD)
+
+
+## 被說服的敵人：去撞其他敵人，時間到就離開（算你驅散的）
+func _update_ally(e: Dictionary, dt: float) -> void:
+	e.ally -= dt
+	if e.ally <= 0.0:
+		e.ally = 0.0
+		if _sv("講道", "convert_boom") > 0.0:
+			var r := 36.0
+			blasts.append({"pos": e.pos, "t": 0.0, "r": r, "col": C_GOLD, "evo": false})
+			for o in enemies.duplicate():
+				if o != e and not o.dead and o.pos.distance_to(e.pos) < r:
+					_hurt(o, 16.0 + level, e.pos)
+		_kill(e, true)
+		return
+	var best = null
+	var bd := 150.0 * 150.0
+	for o in enemies:
+		if o.dead or o == e or float(o.get("ally", 0.0)) > 0.0:
+			continue
+		var d2: float = o.pos.distance_squared_to(e.pos)
+		if d2 < bd:
+			bd = d2
+			best = o
+	var target: Vector2 = paul.pos + Vector2(0, 16) if best == null else best.pos
+	var to: Vector2 = target - e.pos
+	if to.length() > 4.0:
+		e.pos += to.normalized() * float(e.d.speed) * 1.4 * dt
+	if best != null and e.cd <= 0.0 and sqrt(bd) < float(e.r) + 6.0:
+		e.cd = 0.5
+		_hurt(best, maxf(6.0, float(e.d.damage) * 1.5), e.pos)
+		var sp := int(_sv("講道", "convert_spread"))
+		if sp > 0:
+			_persuade(best, sp)
+
+
+# 守護：盾即是劍
+func _school_guard_cap() -> int:
+	return 2 + int(_sv("守護", "guard_bonus")) if _school_on("守護") else 0
+
+
+func _shield_shock(at: Vector2) -> void:
+	run_shocks += 1
+	var r := 40.0 * (1.0 + _sv("守護", "shock_area"))
+	var dmg := _sv("守護", "shock_dmg") * (1.0 + level * 0.05)
+	blasts.append({"pos": at + Vector2(0, -6), "t": 0.0, "r": r, "col": Color("9fd8ff"), "evo": false, "shock": true})
+	shake = maxf(shake, 0.1)
+	for e in enemies.duplicate():
+		if not e.dead and e.pos.distance_to(at) < r:
+			_hurt(e, dmg, at)
+			if not e.get("boss", false):
+				e.knock += (e.pos - at).normalized() * 140.0
+
+
+# 醫治：滿溢
+func _heal_paul(n: float) -> void:
+	_anoint_add(paul.hp + n - float(D.paul.hp))
+	paul.hp = minf(float(D.paul.hp), paul.hp + n)
+
+
+func _anoint_add(v: float) -> void:
+	if v <= 0.0 or not _school_on("醫治"):
+		return
+	anoint += v
+	if anoint >= _sv("醫治", "anoint_need"):
+		_holy_light()
+
+
+func _holy_light() -> void:
+	anoint = 0.0
+	run_holies += 1
+	var k := 1.0 + _sv("醫治", "holy_mult")
+	var r := 64.0 * k
+	var dmg := _sv("醫治", "holy_dmg") * k * (1.0 + level * 0.04)
+	holies.append({"pos": paul.pos, "t": 0.0, "r": r})
+	ui.show_banner("滿溢！聖光", 1.2)
+	Sfx.play("heal", 0.0)
+	for e in enemies.duplicate():
+		if not e.dead and e.pos.distance_to(paul.pos) < r:
+			_hurt(e, dmg, paul.pos)
+	paul.hp = minf(float(D.paul.hp), paul.hp + 10.0)
+	var revived := false
+	for o in comps:
+		if o.level == 0:
+			continue
+		if o.down > 0.0 and (not revived or _sv("醫治", "revive_all") > 0.0):
+			o.down = 0.0
+			o.hp = _comp_max_hp() * 0.6
+			revived = true
+			_ring_pop(o.pos + Vector2(0, -8), C_HEAL, 20.0)
+		elif o.down <= 0.0:
+			o.hp = minf(_comp_max_hp(), o.hp + 20.0)
+		if _sv("醫治", "holy_garment") > 0.0 and o.down <= 0.0:
+			o.garment = mini(int(o.get("garment", 0)) + 1, 3)
+		heals.append({"who": o, "t": 0.0})
+
+
+# 門徒：得人
+func _spawn_minion(at: Vector2) -> void:
+	if minions.size() >= int(_sv("門徒", "minion_cap")):
+		return
+	run_minions += 1
+	minions.append({"pos": at, "life": 12.0 + _sv("門徒", "minion_life"), "cd": 0.3, "hop": 0.0, "ph": randf() * TAU})
+	_ring_pop(at + Vector2(0, -6), Color("e8dcc0"), 12.0)
+
+
+func _minion_dmg() -> float:
+	return (5.0 + level * 0.5) * (1.0 + _sv("門徒", "minion_dmg_mult"))
+
+
+## 肢體連結觸發時，小門徒一起衝出去打一下
+func _minions_strike() -> void:
+	if minions.is_empty() or minion_strike_t > 0.0:
+		return
+	minion_strike_t = 0.3
+	for m in minions:
+		var tl := _nearest_enemies(m.pos, 70.0, 1)
+		if tl.is_empty():
+			continue
+		m.pos = m.pos.lerp(tl[0].pos, 0.7)
+		m.hop = 0.2
+		_hurt(tl[0], _minion_dmg(), m.pos)
+
+
+## 每一格：腳蹤、護盾長回來、讚美、小門徒
+func _update_schools_step(dt: float) -> void:
+	# 差派：腳蹤
+	if _school_on("差派"):
+		if paul.moving:
+			trail_t -= dt
+			if trail_t <= 0.0:
+				trail_t = _sv("差派", "trail_every")
+				var life := 3.0 + _sv("差派", "trail_life")
+				trail.append({"pos": paul.pos + Vector2(0, 1), "life": life, "max": life, "side": trail.size() % 2})
+		trail_tick -= dt
+		if trail_tick <= 0.0 and not trail.is_empty():
+			trail_tick = 0.35
+			var dmg := _sv("差派", "trail_dmg") * (1.0 + _sv("差派", "trail_mult")) * (1.0 + level * 0.03)
+			var box := Rect2(trail[0].pos, Vector2.ZERO)
+			for f in trail:
+				box = box.expand(f.pos)
+			box = box.grow(10.0)
+			for e in enemies.duplicate():
+				if e.dead or not box.has_point(e.pos) or float(e.get("ally", 0.0)) > 0.0:
+					continue
+				for f in trail:
+					if f.pos.distance_squared_to(e.pos) < 110.0:
+						e.slow_t = 0.8
+						_hurt(e, dmg, Vector2.INF)
+						break
+	for f in trail:
+		f.life -= dt
+	trail = trail.filter(func(f): return f.life > 0.0)
+	# 守護：護盾自己長回來
+	if _school_on("守護"):
+		guard_regen -= dt
+		if guard_regen <= 0.0:
+			guard_regen = maxf(1.5, _sv("守護", "regen_cd"))
+			if guard < _school_guard_cap():
+				guard += 1
+				_ring_pop(paul.pos + Vector2(0, -8), Color("9fd8ff"), 14.0)
+	# 詩歌：讚美滿了
+	if _school_on("詩歌") and praise >= _sv("詩歌", "praise_need"):
+		_praise_song()
+	for sg in songs:
+		sg.t += dt
+	songs = songs.filter(func(sg): return sg.t < 0.9)
+	for hl in holies:
+		hl.t += dt
+	holies = holies.filter(func(hl): return hl.t < 0.7)
+	crit_t = maxf(0.0, crit_t - dt)
+	for rn in rains:
+		rn.t += dt
+	rains = rains.filter(func(rn): return rn.t < 1.6)
+	feast_t = maxf(0.0, feast_t - dt)
+	for k in bond_buff.keys():
+		bond_buff[k] = float(bond_buff[k]) - dt
+		if bond_buff[k] <= 0.0:
+			bond_buff.erase(k)
+	# 門徒：小門徒
+	minion_strike_t = maxf(0.0, minion_strike_t - dt)
+	for m in minions:
+		m.life -= dt
+		m.cd -= dt
+		m.hop = maxf(0.0, m.hop - dt)
+		if m.pos.distance_to(paul.pos) > 170.0:
+			m.pos = paul.pos + Vector2(randf_range(-20, 20), randf_range(10, 20))
+		var tl := _nearest_enemies(m.pos, 90.0, 1)
+		var target: Vector2 = paul.pos + Vector2(cos(m.ph) * 26.0, sin(m.ph) * 16.0 + 10.0) if tl.is_empty() else tl[0].pos
+		var to: Vector2 = target - m.pos
+		if to.length() > 5.0:
+			m.pos += to.normalized() * 75.0 * dt
+		if not tl.is_empty() and to.length() < 10.0 and m.cd <= 0.0:
+			m.cd = 0.6
+			m.hop = 0.15
+			_hurt(tl[0], _minion_dmg(), m.pos)
+	minions = minions.filter(func(m): return m.life > 0.0)
+
+
+# ---------- 同行合擊（兩位同伴先後出手就發動） ----------
+## 隊伍裡這位同伴（或主角）：不在、倒下、睡著時回傳空的
+func _member(k: String) -> Dictionary:
+	if not pa.is_empty() and pa.key == k:
+		return pa
+	if by_key.has(k) and by_key[k] != pa and _active(by_key[k]):
+		return by_key[k]
+	return {}
+
+
+## 招募卡上的提示：跟隊伍裡的誰是搭檔
+func _bond_hint(k: String) -> String:
+	for B in D.get("bonds", []):
+		var mate: String = B.b if B.a == k else (B.a if B.b == k else "")
+		if mate != "" and not _member(mate).is_empty():
+			return "\n同行：與%s合擊「%s」" % [_member(mate).name, B.name]
+	return ""
+
+
+func _bond_check(c: Dictionary) -> void:
+	if not D.has("bonds"):
+		return
+	c.last_cast = t
+	for i in D.bonds.size():
+		var B: Dictionary = D.bonds[i]
+		if B.a != c.key and B.b != c.key:
+			continue
+		if t < float(bond_cd.get(i, 0.0)):
+			continue
+		var other := _member(B.b if B.a == c.key else B.a)
+		if other.is_empty() or t - float(other.get("last_cast", -99.0)) > float(D.bond_rules.window):
+			continue
+		bond_cd[i] = t + float(D.bond_rules.cooldown)
+		_bond_fx(B, c, other)
+
+
+func _bond_fx(B: Dictionary, c: Dictionary, other: Dictionary) -> void:
+	run_bonds += 1
+	link_fx.append({"a": c.pos + Vector2(0, -8), "b": other, "t": 0.0, "depth": 3})
+	_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 26.0)
+	_ring_pop(other.pos + Vector2(0, -8), C_GOLD, 26.0)
+	if tag_fx.size() < 12:
+		tag_fx.append({"pos": (c.pos + other.pos) / 2.0 + Vector2(-10, 0), "text": "合擊・" + B.name, "col": C_GOLD, "t": 0.0})
+	if not bonds_seen.has(B.name):
+		bonds_seen[B.name] = true
+		ui.show_banner("同行合擊：%s（%s）" % [B.name, B.ref], 2.2)
+		_tip("bond")
+	Sfx.play("link3", 0.0)
+	var v := _view_rect()
+	var foes := enemies.filter(func(e): return not e.dead and v.has_point(e.pos) and float(e.get("ally", 0.0)) <= 0.0)
+	match B.fx:
+		"quake":
+			for e in foes:
+				_hurt(e, 10.0 + level, paul.pos)
+				if not e.get("boss", false):
+					e.stun = maxf(e.stun, 1.5)
+			quakes.append({"pos": paul.pos, "r": 0.0})
+			shake = 0.35
+		"haste":
+			haste_t = 5.0
+			haste_amt = maxf(haste_amt, 0.4)
+			for i in 3:
+				_combo_add()
+		"empower":
+			bond_buff[B.b] = 6.0
+			var em := _member(B.b)
+			if not em.is_empty():
+				_ring_pop(em.pos + Vector2(0, -8), C_FLAME, 30.0)
+		"care":
+			paul.hp = float(D.paul.hp)
+			guard = mini(guard + 2, 5)
+			heals.append({"who": paul, "t": 0.0})
+		"bread":
+			for i in 6:
+				breads.append({"pos": paul.pos + Vector2(randf_range(-30, 30), randf_range(-24, 24))})
+			for o in comps:
+				if o.level > 0 and o.down <= 0.0:
+					o.hp = minf(_comp_max_hp(), o.hp + 20.0)
+		"pull":
+			var near := _nearest_enemies(paul.pos, 120.0, 1)
+			var center: Vector2 = paul.pos + Vector2(0, -30) if near.is_empty() else near[0].pos
+			nets.append({"pos": center, "r": 110.0, "t": 0.0, "evo": true, "look": "", "stun": 0.8, "col": C_GOLD})
+			for e in foes:
+				if e.pos.distance_to(center) < 110.0:
+					if not e.get("boss", false):
+						e.knock += (center - e.pos) * 3.0
+						e.stun = maxf(e.stun, 0.8)
+					_hurt(e, 12.0 + level, Vector2.INF)
+		"raise":
+			for o in comps:
+				if o.level == 0:
+					continue
+				if o.down > 0.0:
+					o.down = 0.0
+					o.hp = _comp_max_hp() * 0.6
+				o.hp = minf(_comp_max_hp(), o.hp + 30.0)
+				heals.append({"who": o, "t": 0.0})
+			paul.hp = minf(float(D.paul.hp), paul.hp + 30.0)
+		"gentile":
+			var n := 0
+			for e in foes:
+				if n < 12 and not e.get("boss", false) and not e.get("elite", false) and e.pos.distance_to(paul.pos) < 90.0:
+					e.ally = 6.0
+					e.msg = 0
+					e.stun = 0.0
+					run_converts += 1
+					n += 1
+			_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 90.0)
+		"garments":
+			for o in comps:
+				if o.level > 0 and o.down <= 0.0:
+					o.garment = mini(int(o.get("garment", 0)) + 2, 3)
+		"pillars":
+			foes.shuffle()
+			for i in mini(7, foes.size()):
+				fires.append({"pos": foes[i].pos, "t": 0.45, "max": 0.45, "r": 22.0, "dmg": 30.0 + level * 2.0, "owner": c, "evo": true, "look": "glory"})
+		"walls":
+			blasts.append({"pos": paul.pos + Vector2(0, -6), "t": 0.0, "r": 150.0, "col": C_GOLD, "evo": true})
+			shake = 0.4
+			for e in foes:
+				if e.pos.distance_to(paul.pos) < 150.0:
+					_hurt(e, 15.0 + level, paul.pos)
+					if not e.get("boss", false):
+						e.knock += (e.pos - paul.pos).normalized() * 320.0
+		"feast":
+			feast_t = 5.0
+			for e in foes:
+				_hurt(e, 8.0 + level, Vector2.INF)
+		"deacons":
+			var bs := {"damage": 14.0 + level * 1.5, "length": 150.0, "width": 5.0, "burst": false}
+			for i in 7:
+				_fire_beam(paul.pos + Vector2(0, -8), Vector2.RIGHT.rotated(i * TAU / 7.0 + t), bs, "", c)
+		"rain":
+			for o in comps:
+				if o.level > 0 and o.down <= 0.0:
+					o.hp = minf(_comp_max_hp(), o.hp + 25.0)
+			paul.hp = minf(float(D.paul.hp), paul.hp + 25.0)
+			for e in foes:
+				e.slow_t = 4.0
+			rains.append({"t": 0.0})
+		"giant":
+			var big = null
+			for e in foes:
+				if big == null or float(e.hp) > float(big.hp):
+					big = e
+			if big != null:
+				blasts.append({"pos": big.pos, "t": 0.0, "r": 30.0, "col": C_FLAME, "evo": true})
+				_hurt(big, 60.0 + level * 6.0, paul.pos)
+				shake = 0.25
+		"crit":
+			crit_t = 6.0
+		"rebirth":
+			if fever <= 0.0:
+				meter = minf(1.0, meter + 0.4)
 
 
 func _nova(c: Dictionary, s: Dictionary) -> void:
@@ -2307,6 +2915,7 @@ func _update_enemies(dt: float) -> void:
 	var barn = by_key.get("barn")
 	var barn_on: bool = barn != null and _active(barn)
 	var view := _view_rect()
+	var taunt_on: bool = _school_on("守護") and comps.any(func(o): return o.tag == "守護" and _active(o))
 	for e in enemies:
 		if e.dead:
 			continue
@@ -2333,14 +2942,21 @@ func _update_enemies(dt: float) -> void:
 			e.exposed_t = maxf(0.0, e.exposed_t - dt)
 		e.pos += e.knock * dt
 		e.knock *= 0.85
+		if float(e.get("ally", 0.0)) > 0.0:
+			_update_ally(e, dt)
+			continue
+		if e.has("slow_t"):
+			e.slow_t = maxf(0.0, e.slow_t - dt)
 		if e.stun > 0.0:
 			e.stun -= dt
 			continue
 		var target: Vector2 = p.pos + Vector2(0, -4)
 		if e.type == "fear" or e.get("hunter", false):
 			var bd := 1e9
+			# 守護：獵手改去追守護同伴
+			var taunt: bool = e.get("hunter", false) and taunt_on
 			for c in comps:
-				if c.level == 0 or c.down > 0.0:
+				if c.level == 0 or c.down > 0.0 or (taunt and c.tag != "守護"):
 					continue
 				var dd: float = c.pos.distance_to(e.pos)
 				if dd < bd:
@@ -2388,8 +3004,34 @@ func _update_enemies(dt: float) -> void:
 				var a := randf() * TAU
 				e.blink_to = p.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(d.blink.min, d.blink.max)
 				e.blink_wait = 0.7
-		var wob: float = sin(t * 2.2 + e.ph) * 0.5
-		e.pos += (dir * go + dir.orthogonal() * wob) * d.speed * e.smul * dt
+		if d.has("summon"):
+			# 灰馬騎士：一直召來蝗蟲
+			e.sum_cd -= dt
+			if e.sum_cd <= 0.0 and enemies.size() < int(D.waves.max_enemies):
+				e.sum_cd = float(d.summon.every)
+				_ring_pop(e.pos, Color("8aaa96"), 16.0)
+				for i in int(d.summon.count):
+					_spawn_one(d.summon.type, e.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8)))
+		if d.has("hop"):
+			# 污靈：一跳一跳地靠近，落地時停一下
+			e.hop_cd = float(e.get("hop_cd", randf())) - dt
+			if float(e.get("hop_t", 0.0)) > 0.0:
+				e.hop_t -= dt
+				go *= float(d.hop.mult)
+			else:
+				go = 0.0
+				if e.hop_cd <= 0.0:
+					e.hop_t = float(d.hop.time)
+					e.hop_cd = float(d.hop.every)
+		var slow: float = 0.5 if float(e.get("slow_t", 0.0)) > 0.0 else 1.0
+		if d.get("swarm", false):
+			# 蝗蟲：整群朝出現時主角的方向直直飛過去，不會轉彎
+			if not e.has("swarm_dir"):
+				e.swarm_dir = dir.rotated(randf_range(-0.15, 0.15))
+			e.pos += e.swarm_dir * d.speed * e.smul * slow * dt
+		else:
+			var wob: float = sin(t * 2.2 + e.ph) * 0.5
+			e.pos += (dir * go + dir.orthogonal() * wob) * d.speed * e.smul * slow * dt
 
 		for b in bars:
 			if b.up > 0.6 and e.bcd <= 0.0 and e.pos.distance_to(b.pos + Vector2(0, -3)) < 8.0:
@@ -2430,6 +3072,10 @@ func _update_enemies(dt: float) -> void:
 		if p.pos.distance_to(e.pos + Vector2(0, 5)) < e.r and p.inv <= 0.0 and e.blink_safe <= 0.0:
 			_damage_paul(d.damage * e.dmul)
 			e.knock -= dir * 80.0
+			if d.has("drain") and fever <= 0.0:
+				# 黑馬騎士：手裡拿著天平，吸走同心合意（啟 6:5）
+				meter = maxf(0.0, meter - float(d.drain))
+				_ring_pop(paul.pos + Vector2(0, -8), Color("3a3a48"), 20.0)
 			if d.dies_on_touch:
 				_kill(e, false)
 				continue
@@ -2437,6 +3083,7 @@ func _update_enemies(dt: float) -> void:
 		# 跑太遠就繞回畫面邊緣，維持密度
 		if not view.grow(140.0).has_point(e.pos):
 			e.pos = _edge_point(16.0)
+			e.erase("swarm_dir")
 
 	_separate()
 	enemies = enemies.filter(func(e): return not e.dead)
@@ -2487,6 +3134,8 @@ func _damage_paul(n: float) -> void:
 		guard -= 1
 		paul.inv = 0.4
 		_ring_pop(paul.pos + Vector2(0, -8), Color("9fd8ff"), 16.0)
+		if _school_on("守護"):
+			_shield_shock(paul.pos)
 		return
 	if armor.get("breast", 0) > 0:
 		n *= 1.0 - float(D.armor.breast.per[armor.breast - 1])
@@ -2510,6 +3159,13 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 		c.garment -= 1
 		c.hurt_cd = 0.4
 		_ring_pop(c.pos + Vector2(0, -8), Color("e8d8b0"), 12.0)
+		return
+	if guard > 0 and _sv("守護", "yoke") > 0.0:
+		# 同負一軛：主角的護盾替同伴擋下
+		guard -= 1
+		c.hurt_cd = 0.4
+		_ring_pop(c.pos + Vector2(0, -8), Color("9fd8ff"), 14.0)
+		_shield_shock(c.pos)
 		return
 	if c.st.has("tough"):
 		n *= float(c.st.tough)   # 參孫：受到的傷害減半
@@ -2593,6 +3249,64 @@ func _update_wind(dt: float) -> void:
 		wind_dir = Vector2.RIGHT.rotated(randf() * TAU)
 		ui.show_banner(hz.get("text", "暴風！"), 1.5)
 		Sfx.play("warn", 0.0)
+
+
+## 啟示錄的書信卡：五旬節時七個金燈台繞著主角轉（啟 1:12–13）
+func _lamp_points() -> Array:
+	var out := []
+	for i in 7:
+		var a := t * 1.6 + i * TAU / 7.0
+		out.append(paul.pos + Vector2(cos(a), sin(a) * 0.75) * 46.0 + Vector2(0, -6))
+	return out
+
+
+func _update_lamps(dt: float) -> void:
+	if not epistles.has("lamps") or fever <= 0.0:
+		return
+	lamp_tick -= dt
+	if lamp_tick > 0.0:
+		return
+	lamp_tick = 0.25
+	var pts := _lamp_points()
+	for e in enemies.duplicate():
+		if e.dead:
+			continue
+		for lp in pts:
+			if e.pos.distance_squared_to(lp) < 150.0:
+				_hurt(e, 10.0 + level, lp)
+				break
+
+
+## 拔摩海島：星辰從天墜落（啟 8:10）。先在地上出現預警圈，時間到砸下來，主角、同伴、敵人都會受傷
+func _update_stars(dt: float) -> void:
+	for sf in star_falls:
+		sf.t -= dt
+		if sf.t <= 0.0 and not sf.get("done", false):
+			sf.done = true
+			blasts.append({"pos": sf.pos, "t": 0.0, "r": sf.r * 1.4, "col": C_GOLD, "evo": false})
+			shake = maxf(shake, 0.15)
+			if paul.pos.distance_to(sf.pos) < sf.r and paul.inv <= 0.0:
+				_damage_paul(sf.dmg)
+			for c in comps:
+				if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(sf.pos) < sf.r and fever <= 0.0:
+					c.hurt_cd = 0.0
+					_damage_companion(c, sf.dmg)
+			for e in enemies.duplicate():
+				if not e.dead and e.pos.distance_to(sf.pos) < sf.r:
+					_hurt(e, sf.dmg * 2.0, sf.pos)
+	star_falls = star_falls.filter(func(sf): return sf.t > -0.3)
+	var hz: Dictionary = stage.get("hazard", {})
+	if hz.get("kind", "") != "stars" or boss != null or choosing:
+		return
+	star_t -= dt
+	if star_t <= 0.0:
+		star_t = float(hz.every)
+		ui.show_banner(hz.get("text", "星辰墜落！"), 1.3)
+		Sfx.play("warn", 0.0)
+		for i in int(hz.count):
+			var a := randf() * TAU
+			var at: Vector2 = paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(0.0, 70.0)
+			star_falls.append({"pos": at, "t": float(hz.warn), "max": float(hz.warn), "r": float(hz.radius), "dmg": float(hz.damage) * _curve(D.waves.scaling.damage, t)})
 
 
 func _update_chunks() -> void:
@@ -2682,11 +3396,15 @@ func _render(dt: float) -> void:
 			c.node.modulate = Color.WHITE.lerp(Color(1.8, 1.7, 1.2), k)
 	var ef := int(t * 4.0) % 2
 	for e in enemies:
+		if e.dead:
+			continue
 		if not e.get("boss", false):
 			e.node.texture = _tex("%s_%d" % [e.sprite, (ef + int(e.ph)) % 2])
 		e.node.position = e.pos.round()
 		if e.flash > 0.0:
 			e.node.modulate = Color(4, 4, 3.5)
+		elif float(e.get("ally", 0.0)) > 0.0:
+			e.node.modulate = Color(2.4, 2.0, 0.5)   # 被說服：變成金色
 		elif e.stun > 0.0 or (e.get("boss", false) and e.state == "break"):
 			e.node.modulate = Color(1.5, 1.5, 0.8)
 		elif float(e.get("exposed_t", 0.0)) > 0.0:
@@ -2744,6 +3462,34 @@ func _draw_ground_fx() -> void:
 		if o != paul and o.level == 0:
 			continue
 		n.draw_rect(Rect2(round(o.pos.x) - 4, round(o.pos.y) - 1, 9, 2), Color(0.24, 0.13, 0.05, 0.35))
+	# 星辰墜落的落點：紅色虛線圈慢慢收縮
+	for sf in star_falls:
+		if sf.t > 0.0:
+			var k: float = clampf(sf.t / sf.max, 0.0, 1.0)
+			_dot_ring(n, sf.pos.round(), sf.r, 0.8, C_RED, 3.0, t * 3.0, 2)
+			_dot_ring(n, sf.pos.round(), sf.r * k, 0.8, C_GOLD, 4.0, -t * 3.0, 1)
+	# 差派：發光的腳蹤（實心，快消失時變小）
+	for f in trail:
+		var fx: float = roundf(f.pos.x) + (2.0 if f.side == 1 else -3.0)
+		var fy: float = roundf(f.pos.y)
+		var big: bool = f.life > 0.6
+		var fc: Color = C_GOLD if f.life > f.max * 0.6 else C_FLAME
+		if big:
+			n.draw_rect(Rect2(fx - 1, fy - 3, 4, 6), Color("3a1606"))
+			n.draw_rect(Rect2(fx, fy - 2, 2, 4), fc)
+			n.draw_rect(Rect2(fx, fy - 2, 1, 1), C_CREAM)
+		else:
+			n.draw_rect(Rect2(fx, fy - 1, 2, 2), C_FLAME)
+	# 詩歌：主角腳下的四個拍子
+	if _school_on("詩歌"):
+		var bx: float = roundf(paul.pos.x) - 8.0
+		var by: float = roundf(paul.pos.y) + 4.0
+		for k in 4:
+			var lit: bool = posmod(beat_i, 4) == k
+			var dn: bool = k == 0 or (k == 2 and _sv("詩歌", "offbeat") > 0.0)
+			var sz := 3 if dn else 2
+			n.draw_rect(Rect2(bx + k * 5 - 1, by - 1, sz + 2, sz + 2), Color("1a1008"))
+			n.draw_rect(Rect2(bx + k * 5, by, sz, sz), (C_GOLD if dn else C_CREAM) if lit else Color("5a4a30"))
 	for k in evolved:
 		var ec: Dictionary = by_key[k]
 		if ec.level > 0 and ec.down <= 0.0:
@@ -2818,40 +3564,65 @@ func _draw_air() -> void:
 		if r.r <= 0.0:
 			continue
 		# 簡化：每圈只畫一條實線，顏色就是這位同伴的顏色，越擴散越淡
+		# 實心顏色：深色描邊＋本色＋亮色內線，外圈有幾個音符般的小方塊
 		var k: float = clampf(r.r / r.max, 0.0, 1.0)
 		var center: Vector2 = (r.owner.pos + Vector2(0, -6)).round()
-		var col: Color = r.owner.get("col", C_GOLD)
-		var a := 0.95 - k * 0.55
-		n.draw_arc(center, r.r, 0.0, TAU, maxi(16, int(r.r * 0.6)), Color(col, a), 1.0 + r.thick)
+		var col: Color = C_FLAME if on_fire else r.owner.get("col", C_GOLD)
+		var seg := maxi(16, int(r.r * 0.6))
+		var w: float = (1.0 + r.thick * 0.5) * (1.0 - k * 0.4)
+		n.draw_arc(center, r.r, 0.0, TAU, seg, col.darkened(0.6), w + 1.0)
+		n.draw_arc(center, r.r, 0.0, TAU, seg, col, w)
+		for j in 4:
+			var ang: float = j * TAU / 4.0 + r.r * 0.03
+			var dp: Vector2 = (center + Vector2(cos(ang), sin(ang)) * r.r).round()
+			n.draw_rect(Rect2(dp.x - 2, dp.y - 2, 4, 4), col.darkened(0.6))
+			n.draw_rect(Rect2(dp.x - 1, dp.y - 1, 2, 2), C_CREAM)
 		if r.get("evo", false):
-			n.draw_arc(center, r.r + 2.0, 0.0, TAU, maxi(16, int(r.r * 0.6)), Color(C_CREAM, a * 0.6), 1.0)
+			n.draw_arc(center, r.r + 3.0, 0.0, TAU, seg, C_GOLD, 1.0)
 	for b in beams:
 		var end: Vector2 = b.pos + b.dir * b.len
+		# 實心光束：越接近消失越細，而不是變透明
 		var a := minf(1.0, b.life * 3.3)
+		var bw: float = b.width * (0.4 + 0.6 * a)
 		if b.get("evo", false):
-			n.draw_line(b.pos, end, Color(C_GOLD, a * 0.35), b.width * 2.6)
+			n.draw_line(b.pos, end, C_GOLD, bw * 2.4)
+		var bc: Color = C_FLAME if on_fire else b.get("col", Color("3fbfb0"))
 		if b.look == "lamp":
-			n.draw_line(b.pos, end, Color(C_FLAME if on_fire else Color("ff9a3a"), a * 0.45), b.width * 1.6)
-			n.draw_line(b.pos, end, Color(C_GOLD, a * 0.8), b.width * 0.6)
-			n.draw_circle(b.pos, 3.0, Color(C_CREAM, a))
+			bc = C_FLAME if on_fire else Color("ff9a3a")
 		elif b.look == "sea":
-			n.draw_line(b.pos, end, Color(C_FLAME if on_fire else Color("2f78c8"), a * 0.5), b.width * 1.6)
-			n.draw_line(b.pos, end, Color(Color("8fd0ff"), a * 0.8), b.width * 0.8)
-			n.draw_line(b.pos, end, Color(Color("eaf8ff"), a), 1.0)
-		else:
-			n.draw_line(b.pos, end, Color(C_FLAME if on_fire else b.get("col", Color("3fbfb0")), a * 0.6), b.width * 1.4)
-			n.draw_line(b.pos, end, Color(C_CREAM, a), maxf(1.0, b.width * 0.4))
+			bc = C_FLAME if on_fire else Color("2f78c8")
+		n.draw_line(b.pos, end, bc.darkened(0.55), bw * 1.6 + 2.0)
+		n.draw_line(b.pos, end, bc, bw * 1.6)
+		n.draw_line(b.pos, end, bc.lightened(0.45), bw * 0.7)
+		n.draw_line(b.pos, end, Color.WHITE if b.look != "lamp" else C_GOLD, maxf(1.0, bw * 0.25))
+		n.draw_circle(b.pos, 2.0 + bw * 0.5, bc.lightened(0.45))
+		# 光束上流動的小方塊
+		for j in 4:
+			var fp: Vector2 = (b.pos + b.dir * b.len * fmod(t * 2.5 + j * 0.25, 1.0)).round()
+			n.draw_rect(Rect2(fp.x - 1, fp.y - 1, 3, 3), C_CREAM)
+		n.draw_circle(end, 1.5 + bw * 0.4, bc.lightened(0.45))
 	for b in blasts:
+		# 實心衝擊波：一圈粗的本色環往外推，裡面跟著一圈亮色與放射的碎塊
 		var k: float = b.t / 0.3
-		n.draw_circle(b.pos, b.r * (0.4 + k * 0.6), Color(b.get("col", C_GOLD), (1.0 - k) * 0.6))
-		n.draw_arc(b.pos, b.r * (0.4 + k * 0.6), 0.0, TAU, 32, Color(Color(b.get("col", C_GOLD)).lightened(0.4), 1.0 - k), 2.0)
+		var bcol: Color = b.get("col", C_GOLD)
+		var rr: float = b.r * (0.4 + k * 0.6)
+		var bw: float = 6.0 * (1.0 - k) + 1.0
+		n.draw_arc(b.pos, rr, 0.0, TAU, 40, bcol.darkened(0.6), bw + 2.0)
+		n.draw_arc(b.pos, rr, 0.0, TAU, 40, bcol, bw)
+		n.draw_arc(b.pos, rr * 0.7, 0.0, TAU, 32, bcol.lightened(0.5), 1.0)
+		for j in 8:
+			var ang := j * TAU / 8.0 + 0.3
+			var dp: Vector2 = (b.pos + Vector2(cos(ang), sin(ang) * 0.8) * rr * 1.1).round()
+			n.draw_rect(Rect2(dp.x - 1, dp.y - 1, 3, 3), C_CREAM if j % 2 == 0 else bcol)
+		if k < 0.35 and rr < 40.0:
+			n.draw_circle(b.pos, rr * 0.45, bcol.lightened(0.6))
 		if b.get("evo", false):
-			n.draw_arc(b.pos, b.r * (0.6 + k * 0.7), 0.0, TAU, 32, Color(C_CREAM, (1.0 - k) * 0.8), 1.0)
+			n.draw_arc(b.pos, b.r * (0.6 + k * 0.7), 0.0, TAU, 32, C_GOLD, 1.0)
 	for f in fires:
 		if f.t > 0.0:
 			var k: float = 1.0 - f.t / f.max
-			n.draw_arc(f.pos, f.r, 0.0, TAU, 24, Color(C_FLAME, 0.4 + 0.5 * k), 1.0)
-			n.draw_circle(f.pos, f.r * k, Color(C_FLAME, 0.18))
+			_dot_ring(n, f.pos.round(), f.r, 0.75, C_FLAME, 3.0, t * 2.0, 2)
+			n.draw_arc(f.pos, f.r * k, 0.0, TAU, 24, C_GOLD, 1.0)
 		else:
 			var a: float = 1.0 + f.t / 0.35
 			if f.get("evo", false):
@@ -2862,8 +3633,11 @@ func _draw_air() -> void:
 				n.draw_rect(Rect2(f.pos.x - 2, f.pos.y - 90, 5, 90), Color(C_CREAM, a))
 				n.draw_arc(f.pos, f.r * (1.4 - a * 0.4), 0.0, TAU, 24, Color(C_GOLD, a), 2.0)
 			else:
-				n.draw_rect(Rect2(f.pos.x - 3, f.pos.y - 60, 7, 60), Color(C_GOLD, a * 0.7))
-				n.draw_rect(Rect2(f.pos.x - 1, f.pos.y - 60, 3, 60), Color(C_CREAM, a))
+				var fw: float = 3.0 + 4.0 * a
+				n.draw_rect(Rect2(f.pos.x - fw / 2.0 - 1, f.pos.y - 60, fw + 2, 60), Color("5a1a08"))
+				n.draw_rect(Rect2(f.pos.x - fw / 2.0, f.pos.y - 60, fw, 60), C_FLAME)
+				n.draw_rect(Rect2(f.pos.x - 1, f.pos.y - 60, 3, 60), C_GOLD)
+				n.draw_arc(f.pos, f.r * (1.2 - a * 0.2), 0.0, TAU, 24, C_FLAME, 2.0)
 	var blink := int(t * 8.0) % 2 == 0
 	for sh in tele:
 		if sh.kind == "line":
@@ -2917,8 +3691,10 @@ func _draw_air() -> void:
 			var p0: Vector2 = z.pts[i]
 			var p1: Vector2 = z.pts[i + 1]
 			var mid: Vector2 = (p0 + p1) / 2.0 + (p1 - p0).orthogonal().normalized() * randf_range(-5, 5)
-			n.draw_polyline(PackedVector2Array([p0, mid, p1]), Color(col, a * 0.6), 3.0)
-			n.draw_polyline(PackedVector2Array([p0, mid, p1]), Color(Color.WHITE, a), 1.0)
+			n.draw_polyline(PackedVector2Array([p0, mid, p1]), col.darkened(0.5), 4.0 * a + 1.0)
+			n.draw_polyline(PackedVector2Array([p0, mid, p1]), col, 2.0 * a + 1.0)
+			n.draw_polyline(PackedVector2Array([p0, mid, p1]), Color.WHITE, 1.0)
+			n.draw_rect(Rect2(p1.x - 2, p1.y - 2, 5, 5), col)
 	for th in thrusts:
 		var a: float = 1.0 - th.t / 0.2
 		var tip: Vector2 = th.from + th.dir * th.len * minf(1.0, th.t / 0.06)
@@ -2926,14 +3702,46 @@ func _draw_air() -> void:
 		if th.get("look", "") == "dash":
 			# 腓利：一道青色的奔跑殘影
 			col = C_GOLD if th.crit or th.evo else Color("6ae0d0")
-			n.draw_line(th.from, tip, Color(col, a * 0.35), 7.0)
+			n.draw_line(th.from, tip, col.darkened(0.5), 7.0 * a)
 			for i in 3:
-				n.draw_circle(th.from.lerp(tip, 0.3 + i * 0.25), 2.0 + i, Color(col, a * 0.5))
-		n.draw_line(th.from, tip, Color(col, a), 3.0 if th.crit else 2.0)
-		n.draw_circle(tip, 2.0, Color(Color.WHITE, a))
+				n.draw_circle(th.from.lerp(tip, 0.3 + i * 0.25), (2.0 + i) * a, col)
+		n.draw_line(th.from, tip, col.darkened(0.6), (3.0 if th.crit else 2.0) + 2.0)
+		n.draw_line(th.from, tip, col, 3.0 if th.crit else 2.0)
+		n.draw_circle(tip, 3.0 * a + 1.0, Color.WHITE)
 	for g in gathers:
 		var k: float = g.t / 0.5
-		_dot_ring(n, g.pos.round() + Vector2(0, -4), g.r * (1.0 - k), 0.8, Color(C_HEAL, 1.0 - k), 4.0, k * 3.0)
+		_dot_ring(n, g.pos.round() + Vector2(0, -4), g.r * (1.0 - k), 0.8, C_HEAL, 4.0, k * 3.0, 2)
+		_dot_ring(n, g.pos.round() + Vector2(0, -4), g.r * (1.0 - k) - 5.0, 0.8, C_CREAM, 6.0, -k * 3.0, 1)
+	# 星辰：從天上斜斜落下，拖著金色的尾巴
+	for sf in star_falls:
+		if sf.t > 0.0:
+			var k: float = clampf(sf.t / sf.max, 0.0, 1.0)
+			var sp: Vector2 = (sf.pos + Vector2(40.0, -150.0) * k).round()
+			n.draw_line(sp, sp + Vector2(16, -60) * 0.5, Color("8a5a10"), 4.0)
+			n.draw_line(sp, sp + Vector2(16, -60) * 0.5, C_GOLD, 2.0)
+			n.draw_rect(Rect2(sp.x - 3, sp.y - 3, 7, 7), Color("8a5a10"))
+			n.draw_rect(Rect2(sp.x - 2, sp.y - 2, 5, 5), C_GOLD)
+			n.draw_rect(Rect2(sp.x - 1, sp.y - 1, 3, 3), Color.WHITE)
+	for sh in tele:
+		if sh.get("star", false) and boss != null:
+			var kk: float = clampf(float(boss.timer) / float(D.boss.warn), 0.0, 1.0)
+			var sp2: Vector2 = (sh.c + Vector2(30.0, -140.0) * kk).round()
+			n.draw_line(sp2, sp2 + Vector2(10, -40), C_GOLD, 2.0)
+			n.draw_rect(Rect2(sp2.x - 2, sp2.y - 2, 5, 5), C_GOLD)
+			n.draw_rect(Rect2(sp2.x - 1, sp2.y - 1, 3, 3), Color.WHITE)
+	# 七個金燈台
+	if epistles.has("lamps") and fever > 0.0:
+		for lp in _lamp_points():
+			var lx: float = roundf(lp.x)
+			var ly: float = roundf(lp.y)
+			n.draw_rect(Rect2(lx - 3, ly + 3, 7, 2), Color("8a6420"))
+			n.draw_rect(Rect2(lx - 1, ly - 3, 3, 7), Color("8a6420"))
+			n.draw_rect(Rect2(lx, ly - 3, 1, 7), C_GOLD)
+			n.draw_rect(Rect2(lx - 2, ly + 3, 5, 1), C_GOLD)
+			var fl := int(t * 10.0 + lx) % 2
+			n.draw_rect(Rect2(lx - 1, ly - 7 - fl, 3, 3), C_FLAME)
+			n.draw_rect(Rect2(lx, ly - 7 - fl, 1, 2), C_CREAM)
+	_draw_schools(n)
 	for dn in dnums:
 		var k2: float = dn.t / 0.7
 		var big: bool = dn.v >= 20.0
@@ -2957,10 +3765,12 @@ func _draw_air() -> void:
 			var a: float = 1.0 - f.t / 0.3
 			# 從來源射向被觸發的人：前 0.08 秒線往前長出去
 			var tip: Vector2 = f.a.lerp(to, minf(1.0, f.t / 0.08))
-			n.draw_line(f.a, tip, Color(C_FLAME if f.depth >= 2 else C_GOLD, a * 0.8), 2.0 + f.depth)
-			n.draw_line(f.a, tip, Color(C_CREAM, a), 1.0)
-			n.draw_circle(tip, 3.0 + f.depth * 1.5, Color(C_GOLD, a * 0.5))
-			n.draw_circle(tip, 2.0 + f.depth, Color(C_CREAM, a))
+			var lc: Color = C_FLAME if f.depth >= 2 else C_GOLD
+			n.draw_line(f.a, tip, lc.darkened(0.6), (2.0 + f.depth) * a + 2.0)
+			n.draw_line(f.a, tip, lc, (2.0 + f.depth) * a)
+			n.draw_line(f.a, tip, C_CREAM, 1.0)
+			n.draw_circle(tip, (3.0 + f.depth * 1.5) * a + 1.0, lc)
+			n.draw_circle(tip, 2.0 + f.depth * a, C_CREAM)
 		if f.depth >= 2:
 			var k: float = f.t / 0.6
 			var txt := "連鎖×%d" % f.depth
@@ -2971,7 +3781,7 @@ func _draw_air() -> void:
 		var x: float = roundf(b.pos.x)
 		var y: float = roundf(b.pos.y)
 		if b.get("evo", false):
-			n.draw_circle(b.pos, 4.0, Color(C_GOLD, 0.35))
+			_dot_ring(n, b.pos.round(), 5.0, 1.0, C_GOLD, 4.0, t * 6.0)
 		var col: Color = C_FLAME if on_fire else (b.owner.get("col", C_GOLD) if b.get("owner") is Dictionary else C_GOLD)
 		if b.look == "coin":
 			n.draw_rect(Rect2(x - 2, y - 2, 5, 5), Color("2a1a10"))
@@ -3002,8 +3812,9 @@ func _draw_air() -> void:
 		else:
 			# 光箭：後面拖一道光，比較看得出是誰射的、往哪飛
 			var dir: Vector2 = b.get("dir", Vector2.RIGHT)
-			n.draw_line(b.pos - dir * (10.0 + b.size * 3.0), b.pos, Color(col, 0.45), 2.0 + b.size)
-			n.draw_line(b.pos - dir * 6.0, b.pos, Color(C_CREAM, 0.8), 1.0)
+			n.draw_line(b.pos - dir * (10.0 + b.size * 3.0), b.pos, col.darkened(0.5), 2.0 + b.size)
+			n.draw_line(b.pos - dir * (7.0 + b.size * 2.0), b.pos, col, 1.0 + b.size)
+			n.draw_line(b.pos - dir * 5.0, b.pos, C_CREAM, 1.0)
 			var r: int = 2 if b.size < 2 else 3
 			n.draw_rect(Rect2(x - r, y - 1, r * 2 + 1, 3), col)
 			n.draw_rect(Rect2(x - 1, y - r, 3, r * 2 + 1), col)
@@ -3029,22 +3840,26 @@ func _draw_air() -> void:
 		else:
 			n.draw_rect(Rect2(roundf(q.pos.x), roundf(q.pos.y), 1, 1), qc)
 	for sp in sparks:
-		var sa: float = 1.0 - sp.t / 0.12
 		var sx: float = roundf(sp.pos.x)
 		var sy: float = roundf(sp.pos.y)
-		n.draw_rect(Rect2(sx - 2, sy, 5, 1), Color(Color.WHITE, sa))
-		n.draw_rect(Rect2(sx, sy - 2, 1, 5), Color(Color.WHITE, sa))
-		n.draw_rect(Rect2(sx - 1, sy - 1, 3, 3), Color(C_GOLD, sa * 0.8))
+		var ssz := 3 if sp.t < 0.06 else 2
+		var scol: Color = sp.get("col", C_GOLD)
+		n.draw_rect(Rect2(sx - ssz, sy, ssz * 2 + 1, 1), Color.WHITE)
+		n.draw_rect(Rect2(sx, sy - ssz, 1, ssz * 2 + 1), Color.WHITE)
+		n.draw_rect(Rect2(sx - 1, sy - 1, 3, 3), scol)
 	for rz in resonances:
 		var ra: float = 1.0 - rz.r / 260.0
 		var rcol: Color = [C_GOLD, C_FLAME, Color("ff6ad5"), Color.WHITE][mini(rz.tier, 3)]
-		n.draw_arc(rz.pos, rz.r, 0.0, TAU, 64, Color(rcol, ra), 3.0 + rz.tier)
-		n.draw_arc(rz.pos, rz.r * 0.85, 0.0, TAU, 64, Color(C_CREAM, ra * 0.7), 1.0)
+		n.draw_arc(rz.pos, rz.r, 0.0, TAU, 64, rcol.darkened(0.6), (3.0 + rz.tier) * ra + 3.0)
+		n.draw_arc(rz.pos, rz.r, 0.0, TAU, 64, rcol, (3.0 + rz.tier) * ra + 1.0)
+		n.draw_arc(rz.pos, rz.r * 0.85, 0.0, TAU, 64, C_CREAM, 1.0)
 		if rz.r < 60.0:
-			n.draw_rect(Rect2(rz.pos.x - 4 - rz.tier, rz.pos.y - 120, 9 + rz.tier * 2, 120), Color(C_CREAM, ra * 0.5))
+			var pw: float = (9.0 + rz.tier * 2) * ra
+			n.draw_rect(Rect2(rz.pos.x - pw / 2.0, rz.pos.y - 120, pw, 120), rcol)
+			n.draw_rect(Rect2(rz.pos.x - 1, rz.pos.y - 120, 3, 120), C_CREAM)
 	for o in pops:
 		var k: float = o.t / 0.25
-		_dot_ring(n, o.pos.round(), o.size * (0.3 + k), 1.0, Color(o.col, 1.0 - k), 3.0, 0.0)
+		_dot_ring(n, o.pos.round(), o.size * (0.3 + k), 1.0, o.col, 3.0, 0.0, 2 if k < 0.5 else 1)
 	var max_hp: float = _comp_max_hp()
 	for c in [paul] + comps:
 		if c != paul and c.level == 0:
@@ -3079,6 +3894,97 @@ func _draw_air() -> void:
 			n.draw_rect(Rect2(x + 4, zy, 3, 1), Color("9fb4e0"))
 			n.draw_rect(Rect2(x + 5, zy + 1, 1, 1), Color("9fb4e0"))
 			n.draw_rect(Rect2(x + 4, zy + 2, 3, 1), Color("9fb4e0"))
+
+
+## 流派規則的畫面：實心顏色、不用半透明
+func _draw_schools(n: Node2D) -> void:
+	# 講道：敵人頭上的信息（青色小方塊）
+	if _school_on("講道"):
+		for e in enemies:
+			var mc: int = int(e.get("msg", 0))
+			if mc <= 0 or e.dead:
+				continue
+			var ex: float = roundf(e.pos.x) - mc * 2.0
+			var ey: float = roundf(e.pos.y) - 20.0
+			for i in mc:
+				n.draw_rect(Rect2(ex + i * 4 - 1, ey - 1, 4, 4), Color("0c1e1c"))
+				n.draw_rect(Rect2(ex + i * 4, ey, 2, 2), TAG_COL["講道"])
+	# 被說服的敵人：頭上一個金色的光環
+	for e in enemies:
+		if float(e.get("ally", 0.0)) > 0.0 and not e.dead:
+			var hx: float = roundf(e.pos.x)
+			var hy: float = roundf(e.pos.y) - 21.0
+			n.draw_rect(Rect2(hx - 4, hy, 9, 1), C_GOLD)
+			n.draw_rect(Rect2(hx - 5, hy + 1, 1, 1), C_GOLD)
+			n.draw_rect(Rect2(hx + 5, hy + 1, 1, 1), C_GOLD)
+	# 門徒：小門徒（米白色的小人，快離開時閃爍）
+	for m in minions:
+		if m.life < 2.0 and int(t * 8.0) % 2 == 0:
+			continue
+		var mx: float = roundf(m.pos.x)
+		var my: float = roundf(m.pos.y) - (3.0 if m.hop > 0.0 else 0.0)
+		n.draw_rect(Rect2(mx - 3, my - 10, 7, 11), Color("2a1a10"))
+		n.draw_rect(Rect2(mx - 2, my - 6, 5, 6), Color("e8dcc0"))
+		n.draw_rect(Rect2(mx - 2, my - 6, 5, 1), Color("b89a6a"))
+		n.draw_rect(Rect2(mx - 1, my - 9, 3, 3), Color("e0a878"))
+		n.draw_rect(Rect2(mx - 1, my - 10, 3, 1), Color("5a3a20"))
+		if m.hop > 0.0:
+			n.draw_rect(Rect2(mx + 3, my - 7, 3, 1), C_CREAM)
+	# 詩歌：全場的詩歌（金色的同心圈＋飛出去的音符）
+	for sg in songs:
+		var k: float = sg.t / 0.9
+		var c0: Vector2 = sg.pos.round()
+		for j in 3:
+			var rr: float = 20.0 + (k * 260.0) - j * 26.0
+			if rr > 0.0:
+				n.draw_arc(c0, rr, 0.0, TAU, 64, [C_GOLD, C_CREAM, C_FLAME][j], 3.0 - j)
+		for j in 10:
+			var a := j * TAU / 10.0 + k * 1.5
+			var np: Vector2 = (c0 + Vector2(cos(a), sin(a) * 0.8) * (16.0 + k * 140.0)).round()
+			n.draw_rect(Rect2(np.x - 1, np.y - 1, 4, 3), Color("1a1008"))
+			n.draw_rect(Rect2(np.x, np.y, 2, 2), C_GOLD)
+			n.draw_rect(Rect2(np.x + 2, np.y - 5, 1, 6), C_GOLD)
+			n.draw_rect(Rect2(np.x + 2, np.y - 5, 2, 1), C_GOLD)
+	# 醫治：聖光（白綠色的十字光柱＋擴散的圈）
+	for hl in holies:
+		var k: float = hl.t / 0.7
+		var c1: Vector2 = hl.pos.round()
+		var w: float = 9.0 * (1.0 - k) + 2.0
+		n.draw_rect(Rect2(c1.x - w / 2.0 - 1, c1.y - 110, w + 2, 110), Color("1a3a1e"))
+		n.draw_rect(Rect2(c1.x - w / 2.0, c1.y - 110, w, 110), C_HEAL)
+		n.draw_rect(Rect2(c1.x - 1, c1.y - 110, 2, 110), Color.WHITE)
+		n.draw_rect(Rect2(c1.x - 14, c1.y - 30, 28, 4), C_HEAL)
+		n.draw_rect(Rect2(c1.x - 14, c1.y - 29, 28, 2), Color.WHITE)
+		n.draw_arc(c1, hl.r * minf(1.0, k * 2.0), 0.0, TAU, 48, C_HEAL, 3.0)
+		n.draw_arc(c1, hl.r * minf(1.0, k * 2.0) - 4.0, 0.0, TAU, 48, Color.WHITE, 1.0)
+	# 天降大雨：藍白色的雨線
+	if not rains.is_empty():
+		var v := _view_rect()
+		for i in 70:
+			var rx: float = v.position.x + _hash(i, 11) * v.size.x
+			var ry: float = v.position.y + fmod(_hash(i, 5) * v.size.y + t * 260.0, v.size.y)
+			n.draw_rect(Rect2(roundf(rx), roundf(ry), 1, 6), Color("8fd0ff"))
+			n.draw_rect(Rect2(roundf(rx), roundf(ry) + 4, 1, 2), Color.WHITE)
+	# 同行合擊的加倍：頭上一個橘色的小火焰
+	for k in bond_buff:
+		var bm := _member(k)
+		if not bm.is_empty():
+			var bx2: float = roundf(bm.pos.x)
+			var by2: float = roundf(bm.pos.y) - 27.0 - (int(t * 8.0) % 2)
+			n.draw_rect(Rect2(bx2 - 2, by2, 5, 4), Color("5a1a08"))
+			n.draw_rect(Rect2(bx2 - 1, by2, 3, 3), C_FLAME)
+			n.draw_rect(Rect2(bx2, by2 - 1, 1, 2), C_GOLD)
+	# 主角腳下：讚美（金）與恩膏（綠）的小量條
+	var bars := []
+	if _school_on("詩歌"):
+		bars.append([praise / maxf(1.0, _sv("詩歌", "praise_need")), C_GOLD])
+	if _school_on("醫治"):
+		bars.append([anoint / maxf(1.0, _sv("醫治", "anoint_need")), C_HEAL])
+	var px: float = roundf(paul.pos.x) - 8.0
+	var py: float = roundf(paul.pos.y) + 9.0
+	for i in bars.size():
+		n.draw_rect(Rect2(px - 1, py + i * 4 - 1, 18, 4), Color("0b080d"))
+		n.draw_rect(Rect2(px, py + i * 4, roundf(16.0 * clampf(bars[i][0], 0.0, 1.0)), 2), bars[i][1])
 
 
 # ---------- 寶箱與進化 ----------
@@ -3317,6 +4223,13 @@ func _make_tele(b: Dictionary) -> Array:
 					sum += c.pos
 					n += 1
 			out.append({"kind": "circle", "c": sum / n, "r": float(B.slam.radius), "dmg": float(B.slam.damage)})
+		"stars":
+			# 大紅龍：尾巴拖下天上的星辰（啟 12:4），落在主角附近一大片
+			var ST: Dictionary = B.get("stars", {"damage": 16, "count": 8, "radius": 18})
+			for i in int(ST.count):
+				var a := randf() * TAU
+				out.append({"kind": "circle", "c": paul.pos + Vector2(cos(a), sin(a) * 0.8) * (0.0 if i == 0 else randf_range(25.0, 95.0)),
+					"r": float(ST.radius), "dmg": float(ST.damage), "star": true})
 		"hunt":
 			# 懲罰分散：鎖定離保羅最遠的兩個同伴
 			var list := []
@@ -3392,7 +4305,7 @@ func _finish_run() -> Array:
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
 		"task_witness": task_witness, "lights": run_lights, "bread": int(run_bread * (1.0 + prov_bread)),
 		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
-		"combo": combo_best, "party_size": _party_count(), "endless": endless, "sets": sets_on.size(), "leader": leader,
+		"combo": combo_best, "party_size": _party_count(), "converts": run_converts, "minions": run_minions, "songs": run_songs, "holies": run_holies, "shocks": run_shocks, "bonds": run_bonds, "school": school_tier.values().max() if not school_tier.is_empty() else 0, "endless": endless, "sets": sets_on.size(), "leader": leader,
 		"trial_points": Save.trial_points(trials), "stage": stage.id,
 		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
@@ -3531,6 +4444,7 @@ func _smoke_tick() -> void:
 			if c.level > 0:
 				party.append("%s%d" % [c.key, c.level])
 		print("links fired=%d combo=%d best=%d" % [link_count, combo, combo_best])
+		print("bonds=%d " % run_bonds, "schools tier=%s converts=%d minions=%d(%d) songs=%d praise=%.0f holies=%d anoint=%.0f shocks=%d guard=%d trail=%d" % [school_tier, run_converts, run_minions, minions.size(), run_songs, praise, run_holies, anoint, run_shocks, guard, trail.size()])
 		print("t=%.1f hp=%.0f Lv=%d enemies=%d kills=%d fever=%.1f boss=%s party=%s fruits=%s armor=%s evo=%s" % [t, paul.hp, level, enemies.size(), kills, fever,
 			("%.0f/%s" % [boss.hp, boss.state]) if boss != null else "-", party, fruits, armor, evolved.keys()])
 	if smoke_shot != "" and fever > 0.0 and fever < D.fever.duration - 1.5 and not FileAccess.file_exists(smoke_shot.replace(".png", "_fever.png")):

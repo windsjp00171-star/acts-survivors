@@ -44,7 +44,7 @@
   },
   "_gifts說明": "恩賜樹（像暗黑破壞神 2 的技能樹）：六個流派各一棵，用餅學習。每個節點有 row（第幾層）、col（第幾欄）、req（要先學過哪些節點，至少 1 級）；tiers 是學第 row 層前，這棵樹至少要先點幾點。節點效果只作用在這個流派的同伴（主角也算）。names 與 refs（每個節點的經文出處）依 nodes 的順序。",
   "gifts": {
-    "tiers": [0, 3, 6, 10],
+    "tiers": [0, 3, 6, 10, 15],
     "nodes": [
       {"id": "dmg", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
       {"id": "speed", "row": 0, "col": 1, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +5%%／級"},
@@ -57,8 +57,8 @@
     ],
     "trees": {
       "講道": {
-        "names": ["務要傳道", "傳遍天下", "得時不得時", "道的鋒利", "雙刃的劍", "真光照亮", "駁倒謬論", "道的大能", "道成肉身"],
-        "refs": ["提後 4:2", "太 24:14", "提後 4:2", "來 4:12", "來 4:12", "約 1:9", "多 1:9", "西 3:16", "約 1:14"],
+        "names": ["務要傳道", "傳遍天下", "得時不得時", "道的鋒利", "雙刃的劍", "真光照亮", "駁倒謬論", "道的大能", "道成肉身", "傳開的道", "獨自傳道", "堅固信心"],
+        "refs": ["提後 4:2", "太 24:14", "提後 4:2", "來 4:12", "來 4:12", "約 1:9", "多 1:9", "西 3:16", "約 1:14", "徒 13:49", "徒 17:16", "徒 14:22"],
         "nodes": [
           {"id": "dmg", "kind": "dmg", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
           {"id": "area", "kind": "area", "row": 0, "col": 1, "per": 0.08, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴的範圍、射程 +8%%／級"},
@@ -68,13 +68,16 @@
           {"id": "expose", "kind": "expose", "row": 1, "col": 2, "per": 0.1, "max": 3, "cost": 40, "cost_step": 20, "req": ["speed"], "desc": "%s 同伴打中的敵人被照亮 2 秒：受到的傷害 +10%%／級"},
           {"id": "elite", "kind": "elite", "row": 2, "col": 0, "per": 0.12, "max": 3, "cost": 50, "cost_step": 25, "req": ["crit"], "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"},
           {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["expose"], "desc": "%s 專屬連結效果 +50%%／級"},
-          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["elite", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["elite", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"},
+          {"id": "rule_a", "kind": "mod", "row": 4, "col": 0, "per": 1, "max": 1, "cost": 70, "cost_step": 40, "req": ["elite"], "mod": {"convert_spread": 2}, "desc": "%s規則改寫：被說服的敵人打到的對象也會累積 2 層信息"},
+          {"id": "rule_key", "kind": "mod", "row": 4, "col": 1, "per": 1, "max": 1, "cost": 250, "cost_step": 0, "req": ["ult"], "mod": {"solo_講道": 1}, "desc": "%s規則改寫：講道的規則「說服」只要 1 人就啟動（之後每多 1 人照樣升級）"},
+          {"id": "rule_b", "kind": "mod", "row": 4, "col": 2, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["link"], "mod": {"convert_dur": 3}, "desc": "%s規則改寫：被說服的敵人多留 3 秒／級"}
         ],
         "ref": "提後 4:2"
       },
       "詩歌": {
-        "names": ["心被恩感", "歌聲遠揚", "對口唱和", "讚美的大能", "晨歌", "同心讚美", "和聲回響", "和聲相連", "新歌"],
-        "refs": ["西 3:16", "詩 96:1", "弗 5:19", "代下 20:22", "詩 59:16", "羅 15:6", "代下 5:13", "詩 133:1", "啟 5:9"],
+        "names": ["心被恩感", "歌聲遠揚", "對口唱和", "讚美的大能", "晨歌", "同心讚美", "和聲回響", "和聲相連", "新歌", "對口唱和", "獨自歌唱", "讚美的大能"],
+        "refs": ["西 3:16", "詩 96:1", "弗 5:19", "代下 20:22", "詩 59:16", "羅 15:6", "代下 5:13", "詩 133:1", "啟 5:9", "弗 5:19", "徒 16:25", "代下 20:22"],
         "nodes": [
           {"id": "area", "kind": "area", "row": 0, "col": 0, "per": 0.1, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴的範圍 +10%%／級"},
           {"id": "speed", "kind": "speed", "row": 0, "col": 1, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +5%%／級"},
@@ -84,13 +87,16 @@
           {"id": "meter", "kind": "meter", "row": 1, "col": 2, "per": 0.004, "max": 3, "cost": 40, "cost_step": 20, "req": ["dmg"], "desc": "%s 同伴每驅散一隻，同心合意 +0.4%%／級"},
           {"id": "returns", "kind": "stat", "row": 2, "col": 0, "per": 1, "max": 1, "cost": 80, "cost_step": 0, "req": ["stun"], "desc": "%s 同伴的聲波擴散到底會再收回來打一次", "stat": "returns", "add": 1},
           {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["meter"], "desc": "%s 專屬連結效果 +50%%／級"},
-          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["returns", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["returns", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"},
+          {"id": "rule_a", "kind": "mod", "row": 4, "col": 0, "per": 1, "max": 1, "cost": 70, "cost_step": 40, "req": ["stun"], "mod": {"offbeat": 1}, "desc": "%s規則改寫：第三拍也算重拍"},
+          {"id": "rule_key", "kind": "mod", "row": 4, "col": 1, "per": 1, "max": 1, "cost": 250, "cost_step": 0, "req": ["ult"], "mod": {"solo_詩歌": 1}, "desc": "%s規則改寫：詩歌的規則「節拍」只要 1 人就啟動（之後每多 1 人照樣升級）"},
+          {"id": "rule_b", "kind": "mod", "row": 4, "col": 2, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["link"], "mod": {"praise_boom_mult": 0.5}, "desc": "%s規則改寫：讚美滿時的全場詩歌傷害 +50%%／級"}
         ],
         "ref": "西 3:16"
       },
       "守護": {
-        "names": ["保守", "看顧", "庇蔭", "大能的盾", "預備的牆", "四圍的城牆", "彼此守望", "牆垣", "四圍的火城"],
-        "refs": ["詩 121:7", "詩 121:4", "詩 91:1", "詩 3:3", "結 22:30", "賽 26:1", "結 3:17", "賽 60:18", "亞 2:5"],
+        "names": ["保守", "看顧", "庇蔭", "大能的盾", "預備的牆", "四圍的城牆", "彼此守望", "牆垣", "四圍的火城", "同負一軛", "獨自守望", "以盾為劍"],
+        "refs": ["詩 121:7", "詩 121:4", "詩 91:1", "詩 3:3", "結 22:30", "賽 26:1", "結 3:17", "賽 60:18", "亞 2:5", "加 6:2", "結 33:7", "弗 6:16"],
         "nodes": [
           {"id": "dr", "kind": "dr", "row": 0, "col": 0, "per": 0.08, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "%s 同伴受到的傷害 -8%%／級"},
           {"id": "dmg", "kind": "dmg", "row": 0, "col": 1, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
@@ -100,13 +106,16 @@
           {"id": "guardcap", "kind": "guardcap", "row": 1, "col": 2, "per": 1, "max": 2, "cost": 60, "cost_step": 30, "req": ["area"], "desc": "主角的護盾上限 +1／級（全隊）"},
           {"id": "start", "kind": "start", "row": 2, "col": 0, "per": 1, "max": 1, "cost": 80, "cost_step": 0, "req": ["thorns"], "desc": "%s 同伴加入時直接是 Lv2"},
           {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["guardcap"], "desc": "%s 專屬連結效果 +50%%／級"},
-          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["start", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["start", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"},
+          {"id": "rule_a", "kind": "mod", "row": 4, "col": 0, "per": 1, "max": 1, "cost": 70, "cost_step": 40, "req": ["thorns"], "mod": {"yoke": 1}, "desc": "%s規則改寫：同伴被打時，用主角的一層護盾替他擋下"},
+          {"id": "rule_key", "kind": "mod", "row": 4, "col": 1, "per": 1, "max": 1, "cost": 250, "cost_step": 0, "req": ["ult"], "mod": {"solo_守護": 1}, "desc": "%s規則改寫：守護的規則「盾即是劍」只要 1 人就啟動（之後每多 1 人照樣升級）"},
+          {"id": "rule_b", "kind": "mod", "row": 4, "col": 2, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["link"], "mod": {"shield_sword": 0.08}, "desc": "%s規則改寫：主角與守護同伴：每 1 層護盾傷害 +8%%／級"}
         ],
         "ref": "詩 121:7"
       },
       "醫治": {
-        "names": ["裹傷", "按手", "抹油", "醫治的恩賜", "起來行走", "扶持軟弱", "彼此代求", "代求", "得醫治"],
-        "refs": ["路 10:34", "可 16:18", "雅 5:14", "林前 12:9", "徒 3:6", "帖前 5:14", "雅 5:16", "提前 2:1", "賽 53:5"],
+        "names": ["裹傷", "按手", "抹油", "醫治的恩賜", "起來行走", "扶持軟弱", "彼此代求", "代求", "得醫治", "彼此擔當", "獨自代禱", "福杯滿溢"],
+        "refs": ["路 10:34", "可 16:18", "雅 5:14", "林前 12:9", "徒 3:6", "帖前 5:14", "雅 5:16", "提前 2:1", "賽 53:5", "徒 9:39", "雅 5:16", "詩 23:5"],
         "nodes": [
           {"id": "heal", "kind": "healmul", "row": 0, "col": 0, "per": 0.15, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴的治療量 +15%%／級"},
           {"id": "speed", "kind": "speed", "row": 0, "col": 1, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴出手速度 +5%%／級"},
@@ -116,13 +125,16 @@
           {"id": "revive", "kind": "revive", "row": 1, "col": 2, "per": 0.12, "max": 3, "cost": 50, "cost_step": 25, "req": ["dr"], "desc": "倒下的同伴站起來的時間 -12%%／級（全隊）"},
           {"id": "linkcd", "kind": "linkcd", "row": 2, "col": 0, "per": 0.12, "max": 3, "cost": 40, "cost_step": 20, "req": ["leech"], "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"},
           {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["revive"], "desc": "%s 專屬連結效果 +50%%／級"},
-          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["linkcd", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["linkcd", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"},
+          {"id": "rule_a", "kind": "mod", "row": 4, "col": 0, "per": 1, "max": 1, "cost": 70, "cost_step": 40, "req": ["revive"], "mod": {"holy_garment": 1}, "desc": "%s規則改寫：聖光時全隊披上一件衣服（擋一次傷害）"},
+          {"id": "rule_key", "kind": "mod", "row": 4, "col": 1, "per": 1, "max": 1, "cost": 250, "cost_step": 0, "req": ["ult"], "mod": {"solo_醫治": 1}, "desc": "%s規則改寫：醫治的規則「滿溢」只要 1 人就啟動（之後每多 1 人照樣升級）"},
+          {"id": "rule_b", "kind": "mod", "row": 4, "col": 2, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["link"], "mod": {"anoint_bonus": 1}, "desc": "%s規則改寫：每次有人被治療，恩膏額外 +1／級"}
         ],
         "ref": "雅 5:16"
       },
       "差派": {
-        "names": ["我在這裡", "腳蹤佳美", "往普天下去", "兩個兩個", "勇往直前", "接力奔跑", "分頭出去", "不住地奔跑", "直到地極"],
-        "refs": ["賽 6:8", "羅 10:15", "可 16:15", "路 10:1", "腓 3:14", "來 12:1", "太 10:5", "林前 9:24", "徒 1:8"],
+        "names": ["我在這裡", "腳蹤佳美", "往普天下去", "兩個兩個", "勇往直前", "接力奔跑", "分頭出去", "不住地奔跑", "直到地極", "火焰的腳蹤", "獨自奔跑", "接力"],
+        "refs": ["賽 6:8", "羅 10:15", "可 16:15", "路 10:1", "腓 3:14", "來 12:1", "太 10:5", "林前 9:24", "徒 1:8", "徒 2:3", "林前 9:26", "來 12:1"],
         "nodes": [
           {"id": "speed", "kind": "speed", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +6%%／級"},
           {"id": "move", "kind": "move", "row": 0, "col": 1, "per": 0.04, "max": 3, "cost": 25, "cost_step": 15, "req": [], "desc": "主角移動速度 +4%%／級（全隊）"},
@@ -132,13 +144,16 @@
           {"id": "pierce", "kind": "stat", "row": 1, "col": 2, "per": 1, "max": 2, "cost": 50, "cost_step": 25, "req": ["dmg"], "desc": "%s 同伴的投射物多穿透 1 隻／級", "stat": "pierce", "add": 1},
           {"id": "linkcd", "kind": "linkcd", "row": 2, "col": 0, "per": 0.12, "max": 3, "cost": 40, "cost_step": 20, "req": ["count"], "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"},
           {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["combo"], "desc": "%s 專屬連結效果 +50%%／級"},
-          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["linkcd", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["linkcd", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"},
+          {"id": "rule_a", "kind": "mod", "row": 4, "col": 0, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["count"], "mod": {"trail_mult": 0.5}, "desc": "%s規則改寫：腳蹤傷害 +50%%／級"},
+          {"id": "rule_key", "kind": "mod", "row": 4, "col": 1, "per": 1, "max": 1, "cost": 250, "cost_step": 0, "req": ["ult"], "mod": {"solo_差派": 1}, "desc": "%s規則改寫：差派的規則「腳蹤」只要 1 人就啟動（之後每多 1 人照樣升級）"},
+          {"id": "rule_b", "kind": "mod", "row": 4, "col": 2, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["link"], "mod": {"relay": 0.15}, "desc": "%s規則改寫：站在腳蹤上的同伴攻擊加快 15%%／級"}
         ],
         "ref": "賽 6:8"
       },
       "門徒": {
-        "names": ["跟從", "撇下網", "蒙召", "剛強壯膽", "同負一軛", "得人如得魚", "彼此相愛", "彼此洗腳", "背起十字架"],
-        "refs": ["可 1:17", "可 1:18", "弗 4:1", "書 1:9", "太 11:29", "路 5:10", "約 13:34", "約 13:14", "路 9:23"],
+        "names": ["跟從", "撇下網", "蒙召", "剛強壯膽", "同負一軛", "得人如得魚", "彼此相愛", "彼此洗腳", "背起十字架", "兩個兩個", "獨自跟從", "同行"],
+        "refs": ["可 1:17", "可 1:18", "弗 4:1", "書 1:9", "太 11:29", "路 5:10", "約 13:34", "約 13:14", "路 9:23", "路 10:1", "可 10:21", "路 24:15"],
         "nodes": [
           {"id": "dmg", "kind": "dmg", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
           {"id": "speed", "kind": "speed", "row": 0, "col": 1, "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴攻擊速度 +5%%／級"},
@@ -148,7 +163,10 @@
           {"id": "loot", "kind": "loot", "row": 1, "col": 2, "per": 0.08, "max": 3, "cost": 40, "cost_step": 20, "req": ["xp"], "desc": "%s 同伴驅散的敵人有 8%%／級機率多掉一顆經驗"},
           {"id": "crit", "kind": "crit", "row": 2, "col": 0, "per": 0.06, "max": 3, "cost": 50, "cost_step": 25, "req": ["elite"], "desc": "%s 同伴每一擊有 6%%／級機率造成兩倍傷害"},
           {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["loot"], "desc": "%s 專屬連結效果 +50%%／級"},
-          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["crit", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"}
+          {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["crit", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"},
+          {"id": "rule_a", "kind": "mod", "row": 4, "col": 0, "per": 1, "max": 1, "cost": 70, "cost_step": 40, "req": ["loot"], "mod": {"minion_pair": 1}, "desc": "%s規則改寫：每次招來兩位小門徒"},
+          {"id": "rule_key", "kind": "mod", "row": 4, "col": 1, "per": 1, "max": 1, "cost": 250, "cost_step": 0, "req": ["ult"], "mod": {"solo_門徒": 1}, "desc": "%s規則改寫：門徒的規則「得人」只要 1 人就啟動（之後每多 1 人照樣升級）"},
+          {"id": "rule_b", "kind": "mod", "row": 4, "col": 2, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["link"], "mod": {"minion_life": 4}, "desc": "%s規則改寫：小門徒多留 4 秒／級"}
         ],
         "ref": "可 1:17"
       }
@@ -213,6 +231,14 @@
     {"id": "churches2", "name": "帖撒羅尼迦的信心", "desc": "建立 2 間教會", "stat": "churches", "min": 2, "unlock": "lydia", "group": "旅程", "witness": 80},
     {"id": "churches4", "name": "教會越來越多", "desc": "建立 4 間教會", "stat": "churches", "min": 4, "group": "旅程", "witness": 200, "bread": 50},
     {"id": "churches8", "name": "眾教會都問你們安", "desc": "八座城都建立教會（羅 16:16）", "stat": "churches", "min": 8, "group": "旅程", "witness": 300, "bread": 80},
+    {"id": "patmos", "name": "我必快來", "desc": "在拔摩海島勝過大紅龍（啟 22:20）", "stat": "churches", "min": 9, "group": "旅程", "witness": 400, "bread": 100},
+    {"id": "school3", "name": "同心合意", "desc": "一局裡讓一個流派規則升到 3 階（同流派 4 人）", "stat": "best_school", "min": 3, "group": "流派", "witness": 80},
+    {"id": "converts", "name": "信的人很多", "desc": "累計說服 100 個敵人（徒 17:4）", "stat": "converts", "min": 100, "group": "流派", "witness": 80, "bread": 20},
+    {"id": "minions", "name": "得人如得魚", "desc": "累計招來 50 位小門徒（路 5:10）", "stat": "minions", "min": 50, "group": "流派", "witness": 80, "bread": 20},
+    {"id": "songs", "name": "對口唱和", "desc": "累計唱出 20 次全場的詩歌（弗 5:19）", "stat": "songs", "min": 20, "group": "流派", "witness": 80, "bread": 20},
+    {"id": "holies", "name": "福杯滿溢", "desc": "累計放出 20 次聖光（詩 23:5）", "stat": "holies", "min": 20, "group": "流派", "witness": 80, "bread": 20},
+    {"id": "shocks", "name": "神是我的盾牌", "desc": "護盾累計擋下 50 次並反擊（詩 3:3）", "stat": "shocks", "min": 50, "group": "流派", "witness": 80, "bread": 20},
+    {"id": "bonds", "name": "兩個人總比一個人好", "desc": "累計發動 30 次同行合擊（傳 4:9）", "stat": "bonds", "min": 30, "group": "流派", "witness": 100, "bread": 30},
     {"id": "wins5", "name": "又打了一場美好的仗", "desc": "通關 5 次", "stat": "wins", "min": 5, "unlock": "armor_sword", "group": "旅程", "witness": 80},
     {"id": "wins20", "name": "常常得勝", "desc": "通關 20 次（林後 2:14）", "stat": "wins", "min": 20, "group": "旅程", "witness": 200},
     {"id": "runs30", "name": "走過的路", "desc": "累計出發 30 次", "stat": "runs", "min": 30, "group": "旅程", "witness": 80},

@@ -431,11 +431,91 @@ def boss_rome():
     c.save("boss_rome")
 
 
+# ---------- 拔摩海島（啟示錄） ----------
+def locust(c, f):
+    # 蝗蟲（啟 9:3–7）：金褐色的身體、透明翅膀快速拍動，頭上像戴著金冠
+    c.blob(10, 12, 5.5, 2.8, ("#4a3410", "#8a6420", "#c89a3a"), 0, 90)
+    c.blob(15, 11, 2.2, 2.2, ("#4a3410", "#8a6420", "#c89a3a"), 0, 91)
+    for x in (14, 15, 16):
+        c.px(x, 8, "#ffd75e")
+    c.px(16, 11, "#ff3a2a")
+    wy = 7 if f else 9
+    for i in range(6):
+        c.px(7 + i, wy - (i % 2), "#d8e0f0")
+        c.px(7 + i, wy + 1 - (i % 2), "#a8b4c8")
+    for i in range(3):
+        c.px(6 + i * 3, 15, "#4a3410")
+        c.px(5 + i * 3, 16, "#4a3410")
+    c.outline()
+
+
+def frog(c, f):
+    # 污靈（啟 16:13）：像青蛙的污穢的靈，黃綠色、鼓起的眼睛
+    y0 = 1 if f else 0
+    c.blob(10, 13 - y0, 6, 4.5, ("#2a3a14", "#4a6a1e", "#7a9a2e"), 0.1, 92)
+    for side in (-1, 1):
+        c.blob(10 + side * 3, 8 - y0, 1.8, 1.8, ("#c8c84a", "#e8e86a", "#ffffa0"), 0, 93)
+        c.px(10 + side * 3, 8 - y0, "#101008")
+        c.px(10 + side * 6, 16, "#2a3a14")
+        c.px(10 + side * 7, 17, "#2a3a14")
+    for x in range(7, 14):
+        c.px(x, 15 - y0, "#1a2408")
+    c.outline("#0e1406")
+
+
+def rider(col_dark, col_mid, col_light, accent, seed):
+    def fn(c, f):
+        # 騎士（啟 6:2–8）：馬身、騎在上面的人，手上拿著各自的東西
+        leg = 1 if f else 0
+        c.blob(10, 13, 6.5, 3.5, (col_dark, col_mid, col_light), 0, seed)
+        c.blob(16, 10, 2.5, 2.2, (col_dark, col_mid, col_light), 0, seed + 1)
+        for lx in (6, 8, 12, 14):
+            for yy in range(16, 20):
+                c.px(lx + (leg if lx in (6, 12) else -leg), yy, col_dark)
+        c.blob(9, 7, 2.2, 3, ("#2a2030", "#4a3a50", "#6a5a70"), 0, seed + 2)
+        c.blob(9, 3, 1.8, 1.8, ("#8a6040", "#c08a60", "#e0b080"), 0, seed + 3)
+        for i in range(5):
+            c.px(11 + i, 6 - i, accent)
+        c.px(17, 9, "#ff3a2a")
+        c.outline()
+    return fn
+
+
+def boss_patmos():
+    # 大紅龍（啟 12:3）：七個頭、十個角，尾巴拖下天上星辰的三分之一
+    c = Canvas(40, 40)
+    c.blob(20, 28, 12, 8, ("#5a0e10", "#9a1e1a", "#d0402a"), 0.1, 95)
+    for i in range(14):
+        c.px(30 + i * 0.6, 33 + math.sin(i * 0.7) * 2, "#9a1e1a")
+        c.px(30 + i * 0.6, 34 + math.sin(i * 0.7) * 2, "#5a0e10")
+    for i in range(7):
+        a = math.pi * (1.1 + i * 0.13)
+        nx, ny = 20 + math.cos(a) * 14, 22 + math.sin(a) * 14
+        for k in range(8):
+            c.px(20 + (nx - 20) * k / 8, 24 + (ny - 24) * k / 8, "#9a1e1a")
+            c.px(21 + (nx - 20) * k / 8, 24 + (ny - 24) * k / 8, "#5a0e10")
+        c.blob(nx, ny, 2.3, 2, ("#5a0e10", "#b02a20", "#e05a3a"), 0, 96 + i)
+        c.px(nx, ny, "#ffd75e")
+        c.px(nx - 1, ny - 2, "#e8dcc0")
+        if i % 2 == 0:
+            c.px(nx + 1, ny - 2, "#e8dcc0")
+            c.px(nx + 1, ny - 3, "#e8dcc0")
+    for x, y in [(4, 6), (8, 3), (34, 5), (37, 10), (2, 14)]:
+        c.px(x, y, "#fff4c2")
+    c.outline("#1a0406")
+    c.save("boss_patmos")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [("fear_b", fear_b), ("strife_b", strife_b), ("lies_b", lies_b), ("sleep_b", sleep_b),
                      ("riot", riot), ("pride", pride), ("sorcery", sorcery), ("terror", terror), ("apathy", apathy),
-                     ("idol", idol), ("curious", curious), ("accuser", accuser), ("viper", viper), ("power", power)]:
+                     ("idol", idol), ("curious", curious), ("accuser", accuser), ("viper", viper), ("power", power),
+                     ("locust", locust), ("frog", frog),
+                     ("rider_white", rider("#8a8a94", "#d0d0d8", "#ffffff", "#e8dcc0", 100)),
+                     ("rider_red", rider("#5a0e10", "#b02a20", "#e05a3a", "#e0e0f0", 104)),
+                     ("rider_black", rider("#0a0a10", "#22222c", "#3a3a48", "#c8a040", 108)),
+                     ("rider_pale", rider("#4a6a5a", "#8aaa96", "#c0d8c8", "#2a2030", 112))]:
         frames(name, fn)
     boss_athens()
     boss_jerusalem()
@@ -444,4 +524,5 @@ if __name__ == "__main__":
     boss_thessalonica()
     boss_corinth()
     boss_ephesus()
+    boss_patmos()
     print("done")

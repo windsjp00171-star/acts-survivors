@@ -131,6 +131,19 @@ def g_rome(x, y):
     return ["#4a4650", "#56525c", "#3e3a44"][int(t * 3)]
 
 
+def g_patmos(x, y):
+    # 拔摩海島：深灰褐色的火山岩地，岩縫間有一點點苔與海鹽
+    n = pnoise(x, y, 16, 20) * 0.6 + pnoise(x, y, 32, 21) * 0.4
+    crack = abs(pnoise(x, y, 8, 22) - 0.5) < 0.03
+    if crack:
+        return "#2e2a30"
+    if h(x, y, 23) > 0.992:
+        return "#e8e4dc"
+    if n > 0.66 and h(x, y, 24) > 0.6:
+        return "#5a6a3a"
+    return "#6a6068" if n > 0.55 else "#5a5058" if n > 0.4 else "#4c444c"
+
+
 # ---------- 物件 ----------
 class C:
     def __init__(self, w, h_):
@@ -306,10 +319,32 @@ def driftwood():
     c.save("driftwood")
 
 
+def crag(name, seed, w, h_):
+    # 拔摩的岩塊：深色火山岩，頂上一點白色鹽霜
+    c = C(w, h_)
+    c.oval(w / 2, h_ * 0.6, w / 2 - 1, h_ * 0.42, ("#2e2830", "#4a4250", "#6a6070"), seed, 0.15)
+    c.oval(w * 0.4, h_ * 0.35, w * 0.28, h_ * 0.3, ("#3a3440", "#5a5262", "#7a7084"), seed + 1, 0.1)
+    for i in range(4):
+        c.px(w * 0.3 + i * 2, h_ * 0.18 + (i % 2), "#e8e4dc")
+    c.outline("#141016")
+    c.save(name)
+
+
+def scroll_stone():
+    # 寫著字的石版（啟 1:11 你所看見的當寫在書上）
+    c = C(14, 18)
+    c.rect(2, 2, 10, 15, "#8a8478")
+    c.rect(3, 3, 8, 13, "#b8b2a4")
+    for yy in range(5, 15, 2):
+        c.rect(4, yy, 6 if yy % 4 else 4, 1, "#5a564c")
+    c.outline("#2a261e")
+    c.save("tablet")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [("thessalonica", g_thessalonica), ("corinth", g_corinth), ("ephesus", g_ephesus), ("athens", g_athens),
-                     ("jerusalem", g_jerusalem), ("malta", g_malta), ("rome", g_rome)]:
+                     ("jerusalem", g_jerusalem), ("malta", g_malta), ("rome", g_rome), ("patmos", g_patmos)]:
         ground(name, fn)
     column("column_1", 26)
     column("column_2", 26, broken=True)
@@ -326,4 +361,7 @@ if __name__ == "__main__":
     shell()
     pool()
     driftwood()
+    crag("crag_1", 50, 26, 20)
+    crag("crag_2", 53, 18, 14)
+    scroll_stone()
     print("done")

@@ -458,12 +458,29 @@ def rome():
                   taiko_a="B.......B.......", taiko_b="B...B...B...B.B.", frame="F.kkF.kkF.kkF.k.", extra=march)
 
 
+def patmos():
+    # 拔摩海島：B 弗里吉亞，神秘的異象：號筒（銅管）宣告、合唱長音、鼓像遠處的雷聲（啟 8:6 七位天使拿著七枝號）
+    motif = [(0, 2), (1, 1), (0, 1), (4, 2), (3, 1), (1, 1), (0, 1), (1, 1), (3, 1), (4, 1), (5, 2), (4, 2)]
+    answer = [(7, 1), (5, 1), (4, 2), (3, 1), (1, 1), (0, 2), (1, 1), (0, 1), (-1, 2), (0, 4)]
+
+    def vision(tr):
+        for bar in range(0, 16, 2):
+            for d in (0, 4):
+                tr.melody(choir, 59, "phrygian", [([0, 1, 5, 0][(bar // 2) % 4] + d, 8)], bar * 4, 0.45)
+            tr.put(bar * 4, drone(hz(47), tr.beat * 8), 0.5)
+        for bar in range(4, 16, 4):
+            for i in range(3):
+                tr.put(bar * 4 + i * 0.5, brass(hz(deg(59, "phrygian", 4)), tr.beat * 0.4), 0.7)
+    return battle(59, "phrygian", 112, [0, 1, 5, 0], motif, answer, lead=brass,
+                  taiko_a="B.......B...B...", taiko_b="B..B....B.BB..B.", frame="F...k...F...k.kk", extra=vision)
+
+
 if __name__ == "__main__":
     import sys
     os.makedirs(OUT, exist_ok=True)
     only = sys.argv[1:]   # 只產生指定的曲子：python tools/make_music.py athens rome
     for name, fn in [("camp", camp), ("philippi", philippi), ("thessalonica", thessalonica), ("corinth", corinth),
-                     ("ephesus", ephesus), ("athens", athens), ("jerusalem", jerusalem), ("malta", malta), ("rome", rome),
+                     ("ephesus", ephesus), ("athens", athens), ("jerusalem", jerusalem), ("malta", malta), ("rome", rome), ("patmos", patmos),
                      ("boss", boss), ("fever", fever)]:
         if only and name not in only:
             continue

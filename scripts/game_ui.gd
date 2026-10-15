@@ -437,9 +437,9 @@ func _draw_joy() -> void:
 
 # ---------- 升級卡 ----------
 const KIND_NAME := {"recruit": "新同伴", "up": "升級", "branch": "分支", "evolve": "進化", "fruit": "聖靈果子", "armor": "軍裝",
-	"epistle": "書信", "event": "事件", "link": "肢體連結", "link_up": "強化連結", "heal": "恩典", "grace_dmg": "恩典", "grace_spd": "恩典", "manna": "恩典"}
+	"epistle": "書信", "event": "事件", "school": "流派卡", "link": "肢體連結", "link_up": "強化連結", "heal": "恩典", "grace_dmg": "恩典", "grace_spd": "恩典", "manna": "恩典"}
 const KIND_COL := {"recruit": Color("7be08a"), "up": Color("4fd8ff"), "branch": Color("4fd8ff"), "evolve": Color("ffd75e"),
-	"fruit": Color("ff9ae0"), "armor": Color("c9a46b"), "epistle": Color("fff4c2"), "event": Color("c8a0ff"), "link": Color("ff8a2a"), "link_up": Color("ff8a2a")}
+	"fruit": Color("ff9ae0"), "armor": Color("c9a46b"), "epistle": Color("fff4c2"), "event": Color("c8a0ff"), "school": Color("ffd75e"), "link": Color("ff8a2a"), "link_up": Color("ff8a2a")}
 
 
 ## 一張升級卡的內容：左邊人物圖（有的話）、上面是種類標籤，再來標題、說明

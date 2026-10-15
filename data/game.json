@@ -268,6 +268,113 @@
       "fever": { "name": "一同領受", "short": "五旬節", "cooldown": 1.0, "global": true, "weight": 1, "desc": "開五旬節時，%s 立刻出手（徒 2:4）" }
     }
   },
+  "_music_bpm說明": "每首音樂的速度（要跟 tools/make_music.py 一致），詩歌的「節拍」用它對拍子。",
+  "music_bpm": {"philippi": 132, "thessalonica": 144, "athens": 126, "corinth": 136, "ephesus": 128, "jerusalem": 116, "malta": 140, "rome": 120, "boss": 150, "fever": 140},
+  "_bonds說明": "同行：兩位同伴都在隊伍裡、而且在 1.2 秒內先後出手，就會發動「合擊」（每組 cooldown 秒一次）。a 或 b 可以是主角。fx 是效果種類（寫在 main.gd 的 _bond_fx）。",
+  "bond_rules": {"window": 1.2, "cooldown": 14},
+  "bonds": [
+    {"a": "paul", "b": "silas", "name": "半夜唱詩", "ref": "徒 16:25–26", "fx": "quake", "desc": "地大震動：畫面上的敵人全部暈眩 1.5 秒並受到傷害"},
+    {"a": "paul", "b": "barn", "name": "分派出去", "ref": "徒 13:2–3", "fx": "haste", "desc": "全隊攻擊加快 40%，持續 5 秒，連擊 +3"},
+    {"a": "paul", "b": "tim", "name": "我真兒子", "ref": "提前 1:2", "fx": "empower", "desc": "提摩太的傷害與攻速加倍 6 秒"},
+    {"a": "paul", "b": "luke", "name": "親愛的醫生", "ref": "西 4:14", "fx": "care", "desc": "主角回滿血，得到 2 層護盾"},
+    {"a": "paul", "b": "lydia", "name": "請到我家來住", "ref": "徒 16:15", "fx": "bread", "desc": "地上冒出 6 個餅，全隊回 20 血"},
+    {"a": "peter", "b": "andrew", "name": "撒網打魚", "ref": "太 4:18–19", "fx": "pull", "desc": "把身邊一大圈的敵人拉到同一點並受到傷害"},
+    {"a": "peter", "b": "john", "name": "美門的瘸子", "ref": "徒 3:6–8", "fx": "raise", "desc": "倒下的同伴全部起來，全隊回 30 血"},
+    {"a": "peter", "b": "cornelius", "name": "外邦人也領受", "ref": "徒 10:44", "fx": "gentile", "desc": "身邊的敵人（菁英、Boss 除外）全部被說服，暫時幫你打"},
+    {"a": "peter", "b": "dorcas", "name": "大比大，起來", "ref": "徒 9:40", "fx": "garments", "desc": "全隊每人披上 2 件衣服（各擋一次傷害）"},
+    {"a": "moses", "b": "elijah", "name": "山上變像", "ref": "太 17:2–3", "fx": "pillars", "desc": "7 道榮光火柱落在敵人最多的地方"},
+    {"a": "moses", "b": "joshua", "name": "耶利哥城牆", "ref": "書 6:20", "fx": "walls", "desc": "號角一響，從主角爆出巨大的衝擊波，把敵人全部推開"},
+    {"a": "matthew", "b": "zacchaeus", "name": "稅吏的筵席", "ref": "路 5:29", "fx": "feast", "desc": "5 秒內打倒的敵人掉兩倍經驗，畫面上的敵人受到傷害"},
+    {"a": "stephen", "b": "philip", "name": "七位執事", "ref": "徒 6:3–5", "fx": "deacons", "desc": "從主角向四周射出 7 道光"},
+    {"a": "pri", "b": "apollos", "name": "詳細講解", "ref": "徒 18:26", "fx": "empower", "desc": "亞波羅的傷害與攻速加倍 6 秒"},
+    {"a": "barn", "b": "mark", "name": "再給一次機會", "ref": "徒 15:37–39", "fx": "empower", "desc": "馬可的傷害與攻速加倍 6 秒"},
+    {"a": "james", "b": "elijah", "name": "義人的禱告", "ref": "雅 5:16–18", "fx": "rain", "desc": "天降大雨：全隊回 25 血，敵人變慢 4 秒"},
+    {"a": "david", "b": "samson", "name": "以色列的勇士", "ref": "撒上 17:50", "fx": "giant", "desc": "對畫面上血最多的一隻敵人（含 Boss）造成重擊"},
+    {"a": "mary", "b": "john", "name": "看你的母親", "ref": "約 19:27", "fx": "care", "desc": "主角回滿血，得到 2 層護盾"},
+    {"a": "thomas", "b": "john", "name": "我的主，我的神", "ref": "約 20:28", "fx": "crit", "desc": "6 秒內全隊每一擊都是會心一擊（兩倍傷害）"},
+    {"a": "nicodemus", "b": "john", "name": "重生", "ref": "約 3:3", "fx": "rebirth", "desc": "同心合意 +40%"}
+  ],
+  "_schools說明": "流派規則：隊伍裡同流派有 2、3、4 人時，tiers 依序生效（主角也算）。cards 是升級時會出現的「流派卡」，mod 會改寫規則（數值是加上去的）。恩賜樹的 mod 節點也改同一組數值。",
+  "schools": {
+    "講道": {"name": "說服", "icon": "✦", "ref": "徒 17:4",
+      "desc": "講道同伴打中敵人會累積「信息」，滿了敵人被說服，變成金色、暫時幫你打",
+      "tiers": [
+        {"msg_need": 3, "convert_dur": 6},
+        {"msg_need": 2, "convert_dur": 8},
+        {"msg_need": 2, "convert_dur": 12}
+      ],
+      "cards": [
+        {"id": "boom", "name": "悔改的心", "ref": "徒 2:37", "desc": "被說服的敵人時間到時爆開，傷害身邊的敵人", "mod": {"convert_boom": 1}},
+        {"id": "spread", "name": "傳福音的人", "ref": "徒 8:4", "desc": "被說服的敵人打到的對象也會累積 2 層信息", "mod": {"convert_spread": 2}},
+        {"id": "many", "name": "眾人都信了", "ref": "徒 4:4", "desc": "說服需要的信息 -1", "mod": {"msg_need": -1}},
+        {"id": "elite", "name": "官長也聽道", "ref": "徒 13:12", "desc": "菁英也能被說服（需要的信息 ×3）", "mod": {"convert_elite": 1}}
+      ]},
+    "詩歌": {"name": "節拍", "icon": "♪", "ref": "詩 150:5",
+      "desc": "詩歌同伴只在拍子上出手；每小節第一拍是重拍，威力加倍並暈眩。打中敵人累積「讚美」，滿了全場一首詩歌",
+      "tiers": [
+        {"downbeat_mult": 1.8, "praise_need": 360},
+        {"downbeat_mult": 2.2, "praise_need": 300},
+        {"downbeat_mult": 2.6, "praise_need": 250}
+      ],
+      "cards": [
+        {"id": "offbeat", "name": "對口唱和", "ref": "弗 5:19", "desc": "第三拍也算重拍", "mod": {"offbeat": 1}},
+        {"id": "power", "name": "讚美的大能", "ref": "代下 20:22", "desc": "讚美滿時的全場詩歌傷害 ×2", "mod": {"praise_boom_mult": 1}},
+        {"id": "newsong", "name": "新歌", "ref": "詩 96:1", "desc": "全場詩歌後 5 秒，全隊攻擊加快 30%", "mod": {"newsong": 1}},
+        {"id": "choir", "name": "眾聲合一", "ref": "代下 5:13", "desc": "重拍時同心合意 +2%", "mod": {"downbeat_meter": 0.02}}
+      ]},
+    "守護": {"name": "盾即是劍", "icon": "◆", "ref": "詩 3:3",
+      "desc": "主角的護盾上限提高、會自己慢慢長回來；護盾擋下攻擊時放出衝擊波。獵手會改去追守護同伴",
+      "tiers": [
+        {"guard_bonus": 1, "regen_cd": 9, "shock_dmg": 8},
+        {"guard_bonus": 2, "regen_cd": 7, "shock_dmg": 12},
+        {"guard_bonus": 3, "regen_cd": 5, "shock_dmg": 18}
+      ],
+      "cards": [
+        {"id": "wide", "name": "盾牌反擊", "ref": "詩 18:2", "desc": "護盾衝擊波範圍 ×1.5", "mod": {"shock_area": 0.5}},
+        {"id": "sword", "name": "以盾為劍", "ref": "弗 6:16", "desc": "主角招式傷害 + 15% × 目前護盾層數", "mod": {"shield_sword": 0.15}},
+        {"id": "yoke", "name": "同負一軛", "ref": "加 6:2", "desc": "同伴被打時，用主角的一層護盾替他擋下", "mod": {"yoke": 1}},
+        {"id": "fort", "name": "堅固保障", "ref": "箴 18:10", "desc": "護盾長回來的間隔 -2 秒", "mod": {"regen_cd": -2}}
+      ]},
+    "醫治": {"name": "滿溢", "icon": "✚", "ref": "詩 23:5",
+      "desc": "治療到滿血後多出來的部分存成「恩膏」，滿了放出聖光：傷害身邊的敵人、全隊回血、扶起一位倒下的同伴",
+      "tiers": [
+        {"anoint_need": 120, "holy_dmg": 15},
+        {"anoint_need": 100, "holy_dmg": 22},
+        {"anoint_need": 80, "holy_dmg": 32}
+      ],
+      "cards": [
+        {"id": "bright", "name": "醫治的光", "ref": "瑪 4:2", "desc": "聖光的範圍與傷害 ×1.5", "mod": {"holy_mult": 0.5}},
+        {"id": "comfort", "name": "代求的力量", "ref": "雅 5:16", "desc": "每次有人被治療，恩膏額外 +1", "mod": {"anoint_bonus": 1}},
+        {"id": "cloth", "name": "彼此擔當", "ref": "徒 9:39", "desc": "聖光時全隊披上一件衣服（擋一次傷害）", "mod": {"holy_garment": 1}},
+        {"id": "rise", "name": "起來行走", "ref": "徒 3:6", "desc": "聖光扶起所有倒下的同伴", "mod": {"revive_all": 1}}
+      ]},
+    "差派": {"name": "腳蹤", "icon": "➤", "ref": "羅 10:15",
+      "desc": "主角移動時留下發光的腳蹤，敵人踩到會受傷、變慢；差派同伴在主角移動時攻擊更快，站著不動會變慢",
+      "tiers": [
+        {"trail_dmg": 3, "trail_every": 0.28, "move_haste": 0.3},
+        {"trail_dmg": 5, "trail_every": 0.22, "move_haste": 0.45},
+        {"trail_dmg": 8, "trail_every": 0.16, "move_haste": 0.6}
+      ],
+      "cards": [
+        {"id": "fire", "name": "火焰的腳蹤", "ref": "徒 2:3", "desc": "腳蹤傷害 ×2", "mod": {"trail_mult": 1}},
+        {"id": "long", "name": "傳開的福音", "ref": "帖前 1:8", "desc": "腳蹤留得更久（3 → 6 秒）", "mod": {"trail_life": 3}},
+        {"id": "relay", "name": "接力", "ref": "來 12:1", "desc": "站在腳蹤上的同伴攻擊加快 25%", "mod": {"relay": 0.25}},
+        {"id": "run", "name": "奔跑不倦", "ref": "賽 40:31", "desc": "主角移動速度 +15%", "mod": {"run": 0.15}}
+      ]},
+    "門徒": {"name": "得人", "icon": "☺", "ref": "可 1:17",
+      "desc": "門徒同伴打倒敵人時，有機會招來一位「小門徒」幫忙打一陣子",
+      "tiers": [
+        {"minion_chance": 0.08, "minion_cap": 4},
+        {"minion_chance": 0.12, "minion_cap": 6},
+        {"minion_chance": 0.16, "minion_cap": 8}
+      ],
+      "cards": [
+        {"id": "fish", "name": "得人如得魚", "ref": "路 5:10", "desc": "招來小門徒的機率 ×2", "mod": {"minion_chance_mult": 1}},
+        {"id": "pair", "name": "兩個兩個", "ref": "路 10:1", "desc": "每次招來兩位小門徒", "mod": {"minion_pair": 1}},
+        {"id": "stay", "name": "同行", "ref": "路 24:15", "desc": "小門徒留得更久（12 → 20 秒）", "mod": {"minion_life": 8}},
+        {"id": "follow", "name": "效法", "ref": "林前 11:1", "desc": "小門徒的傷害加倍", "mod": {"minion_dmg_mult": 1}}
+      ]}
+  },
   "_tag_links說明": "流派專屬連結：連結觸發時，除了讓被連到的人出手，還會依他的流派多一個效果。恩賜樹的「連結」節點會加強效果（strength）；樹底的終極恩賜讓這個效果在他自己出手時也觸發，每 ult_cooldown 秒一次。",
   "tag_links": {
     "ult_cooldown": 3.0,
@@ -295,7 +402,9 @@
     "elite":  { "text": "菁英出現了：比較硬，打倒會掉寶箱" },
     "chest":  { "text": "寶箱掉出來了，走過去就會打開" },
     "boss":   { "text": "Boss 快來了！看到紅色預警範圍要先躲開" },
-    "event":  { "text": "旅程中會遇到使徒行傳裡的事件：二選一，各有好處和代價" }
+    "event":  { "text": "旅程中會遇到使徒行傳裡的事件：二選一，各有好處和代價" },
+    "bond": { "text": "同行合擊！有些同伴是聖經裡的好搭檔：兩人都在隊伍裡、前後腳出手，就會發動合擊。營地的名冊裡看得到誰跟誰是搭檔" },
+    "school": { "text": "流派規則啟動了！同流派的同伴湊到 2 人，就會打開這個流派專屬的玩法；湊到 3、4 人會再升級。升級時會出現改寫規則的「流派卡」" }
   },
   "_endless說明": "無盡模式：建立 unlock_churches 間教會後，在出發頁可以打開。7:00 的 Boss 打倒後不會結束；from 秒之後敵人每分鐘血量、傷害、出怪速度依 growth 複利成長，Boss 每 boss_every 秒再來一次、每次血量多 boss_growth。撐越久見證越多，不會變成發呆割草。",
   "endless": { "unlock_churches": 3, "from": 420, "growth": { "hp": 0.28, "damage": 0.12, "speed": 0.03, "spawn": 0.1 },
@@ -319,7 +428,7 @@
   },
   "_synergy說明": "同工：同一個流派（tag）的同伴有 2 位、3 位以上時，他們的攻擊速度加成。",
   "_synergy_damage說明": "技能協同（像暗黑破壞神 2）：同流派的其他同伴每 1 級，傷害 +per_level_damage。",
-  "synergy": { "bonus": { "2": 0.25, "3": 0.5 }, "per_level_damage": 0.03 },
+  "synergy": { "bonus": {}, "per_level_damage": 0.03 },
   "_evolutions說明": "同伴滿級（Lv5）且拿到指定果子後，下一個寶箱會進化。有 every 的是定時全畫面地震；有 stats 的是直接覆蓋招式數值。",
   "evolutions": [
     { "companion": "paul", "fruit": "faith", "name": "美好的仗",
@@ -379,7 +488,16 @@
   ],
   "elites": {
     "terror": { "name": "恐嚇", "sprite": "terror", "scale": 2.2, "tint": [1.0, 1.0, 1.0], "hp": 70, "speed": 18, "damage": 8,
-                "roar_every": 5, "roar_radius": 70, "roar_force": 140, "chest": true }
+                "roar_every": 5, "roar_radius": 70, "roar_force": 140, "chest": true },
+    "_騎士說明": "拔摩海島的四騎士（啟 6:2–8）：白馬射箭、紅馬衝刺、黑馬碰到時吸走同心合意（天平）、灰馬一直召來蝗蟲。",
+    "rider_white": { "name": "白馬騎士", "sprite": "rider_white", "scale": 1.8, "tint": [1, 1, 1], "hp": 80, "speed": 16, "damage": 8, "chest": true,
+                     "shoot": { "every": 1.6, "range": 150, "speed": 90, "damage": 6, "keep_away": 70 } },
+    "rider_red":   { "name": "紅馬騎士", "sprite": "rider_red", "scale": 1.8, "tint": [1, 1, 1], "hp": 90, "speed": 20, "damage": 10, "chest": true,
+                     "dash": { "every": 3.0, "time": 0.6, "mult": 4.0 } },
+    "rider_black": { "name": "黑馬騎士", "sprite": "rider_black", "scale": 1.8, "tint": [1, 1, 1], "hp": 90, "speed": 18, "damage": 7, "chest": true,
+                     "drain": 0.25 },
+    "rider_pale":  { "name": "灰馬騎士", "sprite": "rider_pale", "scale": 1.8, "tint": [1, 1, 1], "hp": 80, "speed": 14, "damage": 8, "chest": true,
+                     "summon": { "type": "locust", "every": 4.0, "count": 4 } }
   },
   "trials": {
     "_說明": "考驗型敵人：系統看你最強的流派，派出剋它的。目前只有冷漠（剋詩歌流）。",
@@ -436,7 +554,9 @@
     "accuser": { "name": "誣告", "hp": 5, "speed": 15, "damage": 6, "scatter": 50, "dies_on_touch": false, "from": 0, "weight": 0,
                 "dash": { "every": 4.0, "mult": 3.5, "time": 0.4 } },
     "viper":   { "name": "毒蛇", "hp": 2, "speed": 30, "damage": 4, "scatter": 30, "dies_on_touch": true, "from": 0, "weight": 0 },
-    "power":   { "name": "權勢", "hp": 12, "speed": 9, "damage": 7, "scatter": 70, "dies_on_touch": false, "from": 0, "weight": 0, "scale": 1.15 }
+    "power":   { "name": "權勢", "hp": 12, "speed": 9, "damage": 7, "scatter": 70, "dies_on_touch": false, "from": 0, "weight": 0, "scale": 1.15 },
+    "locust":  { "name": "蝗蟲", "hp": 3, "speed": 62, "damage": 5, "scatter": 30, "dies_on_touch": true, "from": 0, "weight": 0, "swarm": true },
+    "frog":    { "name": "污靈", "hp": 9, "speed": 24, "damage": 6, "scatter": 40, "dies_on_touch": false, "from": 0, "weight": 0, "hop": { "every": 1.3, "time": 0.32, "mult": 4.5 } }
   },
   "waves": {
     "_說明": "curve 每列是 [秒數, 場上目標隻數, 每群間隔秒數]，中間線性內插。照設計文件的一座城節奏：開局 → 成形 → 菁英潮高峰 → 喘息 → Boss 前再升高。超過最後一列就維持最後一列。",

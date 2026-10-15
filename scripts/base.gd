@@ -436,6 +436,12 @@ func _show_companion(key: String) -> void:
 		if evo.companion == key:
 			_text(v, "進化「%s」：滿級＋果子「%s」" % [evo.name, G.fruits[evo.fruit].name], 12, UIKit.GOLD, true)
 			_text(v, evo.desc, 11, UIKit.MUTED, true)
+	# 同行合擊：跟誰是聖經裡的搭檔
+	for B in G.get("bonds", []):
+		if B.a == key or B.b == key:
+			var mate: String = B.b if B.a == key else B.a
+			var mname: String = "保羅" if mate == "paul" else _display_name(_comp_def(mate))
+			_text(v, "同行・與%s「%s」（%s）：%s" % [mname, B.name, B.ref, B.desc], 11, UIKit.SKY, true)
 	if not unlocked:
 		_text(content, "尚未加入：" + _lock_hint(key), 13, UIKit.CREAM, true)
 	else:
@@ -673,7 +679,7 @@ func _show_gifts() -> void:
 	var cw := 104.0 if portrait else 100.0
 	var ch := 84.0
 	var canvas := Control.new()
-	canvas.custom_minimum_size = Vector2(cw * 3, ch * 4)
+	canvas.custom_minimum_size = Vector2(cw * 3, ch * GF.tiers.size())
 	canvas.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if portrait:
 		area.add_child(side)
@@ -757,6 +763,11 @@ func _show_gifts() -> void:
 				Sfx.play("pick", 0.0)
 				_show_gifts())
 		h.add_child(bb)
+	var SR: Dictionary = G.get("schools", {}).get(gift_tag, {})
+	if not SR.is_empty():
+		# 流派規則：隊伍裡同流派 2 人啟動，3、4 人升級；第 5 層的節點會改寫規則
+		_text(side, "流派規則「%s」（%s）" % [SR.name, SR.ref], 13, UIKit.GOLD)
+		_text(side, SR.desc + "。隊伍裡同流派 2 人啟動，3 人、4 人再升級（主角也算）。第 5 層的節點會改寫這條規則。", 11, UIKit.INK, true)
 	_text(side, "這個流派：" + "、".join(members), 11, UIKit.MUTED, true)
 	_text(side, "（%s）" % tree.ref, 11, UIKit.MUTED)
 
