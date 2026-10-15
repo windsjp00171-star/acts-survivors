@@ -98,6 +98,12 @@ var links: Array = []     # 肢體連結：{src, dst, kind, cd}
 var link_queue: Array = []
 var link_fx: Array = []
 var link_count := 0       # 本局觸發次數
+var combo := 0            # 連擊：短時間內連續觸發的次數
+var combo_t := 0.0
+var combo_best := 0
+var combo_tier := 0       # 這一串連擊已經共鳴到第幾層
+var resonances: Array = []  # 共鳴衝擊波（畫面效果）
+var sparks: Array = []    # 命中火花
 var build_text := ""      # HUD 左側：同工與肢體連結
 var run_tasks: Array = [] # 旅程任務：{def, done, failed}
 var shots: Array = []
@@ -570,8 +576,12 @@ func _apply_card(card: Dictionary) -> void:
 		epistles[card.key] = true
 	elif card.kind == "evolve":
 		_evolve(_evo_of(card.key))
+	elif card.kind == "link_up":
+		var L: Dictionary = links[int(card.key)]
+		L.lv = int(L.get("lv", 1)) + 1
+		_ring_pop(L.dst.pos + Vector2(0, -8), C_GOLD, 30.0)
 	elif card.kind == "link":
-		links.append({"src": by_key[card.src], "dst": by_key[card.dst], "kind": card.key, "cd": 0.0})
+		links.append({"src": by_key[card.src], "dst": by_key[card.dst], "kind": card.key, "cd": 0.0, "lv": 1})
 		ui.show_banner("肢體連結！", 1.2)
 	else:
 		paul.hp = minf(D.paul.hp, paul.hp + D.leveling.heal_card)
@@ -629,7 +639,8 @@ func _refresh_build_text() -> void:
 		lines.append("分支　" + "、".join(brs))
 	for L in links:
 		var K: Dictionary = D.links.kinds[L.kind]
-		lines.append("連結　%s" % (("受傷→" + L.dst.name) if L.kind == "hurt" else (L.src.name + "→" + L.dst.name + "（" + K.short + "）")))
+		var lvs := "" if int(L.get("lv", 1)) == 1 else " Lv%d" % int(L.lv)
+		lines.append("連結　%s%s" % [(("受傷→" if L.kind == "hurt" else "治療→") + L.dst.name) if L.kind in ["hurt", "heal"] else (L.src.name + "→" + L.dst.name + "（" + K.short + "）"), lvs])
 	build_text = "\n".join(lines)
 
 
@@ -658,7 +669,8 @@ func _on_card(i: int) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		if over and (event.keycode == KEY_ENTER or event.keycode == KEY_SPACE):
-			get_tree().reload_current_scene()
+			# 通關：回營地；失敗：再出發
+			_leave("res://scenes/base.tscn" if won else "res://scenes/main.tscn")
 			return
 		if not over and (event.keycode == KEY_ESCAPE or event.keycode == KEY_P):
 			_set_paused(not paused)
@@ -837,6 +849,8 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if from != Vector2.INF:
 		e.knock += (e.pos - from).normalized() * 40.0
 	_burst(e.pos, 2, C_CREAM, C_GOLD)
+	if sparks.size() < 120:
+		sparks.append({"pos": e.pos + Vector2(randf_range(-3, 3), randf_range(-8, -2)), "t": 0.0})
 	if e.hp <= 0:
 		_kill(e, true, src)
 
@@ -873,8 +887,11 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 				_spawn_one(e.d.split_into, e.pos + Vector2(randf_range(-8, 8), randf_range(-6, 6)))
 		if e.get("boss", false):
 			_win()
-		_burst(e.pos, 9, C_GOLD if fever > 0.0 else C_VL, C_CREAM)
+		_burst(e.pos, 6, C_GOLD if fever > 0.0 else C_VL, C_CREAM)
 		_ring_pop(e.pos, C_CREAM, 9.0)
+		# 被驅散的化成光點往上飄
+		for i in (6 if e.get("vet", false) or e.get("elite", false) else 3):
+			_mote(e.pos + Vector2(0, -4), C_GOLD)
 		if fever > 0.0:
 			fever_kills += 1
 			if fever_kills % int(D.fever.extend_every_kills) == 0:
@@ -1087,6 +1104,18 @@ func _step(dt: float) -> void:
 	for f in link_fx:
 		f.t += dt
 	link_fx = link_fx.filter(func(f): return f.t < 0.6)
+	if combo > 0:
+		combo_t -= dt
+		if combo_t <= 0.0:
+			combo = 0
+			combo_tier = 0
+	for rz in resonances:
+		rz.r += 330.0 * dt
+		for e in enemies:
+			if not e.dead and not rz.hit.has(e.node) and e.pos.distance_to(rz.pos) < rz.r:
+				rz.hit[e.node] = true
+				_hurt(e, rz.dmg, rz.pos)
+	resonances = resonances.filter(func(rz): return rz.r < 260.0)
 
 	var ew: Dictionary = D.elite_wave
 	var peak: bool = t >= ew.peak_from and t < ew.peak_to
@@ -1156,13 +1185,19 @@ func _step(dt: float) -> void:
 
 	for q in parts:
 		q.pos += q.vel * dt
-		q.vel *= 0.92
-		q.vel.y += 30.0 * dt
+		if q.get("float", false):
+			q.vel *= 0.97
+		else:
+			q.vel *= 0.92
+			q.vel.y += 30.0 * dt
 		q.life -= dt
 	parts = parts.filter(func(q): return q.life > 0.0)
 	for o in pops:
 		o.t += dt
 	pops = pops.filter(func(o): return o.t < 0.25)
+	for sp in sparks:
+		sp.t += dt
+	sparks = sparks.filter(func(sp): return sp.t < 0.12)
 
 	chunk_timer -= dt
 	if chunk_timer <= 0.0:
@@ -1221,6 +1256,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 				_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 64.0)
 			Sfx.play("heal", 0.0)
 			_ring_pop(paul.pos + Vector2(0, -8), C_HEAL, 14.0)
+			_fire_links("heal", null, depth)
 			for o in comps:
 				if o.level == 0:
 					continue
@@ -1355,9 +1391,9 @@ func _fire_links(kind: String, src, depth: int) -> void:
 	for L in links:
 		if L.kind != kind or L.cd > 0.0:
 			continue
-		if kind != "hurt" and L.src != src:
+		if kind != "hurt" and kind != "heal" and L.src != src:
 			continue
-		L.cd = float(D.links.kinds[kind].cooldown)
+		L.cd = float(D.links.kinds[kind].cooldown) * float(D.links.levels.cooldown_mult[int(L.get("lv", 1)) - 1])
 		link_queue.append({"L": L, "depth": depth + 1})
 
 
@@ -1369,15 +1405,64 @@ func _run_link_queue() -> void:
 		var L: Dictionary = q.L
 		if not _active(L.dst):
 			continue
-		var from: Vector2 = paul.pos if L.kind == "hurt" else L.src.pos
+		var from: Vector2 = paul.pos if L.kind in ["hurt", "heal"] else L.src.pos
 		if _cast(L.dst, true, q.depth):
 			link_count += 1
 			Sfx.play("link%d" % mini(q.depth, 3), 0.02)
 			link_fx.append({"a": from + Vector2(0, -8), "b": L.dst, "t": 0.0, "depth": q.depth})
 			_ring_pop(L.dst.pos + Vector2(0, -8), C_GOLD, 12.0 + q.depth * 5.0)
+			# 沿著連線灑一串光點
+			for i in 5:
+				var pt: Vector2 = from.lerp(L.dst.pos, i / 4.0) + Vector2(0, -8)
+				_mote(pt, C_GOLD if q.depth < 2 else C_FLAME)
+			if int(L.get("lv", 1)) >= int(D.links.levels.double_at):
+				delayed.append({"t": 0.15, "fn": _cast.bind(L.dst, true, int(D.links.max_depth))})
+			_combo_add()
+
+
+## 連擊與共鳴
+func _combo_add() -> void:
+	var C: Dictionary = D.links.combo
+	combo += 1
+	combo_t = float(C.window)
+	combo_best = maxi(combo_best, combo)
+	var ths: Array = C.thresholds
+	if combo_tier < ths.size() and combo >= int(ths[combo_tier]):
+		_resonance(combo_tier)
+		combo_tier += 1
+
+
+func _resonance(tier: int) -> void:
+	var C: Dictionary = D.links.combo
+	var dmg: float = float(C.damage[tier])
+	resonances.append({"pos": paul.pos + Vector2(0, -6), "r": 0.0, "tier": tier, "hit": {}, "dmg": dmg})
+	if fever <= 0.0:
+		meter = minf(1.0, meter + float(C.meter))
+	ui.show_banner(["共鳴！", "再次共鳴！", "大共鳴！", "滿溢的共鳴！"][mini(tier, 3)], 1.4)
+	ui.do_flash(0.35 + tier * 0.1)
+	shake = maxf(shake, 0.25 + tier * 0.08)
+	Sfx.play("burst", 0.0)
+	Sfx.buzz(60 + tier * 30)
+
+
+## 往上飄的光點（驅散、連鎖都會用到）
+func _mote(at: Vector2, col: Color) -> void:
+	if parts.size() < 700:
+		parts.append({"pos": at + Vector2(randf_range(-3, 3), randf_range(-3, 3)), "vel": Vector2(randf_range(-8, 8), randf_range(-30, -12)),
+			"life": 0.7 + randf() * 0.5, "max": 1.2, "c1": Color.WHITE, "c2": col, "float": true})
 
 
 func _link_card() -> Dictionary:
+	# 已經有連結時，有機會出現「強化連結」
+	var upgradable := links.filter(func(L): return int(L.get("lv", 1)) < int(D.links.levels.max))
+	if not upgradable.is_empty() and (links.size() >= int(D.links.max_links) or randf() < 0.4):
+		var L: Dictionary = upgradable[randi() % upgradable.size()]
+		var lv: int = int(L.get("lv", 1))
+		var K0: Dictionary = D.links.kinds[L.kind]
+		var what := "觸發間隔縮短" if lv + 1 < int(D.links.levels.double_at) else "觸發時連出兩次"
+		var who: String = ("受傷→" if L.kind == "hurt" else ("治療→" if L.kind == "heal" else L.src.name + "→")) + L.dst.name
+		return {"kind": "link_up", "key": str(links.find(L)), "tag": "肢體", "title": "強化連結：%s　Lv%d → %d" % [K0.name, lv, lv + 1],
+			"desc": "%s\n%s" % [who, what]}
 	var cands := []
 	for c in comps:
 		if c.level > 0 and c.engine != "" and c.follows == "":
@@ -1390,7 +1475,7 @@ func _link_card() -> Dictionary:
 	var a: Dictionary = cands[0]
 	var b: Dictionary = cands[1]
 	var K: Dictionary = D.links.kinds[kind]
-	var desc: String = K.desc % ([b.name] if kind == "hurt" else [a.name, b.name])
+	var desc: String = K.desc % ([b.name] if kind in ["hurt", "heal"] else [a.name, b.name])
 	return {"kind": "link", "key": kind, "src": a.key, "dst": b.key, "tag": "肢體",
 		"title": "肢體連結：" + K.name, "desc": desc}
 
@@ -1867,7 +1952,7 @@ func _render(dt: float) -> void:
 			ui.place_name(c.name, ct * c.pos, c.level > 0 and not over and not choosing)
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
-		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text()})
+		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text(), "combo": combo, "combo_t": combo_t})
 
 
 ## 光的身影：沒有臉，只有光的輪廓，站在保羅身邊
@@ -2067,6 +2152,7 @@ func _draw_air() -> void:
 			var tip: Vector2 = f.a.lerp(to, minf(1.0, f.t / 0.08))
 			n.draw_line(f.a, tip, Color(C_FLAME if f.depth >= 2 else C_GOLD, a * 0.8), 2.0 + f.depth)
 			n.draw_line(f.a, tip, Color(C_CREAM, a), 1.0)
+			n.draw_circle(tip, 3.0 + f.depth * 1.5, Color(C_GOLD, a * 0.5))
 			n.draw_circle(tip, 2.0 + f.depth, Color(C_CREAM, a))
 		if f.depth >= 2:
 			var k: float = f.t / 0.6
@@ -2119,7 +2205,27 @@ func _draw_air() -> void:
 		n.draw_rect(Rect2(x - 2, y, 5, 1), C_HEAL)
 		n.draw_rect(Rect2(x, y - 2, 1, 5), C_HEAL)
 	for q in parts:
-		n.draw_rect(Rect2(roundf(q.pos.x), roundf(q.pos.y), 1, 1), q.c1 if q.life > q.max * 0.5 else q.c2)
+		var qc: Color = q.c1 if q.life > q.max * 0.5 else q.c2
+		if q.get("float", false):
+			var a: float = clampf(q.life / 0.4, 0.0, 1.0)
+			n.draw_rect(Rect2(roundf(q.pos.x) - 1, roundf(q.pos.y), 3, 1), Color(qc, a * 0.6))
+			n.draw_rect(Rect2(roundf(q.pos.x), roundf(q.pos.y) - 1, 1, 3), Color(qc, a))
+		else:
+			n.draw_rect(Rect2(roundf(q.pos.x), roundf(q.pos.y), 1, 1), qc)
+	for sp in sparks:
+		var sa: float = 1.0 - sp.t / 0.12
+		var sx: float = roundf(sp.pos.x)
+		var sy: float = roundf(sp.pos.y)
+		n.draw_rect(Rect2(sx - 2, sy, 5, 1), Color(Color.WHITE, sa))
+		n.draw_rect(Rect2(sx, sy - 2, 1, 5), Color(Color.WHITE, sa))
+		n.draw_rect(Rect2(sx - 1, sy - 1, 3, 3), Color(C_GOLD, sa * 0.8))
+	for rz in resonances:
+		var ra: float = 1.0 - rz.r / 260.0
+		var rcol: Color = [C_GOLD, C_FLAME, Color("ff6ad5"), Color.WHITE][mini(rz.tier, 3)]
+		n.draw_arc(rz.pos, rz.r, 0.0, TAU, 64, Color(rcol, ra), 3.0 + rz.tier)
+		n.draw_arc(rz.pos, rz.r * 0.85, 0.0, TAU, 64, Color(C_CREAM, ra * 0.7), 1.0)
+		if rz.r < 60.0:
+			n.draw_rect(Rect2(rz.pos.x - 4 - rz.tier, rz.pos.y - 120, 9 + rz.tier * 2, 120), Color(C_CREAM, ra * 0.5))
 	for o in pops:
 		var k: float = o.t / 0.25
 		_dot_ring(n, o.pos.round(), o.size * (0.3 + k), 1.0, Color(o.col, 1.0 - k), 3.0, 0.0)
@@ -2493,7 +2599,7 @@ func _win() -> void:
 		if stage_i + 1 < all.size():
 			nxt = "　下一站：" + all[stage_i + 1].name
 		lines.append(["解鎖書信卡「%s」%s" % [stage.epistle.name, nxt], 12, C_HEAL])
-	ui.show_game_over(lines + _finish_run(), "再走一次")
+	ui.show_game_over(lines + _finish_run(), "再走一次", true)
 
 
 # ---------- 失敗 ----------
@@ -2550,6 +2656,8 @@ func _smoke_tick() -> void:
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_tele.png"))
 	if smoke_shot != "" and not quakes.is_empty() and not FileAccess.file_exists(smoke_shot.replace(".png", "_quake.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_quake.png"))
+	if smoke_shot != "" and resonances.any(func(rz): return rz.r > 40.0 and rz.r < 90.0) and not FileAccess.file_exists(smoke_shot.replace(".png", "_reso.png")):
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_reso.png"))
 	if smoke_shot != "" and link_fx.any(func(f): return f.depth >= 2 and f.t > 0.05 and f.t < 0.15) and not FileAccess.file_exists(smoke_shot.replace(".png", "_link.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_link.png"))
 	if choosing and smoke_frames % 20 == 0:
@@ -2564,7 +2672,7 @@ func _smoke_tick() -> void:
 		for c in comps:
 			if c.level > 0:
 				party.append("%s%d" % [c.key, c.level])
-		print("links fired=%d" % link_count)
+		print("links fired=%d combo=%d best=%d" % [link_count, combo, combo_best])
 		print("t=%.1f hp=%.0f Lv=%d enemies=%d kills=%d fever=%.1f boss=%s party=%s fruits=%s armor=%s evo=%s" % [t, paul.hp, level, enemies.size(), kills, fever,
 			("%.0f/%s" % [boss.hp, boss.state]) if boss != null else "-", party, fruits, armor, evolved.keys()])
 	if smoke_shot != "" and fever > 0.0 and fever < D.fever.duration - 1.5 and not FileAccess.file_exists(smoke_shot.replace(".png", "_fever.png")):

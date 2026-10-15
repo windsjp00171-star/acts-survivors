@@ -166,6 +166,9 @@ func vp() -> Vector2:
 
 # ---------- 每幀更新 ----------
 var build_label: Label
+var combo_label: Label
+var combo_last := 0
+var combo_pop := 0.0
 var pause_btn: Button
 var pause_box: Control
 var task_label: Label
@@ -205,6 +208,25 @@ func update_hud(st: Dictionary) -> void:
 	fever_btn.visible = st.meter >= 1.0 and not fever_on and not st.over and not st.choosing
 	fever_btn.position = Vector2(roundf((size.x - fever_btn.size.x) / 2.0), my - 54.0)
 	tint.color.a = 0.14 if fever_on else 0.0
+	# 連鎖連擊：3 以上才顯示，越高顏色越熱，每次增加會跳一下
+	if combo_label == null:
+		combo_label = label("", 20, C_GOLD)
+		combo_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var cb: int = st.get("combo", 0)
+	if cb > combo_last:
+		combo_pop = 1.0
+	combo_last = cb
+	combo_pop = maxf(0.0, combo_pop - 0.08)
+	combo_label.visible = cb >= 3 and not st.over
+	if combo_label.visible:
+		combo_label.text = "連鎖 ×%d" % cb
+		var heat: Color = [C_GOLD, C_FLAME, Color("ff6ad5"), Color.WHITE][mini(cb / 15, 3)]
+		combo_label.label_settings.font_color = heat
+		combo_label.label_settings.font_size = 20 + mini(cb / 10, 8) * 2
+		combo_label.modulate.a = clampf(st.get("combo_t", 0.0) / 0.6, 0.3, 1.0)
+		combo_label.scale = Vector2.ONE * (1.0 + combo_pop * 0.25)
+		combo_label.pivot_offset = combo_label.size / 2.0
+		combo_label.position = Vector2(roundf((size.x - combo_label.size.x) / 2.0), 130 if size.y > size.x else 98)
 	if build_label == null:
 		build_label = label("", 10, C_CREAM)
 	build_label.text = st.get("build", "")
@@ -521,7 +543,7 @@ func hide_cards() -> void:
 
 
 # ---------- 失敗 ----------
-func show_game_over(lines: Array, button_text := "再出發") -> void:
+func show_game_over(lines: Array, button_text := "再出發", home_first := false) -> void:
 	var dim := ColorRect.new()
 	dim.color = Color(0.04, 0.02, 0.06, 0.78)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -539,11 +561,12 @@ func show_game_over(lines: Array, button_text := "再出發") -> void:
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
-	var home := UIKit.button("回安提阿", 16)
+	# 通關時主按鈕是「回安提阿」（先回營地看新設施、聊天），失敗時主按鈕是「再出發」
+	var home := UIKit.button("回安提阿", 16, home_first)
 	home.custom_minimum_size = Vector2(140, 40)
 	home.pressed.connect(func(): home_pressed.emit())
 	row.add_child(home)
-	var btn := UIKit.button(button_text, 16, true)
+	var btn := UIKit.button(button_text, 16, not home_first)
 	btn.custom_minimum_size = Vector2(140, 40)
 	btn.pressed.connect(func(): restart_pressed.emit())
 	row.add_child(btn)
@@ -551,4 +574,4 @@ func show_game_over(lines: Array, button_text := "再出發") -> void:
 		names[n].visible = false
 	await get_tree().process_frame
 	box.position = ((vp() - box.size) / 2.0).round()
-	btn.grab_focus()
+	(home if home_first else btn).grab_focus()

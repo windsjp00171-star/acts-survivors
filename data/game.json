@@ -154,12 +154,17 @@
   },
   "_links說明": "肢體連結（林前 12:26）：升級卡會出現，把兩位同伴連起來。條件成立時被連到的同伴立刻多出手一次（不影響他自己的冷卻）。連鎖最多 max_depth 層，每條連結有 cooldown 秒的間隔。",
   "links": {
-    "max_links": 3,
+    "max_links": 4,
     "max_depth": 3,
+    "_levels說明": "同一條連結再拿一次就升級：cooldown_mult 是各級的間隔倍率；double_at 這一級起，觸發時連出兩次。",
+    "levels": { "max": 3, "cooldown_mult": [1.0, 0.6, 0.35], "double_at": 3 },
+    "_combo說明": "連擊：每次觸發 combo_window 秒內再觸發就累加；達到 thresholds 會「共鳴」：全畫面傷害、同心合意增加。",
+    "combo": { "window": 2.5, "thresholds": [10, 25, 50, 100], "damage": [6, 12, 24, 40], "meter": 0.2 },
     "kinds": {
       "cast": { "name": "一同出手", "short": "出手", "cooldown": 0.6, "desc": "%s 每次出手，%s 也跟著出手。連到的人出手時也會觸發他自己的連結" },
       "kill": { "name": "一同快樂", "short": "驅散", "cooldown": 0.4, "desc": "%s 驅散敵人時，%s 立刻出手（若一個肢體得榮耀，所有的肢體就一同快樂）" },
-      "hurt": { "name": "一同受苦", "short": "受傷", "cooldown": 1.0, "desc": "保羅或任何同伴受傷時，%s 立刻出手（若一個肢體受苦，所有的肢體就一同受苦）" }
+      "hurt": { "name": "一同受苦", "short": "受傷", "cooldown": 1.0, "desc": "保羅或任何同伴受傷時，%s 立刻出手（若一個肢體受苦，所有的肢體就一同受苦）" },
+      "heal": { "name": "一同得安慰", "short": "治療", "cooldown": 0.8, "desc": "有人被治療時，%s 立刻出手（我們在一切患難中，神就安慰我們，林後 1:4）" }
     }
   },
   "_tasks說明": "旅程任務：每局隨機抽 count 個。stat 可用 kills、elites、fevers、links、level；by 是要在第幾秒前完成（0 = 不限時）。完成給 witness 見證，並在保羅身邊掉一個寶箱。",
