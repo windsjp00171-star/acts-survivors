@@ -18,7 +18,8 @@ var hint_label: Label
 var news_label: Label
 var news_until := 0.0
 
-var paul := {}
+var paul := {}            # 營地裡操作的人物（就是選的主角）
+var lead := "paul"
 var people: Array = []   # {key, name, pos, node}
 var spots: Array = []    # 可互動的東西 {kind, key, name, pos, r}
 var built: Array = []    # 已出現的設施
@@ -117,9 +118,13 @@ func _build_camp() -> void:
 	Save.save_profile()
 
 	# 營火旁只隨機出現幾位（有話要說的一定在），人再多也不會塞滿（百基拉・亞居拉站一起）
+	# 主角：選了誰，營地裡走動的就是他；保羅改坐在營火旁
+	lead = str(Save.data.get("leader", "paul"))
+	if lead != "paul" and not Save.is_unlocked("leader_" + lead):
+		lead = "paul"
 	var all := []
 	for c in G.companions:
-		if Save.is_unlocked(c.key) and c.get("follows", "") == "":
+		if Save.is_unlocked(c.key) and c.get("follows", "") == "" and c.key != lead:
 			all.append(c)
 	var pending := _choose_talks(all)
 	all.shuffle()
@@ -157,7 +162,11 @@ func _build_camp() -> void:
 	var start := _p(-10, 22)
 	if Save.data.stats.runs > 0:
 		start = _p(110, 40)   # 剛從路上回來
-	paul = {"pos": start, "node": _sprite("paul"), "moving": false}
+	paul = {"pos": start, "node": _sprite(lead), "moving": false}
+	if lead != "paul":
+		var pn := _sprite("paul")
+		pn.position = _p(-14, -6)
+		people.append({"key": "paul", "pos": pn.position, "node": pn, "ph": randf() * TAU})
 	if not news.is_empty():
 		news_label_text = "\n".join(news)
 
@@ -346,7 +355,7 @@ func _process(dt: float) -> void:
 	if mv.x != 0.0:
 		paul.node.flip_h = mv.x < 0.0
 	var f := int(t * 6.0) % 2 if paul.moving else 0
-	paul.node.texture = load("res://assets/sprites/paul_%d.png" % f)
+	paul.node.texture = load("res://assets/sprites/%s_%d.png" % [lead, f])
 	for p in people:
 		p.node.position = p.pos + Vector2(0, roundf(sin(t * 1.6 + p.ph) * 0.6))
 
