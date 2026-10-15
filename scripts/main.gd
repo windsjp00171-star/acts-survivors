@@ -105,6 +105,12 @@ var combo_best := 0
 var combo_tier := 0       # 這一串連擊已經共鳴到第幾層
 var resonances: Array = []  # 共鳴衝擊波（畫面效果）
 var sparks: Array = []    # 命中火花
+var tag_fx: Array = []    # 流派專屬連結效果的小字
+var guard := 0            # 守護連結給的護盾層數
+var haste_t := 0.0        # 詩歌連結：全隊加速剩下幾秒
+var haste_amt := 0.0
+var set_bonus := {}       # 已湊齊的套裝加成 {hp, regen, damage, speed}
+var sets_on: Array = []
 var build_text := ""      # HUD 左側：同工與肢體連結
 var run_tasks: Array = [] # 旅程任務：{def, done, failed}
 var shots: Array = []
@@ -165,7 +171,7 @@ func _ready() -> void:
 		D.boss.hp = float(D.boss.hp) * 1.5
 		D.boss.warn = float(D.boss.warn) * 0.75
 	# 主角：選了誰，就用他的名字、招式、流派與血量速度；他這一局不再當同伴
-	leader = str(Save.data.get("leader", "paul"))
+	leader = "paul" if OS.get_cmdline_user_args().has("--smoke") else str(Save.data.get("leader", "paul"))
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--leader="):
 			leader = a.substr(9)
@@ -250,6 +256,18 @@ func _ready() -> void:
 			fruits = {"joy": 1, "faith": 1, "good": 1, "peace": 1}
 			for evo in _ready_evolutions():
 				_evolve(evo)
+	if smoke_preset == "sets":
+		# 測試用：套裝＋新觸發條件＋流派專屬效果
+		for k in ["silas", "tim", "luke", "barn"]:
+			_recruit(by_key[k])
+			_set_level(by_key[k], 3)
+		armor = {"sword": 1, "shield": 1, "belt": 1, "breast": 1}
+		_update_sets()
+		links.append({"src": by_key.tim, "dst": by_key.silas, "kind": "reso", "cd": 0.0, "lv": 1})
+		links.append({"src": by_key.tim, "dst": by_key.barn, "kind": "cast", "cd": 0.0, "lv": 1})
+		links.append({"src": by_key.tim, "dst": by_key.luke, "kind": "kill", "cd": 0.0, "lv": 1})
+		links.append({"src": by_key.silas, "dst": by_key.tim, "kind": "elite", "cd": 0.0, "lv": 1})
+		print("sets=", sets_on, " bonus=", set_bonus, " hp=", D.paul.hp)
 	if smoke_preset == "evo":
 		# 測試用：五位滿級並全部進化
 		for k in ["tim", "luke", "samson", "elijah"]:
@@ -368,6 +386,20 @@ func _build_world() -> void:
 		comps.append(c)
 		by_key[d.key] = c
 		i += 1
+	for c in comps + [pa]:
+		_apply_gifts(c)
+
+
+## 恩賜樹：依流派加上傷害、攻速、範圍、專屬連結強度與終極恩賜
+func _apply_gifts(c: Dictionary) -> void:
+	var nodes: Array = Save.meta.gifts.nodes
+	var r := func(kind: String) -> int: return Save.gift_rank(c.tag, kind)
+	c.tdmg = 1.0 + r.call("dmg") * float(nodes[0].per)
+	c.aff = float(c.aff) * (1.0 + r.call("speed") * float(nodes[1].per))
+	c.tarea = 1.0 + r.call("area") * float(nodes[2].per)
+	c.tlink = 1.0 + r.call("link") * float(nodes[3].per)
+	c.tult = r.call("ult") > 0
+	c.ult_cd = 0.0
 
 
 func _build_ui() -> void:
@@ -412,6 +444,12 @@ func _set_level(c: Dictionary, lv: int) -> void:
 			c.st.cooldown = maxf(0.2, float(c.st.get("cooldown", 1.0)))
 		if evolved.has(c.key) and evolved[c.key].has("stats"):
 			c.st.merge(evolved[c.key].stats, true)
+		# 恩賜樹「範圍」：放大範圍與射程
+		for k in ["radius", "max_radius", "length", "range", "jump_range"]:
+			if c.st.has(k):
+				c.st[k] = float(c.st[k]) * float(c.get("tarea", 1.0))
+	if not comps.is_empty() and not pa.is_empty():
+		_update_synergy()
 
 
 func _recruit(c: Dictionary) -> void:
@@ -442,6 +480,14 @@ func _tag_counts() -> Dictionary:
 func _update_synergy() -> void:
 	var cnt := _tag_counts()
 	var bonus: Dictionary = D.synergy.bonus
+	# 技能協同：同流派的其他同伴每 1 級，傷害 +per_level_damage
+	var lv_sum := {}
+	for o in comps + [pa]:
+		if o.level > 0 and o.follows == "":
+			lv_sum[o.tag] = lv_sum.get(o.tag, 0) + int(o.level)
+	for o in comps + [pa]:
+		var others: int = lv_sum.get(o.tag, 0) - (int(o.level) if o.level > 0 else 0)
+		o.synd = 1.0 + others * float(D.synergy.get("per_level_damage", 0.0))
 	for c in comps:
 		var n: int = mini(cnt.get(c.tag, 0), 3)
 		var before: float = c.syn
@@ -463,7 +509,7 @@ func _area() -> float:
 	return 1.0 + fruits.get("joy", 0) * D.fruits.joy.per_level.area
 
 func _dmg_mult() -> float:
-	return (1.0 + fruits.get("faith", 0) * D.fruits.faith.per_level.damage) * (1.0 + Save.up_value("might"))
+	return (1.0 + fruits.get("faith", 0) * D.fruits.faith.per_level.damage) * (1.0 + Save.up_value("might")) * (1.0 + float(set_bonus.get("damage", 0.0)))
 
 func _guard() -> float:
 	return 1.0 + fruits.get("good", 0) * D.fruits.good.per_level.guard
@@ -508,7 +554,15 @@ func _make_cards() -> Array:
 		if lv == 0 and not Save.is_unlocked("armor_" + k):
 			continue
 		if lv == 0 and armor.size() < int(D.armor_slots) + (1 if epistles.has("armor_plus") else 0):
-			pool.append({"kind": "armor", "key": k, "title": a.name + "　穿上", "tag": a.tag, "desc": a.desc[0]})
+			var adesc: String = a.desc[0]
+			for st in D.armor_sets:
+				if st.pieces.has(k) and not sets_on.has(st.id):
+					var need: Array = st.pieces.filter(func(pc): return pc != k and armor.get(pc, 0) == 0)
+					if need.is_empty():
+						adesc += "\n湊齊套裝「%s」：%s" % [st.name, st.desc]
+					elif need.size() == 1:
+						adesc += "\n再加%s湊成「%s」" % [D.armor[need[0]].name, st.name]
+			pool.append({"kind": "armor", "key": k, "title": a.name + "　穿上", "tag": a.tag, "desc": adesc})
 		elif lv > 0 and lv < 3:
 			pool.append({"kind": "armor", "key": k, "title": "%s　Lv%d → %d" % [a.name, lv, lv + 1], "tag": a.tag, "desc": a.desc[lv]})
 	if pa.level < 5:
@@ -598,6 +652,7 @@ func _apply_card(card: Dictionary) -> void:
 		fruits[card.key] = fruits.get(card.key, 0) + 1
 	elif card.kind == "armor":
 		armor[card.key] = armor.get(card.key, 0) + 1
+		_update_sets()
 	elif card.kind == "branch":
 		var c: Dictionary = by_key[card.key]
 		c.branch = int(card.idx)
@@ -671,7 +726,7 @@ func _refresh_build_text() -> void:
 	for L in links:
 		var K: Dictionary = D.links.kinds[L.kind]
 		var lvs := "" if int(L.get("lv", 1)) == 1 else " Lv%d" % int(L.lv)
-		lines.append("連結　%s%s" % [(("受傷→" if L.kind == "hurt" else "治療→") + L.dst.name) if L.kind in ["hurt", "heal"] else (L.src.name + "→" + L.dst.name + "（" + K.short + "）"), lvs])
+		lines.append("連結　%s%s" % [(K.short + "→" + L.dst.name) if _glob(L.kind) else (L.src.name + "→" + L.dst.name + "（" + K.short + "）"), lvs])
 	build_text = "\n".join(lines)
 
 
@@ -870,6 +925,10 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if fever > 0.0:
 		dmg *= 1.5
 	dmg *= _dmg_mult()
+	if src is Dictionary:
+		dmg *= float(src.get("tdmg", 1.0)) * float(src.get("synd", 1.0))
+		if src == pa and armor.get("sword", 0) > 0:
+			dmg *= 1.0 + float(D.armor.sword.per[armor.sword - 1])
 	if e.type == "lies":
 		dmg *= 1.0 + 0.5 * mini(armor.get("belt", 0), 2)
 	if e.get("boss", false) and boss != null and boss.state == "break":
@@ -913,6 +972,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			chests.append({"pos": e.pos})
 		if e.get("elite", false):
 			run_elites += 1
+			_fire_links("elite", null, 0)
 		if e.d.has("split_into"):
 			for i in int(e.d.split_count):
 				_spawn_one(e.d.split_into, e.pos + Vector2(randf_range(-8, 8), randf_range(-6, 6)))
@@ -992,6 +1052,7 @@ func _start_fever() -> void:
 	fever = _fever_dur()
 	fever_kills = 0
 	run_fevers += 1
+	_fire_links("fever", null, 0)
 	Sfx.play("fever", 0.0)
 	Sfx.music("fever")
 	Sfx.buzz(90)
@@ -1135,6 +1196,9 @@ func _step(dt: float) -> void:
 	for f in link_fx:
 		f.t += dt
 	link_fx = link_fx.filter(func(f): return f.t < 0.6)
+	for f in tag_fx:
+		f.t += dt
+	tag_fx = tag_fx.filter(func(f): return f.t < 0.8)
 	if combo > 0:
 		combo_t -= dt
 		if combo_t <= 0.0:
@@ -1194,7 +1258,7 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
-			xp_acc += Save.up_value("growth")
+			xp_acc += Save.up_value("growth") + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
 				xp += 1
@@ -1209,8 +1273,9 @@ func _step(dt: float) -> void:
 			run_bread += 1
 			Sfx.play("gem", 0.0)
 	breads = breads.filter(func(b): return not b.get("got", false))
-	if Save.up_value("renew") > 0.0 and p.hp > 0.0:
-		p.hp = minf(float(D.paul.hp), p.hp + Save.up_value("renew") * dt)
+	var regen: float = Save.up_value("renew") + float(set_bonus.get("regen", 0.0))
+	if regen > 0.0 and p.hp > 0.0:
+		p.hp = minf(float(D.paul.hp), p.hp + regen * dt)
 	if gems.size() > 300:
 		gems = gems.slice(gems.size() - 300)
 
@@ -1243,15 +1308,19 @@ func _companion_skills(dt: float) -> void:
 	var barn = by_key.get("barn")
 	var barn_on: bool = barn != null and _active(barn)
 	var speed_mult: float = D.fever.attack_speed if fever > 0.0 else 1.0
+	speed_mult *= (1.0 + float(set_bonus.get("speed", 0.0))) * (1.0 + (haste_amt if haste_t > 0.0 else 0.0))
+	haste_t = maxf(0.0, haste_t - dt)
+	pa.ult_cd = maxf(0.0, float(pa.get("ult_cd", 0.0)) - dt)
 	pa.pos = paul.pos + Vector2(0, 2)
 	pa.castfx = maxf(0.0, pa.castfx - dt)
-	pa.cd -= dt * speed_mult * (1.0 + Save.up_value("haste"))
+	pa.cd -= dt * speed_mult * (1.0 + Save.up_value("haste")) * float(pa.aff)
 	if pa.cd <= 0.0:
 		_cast(pa)
 	for c in comps:
 		if c.skill == "" or not _active(c):
 			continue
 		var s: Dictionary = c.st
+		c.ult_cd = maxf(0.0, float(c.get("ult_cd", 0.0)) - dt)
 		var mult: float = speed_mult * c.aff * c.syn
 		if barn_on and c != barn and c.pos.distance_to(barn.pos) < _aura_r(barn):
 			mult *= barn.st.attack_speed
@@ -1264,10 +1333,15 @@ func _companion_skills(dt: float) -> void:
 ## 讓同伴出一次招。triggered = 被別的招式觸發（不重設冷卻）。回傳是否真的出手。
 func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 	var s: Dictionary = c.st
+	var ult_now: bool = not triggered and c.get("tult", false) and float(c.get("ult_cd", 0.0)) <= 0.0
 	if triggered and s.has("linked_mult"):
 		# 司提反：被連結觸發時威力加倍
 		s = s.duplicate()
 		s.damage = float(s.damage) * float(s.linked_mult)
+	if c.tag == "講道" and (triggered or ult_now) and s.has("damage"):
+		# 講道的專屬連結：這一擊加重
+		s = s.duplicate()
+		s.damage = float(s.damage) * (1.0 + float(D.tag_links["講道"].mult) * float(c.get("tlink", 1.0)))
 	var fired := true
 	match c.engine:
 		"bolt":
@@ -1414,6 +1488,9 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 		c.cd = s.cooldown
 	if fired:
 		c.castfx = 0.18
+		if ult_now:
+			c.ult_cd = float(D.tag_links.ult_cooldown)
+			_tag_effect(c)
 		if combo > 0 and s.has("combo_keep"):
 			# 馬可：出手讓連鎖多撐一下
 			combo_t = minf(float(D.links.combo.window), combo_t + float(s.combo_keep))
@@ -1429,7 +1506,7 @@ func _fire_links(kind: String, src, depth: int) -> void:
 	for L in links:
 		if L.kind != kind or L.cd > 0.0:
 			continue
-		if kind != "hurt" and kind != "heal" and L.src != src:
+		if not _glob(kind) and L.src != src:
 			continue
 		L.cd = float(D.links.kinds[kind].cooldown) * float(D.links.levels.cooldown_mult[int(L.get("lv", 1)) - 1])
 		link_queue.append({"L": L, "depth": depth + 1})
@@ -1443,8 +1520,9 @@ func _run_link_queue() -> void:
 		var L: Dictionary = q.L
 		if not _active(L.dst):
 			continue
-		var from: Vector2 = paul.pos if L.kind in ["hurt", "heal"] else L.src.pos
+		var from: Vector2 = paul.pos if _glob(L.kind) else L.src.pos
 		if _cast(L.dst, true, q.depth):
+			_tag_effect(L.dst)
 			link_count += 1
 			Sfx.play("link%d" % mini(q.depth, 3), 0.02)
 			link_fx.append({"a": from + Vector2(0, -8), "b": L.dst, "t": 0.0, "depth": q.depth})
@@ -1476,6 +1554,7 @@ func _resonance(tier: int) -> void:
 	resonances.append({"pos": paul.pos + Vector2(0, -6), "r": 0.0, "tier": tier, "hit": {}, "dmg": dmg})
 	if fever <= 0.0:
 		meter = minf(1.0, meter + float(C.meter))
+	_fire_links("reso", null, 0)
 	ui.show_banner(["共鳴！", "再次共鳴！", "大共鳴！", "滿溢的共鳴！"][mini(tier, 3)], 1.4)
 	ui.do_flash(0.35 + tier * 0.1)
 	shake = maxf(shake, 0.25 + tier * 0.08)
@@ -1498,24 +1577,106 @@ func _link_card() -> Dictionary:
 		var lv: int = int(L.get("lv", 1))
 		var K0: Dictionary = D.links.kinds[L.kind]
 		var what := "觸發間隔縮短" if lv + 1 < int(D.links.levels.double_at) else "觸發時連出兩次"
-		var who: String = ("受傷→" if L.kind == "hurt" else ("治療→" if L.kind == "heal" else L.src.name + "→")) + L.dst.name
+		var who: String = (K0.short if _glob(L.kind) else L.src.name) + "→" + L.dst.name
 		return {"kind": "link_up", "key": str(links.find(L)), "tag": "肢體", "title": "強化連結：%s　Lv%d → %d" % [K0.name, lv, lv + 1],
 			"desc": "%s\n%s" % [who, what]}
 	var cands := []
 	for c in comps:
-		if c.level > 0 and c.engine != "" and c.follows == "":
+		# 光環、帳棚不會「出手」，連了也不會動，不放進候選
+		if c.level > 0 and c.engine != "" and c.follows == "" and not c.engine in ["aura", "tent"]:
 			cands.append(c)
 	if cands.size() < 2 or links.size() >= int(D.links.max_links):
 		return {}
 	cands.shuffle()
-	var kinds: Array = D.links.kinds.keys()
-	var kind: String = kinds[randi() % kinds.size()]
+	# 依權重抽觸發條件；隊伍裡沒有會治療的人就不出「一同得安慰」
+	var has_heal := cands.any(func(c): return c.engine == "heal" or float(c.st.get("heal", 0.0)) > 0.0)
+	var bag := []
+	for k in D.links.kinds:
+		if D.links.kinds[k].get("needs_heal", false) and not has_heal:
+			continue
+		for w in int(D.links.kinds[k].get("weight", 1)):
+			bag.append(k)
+	var kind: String = bag[randi() % bag.size()]
 	var a: Dictionary = cands[0]
 	var b: Dictionary = cands[1]
 	var K: Dictionary = D.links.kinds[kind]
-	var desc: String = K.desc % ([b.name] if kind in ["hurt", "heal"] else [a.name, b.name])
+	var desc: String = K.desc % ([b.name] if _glob(kind) else [a.name, b.name])
+	desc += "\n專屬：" + _tag_text(b)
 	return {"kind": "link", "key": kind, "src": a.key, "dst": b.key, "tag": "肢體",
 		"title": "肢體連結：" + K.name, "desc": desc}
+
+
+## 觸發條件是否不看來源（受傷、治療、菁英、共鳴、五旬節）
+func _glob(kind: String) -> bool:
+	return bool(D.links.kinds[kind].get("global", false))
+
+
+const TAG_COL := {"講道": Color("3fbfb0"), "詩歌": Color("ffd75e"), "守護": Color("9fd8ff"), "醫治": Color("7be08a"), "差派": Color("ff8a2a"), "門徒": Color("e8dcc0")}
+
+
+## 流派專屬連結的說明（含恩賜樹強化後的數值）
+func _tag_text(c: Dictionary) -> String:
+	if not D.tag_links.has(c.tag):
+		return "（%s 流派沒有專屬效果）" % c.tag
+	var T: Dictionary = D.tag_links[c.tag]
+	var k: float = float(c.get("tlink", 1.0))
+	var v := ""
+	match c.tag:
+		"講道": v = "%.1f" % (1.0 + float(T.mult) * k)
+		"詩歌": v = str(roundi(float(T.haste) * k * 100.0))
+		"守護": v = str(_guard_max(c))
+		"醫治": v = str(roundi(float(T.heal) * k))
+		"差派": v = str(roundi(float(T.combo) * k))
+		"門徒": v = str(roundi(float(T.radius) * k))
+	return "%s・%s（%s）" % [c.tag, T.name, T.desc % v]
+
+
+func _guard_max(c: Dictionary) -> int:
+	return int(D.tag_links["守護"].max) + roundi((float(c.get("tlink", 1.0)) - 1.0) * 2.0)
+
+
+## 流派專屬連結的效果（講道的「加重」在出手前就算進傷害）
+func _tag_effect(c: Dictionary) -> void:
+	if not D.tag_links.has(c.tag):
+		return
+	var T: Dictionary = D.tag_links[c.tag]
+	var k: float = float(c.get("tlink", 1.0))
+	var col: Color = TAG_COL.get(c.tag, C_GOLD)
+	match c.tag:
+		"詩歌":
+			haste_t = float(T.secs)
+			haste_amt = maxf(haste_amt if haste_t > 0.0 else 0.0, float(T.haste) * k)
+		"守護":
+			guard = mini(_guard_max(c), guard + 1)
+		"醫治":
+			paul.hp = minf(float(D.paul.hp), paul.hp + float(T.heal) * k)
+			heals.append({"who": paul, "t": 0.0})
+		"差派":
+			if combo > 0:
+				for i in roundi(float(T.combo) * k):
+					_combo_add()
+		"門徒":
+			var r: float = float(T.radius) * k
+			for g in gems:
+				if g.pos.distance_to(paul.pos) < r:
+					g.pos = g.pos.lerp(paul.pos, 0.8)
+	if tag_fx.size() < 12:
+		tag_fx.append({"pos": c.pos, "text": T.name, "col": col, "t": 0.0})
+
+
+## 套裝：湊齊就生效（血量加成在湊齊那一刻加上去）
+func _update_sets() -> void:
+	for st in D.armor_sets:
+		if sets_on.has(st.id) or not st.pieces.all(func(pc): return armor.get(pc, 0) > 0):
+			continue
+		sets_on.append(st.id)
+		for k in st.bonus:
+			set_bonus[k] = float(set_bonus.get(k, 0.0)) + float(st.bonus[k])
+		if st.bonus.has("hp"):
+			D.paul.hp = float(D.paul.hp) + float(st.bonus.hp)
+			paul.hp += float(st.bonus.hp)
+		ui.show_banner("套裝：%s　%s" % [st.name, st.desc], 2.0)
+		_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 40.0)
 
 
 func _nova(c: Dictionary, s: Dictionary) -> void:
@@ -1866,6 +2027,14 @@ func _damage_paul(n: float) -> void:
 		paul.inv = 0.4
 		_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 16.0)
 		return
+	if guard > 0:
+		# 守護連結的護盾
+		guard -= 1
+		paul.inv = 0.4
+		_ring_pop(paul.pos + Vector2(0, -8), Color("9fd8ff"), 16.0)
+		return
+	if armor.get("breast", 0) > 0:
+		n *= 1.0 - float(D.armor.breast.per[armor.breast - 1])
 	paul.hp -= n
 	Sfx.play("hurt")
 	Sfx.buzz(40)
@@ -2215,6 +2384,14 @@ func _draw_air() -> void:
 	for g in gathers:
 		var k: float = g.t / 0.5
 		_dot_ring(n, g.pos.round() + Vector2(0, -4), g.r * (1.0 - k), 0.8, Color(C_HEAL, 1.0 - k), 4.0, k * 3.0)
+	for f in tag_fx:
+		var k: float = f.t / 0.8
+		var pos: Vector2 = (f.pos + Vector2(-8, -32 - k * 10.0)).round()
+		n.draw_string_outline(UIKit.font(), pos, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, 2, Color(Color("140c10"), 1.0 - k))
+		n.draw_string(UIKit.font(), pos, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(f.col, 1.0 - k))
+	if guard > 0:
+		for i in guard:
+			_dot_ring(n, paul.pos.round() + Vector2(0, -8), 11.0 + i * 3.0, 1.0, Color(Color("9fd8ff"), 0.7), 3.0, t * (1.0 + i * 0.3))
 	for f in link_fx:
 		var to: Vector2 = f.b.pos + Vector2(0, -8)
 		if f.t < 0.3:

@@ -124,6 +124,43 @@ func up_value(id: String) -> float:
 	return 0.0
 
 
+# ---------- 恩賜樹 ----------
+func gift_rank(tag: String, kind: String) -> int:
+	return int(data.get("gifts", {}).get(tag, {}).get(kind, 0))
+
+
+func gift_points(tag: String) -> int:
+	var n := 0
+	for k in data.get("gifts", {}).get(tag, {}):
+		n += int(data.gifts[tag][k])
+	return n
+
+
+func gift_cost(i: int, tag: String) -> int:
+	var nd: Dictionary = meta.gifts.nodes[i]
+	return int(nd.cost) + gift_rank(tag, nd.kind) * int(nd.cost_step)
+
+
+## 第 i 個節點能不能點：前面要先點滿 tiers[i] 點、還沒滿級、餅夠
+func gift_open(i: int, tag: String) -> bool:
+	return gift_points(tag) >= int(meta.gifts.tiers[i])
+
+
+func buy_gift(i: int, tag: String) -> bool:
+	var nd: Dictionary = meta.gifts.nodes[i]
+	var c := gift_cost(i, tag)
+	if not gift_open(i, tag) or gift_rank(tag, nd.kind) >= int(nd.max) or int(data.bread) < c:
+		return false
+	data.bread = int(data.bread) - c
+	if not data.has("gifts"):
+		data.gifts = {}
+	if not data.gifts.has(tag):
+		data.gifts[tag] = {}
+	data.gifts[tag][nd.kind] = gift_rank(tag, nd.kind) + 1
+	save_profile()
+	return true
+
+
 func up_cost(u: Dictionary) -> int:
 	return int(u.cost) + up_rank(u.id) * int(u.cost_step)
 

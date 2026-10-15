@@ -238,8 +238,18 @@
   "armor": {
     "shoes":  { "name": "平安的鞋",   "tag": "差派", "desc": ["移動加快 10%，同伴跟得更緊", "移動再加快 10%", "移動再加快 10%，同伴幾乎不落後"] },
     "belt":   { "name": "真理的腰帶", "tag": "講道", "desc": ["對謊言傷害 +50%，謊言的射擊傷害減少 30%", "對謊言傷害再 +50%", "謊言的射擊完全擋下"] },
-    "shield": { "name": "信德的藤牌", "tag": "守護", "desc": ["每 12 秒擋下一次攻擊", "每 9 秒擋一次", "每 6 秒擋一次（弗 6:16）"] }
+    "shield": { "name": "信德的藤牌", "tag": "守護", "desc": ["每 12 秒擋下一次攻擊", "每 9 秒擋一次", "每 6 秒擋一次（弗 6:16）"] },
+    "breast": { "name": "公義的護心鏡", "tag": "守護", "desc": ["主角受到的傷害 -15%", "受到的傷害 -25%", "受到的傷害 -35%（弗 6:14）"], "per": [0.15, 0.25, 0.35] },
+    "helmet": { "name": "救恩的頭盔", "tag": "醫治", "desc": ["經驗 +10%", "經驗 +20%", "經驗 +30%（弗 6:17）"], "per": [0.1, 0.2, 0.3] },
+    "sword":  { "name": "聖靈的寶劍", "tag": "講道", "desc": ["主角自己的招式傷害 +30%", "主角招式傷害 +60%", "主角招式傷害 +100%（弗 6:17）"], "per": [0.3, 0.6, 1.0] }
   },
+  "_armor_sets說明": "套裝：同時穿上 pieces 裡的每一件就生效。bonus 可用 hp（主角血量）、regen（每秒回血）、damage（全隊傷害）、speed（全隊攻擊速度）。",
+  "armor_sets": [
+    { "id": "truth", "name": "公義與真理", "ref": "弗 6:14", "pieces": ["belt", "breast"], "desc": "主角血量 +30", "bonus": { "hp": 30 } },
+    { "id": "peace", "name": "平安與信心", "ref": "弗 6:15–16", "pieces": ["shoes", "shield"], "desc": "每秒回 0.5 血", "bonus": { "regen": 0.5 } },
+    { "id": "word",  "name": "救恩與真道", "ref": "弗 6:17", "pieces": ["helmet", "sword"], "desc": "全隊傷害 +15%", "bonus": { "damage": 0.15 } },
+    { "id": "stand", "name": "站立得穩",   "ref": "弗 6:13", "pieces": ["sword", "shield"], "desc": "全隊攻擊速度 +10%", "bonus": { "speed": 0.1 } }
+  ],
   "_links說明": "肢體連結（林前 12:26）：升級卡會出現，把兩位同伴連起來。條件成立時被連到的同伴立刻多出手一次（不影響他自己的冷卻）。連鎖最多 max_depth 層，每條連結有 cooldown 秒的間隔。",
   "links": {
     "max_links": 4,
@@ -249,11 +259,24 @@
     "_combo說明": "連擊：每次觸發 combo_window 秒內再觸發就累加；達到 thresholds 會「共鳴」：全畫面傷害、同心合意增加。",
     "combo": { "window": 2.5, "thresholds": [10, 25, 50, 100], "damage": [6, 12, 24, 40], "meter": 0.2 },
     "kinds": {
-      "cast": { "name": "一同出手", "short": "出手", "cooldown": 0.6, "desc": "%s 每次出手，%s 也跟著出手。連到的人出手時也會觸發他自己的連結" },
-      "kill": { "name": "一同快樂", "short": "驅散", "cooldown": 0.4, "desc": "%s 驅散敵人時，%s 立刻出手（若一個肢體得榮耀，所有的肢體就一同快樂）" },
-      "hurt": { "name": "一同受苦", "short": "受傷", "cooldown": 1.0, "desc": "保羅或任何同伴受傷時，%s 立刻出手（若一個肢體受苦，所有的肢體就一同受苦）" },
-      "heal": { "name": "一同得安慰", "short": "治療", "cooldown": 0.8, "desc": "有人被治療時，%s 立刻出手（我們在一切患難中，神就安慰我們，林後 1:4）" }
+      "cast": { "name": "一同出手", "short": "出手", "cooldown": 0.6, "weight": 3, "desc": "%s 每次出手，%s 也跟著出手。連到的人出手時也會觸發他自己的連結" },
+      "kill": { "name": "一同快樂", "short": "驅散", "cooldown": 0.4, "weight": 3, "desc": "%s 驅散敵人時，%s 立刻出手（若一個肢體得榮耀，所有的肢體就一同快樂）" },
+      "hurt": { "name": "一同受苦", "short": "受傷", "cooldown": 1.0, "global": true, "weight": 2, "desc": "保羅或任何同伴受傷時，%s 立刻出手（若一個肢體受苦，所有的肢體就一同受苦）" },
+      "heal": { "name": "一同得安慰", "short": "治療", "cooldown": 0.8, "global": true, "weight": 2, "needs_heal": true, "desc": "有人被治療時，%s 立刻出手（我們在一切患難中，神就安慰我們，林後 1:4）" },
+      "elite": { "name": "一同得勝", "short": "菁英", "cooldown": 0.3, "global": true, "weight": 1, "desc": "有菁英被驅散時，%s 立刻出手（林前 15:57）" },
+      "reso": { "name": "一同歡呼", "short": "共鳴", "cooldown": 0.3, "global": true, "weight": 2, "desc": "每次共鳴時，%s 立刻出手（詩 47:1）" },
+      "fever": { "name": "一同領受", "short": "五旬節", "cooldown": 1.0, "global": true, "weight": 1, "desc": "開五旬節時，%s 立刻出手（徒 2:4）" }
     }
+  },
+  "_tag_links說明": "流派專屬連結：連結觸發時，除了讓被連到的人出手，還會依他的流派多一個效果。恩賜樹的「連結」節點會加強效果（strength）；樹底的終極恩賜讓這個效果在他自己出手時也觸發，每 ult_cooldown 秒一次。",
+  "tag_links": {
+    "ult_cooldown": 3.0,
+    "講道": { "name": "加重", "desc": "這一擊威力 ×%s", "mult": 0.5 },
+    "詩歌": { "name": "鼓舞", "desc": "全隊攻擊加快 %s%%，2 秒", "haste": 0.3, "secs": 2.0 },
+    "守護": { "name": "護衛", "desc": "主角得到一層護盾（最多 %s 層），擋下一次傷害", "max": 2 },
+    "醫治": { "name": "安慰", "desc": "主角回 %s 血", "heal": 2.0 },
+    "差派": { "name": "傳開", "desc": "連鎖多算 %s 層", "combo": 1 },
+    "門徒": { "name": "得人", "desc": "把附近 %s 範圍的經驗吸到主角身邊", "radius": 60.0 }
   },
   "_tasks說明": "旅程任務：每局隨機抽 count 個。stat 可用 kills、elites、fevers、links、level；by 是要在第幾秒前完成（0 = 不限時）。完成給 witness 見證，並在保羅身邊掉一個寶箱。",
   "tasks": {
@@ -267,7 +290,8 @@
     ]
   },
   "_synergy說明": "同工：同一個流派（tag）的同伴有 2 位、3 位以上時，他們的攻擊速度加成。",
-  "synergy": { "bonus": { "2": 0.25, "3": 0.5 } },
+  "_synergy_damage說明": "技能協同（像暗黑破壞神 2）：同流派的其他同伴每 1 級，傷害 +per_level_damage。",
+  "synergy": { "bonus": { "2": 0.25, "3": 0.5 }, "per_level_damage": 0.03 },
   "_evolutions說明": "同伴滿級（Lv5）且拿到指定果子後，下一個寶箱會進化。有 every 的是定時全畫面地震；有 stats 的是直接覆蓋招式數值。",
   "evolutions": [
     { "companion": "paul", "fruit": "faith", "name": "美好的仗",

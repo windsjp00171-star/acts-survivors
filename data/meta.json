@@ -36,6 +36,25 @@
       { "id": "run",    "name": "奔跑", "ref": "來 12:1",   "desc": "移動速度 +4%",           "per": 0.04, "max": 3, "cost": 15, "cost_step": 15 }
     ]
   },
+  "_gifts說明": "恩賜樹（像暗黑破壞神 2 的技能樹）：六個流派各一棵，用餅點。tiers 是解開第 i 個節點前，這棵樹至少要先點幾點。節點效果只作用在這個流派的同伴（主角也算，看他的流派）。kind：dmg 傷害、speed 攻擊速度、area 範圍、link 專屬連結效果、ult 終極（專屬效果在他自己出手時也觸發）。",
+  "gifts": {
+    "tiers": [0, 3, 6, 10, 14],
+    "nodes": [
+      { "kind": "dmg",   "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "desc": "%s 同伴傷害 +6%%" },
+      { "kind": "speed", "per": 0.05, "max": 5, "cost": 15, "cost_step": 10, "desc": "%s 同伴攻擊速度 +5%%" },
+      { "kind": "area",  "per": 0.08, "max": 3, "cost": 25, "cost_step": 15, "desc": "%s 同伴的範圍、射程 +8%%" },
+      { "kind": "link",  "per": 0.5,  "max": 3, "cost": 40, "cost_step": 20, "desc": "%s 專屬連結效果 +50%%" },
+      { "kind": "ult",   "per": 1,    "max": 1, "cost": 200, "cost_step": 0, "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）" }
+    ],
+    "trees": {
+      "講道": { "ref": "提後 4:2", "names": ["務要傳道", "得時不得時", "傳遍天下", "道的大能", "道成肉身"] },
+      "詩歌": { "ref": "西 3:16", "names": ["心被恩感", "對口唱和", "歌聲遠揚", "同心讚美", "新歌"] },
+      "守護": { "ref": "詩 121:7", "names": ["保守", "看顧", "庇蔭", "牆垣", "四圍的火城"] },
+      "醫治": { "ref": "雅 5:16", "names": ["裹傷", "抹油", "按手", "代求", "得醫治"] },
+      "差派": { "ref": "賽 6:8", "names": ["我在這裡", "腳蹤佳美", "往普天下去", "分頭出去", "直到地極"] },
+      "門徒": { "ref": "可 1:17", "names": ["跟從", "撇下網", "得人如得魚", "彼此相愛", "背起十字架"] }
+    }
+  },
   "_trials說明": "熬煉（難度等級，彼前 1:7）：建立第一間教會後可以在出發前打開。每項有點數，總點數每點見證 +15%、餅 +10%。",
   "trials": {
     "witness_per_point": 0.15,
@@ -73,6 +92,9 @@
     { "id": "leader_peter",  "kind": "leader",    "name": "主角：彼得",       "desc": "血厚、走得慢，撒網", "cost": 200, "requires": "peter" },
     { "id": "leader_philip", "kind": "leader",    "name": "主角：腓利",       "desc": "跑得最快，長距離衝刺", "cost": 200, "requires": "philip" },
     { "id": "leader_lydia",  "kind": "leader",    "name": "主角：呂底亞",     "desc": "鋪紫布定住敵人", "cost": 200, "requires": "lydia" },
+    { "id": "armor_breast",  "kind": "armor",     "name": "軍裝：公義的護心鏡", "desc": "主角受到的傷害減少", "cost": 100 },
+    { "id": "armor_helmet",  "kind": "armor",     "name": "軍裝：救恩的頭盔", "desc": "經驗增加", "cost": 100 },
+    { "id": "armor_sword",   "kind": "armor",     "name": "軍裝：聖靈的寶劍", "desc": "主角自己的招式更強", "cost": 120 },
     { "id": "fruit_good",    "kind": "fruit",     "name": "果子：良善",       "desc": "帳棚更強、同伴血量提高", "cost": 60 },
     { "id": "fruit_peace",   "kind": "fruit",     "name": "果子：和平",       "desc": "同心合意累積更快、比較不會被打散", "cost": 60 },
     { "id": "armor_belt",    "kind": "armor",     "name": "軍裝：真理的腰帶", "desc": "剋謊言", "cost": 80 },

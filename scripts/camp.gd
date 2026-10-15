@@ -222,7 +222,7 @@ func _build_hud() -> void:
 	var p2 = load("res://scripts/base.gd").new()
 	panel = p2
 	hud.add_child(panel)
-	panel.tabs_enabled = {"home": true, "roster": true, "shop": _has("shop"), "ach": _has("ach")}
+	panel.tabs_enabled = {"home": true, "roster": true, "shop": _has("shop"), "gifts": _has("shop"), "ach": _has("ach")}
 	panel.closed.connect(func(): target = null)
 
 
@@ -562,5 +562,5 @@ func _auto_shots(shot: String) -> void:
 		while not talk.is_empty():
 			typing = false
 			_advance_talk()
-		await panel.auto_shots(shot)
+	await panel.auto_shots(shot)
 	get_tree().quit()
