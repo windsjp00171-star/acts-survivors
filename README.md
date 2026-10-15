@@ -10,6 +10,8 @@
 
 ## 怎麼玩
 
+**網頁版（最簡單，不用安裝）**：https://windsjp00171-star.github.io/acts-survivors/ ，手機、電腦的瀏覽器都能玩。
+
 **直接玩（Windows）**：下載 `ActsSurvivors-版本-windows.7z`（Windows 11 可以直接打開，舊版 Windows 用 7-Zip 或 WinRAR），解壓縮後雙擊 `ActsSurvivors.exe`，不用安裝。Windows 跳出「已保護您的電腦」時按「其他資訊」→「仍要執行」。
 
 **Android 手機**：下載 APK 到手機，點開安裝。第一次會問「是否允許安裝不明來源的應用程式」，允許後再按一次安裝。直式單手玩，按住畫面下方拖曳移動。
@@ -71,6 +73,7 @@
 | `tools/runs_report.py` | 每局紀錄報表 |
 | `tools/make_sounds.py` | 產生音效與對話咕噥聲 |
 | `tools/make_music.py` | 產生配樂（希臘羅馬史詩風，7 首） |
+| `tools/make_font.py` | 產生內建中文字型（只收遊戲用到的字） |
 | `scenes/base.tscn` | 營地（遊戲開啟時的畫面） |
 | `scenes/main.tscn` | 一局遊戲 |
 | `assets/sprites/` | 像素圖（目前由程式產生） |
@@ -90,6 +93,8 @@ Android：需要 Android SDK（apksigner）與 JDK，在 Godot 編輯器設定�
 GODOT_ANDROID_KEYSTORE_RELEASE_PATH=金鑰路徑 GODOT_ANDROID_KEYSTORE_RELEASE_USER=acts GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=密碼 \
 godot --headless --path . --export-release "Android" build/android/ActsSurvivors.apk
 ```
+
+網頁版：`godot --headless --path . --export-release "Web" build/web/index.html`，再把 `build/web` 的內容放到 `gh-pages` 分支。
 
 之後每次更新都必須用**同一把金鑰**簽，手機才能直接覆蓋安裝（保留存檔）。
 

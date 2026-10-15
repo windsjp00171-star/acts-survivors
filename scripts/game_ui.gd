@@ -21,7 +21,7 @@ const C_BRONZE := Color("c9a46b")
 const C_FLAME := Color("ff8a2a")
 const C_DARK := Color("0b080d")
 
-var font: SystemFont
+var font: Font
 var root: Control
 var hp_fill: ColorRect
 var xp_fill: ColorRect
@@ -51,9 +51,7 @@ var chest_panel: Control
 
 
 func setup(name_list: Array, touch: bool) -> void:
-	font = SystemFont.new()
-	font.font_weight = 500
-	font.font_names = PackedStringArray(["Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", "sans-serif"])
+	font = UIKit.font()
 	root = Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE

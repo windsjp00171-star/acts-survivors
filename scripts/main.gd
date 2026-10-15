@@ -606,7 +606,7 @@ func _task_text() -> String:
 	var lines := []
 	for rt in run_tasks:
 		var d: Dictionary = rt.def
-		var mark := "✓" if rt.done else ("✗" if rt.failed else "・")
+		var mark := "✓" if rt.done else ("×" if rt.failed else "・")
 		var limit := ""
 		if int(d.by) > 0 and not rt.done:
 			limit = "（%d:%02d 前）" % [int(d.by) / 60, int(d.by) % 60]

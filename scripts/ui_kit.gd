@@ -12,14 +12,17 @@ const MUTED := Color("a8977c")
 const DARK := Color("0b080d")
 const PANEL := Color("241a2e")
 
-static var _font: SystemFont
+static var _font: Font
 
 
-static func font() -> SystemFont:
+## 遊戲內建的中文字型（tools/make_font.py 產生的子集）；缺字時退回系統字型
+static func font() -> Font:
 	if _font == null:
-		_font = SystemFont.new()
-		_font.font_weight = 500
-		_font.font_names = PackedStringArray(["Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", "sans-serif"])
+		var f: FontFile = load("res://assets/fonts/NotoSansTC-Game.otf")
+		var sys := SystemFont.new()
+		sys.font_names = PackedStringArray(["Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", "sans-serif"])
+		f.fallbacks = [sys]
+		_font = f
 	return _font
 
 

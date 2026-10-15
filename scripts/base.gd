@@ -86,7 +86,7 @@ func _build() -> void:
 	var gap := Control.new()
 	gap.custom_minimum_size = Vector2(12, 0)
 	top.add_child(gap)
-	var x := UIKit.button("✕ 關閉", 13)
+	var x := UIKit.button("× 關閉", 13)
 	x.custom_minimum_size = Vector2(80, 30)
 	x.pressed.connect(close)
 	top.add_child(x)
