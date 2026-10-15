@@ -411,10 +411,62 @@ def fever():
     return battle(62, "rast", 140, [0, 3, 4, 0], tune, answer, lead=kithara, frame="F...k.F.F...k.k.", extra=joy)
 
 
+def athens():
+    # 雅典：G 混合利底亞，基薩拉琴主奏，明亮、像在廣場上辯論
+    motif = [(4, 1), (5, 0.5), (4, 0.5), (2, 1), (4, 1), (7, 2), (6, 1), (4, 1), (5, 1), (4, 0.5), (2, 0.5), (1, 1), (0, 2)]
+    answer = [(2, 0.5), (3, 0.5), (4, 1), (2, 1), (0, 1), (1, 1), (2, 2), (4, 1), (3, 1), (2, 1), (1, 1), (0, 4)]
+    return battle(67, "mixolydian", 126, [0, 6, 3, 0], motif, answer, lead=kithara,
+                  taiko_a="B.......B.......", taiko_b="B...B...B..B.B..", frame="F..kk.k.F..k.k..")
+
+
+def jerusalem():
+    # 耶路撒冷：E 弗里吉亞，慢而重，低沉合唱與大鼓，像城裡的喧嚷
+    motif = [(0, 1), (1, 1), (0, 1), (-1, 1), (0, 2), (1, 0.5), (2, 0.5), (3, 1), (2, 2), (1, 1), (0, 1), (-1, 2), (0, 2)]
+    answer = [(3, 1), (4, 1), (5, 2), (4, 1), (3, 1), (1, 2), (2, 1), (1, 1), (0, 4)]
+
+    def chant(tr):
+        for bar in range(0, 16, 2):
+            tr.melody(choir, 52, "phrygian", [([0, 1, 0, -1][(bar // 2) % 4], 8)], bar * 4, 0.8)
+            tr.put(bar * 4, drone(hz(40), tr.beat * 8), 0.5)
+    return battle(64, "phrygian", 116, [0, 1, 6, 0], motif, answer,
+                  taiko_a="B..B....B..B..B.", taiko_b="BB.B..B.BB.B..BB", frame="F...F.k.F...F.kk", extra=chant)
+
+
+def malta():
+    # 馬爾他：D 多利安，像海上的暴風：快、低音翻騰，加上浪聲般的合唱
+    motif = [(0, 0.5), (2, 0.5), (4, 0.5), (2, 0.5), (3, 1), (2, 1), (1, 0.5), (2, 0.5), (0, 1), (-1, 2), (0, 0.5), (2, 0.5), (4, 0.5), (5, 0.5), (4, 1), (3, 1), (2, 2), (0, 2)]
+    answer = [(5, 1), (4, 0.5), (3, 0.5), (4, 1), (2, 1), (3, 1), (1, 1), (2, 2), (0, 1), (1, 1), (-1, 1), (0, 3)]
+
+    def sea(tr):
+        for bar in range(0, 16, 4):
+            for d in (0, 2, 4):
+                tr.melody(choir, 50, "dorian", [(d, 16)], bar * 4, 0.35)
+    return battle(62, "dorian", 140, [0, 6, 5, 6], motif, answer,
+                  taiko_a="B.....B.B.....B.", taiko_b="B..B..B.B..B..BB", frame="F.kkF.kkF.kkF.kk", extra=sea)
+
+
+def rome():
+    # 羅馬：C 自然小調，進行曲：小鼓滾、銅管主奏，最莊嚴的最後一站
+    motif = [(0, 1), (0, 0.5), (0, 0.5), (2, 1), (4, 1), (5, 2), (4, 1), (2, 1), (3, 1), (2, 0.5), (1, 0.5), (0, 2), (None, 2)]
+    answer = [(4, 1), (4, 0.5), (4, 0.5), (5, 1), (7, 1), (6, 2), (4, 2), (5, 1), (4, 1), (3, 1), (1, 1), (0, 4)]
+
+    def march(tr):
+        for bar in range(2, 16):
+            for beat in range(4):
+                tr.put(bar * 4 + beat, brass(hz(deg(48, "aeolian", [0, 5, 3, 4][bar % 4])), tr.beat * 0.5), 0.6)
+    return battle(60, "aeolian", 120, [0, 5, 3, 4], motif, answer, lead=brass,
+                  taiko_a="B.......B.......", taiko_b="B...B...B...B.B.", frame="F.kkF.kkF.kkF.k.", extra=march)
+
+
 if __name__ == "__main__":
+    import sys
     os.makedirs(OUT, exist_ok=True)
+    only = sys.argv[1:]   # 只產生指定的曲子：python tools/make_music.py athens rome
     for name, fn in [("camp", camp), ("philippi", philippi), ("thessalonica", thessalonica), ("corinth", corinth),
-                     ("ephesus", ephesus), ("boss", boss), ("fever", fever)]:
+                     ("ephesus", ephesus), ("athens", athens), ("jerusalem", jerusalem), ("malta", malta), ("rome", rome),
+                     ("boss", boss), ("fever", fever)]:
+        if only and name not in only:
+            continue
         save(name, fn())
     old = os.path.join(OUT, "music_battle.ogg")
     if os.path.exists(old):

@@ -1,35 +1,616 @@
 {
-  "_說明": "初代教會關卡：照保羅旅程的順序，通關（建立教會）才解鎖下一座。hp_mult／dmg_mult 疊在時間曲線上；weights 改敵人出現比例；boss 覆蓋 game.json 的 boss 欄位；epistle 是建立教會後解鎖的書信卡（局內升級卡，不是永久加成）。",
+  "_說明": "初代教會關卡：照保羅旅程的順序，通關（建立教會）才解鎖下一座。hp_mult／dmg_mult 疊在時間曲線上；weights 改敵人出現比例；boss 覆蓋 game.json 的 boss 欄位；epistle 是建立教會後解鎖的書信卡（局內升級卡，不是永久加成）。 ground 是地面圖；props 是會出現的物件（tex 隨機挑一個、weight 出現比例、solid 是擋路的範圍 [寬, 高]）；hazard 是關卡機制（wind 暴風）；elite_mult 讓菁英出得更頻繁。",
   "stages": [
     {
-      "id": "philippi", "music": "philippi", "name": "腓立比", "ref": "徒 16", "intro": "馬其頓的第一站。賣紫色布的呂底亞、被鬼附的使女、半夜的監獄。",
-      "hp_mult": 1.0, "dmg_mult": 1.0, "tint": [1.0, 1.0, 1.0], "weights": {},
+      "id": "philippi",
+      "music": "philippi",
+      "name": "腓立比",
+      "ref": "徒 16",
+      "intro": "馬其頓的第一站。賣紫色布的呂底亞、被鬼附的使女、半夜的監獄。",
+      "hp_mult": 1.0,
+      "dmg_mult": 1.0,
+      "tint": [
+        1.0,
+        1.0,
+        1.0
+      ],
+      "weights": {},
       "boss": {},
-      "epistle": { "effect": "fever_plus", "name": "腓立比書：靠主常常喜樂", "desc": "五旬節持續時間 +3 秒（腓 4:4）" }
+      "epistle": {
+        "effect": "fever_plus",
+        "name": "腓立比書：靠主常常喜樂",
+        "desc": "五旬節持續時間 +3 秒（腓 4:4）"
+      },
+      "ground": "ground",
+      "props": [
+        {
+          "tex": [
+            "tree_1",
+            "tree_2",
+            "tree_3"
+          ],
+          "weight": 0.17
+        },
+        {
+          "tex": [
+            "rock_1",
+            "rock_2",
+            "rock_3"
+          ],
+          "weight": 0.15
+        },
+        {
+          "tex": [
+            "bush"
+          ],
+          "weight": 0.18
+        }
+      ]
     },
     {
-      "id": "thessalonica", "music": "thessalonica", "name": "帖撒羅尼迦", "ref": "徒 17:1–9", "intro": "那些攪亂天下的，也到這裡來了。城裡被聳動，成群的暴動衝過來。",
-      "hp_mult": 1.25, "dmg_mult": 1.15, "tint": [1.0, 0.9, 0.85], "weights": { "riot": 3 },
-      "boss": { "name": "騷亂", "hp": 8000, "tint": [1.0, 0.6, 0.5], "order": ["summon", "sweep", "slam", "summon", "hunt"],
-                "summon": { "type": "riot", "count": 10 },
-                "win_text": "主的道從你們那裡已經傳揚出來，你們向神的信心也傳開了。", "win_ref": "帖前 1:8" },
-      "epistle": { "effect": "accord_plus", "name": "帖撒羅尼迦前書：不住的禱告", "desc": "同心合意累積加快 30%（帖前 5:17）" }
+      "id": "thessalonica",
+      "music": "thessalonica",
+      "name": "帖撒羅尼迦",
+      "ref": "徒 17:1–9",
+      "intro": "那些攪亂天下的，也到這裡來了。城裡被聳動，成群的暴動衝過來。",
+      "hp_mult": 1.25,
+      "dmg_mult": 1.15,
+      "tint": [
+        1,
+        1,
+        1
+      ],
+      "weights": {
+        "riot": 3
+      },
+      "boss": {
+        "name": "騷亂",
+        "hp": 8000,
+        "tint": [
+          1.0,
+          0.6,
+          0.5
+        ],
+        "order": [
+          "summon",
+          "sweep",
+          "slam",
+          "summon",
+          "hunt"
+        ],
+        "summon": {
+          "type": "riot",
+          "count": 10
+        },
+        "win_text": "主的道從你們那裡已經傳揚出來，你們向神的信心也傳開了。",
+        "win_ref": "帖前 1:8"
+      },
+      "epistle": {
+        "effect": "accord_plus",
+        "name": "帖撒羅尼迦前書：不住的禱告",
+        "desc": "同心合意累積加快 30%（帖前 5:17）"
+      },
+      "ground": "ground_thessalonica",
+      "props": [
+        {
+          "tex": [
+            "olive_1",
+            "olive_2"
+          ],
+          "weight": 0.15
+        },
+        {
+          "tex": [
+            "rock_1",
+            "rock_2",
+            "rock_3"
+          ],
+          "weight": 0.15
+        },
+        {
+          "tex": [
+            "bush"
+          ],
+          "weight": 0.12
+        }
+      ]
     },
     {
-      "id": "corinth", "music": "corinth", "name": "哥林多", "ref": "徒 18:1–17", "intro": "繁華的港口城市。知識叫人自高自大，打倒了也會分成兩派。",
-      "hp_mult": 1.5, "dmg_mult": 1.3, "tint": [0.95, 0.95, 1.05], "weights": { "pride": 3 },
-      "boss": { "name": "分門結黨", "hp": 10000, "tint": [0.95, 0.8, 0.4], "order": ["grid", "summon", "hunt", "grid", "slam"],
-                "summon": { "type": "pride", "count": 8 },
-                "win_text": "不要怕，只管講，不要閉口；有我與你同在。", "win_ref": "徒 18:9–10" },
-      "epistle": { "effect": "revive_plus", "name": "哥林多前書：愛是恆久忍耐", "desc": "倒下的同伴站起來的速度加倍（林前 13:4）" }
+      "id": "athens",
+      "music": "athens",
+      "name": "雅典",
+      "ref": "徒 17:16–34",
+      "intro": "滿城都是偶像。大理石廣場上石柱林立，擋住去路；愛打聽新事的人到處亂竄。",
+      "hp_mult": 1.35,
+      "dmg_mult": 1.2,
+      "tint": [
+        1,
+        1,
+        1
+      ],
+      "weights": {
+        "idol": 2,
+        "curious": 3
+      },
+      "ground": "ground_athens",
+      "props": [
+        {
+          "tex": [
+            "column_1"
+          ],
+          "weight": 0.12,
+          "solid": [
+            10,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "column_2"
+          ],
+          "weight": 0.08,
+          "solid": [
+            10,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "statue"
+          ],
+          "weight": 0.06,
+          "solid": [
+            14,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "olive_1",
+            "olive_2"
+          ],
+          "weight": 0.08
+        }
+      ],
+      "boss": {
+        "name": "滿城偶像",
+        "hp": 9000,
+        "tint": [
+          1,
+          1,
+          1
+        ],
+        "order": [
+          "summon",
+          "grid",
+          "slam",
+          "summon",
+          "sweep"
+        ],
+        "summon": {
+          "type": "idol",
+          "count": 6
+        },
+        "win_text": "創造宇宙和其中萬物的神，既是天地的主，就不住人手所造的殿。",
+        "win_ref": "徒 17:24"
+      },
+      "epistle": {
+        "effect": "xp_plus",
+        "name": "歌羅西書：智慧和知識",
+        "desc": "經驗 +20%（西 2:3）"
+      }
     },
     {
-      "id": "ephesus", "music": "ephesus", "name": "以弗所", "ref": "徒 19", "intro": "亞底米的城。行邪術的會突然出現在身邊，銀匠們聚眾喊了兩小時。",
-      "hp_mult": 1.8, "dmg_mult": 1.45, "tint": [0.9, 0.85, 1.0], "weights": { "sorcery": 3 },
-      "boss": { "name": "銀匠的騷動", "hp": 12000, "tint": [0.8, 0.6, 1.0], "order": ["sweep", "summon", "slam", "sweep", "grid", "hunt"],
-                "summon": { "type": "sorcery", "count": 8 },
-                "win_text": "主的道大大興旺，而且得勝。", "win_ref": "徒 19:20" },
-      "epistle": { "effect": "armor_plus", "name": "以弗所書：全副軍裝", "desc": "軍裝可以多穿一件（弗 6:11）" }
+      "id": "corinth",
+      "music": "corinth",
+      "name": "哥林多",
+      "ref": "徒 18:1–17",
+      "intro": "繁華的港口城市。知識叫人自高自大，打倒了也會分成兩派。",
+      "hp_mult": 1.5,
+      "dmg_mult": 1.3,
+      "tint": [
+        1,
+        1,
+        1
+      ],
+      "weights": {
+        "pride": 3
+      },
+      "boss": {
+        "name": "分門結黨",
+        "hp": 10000,
+        "tint": [
+          0.95,
+          0.8,
+          0.4
+        ],
+        "order": [
+          "grid",
+          "summon",
+          "hunt",
+          "grid",
+          "slam"
+        ],
+        "summon": {
+          "type": "pride",
+          "count": 8
+        },
+        "win_text": "不要怕，只管講，不要閉口；有我與你同在。",
+        "win_ref": "徒 18:9–10"
+      },
+      "epistle": {
+        "effect": "revive_plus",
+        "name": "哥林多前書：愛是恆久忍耐",
+        "desc": "倒下的同伴站起來的速度加倍（林前 13:4）"
+      },
+      "ground": "ground_corinth",
+      "props": [
+        {
+          "tex": [
+            "amphora"
+          ],
+          "weight": 0.12
+        },
+        {
+          "tex": [
+            "palm_1",
+            "palm_2"
+          ],
+          "weight": 0.1
+        },
+        {
+          "tex": [
+            "rock_1",
+            "rock_2",
+            "rock_3"
+          ],
+          "weight": 0.08
+        },
+        {
+          "tex": [
+            "column_2"
+          ],
+          "weight": 0.06,
+          "solid": [
+            10,
+            6
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ephesus",
+      "music": "ephesus",
+      "name": "以弗所",
+      "ref": "徒 19",
+      "intro": "亞底米的城。行邪術的會突然出現在身邊，銀匠們聚眾喊了兩小時。",
+      "hp_mult": 1.75,
+      "dmg_mult": 1.45,
+      "tint": [
+        1,
+        1,
+        1
+      ],
+      "weights": {
+        "sorcery": 3
+      },
+      "boss": {
+        "name": "銀匠的騷動",
+        "hp": 12000,
+        "tint": [
+          0.8,
+          0.6,
+          1.0
+        ],
+        "order": [
+          "sweep",
+          "summon",
+          "slam",
+          "sweep",
+          "grid",
+          "hunt"
+        ],
+        "summon": {
+          "type": "sorcery",
+          "count": 8
+        },
+        "win_text": "主的道大大興旺，而且得勝。",
+        "win_ref": "徒 19:20"
+      },
+      "epistle": {
+        "effect": "armor_plus",
+        "name": "以弗所書：全副軍裝",
+        "desc": "軍裝可以多穿一件（弗 6:11）"
+      },
+      "ground": "ground_ephesus",
+      "props": [
+        {
+          "tex": [
+            "column_1"
+          ],
+          "weight": 0.08,
+          "solid": [
+            10,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "cypress"
+          ],
+          "weight": 0.12
+        },
+        {
+          "tex": [
+            "statue"
+          ],
+          "weight": 0.05,
+          "solid": [
+            14,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "bush"
+          ],
+          "weight": 0.1
+        }
+      ]
+    },
+    {
+      "id": "jerusalem",
+      "music": "jerusalem",
+      "name": "耶路撒冷",
+      "ref": "徒 21–23",
+      "intro": "合城都震動了。石牆夾出窄巷，誣告的人從四面衝來，四十個人起誓要殺保羅。",
+      "hp_mult": 1.95,
+      "dmg_mult": 1.55,
+      "tint": [
+        1,
+        1,
+        1
+      ],
+      "weights": {
+        "accuser": 3
+      },
+      "ground": "ground_jerusalem",
+      "props": [
+        {
+          "tex": [
+            "wall_1"
+          ],
+          "weight": 0.12,
+          "solid": [
+            34,
+            8
+          ]
+        },
+        {
+          "tex": [
+            "wall_2"
+          ],
+          "weight": 0.08,
+          "solid": [
+            22,
+            8
+          ]
+        },
+        {
+          "tex": [
+            "olive_1",
+            "olive_2"
+          ],
+          "weight": 0.08
+        },
+        {
+          "tex": [
+            "rock_1",
+            "rock_2",
+            "rock_3"
+          ],
+          "weight": 0.08
+        }
+      ],
+      "boss": {
+        "name": "四十人的誓約",
+        "hp": 14000,
+        "tint": [
+          1,
+          1,
+          1
+        ],
+        "order": [
+          "summon",
+          "hunt",
+          "sweep",
+          "summon",
+          "slam",
+          "hunt"
+        ],
+        "summon": {
+          "type": "accuser",
+          "count": 10
+        },
+        "win_text": "你放心吧！你怎樣在耶路撒冷為我作見證，也必怎樣在羅馬為我作見證。",
+        "win_ref": "徒 23:11"
+      },
+      "epistle": {
+        "effect": "link_plus",
+        "name": "加拉太書：彼此擔當",
+        "desc": "肢體連結上限 +1（加 6:2）"
+      }
+    },
+    {
+      "id": "malta",
+      "music": "malta",
+      "name": "馬爾他",
+      "ref": "徒 27–28",
+      "intro": "船擱淺了，大家游上岸。暴風每隔一陣子就吹過海灘，毒蛇從柴堆裡竄出來。",
+      "hp_mult": 2.2,
+      "dmg_mult": 1.7,
+      "tint": [
+        1,
+        1,
+        1
+      ],
+      "weights": {
+        "viper": 4
+      },
+      "ground": "ground_malta",
+      "hazard": {
+        "kind": "wind",
+        "every": 12,
+        "dur": 2.5,
+        "force": 60,
+        "text": "暴風吹來了！"
+      },
+      "props": [
+        {
+          "tex": [
+            "palm_1",
+            "palm_2"
+          ],
+          "weight": 0.14
+        },
+        {
+          "tex": [
+            "shell"
+          ],
+          "weight": 0.12
+        },
+        {
+          "tex": [
+            "pool"
+          ],
+          "weight": 0.06
+        },
+        {
+          "tex": [
+            "driftwood"
+          ],
+          "weight": 0.08
+        },
+        {
+          "tex": [
+            "rock_1",
+            "rock_2",
+            "rock_3"
+          ],
+          "weight": 0.06
+        }
+      ],
+      "boss": {
+        "name": "友拉革羅風",
+        "hp": 16000,
+        "tint": [
+          1,
+          1,
+          1
+        ],
+        "order": [
+          "sweep",
+          "sweep",
+          "summon",
+          "slam",
+          "grid",
+          "hunt"
+        ],
+        "summon": {
+          "type": "viper",
+          "count": 12
+        },
+        "win_text": "保羅竟把那毒蛇甩在火裡，並沒有受傷。",
+        "win_ref": "徒 28:5"
+      },
+      "epistle": {
+        "effect": "hp_plus",
+        "name": "提摩太後書：美好的仗",
+        "desc": "主角血量 +30（提後 4:7）"
+      }
+    },
+    {
+      "id": "rome",
+      "music": "rome",
+      "name": "羅馬",
+      "ref": "徒 28:14–31",
+      "intro": "旅程的終點。石板大道、拱門與石柱，黑暗的權勢在這裡等著。",
+      "hp_mult": 2.6,
+      "dmg_mult": 1.9,
+      "tint": [
+        1,
+        1,
+        1
+      ],
+      "weights": {
+        "power": 3,
+        "accuser": 1
+      },
+      "ground": "ground_rome",
+      "elite_mult": 0.7,
+      "props": [
+        {
+          "tex": [
+            "arch"
+          ],
+          "weight": 0.04
+        },
+        {
+          "tex": [
+            "column_1"
+          ],
+          "weight": 0.08,
+          "solid": [
+            10,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "cypress"
+          ],
+          "weight": 0.1
+        },
+        {
+          "tex": [
+            "statue"
+          ],
+          "weight": 0.05,
+          "solid": [
+            14,
+            6
+          ]
+        }
+      ],
+      "boss": {
+        "name": "黑暗的權勢",
+        "hp": 20000,
+        "tint": [
+          1,
+          1,
+          1
+        ],
+        "order": [
+          "grid",
+          "summon",
+          "sweep",
+          "slam",
+          "hunt",
+          "grid",
+          "sweep"
+        ],
+        "summon": {
+          "type": "power",
+          "count": 8
+        },
+        "win_text": "放膽傳講神國的道，將主耶穌基督的事教導人，並沒有人禁止。",
+        "win_ref": "徒 28:31"
+      },
+      "epistle": {
+        "effect": "combo_plus",
+        "name": "羅馬書：萬事互相效力",
+        "desc": "連鎖中斷前的時間 +1 秒（羅 8:28）"
+      }
     }
   ]
 }

@@ -128,6 +128,10 @@ var parts: Array = []
 var heals: Array = []
 var pops: Array = []
 var chunks := {}
+var solids: Array = []      # 擋路的物件（石柱、石牆）：Rect2
+var wind_t := 8.0           # 馬爾他的暴風：倒數到下一陣風
+var wind_on := 0.0          # 這一陣風還剩幾秒
+var wind_dir := Vector2.RIGHT
 var chunk_timer := 0.0
 var joy := {"on": false, "index": -1, "origin": Vector2.ZERO, "pos": Vector2.ZERO}
 
@@ -348,7 +352,7 @@ func _sprite(key: String, offset: Vector2) -> Sprite2D:
 
 func _build_world() -> void:
 	ground = Sprite2D.new()
-	ground.texture = _tex("ground")
+	ground.texture = _tex(stage.get("ground", "ground"))
 	ground.centered = false
 	ground.region_enabled = true
 	ground.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
@@ -687,6 +691,9 @@ func _apply_card(card: Dictionary) -> void:
 		_ring_pop(c.pos + Vector2(0, -6), C_GOLD, 30.0)
 	elif card.kind == "epistle":
 		epistles[card.key] = true
+		if card.key == "hp_plus":
+			D.paul.hp = float(D.paul.hp) + 30.0
+			paul.hp += 30.0
 	elif card.kind == "evolve":
 		_evolve(_evo_of(card.key))
 	elif card.kind == "link_up":
@@ -1314,7 +1321,7 @@ func _step(dt: float) -> void:
 			_spawn_special("terror", D.elites.terror, _edge_point(16.0))
 			ui.show_banner("菁英出現：恐嚇", 2.0)
 			_tip("elite")
-			elite_timer = ew.peak_every if peak else ew.elite_every
+			elite_timer = (ew.peak_every if peak else ew.elite_every) * float(stage.get("elite_mult", 1.0))
 	if peak and boss == null:
 		trial_timer -= dt
 		if trial_timer <= 0.0:
@@ -1357,7 +1364,7 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
-			xp_acc += Save.up_value("growth") + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
+			xp_acc += Save.up_value("growth") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
 				xp += 1
@@ -1398,6 +1405,8 @@ func _step(dt: float) -> void:
 	if chunk_timer <= 0.0:
 		_update_chunks()
 		chunk_timer = 0.4
+	_update_wind(dt)
+	_collide_solids()
 
 	if xp >= xp_need and not over and not chest_open:
 		_level_up()
@@ -1657,12 +1666,14 @@ func _run_link_queue() -> void:
 func _combo_add() -> void:
 	var C: Dictionary = D.links.combo
 	combo += 1
-	combo_t = float(C.window)
+	combo_t = float(C.window) + (1.0 if epistles.has("combo_plus") else 0.0)
 	combo_best = maxi(combo_best, combo)
 	var ths: Array = C.thresholds
 	if combo_tier < ths.size() and combo >= int(ths[combo_tier]):
 		_resonance(combo_tier)
 		combo_tier += 1
+	elif combo_tier >= ths.size() and (combo - int(ths[-1])) % int(C.get("repeat_every", 25)) == 0:
+		_resonance(ths.size() - 1)   # 最高一層之後，每再連一段就再共鳴一次
 
 
 func _resonance(tier: int) -> void:
@@ -1690,7 +1701,7 @@ func _mote(at: Vector2, col: Color) -> void:
 func _link_card() -> Dictionary:
 	# 已經有連結時，有機會出現「強化連結」
 	var upgradable := links.filter(func(L): return int(L.get("lv", 1)) < int(D.links.levels.max))
-	if not upgradable.is_empty() and (links.size() >= int(D.links.max_links) or randf() < 0.4):
+	if not upgradable.is_empty() and (links.size() >= int(D.links.max_links) + (1 if epistles.has("link_plus") else 0) or randf() < 0.4):
 		var L: Dictionary = upgradable[randi() % upgradable.size()]
 		var lv: int = int(L.get("lv", 1))
 		var K0: Dictionary = D.links.kinds[L.kind]
@@ -1703,7 +1714,7 @@ func _link_card() -> Dictionary:
 		# 光環、帳棚不會「出手」，連了也不會動，不放進候選
 		if c.level > 0 and c.engine != "" and c.follows == "" and not c.engine in ["aura", "tent"]:
 			cands.append(c)
-	if cands.size() < 2 or links.size() >= int(D.links.max_links):
+	if cands.size() < 2 or links.size() >= int(D.links.max_links) + (1 if epistles.has("link_plus") else 0):
 		return {}
 	cands.shuffle()
 	# 依權重抽觸發條件；隊伍裡沒有會治療的人就不出「一同得安慰」
@@ -2208,6 +2219,62 @@ func _hash(x: int, y: int) -> float:
 	return float(h) / 4294967296.0
 
 
+## 把圓形的東西推出擋路的方塊（石柱、石牆）
+func _push_out(pos: Vector2, r: float) -> Vector2:
+	for rc: Rect2 in solids:
+		if pos.x < rc.position.x - r or pos.x > rc.end.x + r or pos.y < rc.position.y - r or pos.y > rc.end.y + r:
+			continue
+		var q := Vector2(clampf(pos.x, rc.position.x, rc.end.x), clampf(pos.y, rc.position.y, rc.end.y))
+		var d := pos - q
+		var l := d.length()
+		if l < r:
+			if l < 0.01:
+				# 中心在方塊裡：往最近的邊推出去
+				var c := rc.get_center()
+				d = Vector2(signf(pos.x - c.x), 0.0) if absf(pos.x - c.x) / rc.size.x > absf(pos.y - c.y) / rc.size.y else Vector2(0.0, signf(pos.y - c.y))
+				pos = Vector2(rc.end.x + r if d.x > 0 else (rc.position.x - r if d.x < 0 else pos.x), rc.end.y + r if d.y > 0 else (rc.position.y - r if d.y < 0 else pos.y))
+			else:
+				pos = q + d / l * r
+	return pos
+
+
+func _collide_solids() -> void:
+	if solids.is_empty():
+		return
+	paul.pos = _push_out(paul.pos, 4.0)
+	for c in comps:
+		if c.level > 0:
+			c.base = _push_out(c.base, 3.0)
+	for e in enemies:
+		if not e.dead and not e.get("boss", false):
+			e.pos = _push_out(e.pos, 3.0)
+
+
+## 關卡機制：馬爾他的暴風每隔一陣子吹過來，把所有人往同一個方向推
+func _update_wind(dt: float) -> void:
+	var hz: Dictionary = stage.get("hazard", {})
+	if hz.get("kind", "") != "wind":
+		return
+	if wind_on > 0.0:
+		wind_on -= dt
+		var f: float = float(hz.force) * dt
+		paul.pos += wind_dir * f * 0.5
+		for c in comps:
+			if c.level > 0:
+				c.base += wind_dir * f * 0.5
+		for e in enemies:
+			if not e.dead and not e.get("boss", false):
+				e.pos += wind_dir * f
+		return
+	wind_t -= dt
+	if wind_t <= 0.0:
+		wind_t = float(hz.every)
+		wind_on = float(hz.dur)
+		wind_dir = Vector2.RIGHT.rotated(randf() * TAU)
+		ui.show_banner(hz.get("text", "暴風！"), 1.5)
+		Sfx.play("warn", 0.0)
+
+
 func _update_chunks() -> void:
 	var v := _view_rect().grow(40.0)
 	var x0 := floori(v.position.x / CHUNK)
@@ -2222,26 +2289,42 @@ func _update_chunks() -> void:
 			if chunks.has(key):
 				continue
 			var items := []
+			var rects := []
 			for k in 3:
 				var h := _hash(cx * 7 + k * 131, cy * 13 + k * 71)
-				if h > 0.5:
-					continue
 				var wx := cx * CHUNK + floori(_hash(cx + k * 17, cy * 3 + 1) * CHUNK)
 				var wy := cy * CHUNK + floori(_hash(cx * 5 + 2, cy + k * 29) * CHUNK)
 				if Vector2(wx, wy).length() < 50.0:
 					continue
-				var v3 := 1 + floori(_hash(cx, cy + k) * 3)
-				var key2 := ("tree_%d" % v3) if h < 0.17 else (("rock_%d" % v3) if h < 0.32 else "bush")
+				# 依關卡的 props 比例挑一種物件
+				var acc := 0.0
+				var pick = null
+				for pr in stage.get("props", []):
+					acc += float(pr.weight)
+					if h < acc:
+						pick = pr
+						break
+				if pick == null:
+					continue
+				var texs: Array = pick.tex
+				var key2: String = texs[floori(_hash(cx, cy + k) * texs.size()) % texs.size()]
 				var t2 := _tex(key2)
 				var s := _sprite(key2, Vector2(-t2.get_width() / 2, -t2.get_height()))
 				s.position = Vector2(wx, wy)
 				items.append(s)
-			chunks[key] = items
+				if pick.has("solid"):
+					var bw: float = pick.solid[0]
+					var bh: float = pick.solid[1]
+					rects.append(Rect2(wx - bw / 2.0, wy - bh, bw, bh))
+			chunks[key] = {"items": items, "rects": rects}
 	for key in chunks.keys():
 		if not keep.has(key):
-			for s in chunks[key]:
+			for s in chunks[key].items:
 				s.queue_free()
 			chunks.erase(key)
+	solids.clear()
+	for key in chunks:
+		solids.append_array(chunks[key].rects)
 
 
 # ---------- 畫面 ----------
@@ -2382,6 +2465,14 @@ func _draw_ground_fx() -> void:
 
 
 func _draw_air() -> void:
+	if wind_on > 0.0:
+		# 暴風：一條條白色的風線往同一個方向掃過
+		var v := _view_rect()
+		for i in 24:
+			var ph := fmod(t * 1.7 + i * 0.37, 1.0)
+			var base := v.position + Vector2(_hash(i, 3) * v.size.x, _hash(i, 7) * v.size.y)
+			var p0 := base + wind_dir * (ph - 0.5) * 120.0
+			air.draw_line(p0, p0 + wind_dir * 14.0, Color(1, 1, 1, 0.45 * minf(1.0, wind_on)), 1.0)
 	var n := air
 	var on_fire := fever > 0.0
 	for b in _barrier_pieces():

@@ -302,11 +302,145 @@ def boss_ephesus():
     c.save("boss_ephesus")
 
 
+# ---------- 新城市的敵人 ----------
+def idol(c, f):
+    # 偶像（雅典）：站在台座上的石像，眼睛發光
+    c.blob(10, 16, 6, 2.5, ("#6a665e", "#9a958a", "#c8c2b2"), 0, 50)
+    c.blob(10, 10, 3.5, 5.5, ("#8a8478", "#b8b2a4", "#e0dace"), 0, 51)
+    c.blob(10, 4, 2.5, 2.5, ("#8a8478", "#b8b2a4", "#e0dace"), 0, 52)
+    col = "#ff5a3a" if f else "#ffb03a"
+    c.px(9, 4, col)
+    c.px(11, 4, col)
+    c.outline("#3a362e")
+
+
+def curious(c, f):
+    # 好奇（雅典）：大眼睛的小影子，到處張望（徒 17:21）
+    c.blob(10, 12, 5, 5, ("#1e2a4a", "#34466e", "#4f6494"), 0.2, 53 + f)
+    for side in (-1, 1):
+        c.blob(10 + side * 2.5, 10, 2, 2, ("#c8d8f0", "#e8f0ff", "#ffffff"), 0, 54)
+        c.px(10 + side * 2.5 + (1 if f else -1), 10, "#101828")
+    c.px(4, 5 - f, "#ffe14d")
+    c.px(4, 6 - f, "#ffe14d")
+    c.px(4, 8 - f, "#ffe14d")
+    c.outline()
+
+
+def accuser(c, f):
+    # 誣告（耶路撒冷）：伸長手指著人的黑袍身影
+    for y in range(5, 19):
+        w = 2 + (y - 5) * 0.35
+        for x in range(21):
+            if abs(x - 9) < w:
+                c.px(x, y, "#2a2030" if abs(x - 9) < w - 1 else "#4a3a50")
+    c.blob(9, 5, 2.5, 2.5, ("#2a2030", "#3a2a40", "#5a4a60"), 0, 55)
+    c.px(8, 5, "#ff7a4a")
+    c.px(10, 5, "#ff7a4a")
+    for i in range(6):
+        c.px(11 + i, 9 - (i // 3) + f, "#c8a080")
+    c.px(17, 7 + f, "#e8c0a0")
+    c.outline()
+
+
+def viper(c, f):
+    # 毒蛇（馬爾他）：從柴堆裡竄出來的小蛇（徒 28:3）
+    for i in range(16):
+        x = 3 + i
+        y = 13 + math.sin(i * 0.8 + f * 1.5) * 2
+        c.px(x, y, "#6a7a2a" if i % 3 else "#a0a040")
+        c.px(x, y + 1, "#3a4a18")
+    c.blob(18, 12, 2.2, 1.8, ("#3a4a18", "#6a7a2a", "#a0a040"), 0, 56)
+    c.px(19, 11, "#ff3a2a")
+    c.px(20, 13 + f, "#e8481c")
+    c.outline()
+
+
+def power(c, f):
+    # 權勢（羅馬）：戴頭盔、拿盾牌的黑色重甲兵
+    c.blob(10, 12, 5.5, 6, ("#1a1820", "#2e2a36", "#46404e"), 0, 57)
+    c.blob(10, 5, 3.5, 3, ("#4a3a1a", "#8a6a2a", "#c8a040"), 0, 58)
+    for x in range(8, 13):
+        c.px(x, 2 - f, "#c8302a")
+    c.px(9, 6, "#ff3a2a")
+    c.px(11, 6, "#ff3a2a")
+    c.blob(5, 12, 2.5, 4, ("#5a1a14", "#8a2a1e", "#b8402a"), 0, 59)
+    c.px(5, 12, "#c8a040")
+    c.outline("#0a0810")
+
+
+def boss_athens():
+    # 滿城偶像（徒 17:16）：一群大小石像擠成一座小山，眼睛都在發光
+    c = Canvas(40, 40)
+    for i, (x, y, s) in enumerate([(10, 26, 1.0), (30, 26, 1.0), (20, 20, 1.4), (14, 32, 0.8), (26, 32, 0.8)]):
+        c.blob(x, y + 6 * s, 5 * s, 2 * s, ("#6a665e", "#9a958a", "#c8c2b2"), 0, 60 + i)
+        c.blob(x, y, 3.5 * s, 6 * s, ("#8a8478", "#b8b2a4", "#e0dace"), 0, 65 + i)
+        c.blob(x, y - 7 * s, 2.5 * s, 2.5 * s, ("#8a8478", "#b8b2a4", "#e0dace"), 0, 70 + i)
+        c.px(x - 1, y - 7 * s, "#ff5a3a")
+        c.px(x + 1, y - 7 * s, "#ff5a3a")
+    c.outline("#3a362e")
+    c.save("boss_athens")
+
+
+def boss_jerusalem():
+    # 四十人的誓約（徒 23:12）：一大群蒙面人，手裡的短刀閃著光
+    c = Canvas(40, 40)
+    c.blob(20, 26, 17, 12, ("#1a1420", "#2e2436", "#463a50"), 0.2, 75)
+    for i in range(10):
+        x, y = 7 + (i * 9) % 27, 17 + (i * 7) % 15
+        c.blob(x, y, 2.5, 2.5, ("#1a1420", "#2e2436", "#3e3446"), 0, 76 + i)
+        c.px(x, y, "#ffb08a")
+        c.px(x + 3, y - 3, "#e0e0f0")
+        c.px(x + 4, y - 4, "#ffffff")
+    c.outline("#08060a")
+    c.save("boss_jerusalem")
+
+
+def boss_malta():
+    # 友拉革羅風（徒 27:14）：捲成漩渦的暴風雲，裡面有閃電
+    c = Canvas(40, 40)
+    for i in range(260):
+        a = i * 0.21
+        r = 3 + i * 0.065
+        x, y = 20 + math.cos(a) * r, 20 + math.sin(a) * r * 0.8
+        col = "#4a5a70" if i % 4 else "#8a9ab0"
+        c.px(x, y, col)
+        c.px(x + 1, y, "#2a3448")
+    for x, y in [(18, 14), (19, 16), (17, 18), (18, 20), (20, 22)]:
+        c.px(x, y, "#ffe14d")
+        c.px(x + 1, y, "#fff4c2")
+    c.outline("#101828")
+    c.save("boss_malta")
+
+
+def boss_rome():
+    # 黑暗的權勢（西 1:13）：戴王冠的巨大黑影，張開雙翼
+    c = Canvas(40, 40)
+    for side in (-1, 1):
+        for i in range(14):
+            for j in range(10 - i // 2):
+                c.px(20 + side * (6 + i), 14 + j + i * 0.4, "#1a1420" if j > 2 else "#3a2a40")
+    c.blob(20, 24, 8, 12, ("#0e0a12", "#1e1626", "#36283e"), 0.1, 85)
+    for x in range(14, 27):
+        c.px(x, 10 - (2 if x % 3 == 0 else 0), "#c8a040")
+        c.px(x, 11, "#c8a040")
+    c.px(17, 18, "#ff3a2a")
+    c.px(18, 18, "#ff3a2a")
+    c.px(22, 18, "#ff3a2a")
+    c.px(23, 18, "#ff3a2a")
+    c.outline("#050308")
+    c.save("boss_rome")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [("fear_b", fear_b), ("strife_b", strife_b), ("lies_b", lies_b), ("sleep_b", sleep_b),
-                     ("riot", riot), ("pride", pride), ("sorcery", sorcery), ("terror", terror), ("apathy", apathy)]:
+                     ("riot", riot), ("pride", pride), ("sorcery", sorcery), ("terror", terror), ("apathy", apathy),
+                     ("idol", idol), ("curious", curious), ("accuser", accuser), ("viper", viper), ("power", power)]:
         frames(name, fn)
+    boss_athens()
+    boss_jerusalem()
+    boss_malta()
+    boss_rome()
     boss_thessalonica()
     boss_corinth()
     boss_ephesus()

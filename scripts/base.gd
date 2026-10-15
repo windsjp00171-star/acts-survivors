@@ -286,7 +286,8 @@ func _show_home() -> void:
 
 
 func _stage_open(i: int) -> bool:
-	return i == 0 or Save.data.churches.has(stages[i - 1].id)
+	# 已經建立過的城一定開著（中間插入新城市時，舊存檔不會被鎖住）
+	return i == 0 or Save.data.churches.has(stages[i - 1].id) or Save.data.churches.has(stages[i].id)
 
 
 func _start() -> void:
