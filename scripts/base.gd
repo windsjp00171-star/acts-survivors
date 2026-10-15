@@ -651,7 +651,7 @@ func _show_gifts() -> void:
 	else:
 		area.add_child(canvas)
 		area.add_child(side)
-	var nodes: Array = GF.nodes
+	var nodes: Array = tree.nodes
 	var center := func(nd: Dictionary) -> Vector2: return Vector2((int(nd.col) + 0.5) * cw, (int(nd.row) + 0.5) * ch + 7.0)
 	canvas.draw.connect(func():
 		for r in GF.tiers.size():

@@ -152,90 +152,909 @@
     ],
     "trees": {
       "講道": {
-        "ref": "提後 4:2",
-        "refs": ["提後 4:2", "提後 4:2", "太 24:14", "多 1:9", "彼前 3:15", "西 3:16", "來 4:12", "約 1:14"],
-          "names": [
+        "names": [
           "務要傳道",
-          "得時不得時",
           "傳遍天下",
+          "得時不得時",
+          "道的鋒利",
+          "雙刃的劍",
+          "真光照亮",
           "駁倒謬論",
-          "預備好的心",
-          "道的連結",
           "道的大能",
           "道成肉身"
-        ]
+        ],
+        "refs": [
+          "提後 4:2",
+          "太 24:14",
+          "提後 4:2",
+          "來 4:12",
+          "來 4:12",
+          "約 1:9",
+          "多 1:9",
+          "西 3:16",
+          "約 1:14"
+        ],
+        "nodes": [
+          {
+            "id": "dmg",
+            "kind": "dmg",
+            "row": 0,
+            "col": 0,
+            "per": 0.06,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴傷害 +6%%／級"
+          },
+          {
+            "id": "area",
+            "kind": "area",
+            "row": 0,
+            "col": 1,
+            "per": 0.08,
+            "max": 3,
+            "cost": 25,
+            "cost_step": 15,
+            "req": [],
+            "desc": "%s 同伴的範圍、射程 +8%%／級"
+          },
+          {
+            "id": "speed",
+            "kind": "speed",
+            "row": 0,
+            "col": 2,
+            "per": 0.05,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴攻擊速度 +5%%／級"
+          },
+          {
+            "id": "crit",
+            "kind": "crit",
+            "row": 1,
+            "col": 0,
+            "per": 0.08,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "dmg"
+            ],
+            "desc": "%s 同伴每一擊有 8%%／級機率造成兩倍傷害"
+          },
+          {
+            "id": "beams",
+            "kind": "stat",
+            "row": 1,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 90,
+            "cost_step": 0,
+            "req": [
+              "area"
+            ],
+            "desc": "%s 同伴的光束多一道",
+            "stat": "beams",
+            "add": 1
+          },
+          {
+            "id": "expose",
+            "kind": "expose",
+            "row": 1,
+            "col": 2,
+            "per": 0.1,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "speed"
+            ],
+            "desc": "%s 同伴打中的敵人被照亮 2 秒：受到的傷害 +10%%／級"
+          },
+          {
+            "id": "elite",
+            "kind": "elite",
+            "row": 2,
+            "col": 0,
+            "per": 0.12,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "crit"
+            ],
+            "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"
+          },
+          {
+            "id": "link",
+            "kind": "link",
+            "row": 2,
+            "col": 2,
+            "per": 0.5,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "expose"
+            ],
+            "desc": "%s 專屬連結效果 +50%%／級"
+          },
+          {
+            "id": "ult",
+            "kind": "ult",
+            "row": 3,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 200,
+            "cost_step": 0,
+            "req": [
+              "elite",
+              "link"
+            ],
+            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
+          }
+        ],
+        "ref": "提後 4:2"
       },
       "詩歌": {
-        "ref": "西 3:16",
-        "refs": ["西 3:16", "弗 5:19", "詩 96:1", "代下 20:22", "詩 59:16", "代下 5:13", "羅 15:6", "啟 5:9"],
-          "names": [
+        "names": [
           "心被恩感",
-          "對口唱和",
           "歌聲遠揚",
+          "對口唱和",
           "讚美的大能",
           "晨歌",
-          "和聲相連",
           "同心讚美",
+          "和聲回響",
+          "和聲相連",
           "新歌"
-        ]
+        ],
+        "refs": [
+          "西 3:16",
+          "詩 96:1",
+          "弗 5:19",
+          "代下 20:22",
+          "詩 59:16",
+          "羅 15:6",
+          "代下 5:13",
+          "詩 133:1",
+          "啟 5:9"
+        ],
+        "nodes": [
+          {
+            "id": "area",
+            "kind": "area",
+            "row": 0,
+            "col": 0,
+            "per": 0.1,
+            "max": 3,
+            "cost": 25,
+            "cost_step": 15,
+            "req": [],
+            "desc": "%s 同伴的範圍 +10%%／級"
+          },
+          {
+            "id": "speed",
+            "kind": "speed",
+            "row": 0,
+            "col": 1,
+            "per": 0.05,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴攻擊速度 +5%%／級"
+          },
+          {
+            "id": "dmg",
+            "kind": "dmg",
+            "row": 0,
+            "col": 2,
+            "per": 0.05,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴傷害 +5%%／級"
+          },
+          {
+            "id": "stun",
+            "kind": "stat",
+            "row": 1,
+            "col": 0,
+            "per": 0.2,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "area"
+            ],
+            "desc": "%s 同伴有暈眩效果的招式，暈眩 +0.2 秒／級",
+            "stat": "stun",
+            "add": 0.2
+          },
+          {
+            "id": "rings",
+            "kind": "stat",
+            "row": 1,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 90,
+            "cost_step": 0,
+            "req": [
+              "speed"
+            ],
+            "desc": "%s 同伴的聲波一次多一圈",
+            "stat": "rings",
+            "add": 1
+          },
+          {
+            "id": "meter",
+            "kind": "meter",
+            "row": 1,
+            "col": 2,
+            "per": 0.004,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "dmg"
+            ],
+            "desc": "%s 同伴每驅散一隻，同心合意 +0.4%%／級"
+          },
+          {
+            "id": "returns",
+            "kind": "stat",
+            "row": 2,
+            "col": 0,
+            "per": 1,
+            "max": 1,
+            "cost": 80,
+            "cost_step": 0,
+            "req": [
+              "stun"
+            ],
+            "desc": "%s 同伴的聲波擴散到底會再收回來打一次",
+            "stat": "returns",
+            "add": 1
+          },
+          {
+            "id": "link",
+            "kind": "link",
+            "row": 2,
+            "col": 2,
+            "per": 0.5,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "meter"
+            ],
+            "desc": "%s 專屬連結效果 +50%%／級"
+          },
+          {
+            "id": "ult",
+            "kind": "ult",
+            "row": 3,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 200,
+            "cost_step": 0,
+            "req": [
+              "returns",
+              "link"
+            ],
+            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
+          }
+        ],
+        "ref": "西 3:16"
       },
       "守護": {
-        "ref": "詩 121:7",
-        "refs": ["詩 121:7", "詩 121:4", "詩 91:1", "詩 3:3", "結 22:30", "結 3:17", "賽 26:1", "亞 2:5"],
-          "names": [
+        "names": [
           "保守",
           "看顧",
           "庇蔭",
           "大能的盾",
           "預備的牆",
+          "四圍的城牆",
           "彼此守望",
           "牆垣",
           "四圍的火城"
-        ]
+        ],
+        "refs": [
+          "詩 121:7",
+          "詩 121:4",
+          "詩 91:1",
+          "詩 3:3",
+          "結 22:30",
+          "賽 26:1",
+          "結 3:17",
+          "賽 60:18",
+          "亞 2:5"
+        ],
+        "nodes": [
+          {
+            "id": "dr",
+            "kind": "dr",
+            "row": 0,
+            "col": 0,
+            "per": 0.08,
+            "max": 3,
+            "cost": 25,
+            "cost_step": 15,
+            "req": [],
+            "desc": "%s 同伴受到的傷害 -8%%／級"
+          },
+          {
+            "id": "dmg",
+            "kind": "dmg",
+            "row": 0,
+            "col": 1,
+            "per": 0.06,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴傷害 +6%%／級"
+          },
+          {
+            "id": "area",
+            "kind": "area",
+            "row": 0,
+            "col": 2,
+            "per": 0.08,
+            "max": 3,
+            "cost": 25,
+            "cost_step": 15,
+            "req": [],
+            "desc": "%s 同伴的範圍 +8%%／級"
+          },
+          {
+            "id": "thorns",
+            "kind": "thorns",
+            "row": 1,
+            "col": 0,
+            "per": 4,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "dr"
+            ],
+            "desc": "%s 同伴被打時，身邊的敵人受到 4 點／級的反擊傷害"
+          },
+          {
+            "id": "knock",
+            "kind": "stat",
+            "row": 1,
+            "col": 1,
+            "per": 0.25,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "dmg"
+            ],
+            "desc": "%s 同伴的擊退 +25%%／級",
+            "stat": "knock",
+            "mul": 0.25
+          },
+          {
+            "id": "guardcap",
+            "kind": "guardcap",
+            "row": 1,
+            "col": 2,
+            "per": 1,
+            "max": 2,
+            "cost": 60,
+            "cost_step": 30,
+            "req": [
+              "area"
+            ],
+            "desc": "主角的護盾上限 +1／級（全隊）"
+          },
+          {
+            "id": "start",
+            "kind": "start",
+            "row": 2,
+            "col": 0,
+            "per": 1,
+            "max": 1,
+            "cost": 80,
+            "cost_step": 0,
+            "req": [
+              "thorns"
+            ],
+            "desc": "%s 同伴加入時直接是 Lv2"
+          },
+          {
+            "id": "link",
+            "kind": "link",
+            "row": 2,
+            "col": 2,
+            "per": 0.5,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "guardcap"
+            ],
+            "desc": "%s 專屬連結效果 +50%%／級"
+          },
+          {
+            "id": "ult",
+            "kind": "ult",
+            "row": 3,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 200,
+            "cost_step": 0,
+            "req": [
+              "start",
+              "link"
+            ],
+            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
+          }
+        ],
+        "ref": "詩 121:7"
       },
       "醫治": {
-        "ref": "雅 5:16",
-        "refs": ["路 10:34", "雅 5:14", "可 16:18", "林前 12:9", "徒 3:6", "雅 5:16", "提前 2:1", "賽 53:5"],
-          "names": [
+        "names": [
           "裹傷",
-          "抹油",
           "按手",
+          "抹油",
           "醫治的恩賜",
           "起來行走",
+          "扶持軟弱",
           "彼此代求",
           "代求",
           "得醫治"
-        ]
+        ],
+        "refs": [
+          "路 10:34",
+          "可 16:18",
+          "雅 5:14",
+          "林前 12:9",
+          "徒 3:6",
+          "帖前 5:14",
+          "雅 5:16",
+          "提前 2:1",
+          "賽 53:5"
+        ],
+        "nodes": [
+          {
+            "id": "heal",
+            "kind": "healmul",
+            "row": 0,
+            "col": 0,
+            "per": 0.15,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴的治療量 +15%%／級"
+          },
+          {
+            "id": "speed",
+            "kind": "speed",
+            "row": 0,
+            "col": 1,
+            "per": 0.05,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴出手速度 +5%%／級"
+          },
+          {
+            "id": "dr",
+            "kind": "dr",
+            "row": 0,
+            "col": 2,
+            "per": 0.06,
+            "max": 3,
+            "cost": 25,
+            "cost_step": 15,
+            "req": [],
+            "desc": "%s 同伴受到的傷害 -6%%／級"
+          },
+          {
+            "id": "leech",
+            "kind": "leech",
+            "row": 1,
+            "col": 0,
+            "per": 0.5,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "heal"
+            ],
+            "desc": "%s 同伴每驅散一隻，主角回 0.5 血／級"
+          },
+          {
+            "id": "start",
+            "kind": "start",
+            "row": 1,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 80,
+            "cost_step": 0,
+            "req": [
+              "speed"
+            ],
+            "desc": "%s 同伴加入時直接是 Lv2"
+          },
+          {
+            "id": "revive",
+            "kind": "revive",
+            "row": 1,
+            "col": 2,
+            "per": 0.12,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "dr"
+            ],
+            "desc": "倒下的同伴站起來的時間 -12%%／級（全隊）"
+          },
+          {
+            "id": "linkcd",
+            "kind": "linkcd",
+            "row": 2,
+            "col": 0,
+            "per": 0.12,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "leech"
+            ],
+            "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"
+          },
+          {
+            "id": "link",
+            "kind": "link",
+            "row": 2,
+            "col": 2,
+            "per": 0.5,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "revive"
+            ],
+            "desc": "%s 專屬連結效果 +50%%／級"
+          },
+          {
+            "id": "ult",
+            "kind": "ult",
+            "row": 3,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 200,
+            "cost_step": 0,
+            "req": [
+              "linkcd",
+              "link"
+            ],
+            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
+          }
+        ],
+        "ref": "雅 5:16"
       },
       "差派": {
-        "ref": "賽 6:8",
-        "refs": ["賽 6:8", "羅 10:15", "可 16:15", "腓 3:14", "路 10:1", "來 12:1", "太 10:5", "徒 1:8"],
-          "names": [
+        "names": [
           "我在這裡",
           "腳蹤佳美",
           "往普天下去",
-          "勇往直前",
           "兩個兩個",
+          "勇往直前",
           "接力奔跑",
           "分頭出去",
+          "不住地奔跑",
           "直到地極"
-        ]
+        ],
+        "refs": [
+          "賽 6:8",
+          "羅 10:15",
+          "可 16:15",
+          "路 10:1",
+          "腓 3:14",
+          "來 12:1",
+          "太 10:5",
+          "林前 9:24",
+          "徒 1:8"
+        ],
+        "nodes": [
+          {
+            "id": "speed",
+            "kind": "speed",
+            "row": 0,
+            "col": 0,
+            "per": 0.06,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴攻擊速度 +6%%／級"
+          },
+          {
+            "id": "move",
+            "kind": "move",
+            "row": 0,
+            "col": 1,
+            "per": 0.04,
+            "max": 3,
+            "cost": 25,
+            "cost_step": 15,
+            "req": [],
+            "desc": "主角移動速度 +4%%／級（全隊）"
+          },
+          {
+            "id": "dmg",
+            "kind": "dmg",
+            "row": 0,
+            "col": 2,
+            "per": 0.05,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴傷害 +5%%／級"
+          },
+          {
+            "id": "count",
+            "kind": "stat",
+            "row": 1,
+            "col": 0,
+            "per": 1,
+            "max": 1,
+            "cost": 90,
+            "cost_step": 0,
+            "req": [
+              "speed"
+            ],
+            "desc": "%s 同伴一次多射一發",
+            "stat": "count",
+            "add": 1
+          },
+          {
+            "id": "combo",
+            "kind": "combo",
+            "row": 1,
+            "col": 1,
+            "per": 0.2,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "move"
+            ],
+            "desc": "%s 同伴每次出手，連鎖多撐 0.2 秒／級"
+          },
+          {
+            "id": "pierce",
+            "kind": "stat",
+            "row": 1,
+            "col": 2,
+            "per": 1,
+            "max": 2,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "dmg"
+            ],
+            "desc": "%s 同伴的投射物多穿透 1 隻／級",
+            "stat": "pierce",
+            "add": 1
+          },
+          {
+            "id": "linkcd",
+            "kind": "linkcd",
+            "row": 2,
+            "col": 0,
+            "per": 0.12,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "count"
+            ],
+            "desc": "連到 %s 同伴的連結，觸發間隔 -12%%／級"
+          },
+          {
+            "id": "link",
+            "kind": "link",
+            "row": 2,
+            "col": 2,
+            "per": 0.5,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "combo"
+            ],
+            "desc": "%s 專屬連結效果 +50%%／級"
+          },
+          {
+            "id": "ult",
+            "kind": "ult",
+            "row": 3,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 200,
+            "cost_step": 0,
+            "req": [
+              "linkcd",
+              "link"
+            ],
+            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
+          }
+        ],
+        "ref": "賽 6:8"
       },
       "門徒": {
-        "ref": "可 1:17",
-        "refs": ["可 1:17", "可 1:18", "路 5:10", "書 1:9", "弗 4:1", "太 11:29", "約 13:34", "路 9:23"],
-          "names": [
+        "names": [
           "跟從",
           "撇下網",
-          "得人如得魚",
-          "剛強壯膽",
           "蒙召",
+          "剛強壯膽",
           "同負一軛",
+          "得人如得魚",
           "彼此相愛",
+          "彼此洗腳",
           "背起十字架"
-        ]
+        ],
+        "refs": [
+          "可 1:17",
+          "可 1:18",
+          "弗 4:1",
+          "書 1:9",
+          "太 11:29",
+          "路 5:10",
+          "約 13:34",
+          "約 13:14",
+          "路 9:23"
+        ],
+        "nodes": [
+          {
+            "id": "dmg",
+            "kind": "dmg",
+            "row": 0,
+            "col": 0,
+            "per": 0.06,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴傷害 +6%%／級"
+          },
+          {
+            "id": "speed",
+            "kind": "speed",
+            "row": 0,
+            "col": 1,
+            "per": 0.05,
+            "max": 5,
+            "cost": 15,
+            "cost_step": 10,
+            "req": [],
+            "desc": "%s 同伴攻擊速度 +5%%／級"
+          },
+          {
+            "id": "xp",
+            "kind": "xp",
+            "row": 0,
+            "col": 2,
+            "per": 0.05,
+            "max": 3,
+            "cost": 25,
+            "cost_step": 15,
+            "req": [],
+            "desc": "經驗 +5%%／級（全隊）"
+          },
+          {
+            "id": "elite",
+            "kind": "elite",
+            "row": 1,
+            "col": 0,
+            "per": 0.12,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "dmg"
+            ],
+            "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"
+          },
+          {
+            "id": "start",
+            "kind": "start",
+            "row": 1,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 80,
+            "cost_step": 0,
+            "req": [
+              "speed"
+            ],
+            "desc": "%s 同伴加入時直接是 Lv2"
+          },
+          {
+            "id": "loot",
+            "kind": "loot",
+            "row": 1,
+            "col": 2,
+            "per": 0.08,
+            "max": 3,
+            "cost": 40,
+            "cost_step": 20,
+            "req": [
+              "xp"
+            ],
+            "desc": "%s 同伴驅散的敵人有 8%%／級機率多掉一顆經驗"
+          },
+          {
+            "id": "crit",
+            "kind": "crit",
+            "row": 2,
+            "col": 0,
+            "per": 0.06,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "elite"
+            ],
+            "desc": "%s 同伴每一擊有 6%%／級機率造成兩倍傷害"
+          },
+          {
+            "id": "link",
+            "kind": "link",
+            "row": 2,
+            "col": 2,
+            "per": 0.5,
+            "max": 3,
+            "cost": 50,
+            "cost_step": 25,
+            "req": [
+              "loot"
+            ],
+            "desc": "%s 專屬連結效果 +50%%／級"
+          },
+          {
+            "id": "ult",
+            "kind": "ult",
+            "row": 3,
+            "col": 1,
+            "per": 1,
+            "max": 1,
+            "cost": 200,
+            "cost_step": 0,
+            "req": [
+              "crit",
+              "link"
+            ],
+            "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"
+          }
+        ],
+        "ref": "可 1:17"
       }
-    }
+    },
+    "_說明": "每棵樹有自己的 nodes（9 個）：kind 決定效果（dmg 傷害、speed 攻速、area 範圍、crit 會心、expose 照亮、elite 菁英、stat 改招式數值、meter 同心合意、dr 減傷、thorns 反擊、guardcap 護盾上限、healmul 治療量、leech 驅散回血、revive 倒地時間、move 移動、combo 連鎖、xp 經驗、loot 多掉經驗、start 直接 Lv2、linkcd 連結間隔、link 專屬連結、ult 終極）。"
   },
   "_buildings說明": "營地建設：用見證蓋，蓋好就一直有效，也會出現在營地裡。bonus 的 key：regen 主角每秒回血、meter 開局同心合意、xp 經驗、magnet 撿取範圍、bread 每局帶回的餅、affinity 默契、armor 軍裝欄位。",
   "buildings": [

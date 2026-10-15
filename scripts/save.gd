@@ -38,6 +38,25 @@ func load_profile() -> void:
 					data.stats.merge(saved.stats, true)
 				else:
 					data[k] = saved[k]
+	_refund_old_gifts()
+
+
+## 恩賜樹改版後，舊存檔裡已經不存在的節點：把花掉的餅退回來
+func _refund_old_gifts() -> void:
+	var refund := 0
+	for tag in data.get("gifts", {}).keys():
+		if not meta.gifts.trees.has(tag):
+			continue
+		var ids := gift_nodes(tag).map(func(n): return n.id)
+		for id in data.gifts[tag].keys():
+			if not ids.has(id):
+				var r := int(data.gifts[tag][id])
+				for i in r:
+					refund += 30 + i * 15
+				data.gifts[tag].erase(id)
+	if refund > 0:
+		data.bread = int(data.get("bread", 0)) + refund
+		save_profile()
 
 
 func save_profile() -> void:
@@ -172,14 +191,28 @@ func gift_points(tag: String) -> int:
 	return n
 
 
+func gift_nodes(tag: String) -> Array:
+	return meta.gifts.trees[tag].nodes
+
+
+## 全隊效果（move、xp、guardcap、revive）：所有樹加起來
+func gift_global(kind: String) -> float:
+	var v := 0.0
+	for tag in meta.gifts.trees:
+		for nd in gift_nodes(tag):
+			if nd.kind == kind:
+				v += gift_rank(tag, nd.id) * float(nd.per)
+	return v
+
+
 func gift_cost(i: int, tag: String) -> int:
-	var nd: Dictionary = meta.gifts.nodes[i]
+	var nd: Dictionary = gift_nodes(tag)[i]
 	return int(nd.cost) + gift_rank(tag, nd.id) * int(nd.cost_step)
 
 
 ## 第 i 個節點能不能學：這棵樹先點到 tiers[row] 點，而且前置節點都至少學過 1 級
 func gift_open(i: int, tag: String) -> bool:
-	var nd: Dictionary = meta.gifts.nodes[i]
+	var nd: Dictionary = gift_nodes(tag)[i]
 	if gift_points(tag) < int(meta.gifts.tiers[int(nd.row)]):
 		return false
 	for r in nd.req:
@@ -189,7 +222,7 @@ func gift_open(i: int, tag: String) -> bool:
 
 
 func buy_gift(i: int, tag: String) -> bool:
-	var nd: Dictionary = meta.gifts.nodes[i]
+	var nd: Dictionary = gift_nodes(tag)[i]
 	var c := gift_cost(i, tag)
 	if not gift_open(i, tag) or gift_rank(tag, nd.id) >= int(nd.max) or int(data.bread) < c:
 		return false

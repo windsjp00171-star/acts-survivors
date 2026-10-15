@@ -214,6 +214,9 @@ func _ready() -> void:
 	D.paul.speed = float(D.paul.speed) * (1.0 + Save.up_value("run"))
 	D.gems.magnet_radius = float(D.gems.magnet_radius) * (1.0 + Save.up_value("reap") + Save.building_bonus("magnet"))
 	D.armor_slots = int(D.armor_slots) + int(Save.building_bonus("armor"))
+	# 恩賜樹的全隊效果
+	D.paul.speed = float(D.paul.speed) * (1.0 + Save.gift_global("move"))
+	D.companion_rules.down_seconds = float(D.companion_rules.down_seconds) * maxf(0.3, 1.0 - Save.gift_global("revive"))
 	D.companion_rules.down_seconds = float(D.companion_rules.down_seconds) * (1.0 - Save.up_value("rise"))
 	for a in OS.get_cmdline_user_args():
 		if a == "--smoke":
@@ -419,17 +422,36 @@ func _build_world() -> void:
 ## 恩賜樹：依流派加上傷害、攻速、範圍、專屬連結強度與終極恩賜
 func _apply_gifts(c: Dictionary) -> void:
 	var per := {}
-	for nd in Save.meta.gifts.nodes:
-		per[nd.id] = Save.gift_rank(c.tag, nd.id) * float(nd.per)
-	c.tdmg = 1.0 + per.dmg
-	c.aff = float(c.aff) * (1.0 + per.speed)
-	c.tarea = 1.0 + per.area
-	c.tlink = 1.0 + per.link
-	c.telite = 1.0 + per.elite
-	c.tstart = per.start > 0.0
-	c.tlinkcd = 1.0 - per.linkcd
-	c.tult = per.ult > 0.0
-	c.ult_cd = 0.0
+	var stats := []
+	if Save.meta.gifts.trees.has(c.tag):
+		for nd in Save.gift_nodes(c.tag):
+			var r := Save.gift_rank(c.tag, nd.id)
+			if r <= 0:
+				continue
+			if nd.kind == "stat":
+				stats.append({"stat": nd.stat, "add": float(nd.get("add", 0.0)) * r, "mul": float(nd.get("mul", 0.0)) * r})
+			elif nd.kind == "healmul":
+				for k in ["amount", "heal", "heal_comp"]:
+					stats.append({"stat": k, "add": 0.0, "mul": float(nd.per) * r})
+			else:
+				per[nd.kind] = float(per.get(nd.kind, 0.0)) + r * float(nd.per)
+	c.tdmg = 1.0 + per.get("dmg", 0.0)
+	c.aff = float(c.aff) * (1.0 + per.get("speed", 0.0))
+	c.tarea = 1.0 + per.get("area", 0.0)
+	c.tlink = 1.0 + per.get("link", 0.0)
+	c.telite = 1.0 + per.get("elite", 0.0)
+	c.tstart = per.get("start", 0.0) > 0.0
+	c.tlinkcd = 1.0 - per.get("linkcd", 0.0)
+	c.tult = per.get("ult", 0.0) > 0.0
+	c.tcrit = per.get("crit", 0.0)
+	c.texpose = per.get("expose", 0.0)
+	c.tmeter = per.get("meter", 0.0)
+	c.tdr = per.get("dr", 0.0)
+	c.tthorns = per.get("thorns", 0.0)
+	c.tleech = per.get("leech", 0.0)
+	c.tloot = per.get("loot", 0.0)
+	c.tcombo = per.get("combo", 0.0)
+	c.tstats = stats
 
 
 func _build_ui() -> void:
@@ -478,6 +500,10 @@ func _set_level(c: Dictionary, lv: int) -> void:
 		for k in ["radius", "max_radius", "length", "range", "jump_range"]:
 			if c.st.has(k):
 				c.st[k] = float(c.st[k]) * float(c.get("tarea", 1.0))
+		# 恩賜樹的「改招式數值」節點（只改這個招式本來就有的數值）
+		for sm in c.get("tstats", []):
+			if c.st.has(sm.stat):
+				c.st[sm.stat] = float(c.st[sm.stat]) * (1.0 + float(sm.mul)) + float(sm.add)
 	if not comps.is_empty() and not pa.is_empty():
 		_update_synergy()
 
@@ -997,6 +1023,11 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		dmg *= float(src.get("tdmg", 1.0)) * float(src.get("synd", 1.0))
 		if e.get("elite", false) or e.get("boss", false):
 			dmg *= float(src.get("telite", 1.0))
+		if float(src.get("tcrit", 0.0)) > 0.0 and randf() < float(src.tcrit):
+			dmg *= 2.0   # 恩賜：會心一擊
+		if float(src.get("texpose", 0.0)) > 0.0:
+			e.exposed_t = 2.0
+			e.expose = maxf(float(e.get("expose", 0.0)), float(src.texpose))
 		if src == pa and armor.get("sword", 0) > 0:
 			dmg *= 1.0 + float(D.armor.sword.per[armor.sword - 1])
 	if e.type == "lies":
@@ -1036,6 +1067,13 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		for i in nb:
 			breads.append({"pos": e.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
 		if src is Dictionary:
+			# 恩賜：驅散時累積同心合意、替主角回血、多掉經驗
+			if float(src.get("tmeter", 0.0)) > 0.0 and fever <= 0.0:
+				meter = minf(1.0, meter + float(src.tmeter))
+			if float(src.get("tleech", 0.0)) > 0.0:
+				paul.hp = minf(float(D.paul.hp), paul.hp + float(src.tleech))
+			if randf() < float(src.get("tloot", 0.0)):
+				gems.append({"pos": e.pos + Vector2(randf_range(-5, 5), randf_range(-4, 4)), "got": false})
 			# 撒該：償還，多掉經驗；馬太：稅吏，有機會多掉餅
 			for i in int(src.st.get("loot", 0)):
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
@@ -1393,7 +1431,7 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
-			xp_acc += Save.up_value("growth") + Save.building_bonus("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
+			xp_acc += Save.up_value("growth") + Save.building_bonus("xp") + Save.gift_global("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
 				xp += 1
@@ -1656,9 +1694,9 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 		if ult_now:
 			c.ult_cd = float(D.tag_links.ult_cooldown)
 			_tag_effect(c)
-		if combo > 0 and s.has("combo_keep"):
-			# 馬可：出手讓連鎖多撐一下
-			combo_t = minf(float(D.links.combo.window), combo_t + float(s.combo_keep))
+		if combo > 0 and (s.has("combo_keep") or float(c.get("tcombo", 0.0)) > 0.0):
+			# 馬可、差派恩賜：出手讓連鎖多撐一下
+			combo_t = minf(float(D.links.combo.window), combo_t + float(s.get("combo_keep", 0.0)) + float(c.get("tcombo", 0.0)))
 		_fire_links("cast", c, depth)
 	return fired
 
@@ -1815,7 +1853,7 @@ func _tag_text(c: Dictionary) -> String:
 
 
 func _guard_max(c: Dictionary) -> int:
-	return int(D.tag_links["守護"].max) + roundi((float(c.get("tlink", 1.0)) - 1.0) * 2.0)
+	return int(D.tag_links["守護"].max) + roundi((float(c.get("tlink", 1.0)) - 1.0) * 2.0) + int(Save.gift_global("guardcap"))
 
 
 ## 流派專屬連結的效果（講道的「加重」在出手前就算進傷害）
@@ -2250,6 +2288,13 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 		return
 	if c.st.has("tough"):
 		n *= float(c.st.tough)   # 參孫：受到的傷害減半
+	n *= 1.0 - float(c.get("tdr", 0.0))   # 恩賜：減傷
+	if float(c.get("tthorns", 0.0)) > 0.0:
+		# 恩賜：被打時反擊身邊的敵人
+		for e in enemies:
+			if not e.dead and e.pos.distance_to(c.pos) < 26.0:
+				_hurt(e, float(c.tthorns), c.pos, c)
+		_ring_pop(c.pos + Vector2(0, -6), c.col, 20.0)
 	c.hp -= n
 	c.hurt_cd = 0.4
 	_fire_links("hurt", null, 0)
