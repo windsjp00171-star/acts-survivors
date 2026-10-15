@@ -453,9 +453,20 @@ func _show_shop() -> void:
 # ---------- 見證錄 ----------
 func _show_achievements() -> void:
 	_clear("ach")
-	var st: Dictionary = Save.data.stats
-	for a in Save.meta.achievements:
+	var all: Array = Save.meta.achievements
+	var got: int = all.filter(func(a): return Save.data.achievements.has(a.id)).size()
+	_text(content, "見證錄　%d／%d" % [got, all.size()], 16, UIKit.GOLD)
+	_text(content, "完成目標會得到見證、餅，有的還會解鎖新同伴。", 11, UIKit.MUTED, true)
+	var group := ""
+	for a in all:
+		var g: String = a.get("group", "")
+		if g != group:
+			group = g
+			var in_g := all.filter(func(x): return x.get("group", "") == g)
+			var got_g := in_g.filter(func(x): return Save.data.achievements.has(x.id)).size()
+			_text(content, "%s　%d／%d" % [g, got_g, in_g.size()], 14, UIKit.SKY)
 		var done: bool = Save.data.achievements.has(a.id)
+		var hidden: bool = a.get("secret", false) and not done
 		var h := _row(content)
 		var mark := UIKit.label("✓" if done else "・", 16, UIKit.HEAL if done else UIKit.MUTED)
 		mark.custom_minimum_size = Vector2(18, 0)
@@ -463,15 +474,18 @@ func _show_achievements() -> void:
 		var v := VBoxContainer.new()
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		h.add_child(v)
-		_text(v, a.name, 14, UIKit.GOLD if done else UIKit.INK)
-		var prog := "" if done else "　（%d／%d）" % [mini(int(st.get(a.stat, 0)), int(a.min)), int(a.min)]
+		_text(v, "？？？" if hidden else a.name, 14, UIKit.GOLD if done else UIKit.INK)
+		var cur := Save.stat_value(a.stat)
+		var prog := "" if done or hidden else "　（%d／%d）" % [mini(cur, int(a.min)), int(a.min)]
 		_text(v, a.desc + prog, 12, UIKit.MUTED, true)
 		var reward := []
 		if a.has("unlock"):
 			reward.append("解鎖 " + _comp_def(a.unlock).get("name", a.unlock))
 		if a.has("witness"):
 			reward.append("見證 +%d" % int(a.witness))
-		_text(h, "、".join(reward), 12, UIKit.SKY)
+		if a.has("bread"):
+			reward.append("餅 +%d" % int(a.bread))
+		_text(h, "\n".join(reward), 12, UIKit.SKY)
 
 
 # ---------- 圖鑑 ----------

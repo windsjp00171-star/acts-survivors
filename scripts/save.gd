@@ -189,6 +189,26 @@ func buy(item: Dictionary) -> bool:
 
 
 ## 一局結束：算見證、默契、統計、見證錄；回傳要顯示在結算畫面的內容
+## 見證錄的數值：大多直接是統計，有幾項是從存檔算出來的
+func stat_value(id: String) -> int:
+	match id:
+		"churches": return data.churches.size()
+		"companions": return data.unlocked.filter(func(k): return not (k.begins_with("fruit_") or k.begins_with("armor_") or k.begins_with("leader_"))).size()
+		"gift_points":
+			var n := 0
+			for tag in data.get("gifts", {}):
+				n += gift_points(tag)
+			return n
+		"bread_total": return int(data.get("bread_total", 0))
+		"codex_enemies": return data.get("codex", {}).get("enemies", []).size()
+		"affinity_max":
+			var m := 0
+			for k in data.affinity:
+				m = maxi(m, affinity_level(k))
+			return m
+	return int(data.stats.get(id, 0))
+
+
 func finish_run(r: Dictionary) -> Dictionary:
 	var W: Dictionary = meta.witness
 	var gain := int(r.kills / W.per_kills + r.seconds / W.per_seconds + r.level * W.per_level)
@@ -217,6 +237,15 @@ func finish_run(r: Dictionary) -> Dictionary:
 		st.no_down = 1
 	if r.full_party:
 		st.full_party = 1
+	# 見證錄用的統計（累計 add、最高 best）
+	for k in ["resonances", "midbosses", "chests", "links", "kills_total", "fevers_total"]:
+		st[k] = int(st.get(k, 0)) + int(r.get(k.replace("_total", ""), 0))
+	for k in ["combo", "level", "party_size", "sets"]:
+		st["best_" + k] = maxi(int(st.get("best_" + k, 0)), int(r.get(k, 0)))
+	if r.won and r.get("leader", "paul") != "paul":
+		st.leader_wins = int(st.get("leader_wins", 0)) + 1
+	if r.won:
+		st.best_trial_win = maxi(int(st.get("best_trial_win", 0)), tp)
 
 	# 圖鑑：把這局遇到的記下來
 	var cx: Dictionary = data.codex
@@ -238,9 +267,10 @@ func finish_run(r: Dictionary) -> Dictionary:
 	for a in meta.achievements:
 		if data.achievements.has(a.id):
 			continue
-		if int(st.get(a.stat, 0)) >= int(a.min):
+		if stat_value(a.stat) >= int(a.min):
 			data.achievements.append(a.id)
 			gain += int(a.get("witness", 0))
+			r.bread = int(r.bread) + int(a.get("bread", 0))
 			if a.has("unlock") and not data.unlocked.has(a.unlock):
 				data.unlocked.append(a.unlock)
 			new_ach.append(a)

@@ -2960,6 +2960,8 @@ func _finish_run() -> Array:
 	var res: Dictionary = Save.finish_run({"kills": kills, "seconds": int(t - t_start), "level": level, "won": won,
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
 		"task_witness": task_witness, "lights": run_lights, "bread": run_bread,
+		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
+		"combo": combo_best, "party_size": _party_count(), "sets": sets_on.size(), "leader": leader,
 		"trial_points": Save.trial_points(trials), "stage": stage.id,
 		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
