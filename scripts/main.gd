@@ -197,6 +197,10 @@ var jars: Array = []       # 基甸的瓶子
 var fishes: Array = []     # 約拿的大魚
 var floods: Array = []     # 挪亞的洪水
 var cones: Array = []      # 米利暗的鼓聲（畫面）
+# 各城的關卡機制（stages.json 的 hazard）
+var hz_t := -1.0           # 下一次發生的時間（距離開局的秒數）
+var spots: Array = []      # 地上的壇、帳棚、火堆 {kind, pos, life, ...}
+var altar_buff := 0.0      # 雅典：認識未識之神的加成剩下的秒數
 # 五重職事（弗 4:11）：出發前選的呼召
 var calling := "apostle"
 var prophecy := {}         # 先知：預言之地 {pos, r, t}
@@ -1224,8 +1228,11 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 			dmg *= 1.4   # 使徒：跨流派的連結
 	if crit_t > 0.0:
 		dmg *= 2.0   # 同行合擊：我的主，我的神
+	if altar_buff > 0.0:
+		dmg *= 1.0 + float(stage.get("hazard", {}).get("buff", 0.0))   # 雅典：認識未識之神
 	if not prophecy.is_empty() and e.pos.distance_to(prophecy.pos) < prophecy.r:
 		dmg *= 2.0   # 先知：預言之地
+		e.slow_t = 1.0   # 也走得慢
 	if e.type == "lies":
 		dmg *= 1.0 + 0.5 * mini(armor.get("belt", 0), 2)
 	if e.get("boss", false) and boss != null and boss.state == "break":
@@ -1237,9 +1244,9 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		e.knock += (e.pos - from).normalized() * 40.0
 	_dmg_number(e, dmg, src)
 	var hcol: Color = src.get("col", C_GOLD) if src is Dictionary else C_GOLD
-	if sparks.size() < 120:
+	if sparks.size() < (30 if _fx_lite() else 120):
 		sparks.append({"pos": e.pos + Vector2(randf_range(-3, 3), randf_range(-8, -2)), "t": 0.0, "col": hcol})
-	if parts.size() < 400:
+	if parts.size() < 400 and not _fx_lite():
 		_burst(e.pos + Vector2(0, -5), 2, hcol, hcol.darkened(0.4))
 	if e.hp <= 0:
 		_kill(e, true, src)
@@ -1323,6 +1330,8 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 
 
 func _burst(at: Vector2, n: int, c1: Color, c2: Color) -> void:
+	if _fx_lite():
+		n = n / 3   # 特效精簡
 	for i in n:
 		if parts.size() >= 600:
 			return
@@ -1817,6 +1826,7 @@ func _step(dt: float) -> void:
 		chunk_timer = 0.4
 	_update_wind(dt)
 	_update_stars(dt)
+	_update_hazard(dt)
 	_update_lamps(dt)
 	_collide_solids()
 
@@ -2054,6 +2064,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 		"orbit":
 			# 約書亞：繞城的祭司一直在轉（在 _update_engines），出手時是一聲大呼
 			var rr: float = float(s.max_radius) * _area()
+			Sfx.play("shout", 0.05)
 			blasts.append({"pos": paul.pos + Vector2(0, -6), "t": 0.0, "r": rr, "col": c.col, "evo": evolved.has(c.key)})
 			for e in enemies.duplicate():
 				if not e.dead and e.pos.distance_to(paul.pos) < rr:
@@ -2110,6 +2121,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 						_kill(e, true, c)   # 吞下去了
 					else:
 						_hurt(e, float(s.damage), from, c)
+				Sfx.play("splash")
 				fishes.append({"pos": from + fdir * flen * 0.5, "dir": fdir, "len": flen, "t": 0.0, "hold": maxf(0.6, float(s.hold)),
 					"eaten": eaten, "owner": c, "dmg": float(s.damage), "r": float(s.spit_r) * _area(), "done": false})
 		"wave":
@@ -2117,6 +2129,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			var v := _view_rect()
 			var tl5 := _nearest_enemies(paul.pos, 200.0, 1)
 			var side: float = 1.0 if tl5.is_empty() or tl5[0].pos.x >= paul.pos.x else -1.0
+			Sfx.play("splash", 0.0)
 			for i in int(s.waves):
 				var sd: float = side if i % 2 == 0 else -side
 				floods.append({"x": v.position.x - 10.0 if sd > 0.0 else v.end.x + 10.0, "dir": sd, "y": paul.pos.y + (i - (int(s.waves) - 1) / 2.0) * 30.0,
@@ -2233,7 +2246,14 @@ func _resonance(tier: int) -> void:
 
 
 ## 往上飄的光點（驅散、連鎖都會用到）
+## 設定「特效精簡」：碎片、光點、畫面震動減少
+func _fx_lite() -> bool:
+	return bool(Save.data.get("fxlite_on", false))
+
+
 func _mote(at: Vector2, col: Color) -> void:
+	if _fx_lite():
+		return
 	if parts.size() < 700:
 		parts.append({"pos": at + Vector2(randf_range(-3, 3), randf_range(-3, 3)), "vel": Vector2(randf_range(-8, 8), randf_range(-30, -12)),
 			"life": 0.7 + randf() * 0.5, "max": 1.2, "c1": Color.WHITE, "c2": col, "float": true})
@@ -2472,6 +2492,7 @@ func _on_beat_cast(c: Dictionary) -> void:
 		return
 	_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 22.0)
 	_mote(c.pos + Vector2(0, -14), C_GOLD)
+	Sfx.play("downbeat", 0.0)
 	if fever <= 0.0:
 		meter = minf(1.0, meter + _sv("詩歌", "downbeat_meter"))
 
@@ -2484,7 +2505,7 @@ func _praise_song() -> void:
 	var v := _view_rect()
 	songs.append({"pos": paul.pos + Vector2(0, -8), "t": 0.0})
 	shake = maxf(shake, 0.2)
-	Sfx.play("levelup", 0.0)
+	Sfx.play("song", 0.0)
 	ui.show_banner("讚美！全場的詩歌", 1.4)
 	for e in enemies.duplicate():
 		if not e.dead and v.has_point(e.pos):
@@ -2523,6 +2544,7 @@ func _convert(e: Dictionary, dur: float) -> void:
 	if allies >= 14:
 		return
 	e.ally = dur
+	Sfx.play("persuade")
 	e.stun = 0.0
 	e.knock = Vector2.ZERO
 	run_converts += 1
@@ -2575,6 +2597,7 @@ func _school_guard_cap() -> int:
 
 func _shield_shock(at: Vector2) -> void:
 	run_shocks += 1
+	Sfx.play("shield")
 	var r := 40.0 * (1.0 + _sv("守護", "shock_area"))
 	var dmg := _sv("守護", "shock_dmg") * (1.0 + level * 0.05)
 	blasts.append({"pos": at + Vector2(0, -6), "t": 0.0, "r": r, "col": Color("9fd8ff"), "evo": false, "shock": true})
@@ -2608,7 +2631,7 @@ func _holy_light() -> void:
 	var dmg := _sv("醫治", "holy_dmg") * k * (1.0 + level * 0.04)
 	holies.append({"pos": paul.pos, "t": 0.0, "r": r})
 	ui.show_banner("滿溢！聖光", 1.2)
-	Sfx.play("heal", 0.0)
+	Sfx.play("holy", 0.0)
 	for e in enemies.duplicate():
 		if not e.dead and e.pos.distance_to(paul.pos) < r:
 			_hurt(e, dmg, paul.pos)
@@ -2753,7 +2776,7 @@ func _update_prophecy(dt: float) -> void:
 	prophecy_t -= dt
 	if prophecy_t > 0.0:
 		return
-	prophecy_t = 14.0
+	prophecy_t = 11.0
 	var v := _view_rect()
 	var foes := enemies.filter(func(e): return not e.dead and v.has_point(e.pos))
 	if foes.is_empty():
@@ -2812,7 +2835,7 @@ func _bond_fx(B: Dictionary, c: Dictionary, other: Dictionary) -> void:
 		bonds_seen[B.name] = true
 		ui.show_banner("同行合擊：%s（%s）" % [B.name, B.ref], 2.2)
 		_tip("bond")
-	Sfx.play("link3", 0.0)
+	Sfx.play("bond", 0.0)
 	var v := _view_rect()
 	var foes := enemies.filter(func(e): return not e.dead and v.has_point(e.pos) and float(e.get("ally", 0.0)) <= 0.0)
 	match B.fx:
@@ -2892,7 +2915,7 @@ func _bond_fx(B: Dictionary, c: Dictionary, other: Dictionary) -> void:
 			for e in foes:
 				_hurt(e, 8.0 + level, Vector2.INF)
 		"deacons":
-			var bs := {"damage": 14.0 + level * 1.5, "length": 150.0, "width": 5.0, "burst": false}
+			var bs := {"damage": 14.0 + level * 1.5, "length": 150.0, "width": 5.0, "burst": false, "lies_mult": 1.0}
 			for i in 7:
 				_fire_beam(paul.pos + Vector2(0, -8), Vector2.RIGHT.rotated(i * TAU / 7.0 + t), bs, "", c)
 		"rain":
@@ -2958,6 +2981,7 @@ func _esther_save() -> void:
 	blasts.append({"pos": paul.pos + Vector2(0, -6), "t": 0.0, "r": r, "col": es.col, "evo": true})
 	holies.append({"pos": paul.pos, "t": 0.0, "r": r})
 	ui.show_banner("此時此刻！（斯 4:14）", 1.6)
+	Sfx.play("holy", 0.0)
 	shake = 0.3
 	for e in enemies.duplicate():
 		if not e.dead and e.pos.distance_to(paul.pos) < r and not e.get("boss", false):
@@ -3071,6 +3095,7 @@ func _update_engines(dt: float) -> void:
 				var rr: float = float(s.radius) * _area()
 				blasts.append({"pos": j.pos, "t": 0.0, "r": rr, "col": C_FLAME, "evo": evolved.has(c.key)})
 				_burst(j.pos, 8, C_FLAME, C_GOLD)
+				Sfx.play("shatter")
 				for o in enemies.duplicate():
 					if not o.dead and o.pos.distance_to(j.pos) < rr:
 						_hurt(o, float(s.damage), j.pos, c)
@@ -3592,10 +3617,12 @@ func _update_enemies(dt: float) -> void:
 					e.hop_t = float(d.hop.time)
 					e.hop_cd = float(d.hop.every)
 		var slow: float = 0.5 if float(e.get("slow_t", 0.0)) > 0.0 else 1.0
-		if d.get("swarm", false):
+		if d.get("swarm", false) or e.get("march", false):
 			# 蝗蟲：整群朝出現時主角的方向直直飛過去，不會轉彎
 			if not e.has("swarm_dir"):
 				e.swarm_dir = dir.rotated(randf_range(-0.15, 0.15))
+			if e.get("march", false) and not view.grow(160.0).has_point(e.pos):
+				e.erase("march")   # 衝出畫面後恢復正常
 			e.pos += e.swarm_dir * d.speed * e.smul * slow * dt
 		else:
 			var wob: float = sin(t * 2.2 + e.ph) * 0.5
@@ -3652,6 +3679,7 @@ func _update_enemies(dt: float) -> void:
 		if not view.grow(140.0).has_point(e.pos):
 			e.pos = _edge_point(16.0)
 			e.erase("swarm_dir")
+			e.erase("march")
 
 	_separate()
 	enemies = enemies.filter(func(e): return not e.dead)
@@ -3846,6 +3874,137 @@ func _update_lamps(dt: float) -> void:
 				break
 
 
+## 各城的關卡機制（馬爾他的暴風、拔摩的星辰各有自己的函式）
+func _update_hazard(dt: float) -> void:
+	altar_buff = maxf(0.0, altar_buff - dt)
+	_update_spots(dt)
+	var hz: Dictionary = stage.get("hazard", {})
+	var kind: String = hz.get("kind", "")
+	if kind in ["", "wind", "stars"] or boss != null or choosing:
+		return
+	if hz_t < 0.0:
+		hz_t = float(hz.get("first", 40))
+	if t - t_start < hz_t:
+		return
+	hz_t = t - t_start + float(hz.every)
+	ui.show_banner(hz.get("text", ""), 2.0)
+	Sfx.play("warn", 0.0)
+	var v := _view_rect()
+	match kind:
+		"quake":
+			# 腓立比：半夜的地震，全場敵人暈眩
+			for e in enemies:
+				if not e.dead and not e.get("boss", false):
+					e.stun = maxf(e.stun, float(hz.stun))
+			quakes.append({"pos": paul.pos, "r": 0.0})
+			shake = 0.5
+			ui.do_flash(0.3)
+		"mob", "phalanx":
+			# 帖撒羅尼迦的暴民、羅馬的軍團：從畫面一側排成一排衝過來
+			var dirs := [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]
+			var dir: Vector2 = dirs.pick_random()
+			var n := int(hz.count)
+			for i in n:
+				var off := (i - (n - 1) / 2.0) * (14.0 if kind == "phalanx" else 10.0)
+				var at: Vector2
+				if dir.x != 0.0:
+					at = Vector2(v.position.x - 12.0 if dir.x > 0.0 else v.end.x + 12.0, paul.pos.y + off + randf_range(-3, 3))
+				else:
+					at = Vector2(paul.pos.x + off + randf_range(-3, 3), v.position.y - 12.0 if dir.y > 0.0 else v.end.y + 12.0)
+				if kind == "mob":
+					at += -dir * randf_range(0.0, 30.0)
+				_spawn_one(hz.type, at)
+				enemies[-1].swarm_dir = dir
+				enemies[-1].march = true
+		"assassins":
+			# 耶路撒冷：刺客從四面直奔主角
+			for i in int(hz.count):
+				var a := i * TAU / float(hz.count)
+				_spawn_one(hz.type, paul.pos + Vector2(cos(a), sin(a) * 0.8) * 110.0)
+				var e: Dictionary = enemies[-1]
+				e.smul = float(e.smul) * 1.4
+				e.hp = float(e.hp) * 2.0
+				e.tint = Color(1.6, 0.6, 0.6)
+				e.assassin = true
+				e.hunter = false
+				_ring_pop(e.pos, C_RED, 12.0)
+		"altar", "tent":
+			var a := randf() * TAU
+			spots.append({"kind": kind, "pos": paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(60.0, 90.0), "life": float(hz.life), "on": 0.0})
+		"bonfire":
+			for i in int(hz.count):
+				var a := randf() * TAU
+				spots.append({"kind": "bonfire", "pos": paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(30.0, 80.0), "life": float(hz.life), "tick": 0.0})
+
+
+func _update_spots(dt: float) -> void:
+	var hz: Dictionary = stage.get("hazard", {})
+	for sp in spots:
+		sp.life -= dt
+		match sp.kind:
+			"altar":
+				# 站在壇上累積時間，滿了就得到加成
+				if paul.pos.distance_to(sp.pos) < 14.0:
+					sp.on += dt
+					if sp.on >= float(hz.need):
+						sp.life = 0.0
+						altar_buff = float(hz.buff_t)
+						ui.show_banner("你們所敬拜的，我現在告訴你們（徒 17:23）　傷害 +%d%%" % roundi(float(hz.buff) * 100.0), 2.0)
+						_ring_pop(sp.pos, C_GOLD, 40.0)
+						Sfx.play("levelup", 0.0)
+			"tent":
+				if paul.pos.distance_to(sp.pos) < 14.0:
+					sp.life = 0.0
+					guard = mini(guard + int(hz.guard), 5)
+					for i in int(hz.bread):
+						breads.append({"pos": sp.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
+					ui.show_banner("在帳棚裡歇一下腳：護盾 +%d" % int(hz.guard), 1.5)
+					_ring_pop(sp.pos, Color("9fd8ff"), 30.0)
+			"bonfire":
+				sp.tick -= dt
+				if sp.tick <= 0.0:
+					sp.tick = 0.5
+					for e in enemies.duplicate():
+						if not e.dead and e.pos.distance_to(sp.pos) < float(hz.radius):
+							_hurt(e, float(hz.damage) * _curve(D.waves.scaling.hp, t) * 0.5, Vector2.INF)
+	spots = spots.filter(func(sp): return sp.life > 0.0)
+
+
+func _draw_spots(n: Node2D) -> void:
+	var hz: Dictionary = stage.get("hazard", {})
+	for sp in spots:
+		var x: float = roundf(sp.pos.x)
+		var y: float = roundf(sp.pos.y)
+		var blinking: bool = sp.life < 2.0 and int(t * 8.0) % 2 == 0
+		match sp.kind:
+			"altar":
+				# 石壇：灰白色的方台，上面刻著字；站上去時下面的圈慢慢填滿
+				_dot_ring(n, Vector2(x, y), 14.0, 0.75, C_GOLD, 3.0, t, 2)
+				var k: float = clampf(sp.on / float(hz.need), 0.0, 1.0)
+				if k > 0.0:
+					n.draw_arc(Vector2(x, y), 10.0, -PI / 2.0, -PI / 2.0 + TAU * k, 24, C_GOLD, 3.0)
+				if not blinking:
+					n.draw_rect(Rect2(x - 6, y - 12, 13, 11), Color("3a362e"))
+					n.draw_rect(Rect2(x - 5, y - 11, 11, 9), Color("c8c2b2"))
+					n.draw_rect(Rect2(x - 3, y - 9, 7, 1), Color("6a665e"))
+					n.draw_rect(Rect2(x - 3, y - 6, 5, 1), Color("6a665e"))
+			"tent":
+				if not blinking:
+					n.draw_colored_polygon(PackedVector2Array([Vector2(x - 10, y), Vector2(x, y - 14), Vector2(x + 10, y)]), Color("2a1a10"))
+					n.draw_colored_polygon(PackedVector2Array([Vector2(x - 8, y - 1), Vector2(x, y - 12), Vector2(x + 8, y - 1)]), Color("c8a46b"))
+					n.draw_line(Vector2(x, y - 12), Vector2(x, y - 1), Color("8a6438"), 1.0)
+					n.draw_rect(Rect2(x - 2, y - 5, 4, 4), Color("5a3a20"))
+				_dot_ring(n, Vector2(x, y), 14.0, 0.75, Color("9fd8ff"), 4.0, t, 1)
+			"bonfire":
+				var fl := int(t * 10.0 + x) % 2
+				_dot_ring(n, Vector2(x, y), float(hz.radius), 0.75, C_FLAME, 4.0, t * 2.0, 2)
+				n.draw_rect(Rect2(x - 6, y - 2, 13, 4), Color("3a1a08"))
+				n.draw_rect(Rect2(x - 5, y - 1, 11, 2), Color("8a5a30"))
+				n.draw_rect(Rect2(x - 4, y - 8 - fl, 9, 7), C_RED)
+				n.draw_rect(Rect2(x - 3, y - 10 + fl, 7, 7), C_FLAME)
+				n.draw_rect(Rect2(x - 1, y - 9, 3, 5), C_GOLD)
+
+
 ## 拔摩海島：星辰從天墜落（啟 8:10）。先在地上出現預警圈，時間到砸下來，主角、同伴、敵人都會受傷
 func _update_stars(dt: float) -> void:
 	for sf in star_falls:
@@ -3937,7 +4096,8 @@ func _render(dt: float) -> void:
 	var shake_off := Vector2.ZERO
 	if shake > 0.0:
 		shake -= dt
-		shake_off = Vector2(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5))
+		if not _fx_lite():
+			shake_off = Vector2(randf_range(-1.5, 1.5), randf_range(-1.5, 1.5))
 	cam.position = p.pos.round() + shake_off
 	var v := _view_rect()
 	ground.position = (v.position - Vector2(16, 16)).floor()
@@ -4032,6 +4192,7 @@ func _draw_ground_fx() -> void:
 		if o != paul and o.level == 0:
 			continue
 		n.draw_rect(Rect2(round(o.pos.x) - 4, round(o.pos.y) - 1, 9, 2), Color(0.24, 0.13, 0.05, 0.35))
+	_draw_spots(n)
 	# 先知：預言之地（紫色的圈，中間一隻眼睛）
 	if not prophecy.is_empty():
 		var pc: Vector2 = prophecy.pos.round()
@@ -4764,6 +4925,10 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 		"warn":
 			b.timer -= dt
 			if b.timer <= 0.0:
+				for sh in tele:
+					if sh.get("rush", false):
+						b.pos = sh.b   # 騷亂衝過去
+						_ring_pop(b.pos, C_RED, 30.0)
 				_resolve_tele()
 				tele = []
 				if b.pattern == "summon":
@@ -4809,6 +4974,48 @@ func _make_tele(b: Dictionary) -> Array:
 					sum += c.pos
 					n += 1
 			out.append({"kind": "circle", "c": sum / n, "r": float(B.slam.radius), "dmg": float(B.slam.damage)})
+		"chains":
+			# 腓立比：捆鎖從 Boss 往六個方向甩出去
+			for i in 6:
+				var dd := Vector2.RIGHT.rotated(i * TAU / 6.0 + randf() * 0.5)
+				out.append({"kind": "line", "a": b.pos, "b": b.pos + dd * 260.0, "w": 10.0, "dmg": float(B.sweep.damage)})
+		"rush":
+			# 帖撒羅尼迦：騷亂朝主角直衝過去
+			var dr: Vector2 = (paul.pos - b.pos).normalized()
+			out.append({"kind": "line", "a": b.pos, "b": b.pos + dr * 300.0, "w": 22.0, "dmg": float(B.sweep.damage), "rush": true})
+		"ring":
+			# 雅典：一圈偶像圍住主角，站在中間或跑出去
+			for i in 10:
+				var a := i * TAU / 10.0
+				out.append({"kind": "circle", "c": paul.pos + Vector2(cos(a), sin(a) * 0.8) * 55.0, "r": 14.0, "dmg": float(B.hunt.damage)})
+		"cross":
+			# 哥林多：十字分裂，從主角所在的位置切成四塊
+			var vv := _view_rect().grow(40.0)
+			out.append({"kind": "line", "a": Vector2(vv.position.x, paul.pos.y), "b": Vector2(vv.end.x, paul.pos.y), "w": 12.0, "dmg": float(B.grid.damage)})
+			out.append({"kind": "line", "a": Vector2(paul.pos.x, vv.position.y), "b": Vector2(paul.pos.x, vv.end.y), "w": 12.0, "dmg": float(B.grid.damage)})
+		"spiral":
+			# 以弗所：火從主角身邊捲成螺旋往外燒
+			for i in 9:
+				var a := i * 0.9 + randf()
+				out.append({"kind": "circle", "c": paul.pos + Vector2(cos(a), sin(a) * 0.8) * (8.0 + i * 11.0), "r": 13.0, "dmg": float(B.hunt.damage)})
+		"oath":
+			# 耶路撒冷：四十人的誓約，主角四周一圈加正中間
+			out.append({"kind": "circle", "c": paul.pos, "r": 18.0, "dmg": float(B.slam.damage)})
+			for i in 4:
+				var a := PI / 4.0 + i * PI / 2.0
+				out.append({"kind": "circle", "c": paul.pos + Vector2(cos(a), sin(a) * 0.8) * 40.0, "r": 18.0, "dmg": float(B.slam.damage)})
+		"tide":
+			# 馬爾他：一道道海浪直直打過來，只有浪與浪之間是安全的
+			var vt := _view_rect().grow(40.0)
+			for i in 5:
+				var x: float = paul.pos.x + (i - 2) * 46.0 + randf_range(-6, 6)
+				out.append({"kind": "line", "a": Vector2(x, vt.position.y), "b": Vector2(x, vt.end.y), "w": 18.0, "dmg": float(B.grid.damage)})
+		"legions":
+			# 羅馬：三排軍團橫著推過來
+			var vl := _view_rect().grow(40.0)
+			for i in 3:
+				var y: float = paul.pos.y + (i - 1) * 40.0 + randf_range(-6, 6)
+				out.append({"kind": "line", "a": Vector2(vl.position.x, y), "b": Vector2(vl.end.x, y), "w": 14.0, "dmg": float(B.grid.damage)})
 		"stars":
 			# 大紅龍：尾巴拖下天上的星辰（啟 12:4），落在主角附近一大片
 			var ST: Dictionary = B.get("stars", {"damage": 16, "count": 8, "radius": 18})

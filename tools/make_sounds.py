@@ -147,6 +147,33 @@ def sfx():
     save_wav("lose", mix(*[(i * 0.4, pluck(note(n), 1.2, 0.2)) for i, n in enumerate([69, 65, 62, 57])]), 0.6)
     # 介面點擊
     save_wav("ui", pluck(note(76), 0.12, 0.3), 0.4)
+    # ---- 流派、合擊與新招式 ----
+    # 詩歌的重拍：一下輕輕的鼓
+    tt = t(0.12)
+    save_wav("downbeat", np.sin(2 * np.pi * (110 - 200 * tt) * tt) * env(len(tt), 0.002, curve=6) + 0.2 * noise(0.12, 0.3) * env(len(tt), 0.001, curve=10), 0.45)
+    # 全場的詩歌：和弦湧起＋鈴
+    tt = t(1.2)
+    pad = sum(np.sin(2 * np.pi * note(n) * tt) * 0.25 for n in [62, 66, 69, 74])
+    save_wav("song", pad * np.clip(tt / 0.25, 0, 1) * np.exp(-np.clip(tt - 0.25, 0, None) * 2.5)
+             + fit(mix(*[(0.1 + i * 0.07, bell(note(n), 0.6) * 0.3) for i, n in enumerate([86, 90, 93])]), len(tt)), 0.6)
+    # 聖光：往上的鈴聲
+    save_wav("holy", mix(*[(i * 0.05, bell(note(n), 0.8) * 0.5) for i, n in enumerate([74, 78, 81, 86, 90])]), 0.55)
+    # 同行合擊：兩個鈴同時響（五度）
+    save_wav("bond", mix((0, bell(note(79), 0.7)), (0.02, bell(note(86), 0.7) * 0.7), (0.12, pluck(note(67), 0.6) * 0.6)), 0.6)
+    # 大呼（號角）：鋸齒波的長音
+    tt = t(0.6)
+    saw = 2 * ((note(55) * tt) % 1) - 1
+    save_wav("shout", saw * env(len(tt), 0.04, curve=2.5) * 0.7 + 0.3 * np.sin(2 * np.pi * note(67) * tt) * env(len(tt), 0.05, curve=2.5), 0.55)
+    # 水聲（洪水、大魚）
+    tt = t(0.5)
+    save_wav("splash", noise(0.5, 0.15) * np.sin(np.pi * np.clip(tt / 0.5, 0, 1)) ** 2, 0.5)
+    # 瓶子打破＋火把
+    tt = t(0.3)
+    save_wav("shatter", noise(0.3, 0.7) * np.exp(-tt * 18) + 0.4 * noise(0.3, 0.05) * np.exp(-tt * 6), 0.5)
+    # 說服：柔和的鈴
+    save_wav("persuade", bell(note(88), 0.35) * 0.7, 0.4)
+    # 護盾反擊：金屬的一聲
+    save_wav("shield", bell(note(64), 0.4) + 0.5 * noise(0.4, 0.4) * np.exp(-t(0.4) * 25), 0.55)
 
 
 # ---------- 對話的咕噥聲（像動物森友會那樣） ----------

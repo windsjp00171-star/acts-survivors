@@ -2,8 +2,8 @@ extends Node
 ## 音效與音樂（自動載入，名稱 Sfx）。聲音由 tools/make_sounds.py 產生。
 ## 常出現的聲音有最短間隔，避免同時一大堆疊在一起（「聲音不要太雜」）。
 
-const GAP := {"hit": 0.06, "kill": 0.045, "gem": 0.07, "heal": 0.5, "link1": 0.08, "link2": 0.08, "link3": 0.08, "hurt": 0.15, "ui": 0.05}
-const VOL := {"hit": -14.0, "kill": -9.0, "gem": -15.0, "heal": -10.0, "ui": -8.0, "roar": -4.0, "pick": -6.0}
+const GAP := {"hit": 0.06, "kill": 0.045, "gem": 0.07, "heal": 0.5, "link1": 0.08, "link2": 0.08, "link3": 0.08, "hurt": 0.15, "ui": 0.05, "downbeat": 0.15, "splash": 0.2, "shatter": 0.1, "persuade": 0.15, "shield": 0.15, "shout": 0.3}
+const VOL := {"hit": -14.0, "kill": -9.0, "gem": -15.0, "heal": -10.0, "ui": -8.0, "roar": -4.0, "pick": -6.0, "downbeat": -10.0, "persuade": -10.0, "shatter": -8.0}
 
 var streams := {}
 var last := {}

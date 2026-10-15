@@ -16,6 +16,11 @@ static var _font: Font
 
 
 ## 遊戲內建的中文字型（tools/make_font.py 產生的子集）；缺字時退回系統字型
+## 設定「字大一點」：所有文字放大約兩成（給長輩與看不清楚小字的人）
+static func big(size: int) -> int:
+	return roundi(size * 1.2) if bool(Save.data.get("bigtext_on", false)) else size
+
+
 static func font() -> Font:
 	if _font == null:
 		var f: FontFile = load("res://assets/fonts/NotoSansTC-Game.otf")
@@ -31,7 +36,7 @@ static func label(text: String, size: int, color: Color) -> Label:
 	l.text = text
 	var ls := LabelSettings.new()
 	ls.font = font()
-	ls.font_size = size
+	ls.font_size = big(size)
 	ls.font_color = color
 	ls.outline_size = 2
 	ls.outline_color = Color("140c10", 0.85)
@@ -59,7 +64,7 @@ static func button(text: String, size := 14, primary := false) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.add_theme_font_override("font", font())
-	b.add_theme_font_size_override("font_size", size)
+	b.add_theme_font_size_override("font_size", big(size))
 	var fg := Color("2a1a14") if primary else INK
 	for st in ["font_color", "font_hover_color", "font_focus_color", "font_pressed_color"]:
 		b.add_theme_color_override(st, fg)

@@ -128,7 +128,7 @@ func label(text: String, size: int, color: Color, outline := 2) -> Label:
 	l.text = text
 	var ls := LabelSettings.new()
 	ls.font = font
-	ls.font_size = size + 2
+	ls.font_size = UIKit.big(size) + 2
 	ls.font_color = color
 	# 中文筆畫多，外框太粗會糊在一起：用細外框＋往右下的陰影
 	ls.outline_size = mini(outline, 2)
@@ -613,7 +613,20 @@ func show_pause(build_text: String) -> void:
 			Sfx.toggle(k)
 			refresh.call())
 		row.add_child(tb)
-	var note := UIKit.label("放棄會照失敗結算（見證減半）", 10, UIKit.MUTED)
+	# 預設關閉的設定：特效精簡、字大一點
+	for kind in [["fxlite", "特效精簡"], ["bigtext", "字大一點"]]:
+		var tb2 := UIKit.button("", 13)
+		tb2.custom_minimum_size = Vector2(88, 30)
+		var k2: String = kind[0]
+		var nm2: String = kind[1]
+		var refresh2 := func(): tb2.text = "%s：%s" % [nm2, "開" if Save.data.get(k2 + "_on", false) else "關"]
+		refresh2.call()
+		tb2.pressed.connect(func():
+			Save.data[k2 + "_on"] = not bool(Save.data.get(k2 + "_on", false))
+			Save.save_profile()
+			refresh2.call())
+		row.add_child(tb2)
+	var note := UIKit.label("放棄會照失敗結算（見證減半）；字大一點在下一個畫面生效", 10, UIKit.MUTED)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(note)
 	await get_tree().process_frame
