@@ -111,6 +111,9 @@ var haste_t := 0.0        # 詩歌連結：全隊加速剩下幾秒
 var haste_amt := 0.0
 var set_bonus := {}       # 已湊齊的套裝加成 {hp, regen, damage, speed}
 var sets_on: Array = []
+var grace_dmg := 0.0      # 恩上加恩（可疊加）
+var grace_spd := 0.0      # 如鷹展翅（可疊加）
+var mids_done := 0        # 中途 Boss 出現過幾次
 var build_text := ""      # HUD 左側：同工與肢體連結
 var run_tasks: Array = [] # 旅程任務：{def, done, failed}
 var shots: Array = []
@@ -509,7 +512,7 @@ func _area() -> float:
 	return 1.0 + fruits.get("joy", 0) * D.fruits.joy.per_level.area
 
 func _dmg_mult() -> float:
-	return (1.0 + fruits.get("faith", 0) * D.fruits.faith.per_level.damage) * (1.0 + Save.up_value("might")) * (1.0 + float(set_bonus.get("damage", 0.0)))
+	return (1.0 + fruits.get("faith", 0) * D.fruits.faith.per_level.damage) * (1.0 + Save.up_value("might")) * (1.0 + float(set_bonus.get("damage", 0.0)) + grace_dmg)
 
 func _guard() -> float:
 	return 1.0 + fruits.get("good", 0) * D.fruits.good.per_level.guard
@@ -528,7 +531,7 @@ func _comp_max_hp() -> float:
 	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1)
 
 func _speed() -> float:
-	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.1)
+	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12)
 
 
 func _make_cards() -> Array:
@@ -609,9 +612,21 @@ func _make_cards() -> Array:
 		pool.push_front({"kind": "evolve", "key": c.key, "title": "進化！" + evo.name, "tag": c.tag, "desc": c.name + "：" + evo.desc})
 		break
 	var cards := pool.slice(0, 3)
-	while cards.size() < 3:
-		cards.append({"kind": "heal", "key": "", "title": "五餅二魚", "tag": "恩典", "desc": "%s回復 %d 血" % [D.paul.name, int(D.leveling.heal_card)]})
+	var fill := _filler_cards()
+	while cards.size() < 3 and not fill.is_empty():
+		cards.append(fill.pop_front())
 	return cards
+
+
+## 沒有足夠的卡時的小獎勵（恩上加恩、如鷹展翅、嗎哪；血少時才有五餅二魚）
+func _filler_cards() -> Array:
+	var out := []
+	for f in D.fillers:
+		if f.kind == "heal" and paul.hp > float(D.paul.hp) * float(f.hp_below):
+			continue
+		out.append({"kind": f.kind, "key": "", "title": f.title, "tag": f.tag, "desc": f.desc, "amount": f.get("amount", 0)})
+	out.shuffle()
+	return out
 
 
 func _level_up() -> void:
@@ -669,6 +684,12 @@ func _apply_card(card: Dictionary) -> void:
 	elif card.kind == "link":
 		links.append({"src": by_key[card.src], "dst": by_key[card.dst], "kind": card.key, "cd": 0.0, "lv": 1})
 		ui.show_banner("肢體連結！", 1.2)
+	elif card.kind == "grace_dmg":
+		grace_dmg += float(card.amount)
+	elif card.kind == "grace_spd":
+		grace_spd += float(card.amount)
+	elif card.kind == "manna":
+		run_bread += int(card.amount)
 	else:
 		paul.hp = minf(D.paul.hp, paul.hp + D.leveling.heal_card)
 
@@ -960,7 +981,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		var BD: Dictionary = Save.meta.bread.drop
 		var nb := 0
 		if e.get("boss", false):
-			nb = int(BD.boss)
+			nb = int(BD.boss) / (3 if e.get("mid", false) else 1)
 		elif e.get("elite", false):
 			nb = int(BD.elite)
 		elif randf() < (float(BD.veteran) if e.get("vet", false) else float(BD.kill)):
@@ -978,7 +999,12 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		if e.d.has("split_into"):
 			for i in int(e.d.split_count):
 				_spawn_one(e.d.split_into, e.pos + Vector2(randf_range(-8, 8), randf_range(-6, 6)))
-		if e.get("boss", false):
+		if e.get("boss", false) and e.get("mid", false):
+			# 中途 Boss 打退了：掉寶箱，真正的 Boss 之後才來
+			chests.append({"pos": e.pos})
+			boss = null
+			ui.show_banner("打退了！%s 會在 %d:%02d 捲土重來" % [D.boss.name, int(D.boss.at) / 60, int(D.boss.at) % 60], 2.5)
+		elif e.get("boss", false):
 			_win()
 		_burst(e.pos, 6, C_GOLD if fever > 0.0 else C_VL, C_CREAM)
 		_ring_pop(e.pos, C_CREAM, 9.0)
@@ -1154,7 +1180,7 @@ func _step(dt: float) -> void:
 		if c.level == 0:
 			continue
 		party += 1
-		var k := minf(1.0, dt * 5.0 * (1.0 + armor.get("shoes", 0) * 0.5))
+		var k := minf(1.0, dt * 12.0)   # 同伴一開始就緊跟在主角身邊
 		var target: Vector2 = p.pos + c.home + Vector2(sin(t * 0.7 + c.i * 1.7) * 2.0, cos(t * 0.9 + c.i * 1.3) * 1.5)
 		if c.down <= 0.0:
 			c.base += (target - c.base) * k
@@ -1231,7 +1257,11 @@ func _step(dt: float) -> void:
 				for i in int(ew.trial_group):
 					_spawn_special(tr, D.trials[tr], center + Vector2(randf_range(-12, 12), randf_range(-12, 12)))
 			trial_timer = ew.trial_every
-	if t >= D.boss.at and not boss_spawned:
+	var mids: Array = D.boss.get("mid", [])
+	if mids_done < mids.size() and t >= float(mids[mids_done].at) and boss == null and t < float(D.boss.at) - 30.0:
+		_spawn_boss(float(mids[mids_done].hp_mult))
+		mids_done += 1
+	if t >= D.boss.at and not boss_spawned and (boss == null or boss.get("mid", false)):
 		_spawn_boss()
 
 	for ch in chests:
@@ -1310,7 +1340,7 @@ func _companion_skills(dt: float) -> void:
 	var barn = by_key.get("barn")
 	var barn_on: bool = barn != null and _active(barn)
 	var speed_mult: float = D.fever.attack_speed if fever > 0.0 else 1.0
-	speed_mult *= (1.0 + float(set_bonus.get("speed", 0.0))) * (1.0 + (haste_amt if haste_t > 0.0 else 0.0))
+	speed_mult *= (1.0 + float(set_bonus.get("speed", 0.0)) + grace_spd) * (1.0 + (haste_amt if haste_t > 0.0 else 0.0))
 	haste_t = maxf(0.0, haste_t - dt)
 	pa.ult_cd = maxf(0.0, float(pa.get("ult_cd", 0.0)) - dt)
 	pa.pos = paul.pos + Vector2(0, 2)
@@ -1355,7 +1385,14 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					"split": int(s.split), "child": false, "dmg": float(s.damage), "size": int(s.size), "hit": {},
 					"spd": float(s.speed), "emult": float(s.get("elite_mult", 1.0)), "look": c.look, "owner": c, "evo": evolved.has(c.key)})
 		"ring":
-			for i in int(s.rings):
+			# 同一人同時最多 4 圈：連結一直觸發時不會無限疊加，拖慢遊戲
+			var active := 0
+			for r0 in rings:
+				if r0.owner == c:
+					active += 1
+			var n_new := mini(int(s.rings), 4 - active)
+			fired = n_new > 0
+			for i in maxi(n_new, 0):
 				rings.append({"owner": c, "r": 4.0 - i * 16.0, "dir": 1.0, "returns": int(s.returns), "hit": {},
 					"max": float(s.max_radius) * _area(), "dmg": float(s.damage), "speed": float(s.speed), "stun": float(s.stun),
 					"thick": int(s.thick), "knock": float(s.get("knock", 0.0)), "look": c.look, "evo": evolved.has(c.key)})
@@ -1794,7 +1831,7 @@ func _update_projectiles(dt: float) -> void:
 					continue
 				if r.stun > 0.0:
 					e.stun = r.stun
-				_hurt(e, r.dmg, center, c)
+				_hurt(e, r.dmg, Vector2.INF, c)   # 擊退只看招式自己的 knock，不套用一般命中的擊退
 				if r.knock > 0.0 and not e.get("boss", false):
 					e.knock += (e.pos - center).normalized() * r.knock
 	rings = rings.filter(func(r): return not r.get("dead", false))
@@ -2165,7 +2202,7 @@ func _render(dt: float) -> void:
 			ui.place_name(c.name, ct * c.pos, c.level > 0 and not over and not choosing)
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
-		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text(), "combo": combo, "combo_t": combo_t})
+		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text(), "combo": combo, "combo_t": combo_t, "boss_in": _boss_in()})
 
 
 ## 光的身影：沒有臉，只有光的輪廓，站在保羅身邊
@@ -2533,9 +2570,9 @@ func _open_chest() -> void:
 	if results.is_empty():
 		var n := randi_range(int(D.chest.rolls_min), int(D.chest.rolls_max))
 		for i in n:
-			var pool := _make_cards().filter(func(card): return card.kind != "heal")
+			var pool := _make_cards().filter(func(card): return not card.kind in ["heal", "grace_dmg", "grace_spd", "manna"])
 			if pool.is_empty():
-				pool = [{"kind": "heal", "key": "", "title": "五餅二魚", "desc": "%s回復 %d 血" % [D.paul.name, int(D.leveling.heal_card)]}]
+				pool = _filler_cards()
 			var card: Dictionary = pool[randi() % pool.size()]
 			_apply_card(card)
 			results.append({"title": card.title, "desc": card.desc, "big": false})
@@ -2649,8 +2686,21 @@ func _boss_tex() -> Texture2D:
 	return ImageTexture.create_from_image(img)
 
 
-func _spawn_boss() -> void:
-	boss_spawned = true
+## 下一隻 Boss 還有幾秒（-1：Boss 正在場上或都打完了）
+func _boss_in() -> float:
+	if boss != null or won:
+		return -1.0
+	var mids: Array = D.boss.get("mid", [])
+	if mids_done < mids.size() and float(mids[mids_done].at) < float(D.boss.at) - 30.0:
+		return maxf(0.0, float(mids[mids_done].at) - t)
+	return maxf(0.0, float(D.boss.at) - t) if not boss_spawned else -1.0
+
+
+## hp_mult < 1：中途 Boss（打退了不算通關）
+func _spawn_boss(hp_mult := 1.0) -> void:
+	var mid := hp_mult < 1.0
+	if not mid:
+		boss_spawned = true
 	var B: Dictionary = D.boss
 	var s := Sprite2D.new()
 	s.texture = _boss_tex()
@@ -2659,11 +2709,11 @@ func _spawn_boss() -> void:
 	s.offset = Vector2(-20, -30)
 	world.add_child(s)
 	boss = {"type": "boss", "boss": true, "d": {"name": B.name, "damage": B.touch_damage}, "pos": _edge_point(-30.0),
-		"hp": float(B.hp), "max_hp": float(B.hp), "ph": 0.0, "flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "r": 14.0,
+		"hp": float(B.hp) * hp_mult, "max_hp": float(B.hp) * hp_mult, "mid": mid, "ph": 0.0, "flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "r": 14.0,
 		"sprite": "boss", "tint": Color(B.tint[0], B.tint[1], B.tint[2]) if B.has("tint") and not own_art else Color.WHITE, "dmul": 1.0, "smul": 1.0, "knock": Vector2.ZERO, "dead": false, "node": s,
 		"state": "move", "timer": 2.5, "pattern_i": 0, "pattern": ""}
 	enemies.append(boss)
-	ui.show_banner("Boss：" + B.name, 2.5)
+	ui.show_banner(("Boss 來襲：" if mid else "Boss：") + B.name, 2.5)
 	if fever <= 0.0:
 		Sfx.music("boss")
 

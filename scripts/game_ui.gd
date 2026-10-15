@@ -27,6 +27,7 @@ var hp_fill: ColorRect
 var xp_fill: ColorRect
 var lv_label: Label
 var time_label: Label
+var boss_in_label: Label
 var kill_label: Label
 var hint_label: Label
 var meter_bg: ColorRect
@@ -68,6 +69,7 @@ func setup(name_list: Array, touch: bool) -> void:
 	_rect(C_DARK, Vector2(48, 41), Vector2(86, 6))
 	xp_fill = _rect(C_SKY, Vector2(49, 42), Vector2(0, 4))
 	time_label = label("00:00", 16, C_CREAM)
+	boss_in_label = label("", 11, C_FLAME)
 	kill_label = label("驅散 0", 13, C_INK)
 	pause_btn = UIKit.button("Ⅱ", 14)
 	pause_btn.custom_minimum_size = Vector2(34, 30)
@@ -183,6 +185,13 @@ func update_hud(st: Dictionary) -> void:
 	var s: int = st.time
 	time_label.text = "%02d:%02d" % [s / 60, s % 60]
 	time_label.position = Vector2(roundf((size.x - time_label.size.x) / 2.0), 4)
+	# 下一隻 Boss 倒數
+	var bi: float = st.get("boss_in", -1.0)
+	boss_in_label.visible = bi >= 0.0 and not st.over
+	if boss_in_label.visible:
+		boss_in_label.text = "Boss %d:%02d" % [int(bi) / 60, int(bi) % 60]
+		boss_in_label.modulate = Color(1, 1, 1, 1.0 if bi > 20.0 or int(bi * 3.0) % 2 == 0 else 0.4)
+		boss_in_label.position = Vector2(roundf((size.x - boss_in_label.size.x) / 2.0), 26)
 	kill_label.text = ("驅散 %d　餅 %d" % [st.kills, st.bread]) if st.get("bread", 0) > 0 else "驅散 %d" % st.kills
 	pause_btn.position = Vector2(size.x - 42.0, 4)
 	pause_btn.visible = not st.over

@@ -49,9 +49,9 @@
       "branches": [ { "name": "專一", "desc": "光箭變大、威力加倍", "add": {"damage": 2, "size": 1} }, { "name": "四散", "desc": "命中後多分裂兩支", "add": {"split": 2} } ]
     },
     "ring": {
-      "base": { "cooldown": 2.0, "max_radius": 52, "damage": 1, "speed": 60, "rings": 1, "returns": 0, "stun": 0, "thick": 1 },
-      "levels": [ { "max_radius": 72, "damage": 2 }, { "returns": 1 }, { "rings": 2, "thick": 2 }, { "stun": 0.8, "max_radius": 90 } ],
-      "desc": ["詩歌聲波一圈圈擴散", "聲波更大、威力加倍", "聲波擴散到底會再收回來，打兩次", "一次唱出兩圈，聲波更粗", "聲波更大，被打中的敵人會暈眩"],
+      "base": { "cooldown": 2.0, "max_radius": 52, "damage": 1, "speed": 60, "rings": 1, "returns": 0, "stun": 0, "thick": 1, "knock": 4 },
+      "levels": [ { "max_radius": 72, "damage": 2, "knock": 6 }, { "returns": 1 }, { "rings": 2, "thick": 2, "knock": 9 }, { "stun": 0.8, "max_radius": 90, "knock": 12 } ],
+      "desc": ["詩歌聲波一圈圈擴散，輕輕推開敵人", "聲波更大、威力加倍", "聲波擴散到底會再收回來，打兩次", "一次唱出兩圈，聲波更粗、推得更遠", "聲波更大，被打中的敵人會暈眩"],
       "branches": [ { "name": "高聲", "desc": "聲波傳得更遠", "add": {"max_radius": 25} }, { "name": "和聲", "desc": "一次多唱一圈", "add": {"rings": 1} } ]
     },
     "aura": {
@@ -80,9 +80,9 @@
     },
     "letter": {
       "engine": "shot", "look": "letter",
-      "base": { "cooldown": 0.9, "range": 120, "damage": 2, "speed": 190, "count": 1, "pierce": 0, "spread": 14 },
-      "levels": [ { "damage": 3 }, { "count": 2 }, { "pierce": 2, "cooldown": 0.7 }, { "count": 3, "damage": 4, "pierce": 3 } ],
-      "desc": ["保羅的書信：朝最近的敵人丟出書信，直線飛行", "書信更有份量", "一次寫兩封", "書信可以穿透 2 隻，寫得更快", "一次三封、穿透 3 隻（帖後 3:17）"],
+      "base": { "cooldown": 0.75, "range": 130, "damage": 4, "speed": 210, "count": 1, "pierce": 1, "spread": 14 },
+      "levels": [ { "damage": 6 }, { "count": 2 }, { "pierce": 3, "cooldown": 0.6 }, { "count": 3, "damage": 8, "pierce": 4 } ],
+      "desc": ["保羅的書信：朝最近的敵人丟出書信，直線飛行、穿透 1 隻", "書信更有份量", "一次寫兩封", "書信可以穿透 3 隻，寫得更快", "一次三封、穿透 4 隻、更重（帖後 3:17）"],
       "branches": [ { "name": "長篇書信", "desc": "每封更重、更能穿透", "add": {"damage": 2, "pierce": 2} }, { "name": "多封短信", "desc": "一次多寫兩封", "add": {"count": 2} } ]
     },
     "sling": {
@@ -199,7 +199,7 @@
     },
     "dawn": {
       "engine": "ring", "look": "dawn",
-      "base": { "cooldown": 2.4, "max_radius": 60, "damage": 2, "speed": 50, "rings": 1, "returns": 0, "stun": 0.4, "thick": 1 },
+      "base": { "cooldown": 2.4, "max_radius": 60, "damage": 2, "speed": 50, "rings": 1, "returns": 0, "stun": 0.4, "thick": 1, "knock": 5 },
       "levels": [ { "max_radius": 76 }, { "returns": 1 }, { "stun": 0.8, "damage": 3 }, { "rings": 2, "thick": 2, "max_radius": 92 } ],
       "desc": ["天還黑的時候：晨光一圈圈擴散，敵人會短暫暈眩", "晨光更大", "擴散到底會再收回來", "暈眩更久、威力提升", "一次兩圈，晨光更大（約 20:1）"],
       "branches": [ { "name": "破曉", "desc": "晨光傳得更遠", "add": {"max_radius": 24} }, { "name": "驚喜", "desc": "暈眩更久", "add": {"stun": 0.5} } ]
@@ -236,7 +236,7 @@
   "_armor說明": "全副軍裝：保羅自己的裝備，最多 3 件，每件 3 級。",
   "armor_slots": 3,
   "armor": {
-    "shoes":  { "name": "平安的鞋",   "tag": "差派", "desc": ["移動加快 10%，同伴跟得更緊", "移動再加快 10%", "移動再加快 10%，同伴幾乎不落後"] },
+    "shoes":  { "name": "平安的鞋",   "tag": "差派", "desc": ["移動加快 12%", "移動再加快 12%", "移動再加快 12%（弗 6:15）"] },
     "belt":   { "name": "真理的腰帶", "tag": "講道", "desc": ["對謊言傷害 +50%，謊言的射擊傷害減少 30%", "對謊言傷害再 +50%", "謊言的射擊完全擋下"] },
     "shield": { "name": "信德的藤牌", "tag": "守護", "desc": ["每 12 秒擋下一次攻擊", "每 9 秒擋一次", "每 6 秒擋一次（弗 6:16）"] },
     "breast": { "name": "公義的護心鏡", "tag": "守護", "desc": ["主角受到的傷害 -15%", "受到的傷害 -25%", "受到的傷害 -35%（弗 6:14）"], "per": [0.15, 0.25, 0.35] },
@@ -278,6 +278,13 @@
     "差派": { "name": "傳開", "desc": "連鎖多算 %s 層", "combo": 1 },
     "門徒": { "name": "得人", "desc": "把附近 %s 範圍的經驗吸到主角身邊", "radius": 60.0 }
   },
+  "_fillers說明": "升級時沒有足夠的卡可選時，用這些小獎勵補滿（不會再只有回血）。grace_dmg、grace_spd 可以一直疊。heal 只在主角血量低於 hp_below 時出現。",
+  "fillers": [
+    { "kind": "grace_dmg", "title": "恩上加恩", "tag": "恩典", "desc": "全隊傷害 +4%（可一直疊加，約 1:16）", "amount": 0.04 },
+    { "kind": "grace_spd", "title": "如鷹展翅", "tag": "恩典", "desc": "全隊攻擊速度 +3%（可一直疊加，賽 40:31）", "amount": 0.03 },
+    { "kind": "manna", "title": "天上的嗎哪", "tag": "恩典", "desc": "得到 8 個餅（出 16:15）", "amount": 8 },
+    { "kind": "heal", "title": "五餅二魚", "tag": "恩典", "desc": "主角回復 30 血", "hp_below": 0.7 }
+  ],
   "_tasks說明": "旅程任務：每局隨機抽 count 個。stat 可用 kills、elites、fevers、links、level；by 是要在第幾秒前完成（0 = 不限時）。完成給 witness 見證，並在保羅身邊掉一個寶箱。",
   "tasks": {
     "count": 2,
@@ -361,7 +368,9 @@
   "_elite_wave說明": "菁英從 from 秒開始每 elite_every 秒出現一隻；peak_from 到 peak_to 是菁英潮，間隔縮短成 peak_every，並會出現考驗型敵人。Boss 出現後停止。",
   "elite_wave": { "from": 90, "elite_every": 35, "peak_from": 250, "peak_to": 330, "peak_every": 20, "trial_every": 4, "trial_group": 6 },
   "boss": {
-    "at": 420, "name": "捆鎖", "hp": 6000, "speed": 10, "touch_damage": 10,
+    "at": 420, "name": "捆鎖", "hp": 6000,
+    "_mid說明": "中途 Boss：同一隻 Boss 先來一次（血量 hp_mult 倍），打退了掉寶箱和餅，不算通關。",
+    "mid": [ { "at": 210, "hp_mult": 0.3 } ], "speed": 10, "touch_damage": 10,
     "warn": 1.1, "break_seconds": 2.2, "break_mult": 2.0, "phase2_at": 0.5,
     "sweep": { "damage": 18, "width": 10, "length": 300 },
     "grid": { "damage": 14, "lines": 3, "width": 8 },
@@ -373,7 +382,7 @@
   "chest": { "rolls_min": 1, "rolls_max": 3 },
   "easter_egg": { "first_time": true, "chance": 0.1 },
   "_leveling說明": "升到下一級需要的經驗 = first + step ×(等級-1) + growth ×(等級-1)²，越後面越慢。card_delay 是升級卡跳出後幾秒才能選；觸控用 touch_card_delay，避免滑動時誤觸。",
-  "leveling": { "first": 8, "step": 6, "growth": 0.7, "card_delay": 0.4, "touch_card_delay": 1.0, "heal_card": 30 },
+  "leveling": { "first": 8, "step": 8, "growth": 1.0, "card_delay": 0.4, "touch_card_delay": 1.0, "heal_card": 30 },
   "fever": {
     "_說明": "同心合意：隊伍越完整累積越快；滿了按空白鍵（觸控按按鈕）開五旬節。",
     "fill_seconds": 16,
@@ -405,8 +414,8 @@
     "initial": 15,
     "_scaling說明": "敵人隨時間變強：每列是 [秒數, 倍率]，中間線性內插。hp 血量、damage 傷害、speed 速度。",
     "scaling": {
-      "hp":     [[0, 1], [90, 1.8], [170, 3], [250, 4.5], [330, 6.5], [420, 9], [500, 12]],
-      "damage": [[0, 1], [210, 1.4], [420, 1.8], [500, 2]],
+      "hp":     [[0, 1], [90, 1.9], [170, 3.4], [250, 5.6], [330, 8.5], [420, 12], [500, 16]],
+      "damage": [[0, 1], [210, 1.5], [420, 2.0], [500, 2.3]],
       "speed":  [[0, 1], [210, 1.15], [420, 1.3]]
     },
     "_veteran說明": "老練的敵人：同一種敵人的強化版，血量 hp_mult 倍、體型 scale 倍、顏色較深，打倒掉 gems 顆經驗。出現機率隨時間 chance 內插。",

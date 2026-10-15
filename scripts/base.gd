@@ -272,10 +272,11 @@ func _show_home() -> void:
 	var st: Dictionary = Save.data.stats
 	_text(content, "已出發 %d 次　通關 %d 次　最多驅散 %d　見證錄 %d／%d" % [st.runs, st.wins, st.best_kills, Save.data.achievements.size(), Save.meta.achievements.size()], 12, UIKit.MUTED, true)
 	var go := UIKit.button("出發：" + stages[sel].name, 18, true)
-	go.custom_minimum_size = Vector2(220, 48)
-	go.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	go.custom_minimum_size = Vector2(220, 52)
+	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	go.pressed.connect(_start)
 	content.add_child(go)
+	content.move_child(go, 0)   # 出發鈕放最上面，不用捲到底才找得到
 	go.grab_focus()
 	_text(content, "提示：每局結束都會帶回「見證」，用來解鎖新同伴、果子、軍裝和隊伍位置。完成見證錄的目標可以解鎖舊約人物。", 12, UIKit.MUTED, true)
 
