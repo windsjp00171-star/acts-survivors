@@ -47,6 +47,7 @@ var type_shown := 0
 
 func _ready() -> void:
 	G = JSON.parse_string(FileAccess.get_file_as_string("res://data/game.json"))
+	get_tree().set_quit_on_go_back(false)   # 返回鍵自己處理（見 _notification）
 	var vs := get_viewport().get_visible_rect().size
 	portrait = vs.y > vs.x
 	# 直式：把營地往上下拉長，讓東西都放得進窄畫面
@@ -87,6 +88,27 @@ func _ready() -> void:
 			shot = a.substr(7)
 	if shot != "":
 		_auto_shots(shot)
+
+
+## 手機的返回鍵：先關面板／對話；在營地上要連按兩次才離開遊戲（不會一按就跳出）
+var back_t := -10.0
+
+
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_WM_GO_BACK_REQUEST:
+		return
+	if panel != null and panel.visible:
+		panel.close()
+	elif not talk.is_empty():
+		talk.clear()
+		if talk_box != null:
+			talk_box.visible = false
+	elif t - back_t < 2.0:
+		get_tree().quit()
+	else:
+		back_t = t
+		news_label.text = "再按一次返回鍵離開遊戲"
+		news_until = 2.0
 
 
 func _p(x: float, y: float) -> Vector2:

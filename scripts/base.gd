@@ -17,6 +17,13 @@ var gift_sel := 0
 var cur_tab := ""
 var devlog: Dictionary
 var codex: Dictionary
+# 手機：手指在面板上拖曳就能捲動（按在按鈕上拖也可以），放開後會順勢滑一段
+const DRAG_START := 10.0   # 手指移動超過這麼多才算拖曳，不算按按鈕
+var drag_on := false
+var drag_moved := 0.0
+var drag_vel := 0.0
+var fling := 0.0
+var faking := false        # 自己送出的假事件，不要再攔
 
 
 func _ready() -> void:
@@ -55,6 +62,57 @@ func open(tab: String, key := "") -> void:
 func close() -> void:
 	visible = false
 	closed.emit()
+
+
+func _input(event: InputEvent) -> void:
+	if faking or not visible or scroll == null or not is_instance_valid(scroll):
+		return
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			drag_on = scroll.get_global_rect().has_point(event.position)
+			drag_moved = 0.0
+			drag_vel = 0.0
+			fling = 0.0
+		elif drag_on:
+			drag_on = false
+			if drag_moved > DRAG_START:
+				# 拖曳結束：不要讓手指底下的按鈕被按到（送一個移到畫面外再放開的假事件）
+				get_viewport().set_input_as_handled()
+				_fake_release()
+				fling = drag_vel
+	elif event is InputEventMouseMotion and drag_on and event.button_mask & MOUSE_BUTTON_MASK_LEFT:
+		drag_moved += absf(event.relative.y)
+		if drag_moved > DRAG_START:
+			scroll.scroll_vertical -= int(round(event.relative.y))
+			drag_vel = lerpf(drag_vel, -event.relative.y / maxf(get_process_delta_time(), 0.008), 0.5)
+			get_viewport().set_input_as_handled()
+
+
+func _fake_release() -> void:
+	faking = true
+	var far := Vector2(-9999, -9999)
+	var mm := InputEventMouseMotion.new()
+	mm.position = far
+	mm.global_position = far
+	mm.button_mask = MOUSE_BUTTON_MASK_LEFT
+	Input.parse_input_event(mm)
+	var mb := InputEventMouseButton.new()
+	mb.button_index = MOUSE_BUTTON_LEFT
+	mb.pressed = false
+	mb.position = far
+	mb.global_position = far
+	Input.parse_input_event(mb)
+	Input.flush_buffered_events()
+	faking = false
+
+
+func _process(dt: float) -> void:
+	# 放開後順勢滑行，慢慢停下來
+	if absf(fling) > 20.0 and scroll != null and is_instance_valid(scroll):
+		scroll.scroll_vertical += int(round(fling * dt))
+		fling *= pow(0.04, dt)
+	else:
+		fling = 0.0
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -126,6 +184,7 @@ func _build() -> void:
 	body.add_child(panel)
 	scroll = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.get_v_scroll_bar().custom_minimum_size = Vector2(14 if portrait else 10, 0)
 	panel.add_child(scroll)
 	content = VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL

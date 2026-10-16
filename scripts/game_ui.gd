@@ -346,7 +346,13 @@ func update_hud(st: Dictionary) -> void:
 	var now := Time.get_ticks_msec() / 1000.0
 	banner.visible = now < banner_until
 	if banner.visible:
-		banner.position = Vector2(roundf((size.x - banner.size.x) / 2.0), 64)
+		var por := size.y > size.x
+		if por and banner.autowrap_mode == TextServer.AUTOWRAP_OFF:
+			# 直式手機：長的提示會超出畫面，改成自動換行，放在任務清單下面
+			banner.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			banner.custom_minimum_size = Vector2(size.x - 24.0, 0)
+			banner.size = Vector2(size.x - 24.0, 0)
+		banner.position = Vector2(roundf((size.x - banner.size.x) / 2.0), roundf(size.y * 0.24) if por else 64.0)
 		banner.modulate.a = clampf((banner_until - now) * 2.0, 0.0, 1.0)
 	if boss_bg.visible:
 		boss_bg.position = Vector2(roundf((size.x - 244.0) / 2.0), 48)
@@ -664,7 +670,7 @@ func show_pause(build_text: String) -> void:
 		var b := UIKit.label(build_text, 11, C_CREAM)
 		b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(b)
-	var go := UIKit.button("繼續（Esc）", 16, true)
+	var go := UIKit.button("繼續" if DisplayServer.is_touchscreen_available() else "繼續（Esc）", 16, true)
 	go.custom_minimum_size = Vector2(200, 40)
 	go.pressed.connect(func(): resume_pressed.emit())
 	v.add_child(go)
