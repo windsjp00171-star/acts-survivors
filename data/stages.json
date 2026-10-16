@@ -8,8 +8,8 @@
       "church": "耶路撒冷",
       "ref": "徒 1–4",
       "intro": "主升天以後，門徒同心合意地禱告。五旬節到了，聖靈降臨。",
-      "hp_mult": 0.6,
-      "dmg_mult": 0.6,
+      "hp_mult": 1.3,
+      "dmg_mult": 0.9,
       "tint": [
         1,
         1,
@@ -59,20 +59,22 @@
       ],
       "director": {
         "persecute_from": 150,
-        "persecute_every": 12
+        "persecute_every": 12,
+        "from": 20,
+        "rise": 0.04
       },
       "hazard": {
         "kind": "tongues",
         "first": 20,
-        "every": 18,
+        "every": 22,
         "radius": 28,
-        "damage": 14,
+        "damage": 8,
         "meter": 0.12,
         "text": "有舌頭如火焰顯現出來，分開落在他們各人頭上（徒 2:3）"
       },
       "boss": {
         "name": "公會的恐嚇",
-        "hp": 3500,
+        "hp": 4500,
         "at": 300,
         "mid": [],
         "tint": [
