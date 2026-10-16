@@ -506,6 +506,40 @@ def boss_patmos():
     c.save("boss_patmos")
 
 
+def boss_damascus():
+    # 晝夜看守的城門（徒 9:24）：城牆與拱門，門洞裡兩盞不睡的燈像眼睛，門上插著長矛
+    c = Canvas(40, 40)
+    for y in range(8, 38):
+        for x in range(3, 37):
+            if (x - 20) ** 2 / 81 + (y - 30) ** 2 / 144 < 1 and y > 19:
+                continue   # 門洞
+            row = (y - 8) // 4
+            brick = (x + (2 if row % 2 else 0)) % 7 == 0 or (y - 8) % 4 == 0
+            col = "#5a4a3e" if brick else ("#9a8470" if h(x, y, 120) > 0.3 else "#86705e")
+            c.px(x, y, col)
+    for x in range(3, 37, 4):
+        for y in range(5, 8):
+            c.px(x, y, "#86705e")
+            c.px(x + 1, y, "#9a8470")
+    for y in range(20, 38):
+        for x in range(11, 30):
+            if (x - 20) ** 2 / 81 + (y - 30) ** 2 / 144 < 1:
+                c.px(x, y, "#140c14")
+    for cx in (16, 24):
+        c.px(cx, 25, "#ffb040")
+        c.px(cx, 24, "#ffe14d")
+        c.px(cx - 1, 25, "#c86a20")
+        c.px(cx + 1, 25, "#c86a20")
+    for sx in (6, 34):
+        for y in range(0, 9):
+            c.px(sx, y, "#6b4a2a")
+        c.px(sx, 0, "#e0e0f0")
+        c.px(sx - 1, 1, "#c0c0d0")
+        c.px(sx + 1, 1, "#c0c0d0")
+    c.outline("#140c14")
+    c.save("boss_damascus")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [("fear_b", fear_b), ("strife_b", strife_b), ("lies_b", lies_b), ("sleep_b", sleep_b),
@@ -525,4 +559,5 @@ if __name__ == "__main__":
     boss_corinth()
     boss_ephesus()
     boss_patmos()
+    boss_damascus()
     print("done")

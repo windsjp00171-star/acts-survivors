@@ -225,6 +225,12 @@ var names_all := {}        # 說話的人 key → 名字（主角換人時也找
 var pressure := 0.0        # 0 起跳，敵人血量 ×(1 + pressure)
 var life_avg := 5.0        # 最近被打倒的敵人平均活了幾秒
 var persec_t := -1.0       # 逼迫：下一次落在主角腳下的時間
+# 大馬士革：瞎眼（blind_state："" 沒有、"vision" 路上的大光、"blind" 看不見、"heal" 鱗片掉下、"done"）
+var blind_state := ""
+var blind_r := 0.0
+var blind_flash := 0.0     # 大光：整個畫面亮白
+var ananias := {}          # 亞拿尼亞：{pos, node}
+var dark: Node2D
 # 五重職事（弗 4:11）：出發前選的呼召
 var calling := "apostle"
 var prophecy := {}         # 先知：預言之地 {pos, r, t}
@@ -291,6 +297,9 @@ func _ready() -> void:
 	for dd in D.companions:
 		names_all[dd.key] = dd.name
 	names_all["paul"] = "保羅"
+	names_all["jesus"] = "耶穌"
+	names_all["ananias"] = "亞拿尼亞"
+	names_all["disciple"] = "門徒"
 	# 主角：選了誰，就用他的名字、招式、流派與血量速度；他這一局不再當同伴
 	leader = "paul" if OS.get_cmdline_user_args().has("--smoke") else str(Save.data.get("leader", "paul"))
 	for a in OS.get_cmdline_user_args():
@@ -365,6 +374,10 @@ func _ready() -> void:
 	if not smoke or OS.get_cmdline_user_args().has("--prov"):
 		_use_provisions(Save.take_provisions())
 	ui.dialogue_done.connect(func(): talking = false)
+	if stage.get("hazard", {}).get("kind", "") == "blind":
+		blind_state = "vision"
+		if leader == "paul" and ui.names.has(D.paul.name):
+			ui.names[D.paul.name].text = "掃羅"   # 眼睛好了以後才叫保羅
 	_start_talk("in")
 	var pool: Array = D.tasks.list.duplicate()
 	pool.shuffle()
@@ -474,7 +487,8 @@ func _ready() -> void:
 	_update_chunks()
 	Sfx.music(stage.music)
 	ground.modulate = Color(stage.tint[0], stage.tint[1], stage.tint[2])
-	ui.show_banner("%s　%s%s" % [stage.name, stage.ref, ("\n信心等級 %d" % faith) if faith > 0 else ""], 2.5)
+	if stage.get("hazard", {}).get("kind", "") != "blind":   # 大馬士革：開場是大光，不蓋上城名
+		ui.show_banner("%s　%s%s" % [stage.name, stage.ref, ("\n信心等級 %d" % faith) if faith > 0 else ""], 2.5)
 
 
 # ---------- 建立場景 ----------
@@ -515,6 +529,11 @@ func _build_world() -> void:
 	air.z_index = 10
 	air.draw.connect(_draw_air)
 	add_child(air)
+
+	dark = Node2D.new()
+	dark.z_index = 30
+	dark.draw.connect(_draw_dark)
+	add_child(dark)
 
 	cam = Camera2D.new()
 	var vs := get_viewport().get_visible_rect().size
@@ -3674,6 +3693,10 @@ func _start_talk(which: String) -> void:
 		seen.append(key)
 		Save.data.story_seen = seen
 		Save.save_profile()
+	_show_talk(raw)
+
+
+func _show_talk(raw: Array) -> void:
 	var lines := []
 	for L in raw:
 		var who: String = L[0]
@@ -3681,7 +3704,9 @@ func _start_talk(which: String) -> void:
 		for dd in D.companions:
 			if dd.key == who and dd.has("color"):
 				col = Color(dd.color)
-		lines.append({"name": names_all.get(who, who), "text": L[1], "icon": who, "col": col})
+		if who == "jesus":
+			col = Color("fff4c2")
+		lines.append({"name": L[2] if L.size() > 2 else names_all.get(who, who), "text": L[1], "icon": who, "col": col})
 	talking = true
 	joy.on = false
 	ui.joy.on = false
@@ -4181,6 +4206,8 @@ func _separate() -> void:
 func _damage_paul(n: float, pierce := false) -> void:
 	if fever > 0.0 or won:
 		return
+	if epistles.has("burden"):
+		n *= 0.85   # 加拉太書：彼此擔當
 	var sh: int = armor.get("shield", 0)
 	if pierce:
 		pass   # 逼迫：護盾擋不住，只能躲開
@@ -4368,6 +4395,110 @@ func _update_director(dt: float) -> void:
 		star_falls.append({"pos": paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(25.0, 45.0), "t": warn, "max": warn, "r": 18.0, "dmg": dmg, "pierce": true})
 
 
+## 大馬士革：路上的大光 → 瞎眼（只看得見身邊）→ 亞拿尼亞走過來按手 → 鱗片掉下、被聖靈充滿
+func _update_blind(dt: float, hz: Dictionary) -> void:
+	var el := t - t_start
+	match blind_state:
+		"vision":
+			# 對話結束（或第二次以後直接）：一道大光，然後什麼都看不見
+			blind_flash = 0.7
+			blind_state = "blind"
+			blind_r = float(hz.radius)
+			shake = 0.4
+			Sfx.play("holy", 0.0)
+			ui.show_banner(hz.text, 3.0)
+		"blind":
+			blind_flash = maxf(0.0, blind_flash - dt)
+			if el >= float(hz.ananias_at) and ananias.is_empty():
+				var a := randf() * TAU
+				ananias = {"pos": paul.pos + Vector2(cos(a), sin(a) * 0.7) * 130.0, "node": _sprite("ananias_0", Vector2(-7, -17))}
+				ui.show_banner("有人走過來了：「掃羅弟兄……」（徒 9:17）", 2.5)
+			if not ananias.is_empty():
+				var to: Vector2 = paul.pos - ananias.pos
+				ananias.pos += to.normalized() * minf(to.length(), float(hz.ananias_speed) * dt)
+				ananias.node.position = ananias.pos.round()
+				ananias.node.texture = _tex("ananias_%d" % (int(t * 4.0) % 2))
+				if to.length() < float(hz.touch):
+					_ananias_arrive(hz)
+		"heal":
+			if blind_r <= float(hz.radius):
+				ui.show_banner(hz.heal_text, 3.0)   # 對話結束後才出現
+				if ui.names.has(D.paul.name):
+					ui.names[D.paul.name].text = D.paul.name
+			blind_r += dt * 420.0
+			if blind_r > 700.0:
+				blind_state = "done"
+		"done":
+			if not ananias.is_empty():
+				var to2: Vector2 = paul.pos + Vector2(-16, 6) - ananias.pos
+				if to2.length() > 10.0:
+					ananias.pos += to2.normalized() * minf(to2.length(), 50.0 * dt)
+				ananias.node.position = ananias.pos.round()
+				ananias.node.texture = _tex("ananias_%d" % ((int(t * 4.0) % 2) if to2.length() > 10.0 else 0))
+
+
+func _ananias_arrive(hz: Dictionary) -> void:
+	blind_state = "heal"
+	meter = 1.0   # 被聖靈充滿：五旬節可以開了
+	holies.append({"pos": paul.pos, "t": 0.0, "r": 60.0})
+	Sfx.play("holy", 0.0)
+	if smoke:
+		print("ANANIAS t=%.0f" % (t - t_start))
+	var seen: Array = Save.data.get("story_seen", [])
+	if not seen.has("ananias_" + stage.id) or OS.get_cmdline_user_args().has("--talk"):
+		if not seen.has("ananias_" + stage.id):
+			seen.append("ananias_" + stage.id)
+			Save.data.story_seen = seen
+			Save.save_profile()
+		_show_talk(stage.get("talk_ananias", []))
+
+
+## 黑暗：一格一格的實心黑色，只留主角身邊一個圓；路上的大光是整片亮白
+func _draw_dark() -> void:
+	if blind_state == "" or blind_state == "done":
+		return
+	var n := dark
+	var v := _view_rect().grow(4.0)
+	var c: Vector2 = paul.pos.round()
+	if blind_state == "vision":
+		# 路上：光裡站著耶穌（光柱畫在地面那層，掃羅站在光裡）
+		var at := c + Vector2(0, -36)
+		for i in 12:
+			var a := i / 12.0 * TAU + t * 0.3
+			n.draw_line(at + Vector2(cos(a), sin(a)) * 14.0, at + Vector2(cos(a), sin(a)) * (24.0 + 4.0 * (i % 2)), Color("ffe9a0"), 2.0)
+		n.draw_circle(at, 13.0, Color("fff8d8"))
+		n.draw_texture_rect(_tex("jesus_0"), Rect2(at + Vector2(-14, -20), Vector2(28, 34)), false)
+		return
+	if blind_flash > 0.0:
+		n.draw_rect(v, Color("fffbe8") if blind_flash > 0.35 else Color("ffe9a0"))
+		return
+	var r := blind_r
+	var edge := 5.0
+	var y := v.position.y
+	var dk := Color("05030a")
+	var band := Color("1c1228")
+	while y < v.end.y:
+		var dy := y + 1.0 - c.y
+		if absf(dy) >= r:
+			n.draw_rect(Rect2(v.position.x, y, v.size.x, 2), dk)
+		else:
+			var hw := floorf(sqrt(r * r - dy * dy) / 2.0) * 2.0
+			var hw2 := floorf(sqrt(maxf(0.0, (r - edge) * (r - edge) - dy * dy)) / 2.0) * 2.0 if absf(dy) < r - edge else 0.0
+			n.draw_rect(Rect2(v.position.x, y, c.x - hw - v.position.x, 2), dk)
+			n.draw_rect(Rect2(c.x + hw, y, v.end.x - c.x - hw, 2), dk)
+			n.draw_rect(Rect2(c.x - hw, y, hw - hw2, 2), band)
+			n.draw_rect(Rect2(c.x + hw2, y, hw - hw2, 2), band)
+		y += 2.0
+	# 亞拿尼亞在黑暗裡：圓邊上一個金色箭頭指著他的方向
+	if not ananias.is_empty() and blind_state == "blind":
+		var to: Vector2 = ananias.pos - c
+		if to.length() > r - 4.0:
+			var d := to.normalized()
+			var tip := c + d * (r - 2.0)
+			var side := Vector2(-d.y, d.x)
+			n.draw_colored_polygon(PackedVector2Array([tip, tip - d * 7.0 + side * 4.0, tip - d * 7.0 - side * 4.0]), C_GOLD)
+
+
 ## 各城的關卡機制（馬爾他的暴風、拔摩的星辰各有自己的函式）
 func _update_hazard(dt: float) -> void:
 	_update_director(dt)
@@ -4375,6 +4506,9 @@ func _update_hazard(dt: float) -> void:
 	_update_spots(dt)
 	var hz: Dictionary = stage.get("hazard", {})
 	var kind: String = hz.get("kind", "")
+	if kind == "blind":
+		_update_blind(dt, hz)
+		return
 	if kind in ["", "wind", "stars"] or boss != null or choosing:
 		return
 	if hz_t < 0.0:
@@ -4652,6 +4786,7 @@ func _render(dt: float) -> void:
 
 	ground_fx.queue_redraw()
 	air.queue_redraw()
+	dark.queue_redraw()
 
 	var ct := get_viewport().get_canvas_transform()
 	ui.place_name(D.paul.name, ct * p.pos, not over and not choosing)
@@ -4690,6 +4825,13 @@ func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, 
 
 func _draw_ground_fx() -> void:
 	var n := ground_fx
+	if blind_state == "vision":
+		# 大馬士革路上：天上一道光柱照在掃羅身上（徒 9:3）
+		var v0 := _view_rect()
+		var c0: Vector2 = paul.pos.round()
+		for i in 5:
+			var w := 34.0 - i * 6.0
+			n.draw_rect(Rect2(c0.x - w / 2.0, v0.position.y - 4.0, w, c0.y - v0.position.y + 8.0), [Color("6a5a3a"), Color("a08a50"), Color("d8c070"), Color("fff0b0"), Color("ffffff")][i])
 	# 瞬移的預兆：落點的紫色圈慢慢收縮
 	for e in enemies:
 		if e.has("blink_to") and not e.dead:
@@ -5725,6 +5867,12 @@ func _smoke_tick() -> void:
 	smoke_frames += 1
 	if smoke_shot != "" and seekers.any(func(sk): return sk.prog > 1.5) and not FileAccess.file_exists(smoke_shot.replace(".png", "_seek.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_seek.png"))
+	if smoke_shot != "" and blind_state != "":
+		# 測試用：大馬士革的瞎眼、亞拿尼亞、按手時的對話
+		for pair in [["_blind", blind_state == "blind" and t - t_start > 20.0], ["_ananias", blind_state == "blind" and not ananias.is_empty() and paul.pos.distance_to(ananias.pos) < 60.0], ["_atalk", talking and blind_state == "heal"]]:
+			if pair[1] and not FileAccess.file_exists(smoke_shot.replace(".png", pair[0] + ".png")):
+				get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", pair[0] + ".png"))
+				return
 	if talking and smoke_frames % 15 == 0:
 		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_talk.png")):
 			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_talk.png"))

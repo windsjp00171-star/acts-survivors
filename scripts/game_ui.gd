@@ -221,7 +221,7 @@ func _dlg_render() -> void:
 			dialogue_next())
 		col.add_child(sk)
 	await get_tree().process_frame
-	if dlg_box != null and is_instance_valid(dlg_box):
+	if dlg_box != null and is_instance_valid(dlg_box) and is_instance_valid(nx):
 		dlg_box.size = Vector2.ZERO
 		dlg_box.position = Vector2(((size.x - dlg_box.size.x) / 2.0), size.y - dlg_box.size.y - 16.0).round()
 		nx.grab_focus()

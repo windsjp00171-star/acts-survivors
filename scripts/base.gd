@@ -910,6 +910,20 @@ func _show_log() -> void:
 	Save.save_profile()
 	_text(content, "製作日誌", 16, UIKit.GOLD)
 	_text(content, "每次改版改了什麼，都寫在這裡。有想法歡迎告訴我們！", 11, UIKit.MUTED, true)
+	# 從頭開始旅程：故事改了很多，想從第一章重新走一次（舊進度會先備份）
+	var rb := UIKit.button("從頭開始旅程", 12)
+	rb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	var rnote := UIKit.label("見證、餅、教會、同伴全部回到一開始；音樂與畫面設定保留", 10, UIKit.MUTED)
+	rb.pressed.connect(func():
+		if rb.text == "從頭開始旅程":
+			rb.text = "真的要重來嗎？再按一次確定"
+			rnote.text = "舊進度會先存一份備份（profile_backup.json）"
+			return
+		Save.reset_profile()
+		Sfx.play("holy", 0.0)
+		_show_home())
+	content.add_child(rb)
+	content.add_child(rnote)
 	for i in devlog.entries.size():
 		var e: Dictionary = devlog.entries[i]
 		var box := PanelContainer.new()

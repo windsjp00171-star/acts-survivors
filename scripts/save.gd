@@ -42,6 +42,10 @@ func load_profile() -> void:
 	if data.faith_best.is_empty() and not data.trial_best.is_empty():
 		for sid in data.trial_best:
 			data.faith_best[sid] = mini(6, int(data.trial_best[sid]) / 2)
+	# 0.16：旅程最前面多了大馬士革，舊存檔選的城往後挪一格
+	if FileAccess.file_exists(PATH) and int(data.get("map_ver", 1)) < 2:
+		data.stage = int(data.get("stage", 0)) + 1
+	data.map_ver = 2
 	_refund_old_gifts()
 	_refund_capped_ups()
 	_init_gift_on()
@@ -78,6 +82,22 @@ func _refund_old_gifts() -> void:
 	if refund > 0:
 		data.bread = int(data.get("bread", 0)) + refund
 		save_profile()
+
+
+## 從頭開始旅程：舊進度先存一份備份，然後全部歸零（設定保留）
+func reset_profile() -> void:
+	if FileAccess.file_exists(PATH):
+		var b := FileAccess.open("user://profile_backup.json", FileAccess.WRITE)
+		b.store_string(JSON.stringify(data, "  "))
+	var keep := {}
+	for k in ["music_on", "sfx_on", "fxlite_on", "bigtext_on"]:
+		if data.has(k):
+			keep[k] = data[k]
+	data = _defaults()
+	data.map_ver = 2
+	data.merge(keep, true)
+	_init_gift_on()
+	save_profile()
 
 
 func save_profile() -> void:

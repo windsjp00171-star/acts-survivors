@@ -348,6 +348,18 @@ def camp():
     return tr.render()
 
 
+def damascus():
+    # 大馬士革：A 自然小調，慢、低沉，主題從低處一路往上爬——瞎眼的路上，最後看見光
+    motif = [(0, 1), (-1, 0.5), (0, 0.5), (2, 1), (1, 1), (0, 2), (None, 1), (2, 1), (3, 1), (4, 1), (3, 0.5), (2, 0.5), (1, 2)]
+    answer = [(4, 1), (5, 1), (6, 1), (7, 1), (6, 0.5), (5, 0.5), (4, 1), (2, 2), (3, 1), (2, 0.5), (1, 0.5), (0, 4)]
+
+    def dawn(tr):
+        for bar in range(0, 16, 4):
+            tr.melody(choir, 57, "aeolian", [([0, 5, 3, 4][(bar // 4) % 4], 16)], bar * 4, 0.6)
+    return battle(57, "aeolian", 112, [0, 5, 3, 4], motif, answer,
+                  taiko_a="B.......B.......", taiko_b="B..B....B..B.B..", frame="F...k...F...k.k.", extra=dawn)
+
+
 def philippi():
     motif = [(0, 1), (1, 0.5), (2, 0.5), (3, 1), (2, 0.5), (1, 0.5), (0, 2), (None, 2), (4, 1), (3, 1), (2, 1), (1, 1), (0, 4)]
     answer = [(4, 1), (5, 0.5), (4, 0.5), (3, 1), (2, 1), (3, 1.5), (2, 0.5), (1, 2), (2, 1), (1, 1), (0, 2), (-1, 2), (0, 2)]
@@ -479,7 +491,7 @@ if __name__ == "__main__":
     import sys
     os.makedirs(OUT, exist_ok=True)
     only = sys.argv[1:]   # 只產生指定的曲子：python tools/make_music.py athens rome
-    for name, fn in [("camp", camp), ("philippi", philippi), ("thessalonica", thessalonica), ("corinth", corinth),
+    for name, fn in [("camp", camp), ("damascus", damascus), ("philippi", philippi), ("thessalonica", thessalonica), ("corinth", corinth),
                      ("ephesus", ephesus), ("athens", athens), ("jerusalem", jerusalem), ("malta", malta), ("rome", rome), ("patmos", patmos),
                      ("boss", boss), ("fever", fever)]:
         if only and name not in only:

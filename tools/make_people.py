@@ -136,6 +136,21 @@ def timbrel(px, f):
     px(9 + 4 * f, 10, "#ffd75e")
 
 
+def glory(px, f):
+    # 耶穌：頭上一圈光（不是進化，是祂本來的榮耀）；手上有釘痕
+    for x in range(4, 9):
+        px(x, 1, "#ffd75e")
+    px(3, 2, "#fff4c2")
+    px(9, 2, "#fff4c2")
+    px(2, 11, "#c0392b")
+
+
+def walking_staff(px, f):
+    for y in range(6, 15):
+        px(11, y, "#6b4a2a")
+    px(11, 5, "#8a6438")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     person("gideon", "#3a2414", "#8a5a30", "#5e3b22", "#c8302a", beard="#3a2414", item=torch_jar)
@@ -144,4 +159,7 @@ if __name__ == "__main__":
     person("noah", "#e8e4dc", "#c8c0a8", "#9a9280", "#3a7ad0", beard="#f4f0e8", item=staff_branch)
     person("esther", "#2a1420", "#c060c0", "#8a3a8a", "#ffd75e", long_hair=True, crown=True, item=scepter)
     person("miriam", "#5a2a14", "#ff8aa0", "#c85a70", "#fff4c2", long_hair=True, item=timbrel)
+    person("jesus", "#4a2c18", "#f4f0e6", "#cfc6b4", "#b0302a", beard="#4a2c18", long_hair=True, item=glory)
+    person("ananias", "#9a9288", "#6a7a4a", "#4a5a32", "#e0d4b8", beard="#c8c0b4", item=walking_staff)
+    person("disciple", "#2a1a10", "#7a6a8a", "#5a4a6a", "#d8c8a0")
     print("done")
