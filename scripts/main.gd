@@ -167,6 +167,12 @@ var ui: GameUI
 # 自動測試用（godot -- --smoke）
 # 流派規則（data/game.json 的 schools）：同流派 2/3/4 人啟動、升級
 var school_tier := {}      # 流派 → 0..3
+var pa_free: Array = []    # 主角不佔格就帶著的流派（主角本身的流派、恩賜「規則改寫」）
+var fusions_on := {}       # 已經融合的流派組合 "講道+詩歌" → true
+var fz_beat := 0           # 讚美為盾：數重拍
+var fz_heal_t := 0.0       # 悔改得醫治：回血間隔
+var fz_guard_t := 0.0      # 弟兄守望：護盾間隔
+var fz_pair_t := 5.0       # 兩個兩個：招小門徒間隔
 var school_mods := {}      # 流派卡與恩賜第 5 層改寫的數值（加上去）
 var school_cards := {}     # 已拿過的流派卡 "流派:id"
 var praise := 0.0          # 詩歌：讚美
@@ -402,11 +408,13 @@ func _ready() -> void:
 		first_recruit = "" if solo or chapter.cast.is_empty() or chapter.get("late", false) else str(chapter.cast[0])
 	if stage.has("leader_level"):
 		_set_level(pa, int(stage.leader_level))   # 年老的約翰：一開始招式就比較熟練
-	if calling == "apostle" and by_key.has(first_recruit) and first_recruit != "":
-		starter = first_recruit
-		# 使徒：第一位同工的流派一開始就算兩人
-		var stag: String = by_key[starter].tag
-		school_mods["solo_" + stag] = float(school_mods.get("solo_" + stag, 0.0)) + 1.0
+	# 流派長在主角的招式上：主角本身的流派、恩賜「規則改寫」的流派，一開始就成形（不佔輔助格）
+	if D.schools.has(str(pa.get("tag", ""))):
+		pa_free.append(str(pa.tag))
+	for tag in D.schools:
+		if float(school_mods.get("solo_" + tag, 0.0)) > 0.0 and not pa_free.has(tag):
+			pa_free.append(tag)
+	_update_schools()
 	rerolls_left = Save.rerolls()
 	if not smoke or OS.get_cmdline_user_args().has("--prov"):
 		_use_provisions(Save.take_provisions())
@@ -473,6 +481,7 @@ func _ready() -> void:
 			if not ao.is_empty():
 				ao.anoints = Array(a.substr(9).get_slice(":", 1).split(","))
 				_set_level(ao, maxi(1, ao.level))
+				_update_schools()
 	if smoke_preset == "sets":
 		# 測試用：套裝＋新觸發條件＋流派專屬效果
 		for k in ["silas", "tim", "luke", "barn"]:
@@ -870,13 +879,16 @@ func _make_cards() -> Array:
 		pool.append(lc)
 	for sc in _school_cards():
 		pool.append(sc)
-	var ac := {} if story else _anoint_card()
-	if not ac.is_empty():
-		pool.append(ac)
+	for spc in _support_cards():
+		pool.append(spc)
 	if relics.has("rod"):
 		for f in pool.filter(func(cd): return cd.kind == "fruit"):
 			pool.append(f)   # 亞倫發芽的杖：果子卡更常出現
 	pool.shuffle()
+	# 主角的輔助卡比較常排到前面（流派要靠它成形）
+	var spc_i := pool.find_custom(func(cd): return cd.kind == "anoint")
+	if spc_i > 0 and randf() < 0.6:
+		pool.push_front(pool.pop_at(spc_i))
 	# 第一位同工：還沒加入前，招募卡一定排第一張
 	if first_recruit != "" and by_key.has(first_recruit) and by_key[first_recruit].level == 0:
 		var fc: Dictionary = by_key[first_recruit]
@@ -987,11 +999,14 @@ func _apply_card(card: Dictionary) -> void:
 			ao.anoints.append(card.aid)
 			_set_level(ao, ao.level)
 			_ring_pop(ao.pos + Vector2(0, -8), Color("c8a0ff"), 24.0)
+			if str(card.aid).begins_with("s_"):
+				_update_schools()
 	elif card.kind == "school":
 		school_cards[card.key] = true
 		for k in card.mod:
 			school_mods[k] = float(school_mods.get(k, 0.0)) + float(card.mod[k])
-		ui.show_banner("流派卡：" + card.title, 1.6)
+		ui.show_banner("深化卡：" + card.title, 1.6)
+		_update_schools()
 		_ring_pop(paul.pos + Vector2(0, -8), TAG_COL.get(card.tag, C_GOLD), 36.0)
 	elif card.kind == "grace_dmg":
 		grace_dmg += float(card.amount)
@@ -1058,20 +1073,26 @@ func _refresh_build_text() -> void:
 			for k in school_cards:
 				if k.begins_with(tag + ":"):
 					nc += 1
-			lines.append("流派　%s「%s」%d 階%s" % [tag, D.schools[tag].name, school_tier[tag], ("＋%d 卡" % nc) if nc > 0 else ""])
+			lines.append("流派　%s「%s」%d 階" % [tag, D.schools[tag].name, school_tier[tag]])
 	if not relics.is_empty():
 		var rn := []
 		for r in D.relics:
 			if relics.has(r.id):
 				rn.append(r.name)
 		lines.append("聖物　" + "、".join(rn))
-	for o in [pa] + comps:
-		if not o.get("anoints", []).is_empty() and o.level > 0:
-			var an := []
-			for a in D.anoints:
-				if o.anoints.has(a.id):
-					an.append(a.name)
-			lines.append("膏抹　%s：%s" % [o.name, "、".join(an)])
+	if not pa.is_empty():
+		var an := []
+		for id in pa.get("anoints", []):
+			if str(id).begins_with("s_"):
+				an.append("「%s」" % D.schools[str(id).substr(2)].name)
+			else:
+				for a in D.anoints:
+					if a.id == id:
+						an.append(a.name)
+		lines.append("輔助　%s %d／%d 格%s" % [pa.name, an.size(), _support_slots(), ("：" + "、".join(an)) if not an.is_empty() else ""])
+	for f in D.fusions:
+		if _fused(f.a, f.b):
+			lines.append("融合　「%s」" % f.name)
 	var brs := []
 	for c in [pa] + comps:
 		if c.get("branch", -1) >= 0:
@@ -1234,7 +1255,7 @@ func _bot_pick(cards: Array) -> int:
 			"event": sc = 20.0
 			"school": sc = 45.0
 			"relic": sc = 50.0
-			"anoint": sc = 38.0
+			"anoint": sc = 52.0 if str(cd.get("aid", "")).begins_with("s_") else 38.0
 			_: sc = 10.0
 		sc += randf() * 6.0
 		if sc > best_score:
@@ -1400,7 +1421,7 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 				e.stun = maxf(e.stun, 0.3)
 		if (src == pa or stag == "守護") and guard > 0:
 			dmg *= 1.0 + _sv("守護", "shield_sword") * guard   # 以盾為劍
-		if stag == "詩歌" and _school_on("詩歌"):
+		if _tagged(src, "詩歌"):
 			praise += 1.0
 		if float(bond_buff.get(src.get("key", ""), 0.0)) > 0.0:
 			dmg *= 2.0   # 同行合擊：加倍
@@ -1436,7 +1457,7 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		_anoint_on_hit(e, dmg, src)
 	if e.hp <= 0:
 		_kill(e, true, src)
-	elif src is Dictionary and src.get("tag", "") == "講道" and _school_on("講道"):
+	elif _tagged(src, "講道"):
 		_persuade(e, 1)
 
 
@@ -1475,7 +1496,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
 			if randf() < float(src.st.get("bread_chance", 0.0)):
 				breads.append({"pos": e.pos})
-			if src.get("tag", "") == "門徒" and _school_on("門徒"):
+			if _tagged(src, "門徒"):
 				if randf() < _sv("門徒", "minion_chance") * (1.0 + _sv("門徒", "minion_chance_mult")):
 					for i in (2 if _sv("門徒", "minion_pair") > 0.0 else 1):
 						_spawn_minion(e.pos)
@@ -2612,17 +2633,148 @@ func _school_count(tag: String) -> int:
 
 
 func _update_schools() -> void:
-	if not D.has("schools"):
+	if not D.has("schools") or pa.is_empty():
 		return
 	for tag in D.schools:
 		var before: int = school_tier.get(tag, 0)
-		var tier: int = clampi(_school_count(tag) - 1, 0, 3)
+		var on: bool = pa_free.has(tag) or pa.get("anoints", []).has("s_" + tag)
+		var nc := 0
+		for k in school_cards:
+			if k.begins_with(tag + ":"):
+				nc += 1
+		var tier: int = clampi(1 + nc, 1, 3) if on else 0
 		school_tier[tag] = tier
 		if tier > before and ui != null:
 			var S: Dictionary = D.schools[tag]
-			ui.show_banner("流派規則・%s「%s」%s" % [tag, S.name, "啟動！" if before == 0 else "升到 %d 階" % tier], 2.4)
+			ui.show_banner("流派成形・%s「%s」" % [tag, S.name] if before == 0 else "流派深化・%s「%s」%d 階" % [tag, S.name, tier], 2.4)
 			_ring_pop(paul.pos + Vector2(0, -8), TAG_COL.get(tag, C_GOLD), 50.0)
 			_tip("school")
+	_check_fusions()
+
+
+## 主角或同流派的同伴：流派規則套用在誰身上（主角裝上的流派，主角也算）
+func _tagged(c, tag: String) -> bool:
+	if not (c is Dictionary):
+		return false
+	if c.get("tag", "") == tag:
+		return true
+	return not pa.is_empty() and is_same(c, pa) and _school_on(tag)
+
+
+## 主角的輔助格：基本 1 格，招式 Lv3、進化各多 1 格，使徒再 +1
+func _support_slots() -> int:
+	var n := int(D.support_rules.base_slots)
+	if int(pa.get("level", 1)) >= 3:
+		n += 1
+	if evolved.has(pa.get("key", "")):
+		n += 1
+	if calling == "apostle":
+		n += 1
+	return n
+
+
+## 升級時出現的輔助卡：同伴練到 Lv3 借出他的流派；偶爾出現一般輔助
+func _support_cards() -> Array:
+	var out := []
+	if pa.is_empty() or pa.get("skill", "") == "":
+		return out
+	var used: Array = pa.get("anoints", [])
+	if used.size() >= _support_slots():
+		return out
+	var lent := {}
+	for c in comps:
+		if c.level < int(D.support_rules.lend_level) or c.follows != "" or not D.schools.has(c.tag):
+			continue
+		if used.has("s_" + c.tag) or pa_free.has(c.tag) or lent.has(c.tag):
+			continue
+		lent[c.tag] = true
+		var S: Dictionary = D.schools[c.tag]
+		out.append({"kind": "anoint", "key": pa.key, "aid": "s_" + c.tag, "tag": c.tag,
+			"title": "%s借出「%s」→ %s" % [c.name, S.name, pa.name],
+			"desc": "%s%s
+（主角輔助 %d／%d 格）" % [D.school_supports[c.tag], _fusion_hint(c.tag), used.size(), _support_slots()]})
+	if randf() < float(D.support_rules.card_chance):
+		var eng: String = pa.get("engine", "")
+		var opts: Array = D.anoints.filter(func(a): return not used.has(a.id) and (a.engines.has("all") or a.engines.has(eng)))
+		if not opts.is_empty():
+			var a: Dictionary = opts.pick_random()
+			out.append({"kind": "anoint", "key": pa.key, "aid": a.id, "tag": "輔助",
+				"title": "輔助「%s」→ %s" % [a.name, pa.name], "desc": "%s
+（主角輔助 %d／%d 格）" % [a.desc, used.size(), _support_slots()]})
+	out.shuffle()
+	return out.slice(0, 2)
+
+
+func _fusion_hint(tag: String) -> String:
+	for f in D.fusions:
+		var other := ""
+		if f.a == tag:
+			other = f.b
+		elif f.b == tag:
+			other = f.a
+		if other != "" and _school_on(other):
+			return "
+＋%s 融合：「%s」%s" % [other, f.name, f.desc]
+	return ""
+
+
+## 兩個流派同時成形：融合出新玩法
+func _check_fusions() -> void:
+	for f in D.fusions:
+		var k: String = f.a + "+" + f.b
+		if fusions_on.has(k) or not (_school_on(f.a) and _school_on(f.b)):
+			continue
+		fusions_on[k] = true
+		if smoke:
+			print("FUSION ", f.name)
+		if ui != null:
+			ui.show_banner("融合！%s＋%s「%s」\n%s" % [f.a, f.b, f.name, f.desc], 3.2)
+			_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 70.0)
+			_ring_pop(paul.pos + Vector2(0, -8), TAG_COL.get(f.b, C_GOLD), 46.0)
+			Sfx.play("holy", 0.0)
+
+
+func _fused(a: String, b: String) -> bool:
+	return fusions_on.has(a + "+" + b) or fusions_on.has(b + "+" + a)
+
+
+func _heal_party(n: float) -> void:
+	_heal_paul(n)
+	for c in comps:
+		if c.level > 0 and c.down <= 0.0:
+			c.hp = minf(_comp_max_hp(), float(c.hp) + n)
+
+
+## 融合：重拍的時候
+func _fusion_downbeat() -> void:
+	if _fused("講道", "詩歌"):
+		for e in enemies:
+			if e.dead or float(e.get("ally", 0.0)) <= 0.0:
+				continue
+			blasts.append({"pos": e.pos, "t": 0.0, "r": 18.0, "col": C_GOLD, "evo": false})
+			for o in enemies.duplicate():
+				if not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_to(e.pos) < 18.0:
+					_hurt(o, 5.0 + level * 0.4, e.pos)
+	if _fused("詩歌", "守護"):
+		fz_beat += 1
+		if fz_beat % 2 == 0 and guard < _school_guard_cap():
+			guard += 1
+			_ring_pop(paul.pos + Vector2(0, -8), Color("9fd8ff"), 14.0)
+	if _fused("詩歌", "醫治"):
+		_heal_party(1.5)
+		_anoint_add(4.0)
+	if _fused("詩歌", "差派"):
+		for f in trail.slice(maxi(0, trail.size() - 16)):
+			_mote(f.pos, C_FLAME)
+			for o in enemies.duplicate():
+				if not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_squared_to(f.pos) < 120.0:
+					_hurt(o, 4.0 + level * 0.3, Vector2.INF)
+	if _fused("詩歌", "門徒"):
+		for m in minions:
+			blasts.append({"pos": m.pos, "t": 0.0, "r": 14.0, "col": Color("e8dcc0"), "evo": false})
+			for o in enemies.duplicate():
+				if not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_to(m.pos) < 14.0:
+					_hurt(o, 5.0 + level * 0.4, m.pos)
 
 
 func _school_on(tag: String) -> bool:
@@ -2661,7 +2813,7 @@ func _school_cards() -> Array:
 
 ## 差派：主角在走時攻擊更快、站著變慢；站在腳蹤上再快一點
 func _school_speed(c: Dictionary) -> float:
-	if c.get("tag", "") != "差派" or not _school_on("差派"):
+	if not _tagged(c, "差派"):
 		return 1.0
 	var m: float = (1.0 + _sv("差派", "move_haste")) if paul.moving else 0.75
 	var relay := _sv("差派", "relay")
@@ -2694,17 +2846,19 @@ func _update_beat(dt: float) -> void:
 	beat_down = bi % 4 == 0 or (_sv("詩歌", "offbeat") > 0.0 and bi % 4 == 2)
 	var m: float = _sv("詩歌", "downbeat_mult") if beat_down else 1.0
 	for c in comps + [pa]:
-		if c.get("tag", "") == "詩歌":
+		if _tagged(c, "詩歌"):
 			c.beat_mult = m
+	if beat_down:
+		_fusion_downbeat()
 
 
 ## 詩歌同伴只在拍子上出手
 func _beat_ready(c: Dictionary) -> bool:
-	return c.get("tag", "") != "詩歌" or not _school_on("詩歌") or beat_now
+	return not _tagged(c, "詩歌") or beat_now
 
 
 func _on_beat_cast(c: Dictionary) -> void:
-	if c.get("tag", "") != "詩歌" or not _school_on("詩歌") or not beat_down:
+	if not _tagged(c, "詩歌") or not beat_down:
 		return
 	_ring_pop(c.pos + Vector2(0, -8), C_GOLD, 22.0)
 	_mote(c.pos + Vector2(0, -14), C_GOLD)
@@ -2765,6 +2919,11 @@ func _convert(e: Dictionary, dur: float) -> void:
 	e.knock = Vector2.ZERO
 	run_converts += 1
 	_ring_pop(e.pos + Vector2(0, -4), C_GOLD, 16.0)
+	if _fused("講道", "醫治") and t >= fz_heal_t:
+		fz_heal_t = t + 0.25
+		_heal_party(1.0)
+	if _fused("講道", "門徒") and randf() < 0.25:
+		_spawn_minion(e.pos)
 	for i in 3:
 		_mote(e.pos + Vector2(0, -6), C_GOLD)
 
@@ -2812,6 +2971,12 @@ func _school_guard_cap() -> int:
 
 
 func _shield_shock(at: Vector2) -> void:
+	if _fused("講道", "守護"):
+		var nx := _nearest_enemies(at, 60.0, 1, {})
+		if not nx.is_empty() and not nx[0].get("boss", false) and not nx[0].get("elite", false):
+			_convert(nx[0], 6.0)
+	if _fused("守護", "醫治"):
+		_heal_paul(3.0)
 	run_shocks += 1
 	Sfx.play("shield")
 	var r := 40.0 * (1.0 + _sv("守護", "shock_area"))
@@ -2849,6 +3014,8 @@ func _holy_light() -> void:
 	var dmg := _sv("醫治", "holy_dmg") * k * (1.0 + level * 0.04)
 	holies.append({"pos": paul.pos, "t": 0.0, "r": r})
 	ui.show_banner("滿溢！聖光", 1.2)
+	if _fused("守護", "醫治") and guard < _school_guard_cap():
+		guard += 1
 	Sfx.play("holy", 0.0)
 	for e in enemies.duplicate():
 		if not e.dead and e.pos.distance_to(paul.pos) < r:
@@ -2876,6 +3043,17 @@ func _spawn_minion(at: Vector2) -> void:
 		return
 	run_minions += 1
 	minions.append({"pos": at, "life": 12.0 + _sv("門徒", "minion_life"), "cd": 0.3, "hop": 0.0, "ph": randf() * TAU})
+	if _fused("守護", "門徒") and t >= fz_guard_t and guard < _school_guard_cap():
+		fz_guard_t = t + 3.0
+		guard += 1
+	if _fused("醫治", "門徒"):
+		_heal_paul(2.0)
+		var low = null
+		for c in comps:
+			if c.level > 0 and c.down <= 0.0 and (low == null or float(c.hp) < float(low.hp)):
+				low = c
+		if low != null:
+			low.hp = minf(_comp_max_hp(), float(low.hp) + 2.0)
 	_ring_pop(at + Vector2(0, -6), Color("e8dcc0"), 12.0)
 
 
@@ -2910,7 +3088,7 @@ func _update_schools_step(dt: float) -> void:
 		trail_tick -= dt
 		if trail_tick <= 0.0 and not trail.is_empty():
 			trail_tick = 0.35
-			var dmg := _sv("差派", "trail_dmg") * (1.0 + _sv("差派", "trail_mult")) * (1.0 + level * 0.03)
+			var dmg := _sv("差派", "trail_dmg") * (1.0 + _sv("差派", "trail_mult")) * (1.0 + level * 0.03) * (1.5 if _fused("守護", "差派") and guard > 0 else 1.0)
 			var box := Rect2(trail[0].pos, Vector2.ZERO)
 			for f in trail:
 				box = box.expand(f.pos)
@@ -2922,13 +3100,24 @@ func _update_schools_step(dt: float) -> void:
 					if f.pos.distance_squared_to(e.pos) < 110.0:
 						e.slow_t = 0.8
 						_hurt(e, dmg, Vector2.INF)
+						if _fused("講道", "差派") and not e.dead:
+							_persuade(e, 1)
 						break
+		if _fused("醫治", "差派"):
+			for c in comps:
+				if c.level > 0 and c.down <= 0.0 and trail.any(func(f): return f.pos.distance_squared_to(c.pos) < 144.0):
+					c.hp = minf(_comp_max_hp(), float(c.hp) + 2.0 * 0.35)
+		if _fused("差派", "門徒") and paul.moving and not trail.is_empty():
+			fz_pair_t -= 0.35
+			if fz_pair_t <= 0.0:
+				fz_pair_t = 5.0
+				_spawn_minion(trail[-1].pos)
 	for f in trail:
 		f.life -= dt
 	trail = trail.filter(func(f): return f.life > 0.0)
 	# 守護：護盾自己長回來
 	if _school_on("守護"):
-		guard_regen -= dt
+		guard_regen -= dt * (2.0 if _fused("守護", "差派") and paul.moving else 1.0)
 		if guard_regen <= 0.0:
 			guard_regen = maxf(1.5, _sv("守護", "regen_cd"))
 			if guard < _school_guard_cap():
@@ -6087,6 +6276,7 @@ func _smoke_tick() -> void:
 		# 不截圖時：一結束就印結果離開（大量模擬用）
 		print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d pressure=%.2f" % [stage.id, t - t_start, won, level, kills, _party_count(), pressure])
 		print("DMG ", dmg_log)
+		print("SUPPORTS ", pa.get("anoints", []), " slots=", _support_slots(), " fusions=", fusions_on.keys(), " tiers=", school_tier)
 		get_tree().quit()
 		return
 	if over and smoke_shot != "":

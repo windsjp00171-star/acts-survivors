@@ -1030,9 +1030,9 @@ func _show_gifts() -> void:
 				_text(v, "配置點數不夠：先卸下別的節點", 11, UIKit.CREAM, true)
 	var SR: Dictionary = G.get("schools", {}).get(gift_tag, {})
 	if not SR.is_empty():
-		# 流派規則：隊伍裡同流派 2 人啟動，3、4 人升級；第 5 層的節點會改寫規則
+		# 流派規則：同伴練到 Lv3 借給主角裝上就成形；深化卡升階；第 5 層的節點會改寫規則
 		_text(side, "流派規則「%s」（%s）" % [SR.name, SR.ref], 13, UIKit.GOLD)
-		_text(side, SR.desc + "。隊伍裡同流派 2 人啟動，3 人、4 人再升級（主角也算）。第 5 層的節點會改寫這條規則。", 11, UIKit.INK, true)
+		_text(side, SR.desc + "。這個流派的同伴練到 Lv3，會把它借給主角裝上，流派就成形；之後的深化卡讓它升到 2、3 階。第 5 層的節點會改寫這條規則。", 11, UIKit.INK, true)
 	_text(side, "這個流派：" + "、".join(members), 11, UIKit.MUTED, true)
 	_text(side, "（%s）" % tree.ref, 11, UIKit.MUTED)
 
