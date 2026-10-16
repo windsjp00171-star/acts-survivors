@@ -46,6 +46,7 @@ var tint: ColorRect
 var flash: ColorRect
 var joy_pad: Control
 var names := {}
+var hero_label: Label      # 左上角主角名字
 var cards_box: BoxContainer
 var card_buttons: Array = []
 var card_ready_at := 0.0
@@ -68,7 +69,8 @@ func setup(name_list: Array, touch: bool) -> void:
 	tint = _rect(Color(1.0, 0.6, 0.15, 0.0), Vector2.ZERO, Vector2.ONE)
 	tint.set_anchors_preset(Control.PRESET_FULL_RECT)
 
-	label(name_list[0], 13, C_GOLD).position = Vector2(12, 4)
+	hero_label = label(name_list[0], 13, C_GOLD)
+	hero_label.position = Vector2(12, 4)
 	_rect(C_DARK, Vector2(10, 26), Vector2(124, 9))
 	hp_fill = _rect(C_HEAL, Vector2(12, 28), Vector2(120, 5))
 	lv_label = label("Lv.1", 11, C_SKY)

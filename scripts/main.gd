@@ -77,6 +77,7 @@ var hits: Array = []      # Boss 攻擊落下的閃光
 var paul := {}
 var pa := {}              # 保羅自己的攻擊（書信），用和同伴一樣的出招流程
 var first_recruit := ""
+var solo := false         # 這一關只有主角一個人（大馬士革）
 var smoke_max_frames := 1800
 var bot := false            # 測試用：比較會玩的機器人（--bot）
 var leader := "paul"      # 這一局的主角（同伴的 key；預設保羅）
@@ -254,9 +255,11 @@ func _ready() -> void:
 		if a.begins_with("--stage="):
 			stage_i = clampi(int(a.substr(8)), 0, stages.size() - 1)
 	stage = stages[stage_i]
+	solo = bool(stage.get("solo", false))
 	for k in stage.weights:
 		D.enemies[k].weight = stage.weights[k]
 	D.boss.merge(stage.boss, true)
+	D.director.merge(stage.get("director", {}), true)
 	# 熬煉（難度條件）
 	faith = int(Save.run_config.get("faith", 0))
 	for a in OS.get_cmdline_user_args():
@@ -365,8 +368,8 @@ func _ready() -> void:
 		starter = Save.meta.default_starter
 	if starter == leader:
 		starter = "tim" if leader != "tim" else "luke"
-	first_recruit = starter
-	if calling == "apostle" and by_key.has(starter):
+	first_recruit = "" if solo else starter
+	if calling == "apostle" and by_key.has(starter) and not solo:
 		# 使徒：第一位同工的流派一開始就算兩人
 		var stag: String = by_key[starter].tag
 		school_mods["solo_" + stag] = float(school_mods.get("solo_" + stag, 0.0)) + 1.0
@@ -377,9 +380,12 @@ func _ready() -> void:
 	if stage.get("hazard", {}).get("kind", "") == "blind":
 		blind_state = "vision"
 		if leader == "paul" and ui.names.has(D.paul.name):
-			ui.names[D.paul.name].text = "掃羅"   # 眼睛好了以後才叫保羅
+			ui.names[D.paul.name].text = "掃羅"   # 到徒 13:9 才開始叫保羅
+			ui.hero_label.text = "掃羅"
 	_start_talk("in")
 	var pool: Array = D.tasks.list.duplicate()
+	if solo:
+		pool = pool.filter(func(tk): return not tk.id in ["links", "reso", "party"])   # 一個人的關卡沒有同伴
 	pool.shuffle()
 	for i in mini(int(D.tasks.count), pool.size()):
 		run_tasks.append({"def": pool[i], "done": false, "failed": false})
@@ -670,6 +676,8 @@ func _set_level(c: Dictionary, lv: int) -> void:
 
 
 func _recruit(c: Dictionary) -> void:
+	if solo:
+		return   # 一個人的關卡：沒有同伴加入
 	if c.follows == "":
 		c.home = SLOTS[_party_count() % SLOTS.size()]
 	else:
@@ -790,7 +798,7 @@ func _make_cards() -> Array:
 			pd += "\n滿級＋果子「%s」→ 進化「%s」" % [D.fruits[pe.fruit].name, pe.name]
 		pool.append({"kind": "up", "key": pa.key, "title": "%s%s　Lv%d → %d" % [pa.name, "的書信" if pa.key == "paul" else "（主角）", pa.level, pa.level + 1], "tag": pa.tag, "desc": pd})
 	for c in comps:
-		if c.follows != "" or c.skill == "":
+		if c.follows != "" or c.skill == "" or solo:
 			continue
 		var desc: Array = D.skills[c.skill].desc
 		if c.level == 0 and (not Save.is_unlocked(c.key) or _party_count() >= Save.party_cap()):
@@ -1644,7 +1652,7 @@ func _event_effects(fx: Dictionary) -> void:
 					c.hp = 0.0
 					c.down = float(D.companion_rules.down_seconds)
 			"recruit":
-				var cand := comps.filter(func(c): return c.level == 0 and c.follows == "" and c.skill != "" and Save.is_unlocked(c.key))
+				var cand := comps.filter(func(c): return not solo and c.level == 0 and c.follows == "" and c.skill != "" and Save.is_unlocked(c.key))
 				if not cand.is_empty() and _party_count() < Save.party_cap():
 					var c: Dictionary = cand[randi() % cand.size()]
 					_recruit(c)
@@ -4423,8 +4431,6 @@ func _update_blind(dt: float, hz: Dictionary) -> void:
 		"heal":
 			if blind_r <= float(hz.radius):
 				ui.show_banner(hz.heal_text, 3.0)   # 對話結束後才出現
-				if ui.names.has(D.paul.name):
-					ui.names[D.paul.name].text = D.paul.name
 			blind_r += dt * 420.0
 			if blind_r > 700.0:
 				blind_state = "done"
