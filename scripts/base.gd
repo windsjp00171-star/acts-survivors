@@ -184,7 +184,7 @@ func _build() -> void:
 	body.add_child(panel)
 	scroll = ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	scroll.get_v_scroll_bar().custom_minimum_size = Vector2(14 if portrait else 10, 0)
+	scroll.get_v_scroll_bar().custom_minimum_size = Vector2(10, 0)
 	panel.add_child(scroll)
 	content = VBoxContainer.new()
 	content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -218,7 +218,8 @@ func _row(parent: Control) -> HBoxContainer:
 func _text(parent: Control, s: String, size: int, color: Color, wrap := false) -> Label:
 	var l := UIKit.label(s, size, color)
 	if wrap:
-		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		# 中文沒有空白可以斷行：用任意斷行，手機直式才不會被長句子撐寬
+		l.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	parent.add_child(l)
 	return l
@@ -250,7 +251,8 @@ func _show_home() -> void:
 	var mrow := _row(content)
 	for m in [["story", "劇情：福音傳到地極"], ["free", "自由模式"]]:
 		var mb := UIKit.button(m[1], 14, mode == m[0])
-		mb.custom_minimum_size = Vector2(150, 36)
+		mb.custom_minimum_size = Vector2(0 if portrait else 150, 36)
+		mb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		mb.disabled = m[0] == "free" and not free_ok
 		var mk: String = m[0]
 		mb.pressed.connect(func():
@@ -404,7 +406,11 @@ func _show_home() -> void:
 			_show_home())
 		fr.add_child(plus)
 		var best := int(Save.data.get("faith_best", {}).get(sid, 0))
-		fr.add_child(UIKit.label("  見證與餅 +%d%%　%s最高通過第 %d 級" % [roundi(fcur * float(FD.reward_per_level) * 100), stages[sel].name, best], 11, UIKit.SKY))
+		var ftxt := "見證與餅 +%d%%　%s最高通過第 %d 級" % [roundi(fcur * float(FD.reward_per_level) * 100), stages[sel].name, best]
+		if portrait:
+			_text(content, ftxt, 11, UIKit.SKY, true)   # 直式：放到下一行，不把畫面撐寬
+		else:
+			fr.add_child(UIKit.label("  " + ftxt, 11, UIKit.SKY))
 		if fcur > 0:
 			var names := []
 			for i2 in fcur:
@@ -924,7 +930,7 @@ func _show_gifts() -> void:
 	var side := VBoxContainer.new()
 	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	side.add_theme_constant_override("separation", 6)
-	var cw := 104.0 if portrait else 100.0
+	var cw := 96.0 if portrait else 100.0   # 直式：三欄要塞進手機寬度
 	var ch := 84.0
 	var canvas := Control.new()
 	canvas.custom_minimum_size = Vector2(cw * 3, ch * GF.tiers.size())
@@ -1102,7 +1108,7 @@ func _show_log() -> void:
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 3)
 		box.add_child(v)
-		_text(v, "%s　%s" % [e.version, e.title], 15, UIKit.CREAM if i == 0 else UIKit.INK)
+		_text(v, "%s　%s" % [e.version, e.title], 15, UIKit.CREAM if i == 0 else UIKit.INK, true)
 		_text(v, e.date, 11, UIKit.MUTED)
 		for it in e.items:
 			_text(v, "・" + it, 12, UIKit.INK, true)
