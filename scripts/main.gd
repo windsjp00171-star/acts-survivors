@@ -37,6 +37,7 @@ var shake := 0.0
 var meter := 0.0
 var fever := 0.0          # 剩餘秒數，>0 表示 FEVER 中
 var fever_kills := 0
+var fever_ext := 0.0        # 這次五旬節已經延長了幾秒
 var fever_bursts: Array = []
 var light := 0.0          # 光的身影剩下的秒數（五旬節時偶爾出現）
 var light_max := 0.0
@@ -210,6 +211,19 @@ var dove_t := 0.0
 var chaining := false      # 連鎖膏抹：避免一跳再跳
 var elem_of := {}          # 同伴 key → fire / water / shock
 var run_relics := 0
+# 帶人信主與劇情對話
+var talking := false       # 劇情對話中（遊戲暫停）
+var seekers: Array = []    # 在尋找的人 {pos, hp, prog, def, life}
+var followers: Array = []  # 信主跟著走的人 {pos, name, col}
+var seek_t := -1.0
+var seek_used := {}
+var run_saved := 0
+var run_seek_spawned := 0
+var names_all := {}        # 說話的人 key → 名字（主角換人時也找得到）
+# 難度導演：隊伍太強、敵人還沒走到就被打倒時，敵人慢慢變硬（站樁就過不了）
+var pressure := 0.0        # 0 起跳，敵人血量 ×(1 + pressure)
+var life_avg := 5.0        # 最近被打倒的敵人平均活了幾秒
+var persec_t := -1.0       # 逼迫：下一次落在主角腳下的時間
 # 五重職事（弗 4:11）：出發前選的呼召
 var calling := "apostle"
 var prophecy := {}         # 先知：預言之地 {pos, r, t}
@@ -261,6 +275,9 @@ func _ready() -> void:
 	if trials.has("lion"):
 		D.boss.hp = float(D.boss.hp) * 1.5
 		D.boss.warn = float(D.boss.warn) * 0.75
+	for dd in D.companions:
+		names_all[dd.key] = dd.name
+	names_all["paul"] = "保羅"
 	# 主角：選了誰，就用他的名字、招式、流派與血量速度；他這一局不再當同伴
 	leader = "paul" if OS.get_cmdline_user_args().has("--smoke") else str(Save.data.get("leader", "paul"))
 	for a in OS.get_cmdline_user_args():
@@ -332,6 +349,8 @@ func _ready() -> void:
 	rerolls_left = Save.rerolls()
 	if not smoke or OS.get_cmdline_user_args().has("--prov"):
 		_use_provisions(Save.take_provisions())
+	ui.dialogue_done.connect(func(): talking = false)
+	_start_talk("in")
 	var pool: Array = D.tasks.list.duplicate()
 	pool.shuffle()
 	for i in mini(int(D.tasks.count), pool.size()):
@@ -1002,6 +1021,10 @@ func _on_card(i: int) -> void:
 # ---------- 輸入 ----------
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
+		if talking and (event.keycode == KEY_ENTER or event.keycode == KEY_SPACE):
+			ui.dialogue_next()
+			get_viewport().set_input_as_handled()
+			return
 		if over and (event.keycode == KEY_ENTER or event.keycode == KEY_SPACE):
 			# 通關：回營地；失敗：再出發
 			_leave("res://scenes/base.tscn" if won else "res://scenes/main.tscn")
@@ -1043,6 +1066,8 @@ func _move_vector() -> Vector2:
 		var d: Vector2 = joy.pos - joy.origin
 		if d.length() > 4.0:
 			return d.normalized() * minf(1.0, d.length() / 36.0)
+	if smoke and bot and OS.get_cmdline_user_args().has("--idle"):
+		return Vector2.ZERO   # 測試用：完全站著不動的機器人（檢查「站樁能不能過關」）
 	if smoke and bot:
 		return _bot_move()
 	if smoke:
@@ -1073,11 +1098,20 @@ func _bot_move() -> Vector2:
 			var d3: Vector2 = p - q
 			if d3.length() < sh.w + 12.0:
 				push += (d3.normalized() if d3.length() > 0.01 else ab.orthogonal().normalized()) * 6.0
+	for sf in star_falls:
+		# 星辰、逼迫：落點附近趕快走開
+		if sf.t > 0.0:
+			var d4: Vector2 = p - sf.pos
+			if d4.length() < sf.r + 10.0:
+				push += (d4.normalized() if d4.length() > 0.5 else Vector2.RIGHT.rotated(randf() * TAU)) * 8.0
 	var pull := Vector2.ZERO
 	var best := 1e9
+	for sk in seekers:
+		pull = (sk.pos - p).normalized() * 1.4 if p.distance_to(sk.pos) > 10.0 else Vector2.ZERO
+		best = 0.0
 	for ch in chests:
 		var dc: float = p.distance_to(ch.pos)
-		if dc < best:
+		if dc < best and seekers.is_empty():
 			best = dc
 			pull = (ch.pos - p).normalized() * 1.2
 	if pull == Vector2.ZERO:
@@ -1200,7 +1234,8 @@ func _spawn_one(type: String, at: Vector2) -> void:
 	var hunter := type != "fear" and not d.has("shoot") and randf() < _curve(D.waves.hunter.chance, t)
 	if hunter:
 		tint *= Color(1.25, 0.75, 0.75)
-	var e := {"type": type, "d": d, "pos": at, "hp": hp, "ph": randf() * TAU, "flash": 0.0, "stun": 0.0,
+	hp = ceilf(hp * (1.0 + pressure))
+	var e := {"type": type, "d": d, "pos": at, "hp": hp, "ph": randf() * TAU, "flash": 0.0, "stun": 0.0, "born": t,
 		"cd": 0.0, "bcd": 0.0, "shoot": (d.shoot.every * randf()) if d.has("shoot") else 0.0, "r": 6.0,
 		"sprite": spr, "tint": tint * Color(0.7, 0.5, 0.6) if vet else tint, "roar": 2.0, "vet": vet, "hunter": hunter,
 		"dmul": _curve(SC.damage, t) * stage.dmg_mult * _endless_mult("damage"), "smul": _curve(SC.speed, t) * _endless_mult("speed"),
@@ -1222,7 +1257,7 @@ func _spawn_special(key: String, def: Dictionary, at: Vector2) -> void:
 			d[k] = def[k]
 	var scale: float = def.get("scale", 1.0)
 	var SC: Dictionary = D.waves.scaling
-	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * _curve(SC.hp, t) * stage.hp_mult * _endless_mult("hp"), "ph": randf() * TAU,
+	var e := {"type": key, "d": d, "pos": at, "hp": float(def.hp) * _curve(SC.hp, t) * stage.hp_mult * _endless_mult("hp") * (1.0 + pressure * 0.5), "ph": randf() * TAU,
 		"dmul": _curve(SC.damage, t) * stage.dmg_mult, "smul": _curve(SC.speed, t),
 		"flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "shoot": 0.0, "r": 6.0 * scale, "sprite": def.sprite,
 		"tint": Color(def.tint[0], def.tint[1], def.tint[2]), "roar": 2.0, "elite": scale > 1.0,
@@ -1323,6 +1358,8 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		_fire_links("kill", src, 0)
 	e.node.queue_free()
 	if by_player:
+		if e.has("born") and not e.get("elite", false):
+			life_avg = lerpf(life_avg, t - float(e.born), 0.02)
 		killed_types["boss_" + stage.id if e.get("boss", false) else e.type] = true
 		kills += 1
 		Sfx.play("kill")
@@ -1396,8 +1433,9 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			_mote(e.pos + Vector2(0, -4), C_GOLD)
 		if fever > 0.0:
 			fever_kills += 1
-			if fever_kills % int(D.fever.extend_every_kills) == 0:
-				fever += D.fever.extend_seconds
+			if fever_kills % int(D.fever.extend_every_kills) == 0 and fever_ext < float(D.fever.get("extend_max", 4.0)):
+				fever += D.fever.extend_seconds   # 驅散延長五旬節，但一次最多延長 extend_max 秒
+				fever_ext += float(D.fever.extend_seconds)
 	else:
 		_burst(e.pos, 6, C_VL, Color("3b1e52"))
 
@@ -1611,6 +1649,7 @@ func _update_tips() -> void:
 
 
 func _start_fever() -> void:
+	fever_ext = 0.0
 	if meter < 1.0 or fever > 0.0 or over or choosing or paused:
 		return
 	fever = _fever_dur()
@@ -1687,7 +1726,7 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.05)
-	if not over and not choosing and not chest_open and not paused:
+	if not over and not choosing and not chest_open and not paused and not talking:
 		t += dt
 		_step(dt)
 	_render(dt)
@@ -1775,6 +1814,7 @@ func _step(dt: float) -> void:
 	_update_schools_step(dt)
 	_update_engines(dt)
 	_update_ailments(dt)
+	_update_seek(dt)
 	_run_link_queue()
 	enemies = enemies.filter(func(e): return not e.dead)
 	for f in link_fx:
@@ -1863,7 +1903,7 @@ func _step(dt: float) -> void:
 				loaves_n += 1
 				if loaves_n % 60 == 0:
 					chests.append({"pos": p.pos + Vector2(randf_range(-30, 30), randf_range(-24, 24))})
-			xp_acc += Save.up_value("growth") + Save.building_bonus("xp") + Save.gift_global("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
+			xp_acc += followers.size() * float(D.seek.xp_each) + Save.up_value("growth") + Save.building_bonus("xp") + Save.gift_global("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
 				xp += 1
@@ -3607,6 +3647,119 @@ func _draw_ailments(n: Node2D) -> void:
 			n.draw_rect(Rect2(x + 5, y - 11, 1, 2), Color("ffe14d"))
 
 
+# ---------- 劇情對話與帶人信主 ----------
+## 第一次進城（in）／第一次建立教會（out）時的對話
+func _start_talk(which: String) -> void:
+	var key: String = which + "_" + stage.id
+	var raw: Array = stage.get("talk_" + which, [])
+	var seen: Array = Save.data.get("story_seen", [])
+	if raw.is_empty() or (seen.has(key) and not OS.get_cmdline_user_args().has("--talk")):
+		return
+	if not seen.has(key):
+		seen.append(key)
+		Save.data.story_seen = seen
+		Save.save_profile()
+	var lines := []
+	for L in raw:
+		var who: String = L[0]
+		var col: Color = C_GOLD
+		for dd in D.companions:
+			if dd.key == who and dd.has("color"):
+				col = Color(dd.color)
+		lines.append({"name": names_all.get(who, who), "text": L[1], "icon": who, "col": col})
+	talking = true
+	joy.on = false
+	ui.joy.on = false
+	ui.show_dialogue(lines)
+
+
+func _update_seek(dt: float) -> void:
+	var SK: Dictionary = D.seek
+	if seek_t < 0.0:
+		seek_t = float(SK.first)
+	if t - t_start >= seek_t and seekers.is_empty() and run_seek_spawned < int(SK.max_per_run) and boss == null:
+		seek_t = t - t_start + randf_range(float(SK.every[0]), float(SK.every[1]))
+		var pool: Array = stage.get("seekers", []).filter(func(x): return not seek_used.has(x.name))
+		var def: Dictionary = pool.pick_random() if not pool.is_empty() else {"name": "迷路的人", "ref": "路 19:10", "line": "我好像一直在找什麼……"}
+		seek_used[def.name] = true
+		run_seek_spawned += 1
+		var a := randf() * TAU
+		seekers.append({"pos": paul.pos + Vector2(cos(a), sin(a) * 0.7) * randf_range(70.0, 95.0), "hp": float(SK.hp), "prog": 0.0, "def": def, "life": 40.0, "ph": randf() * TAU})
+		ui.show_banner("有人在尋找：%s" % def.name, 2.0)
+		_tip("seek")
+	for sk in seekers:
+		sk.life -= dt
+		sk.pos += Vector2(cos(t * 0.7 + sk.ph), sin(t * 0.5 + sk.ph)) * 3.0 * dt
+		if paul.pos.distance_to(sk.pos) < float(SK.radius):
+			sk.prog += dt
+		for e in enemies:
+			if not e.dead and float(e.get("ally", 0.0)) <= 0.0 and e.pos.distance_to(sk.pos) < float(e.r) + 4.0:
+				sk.hp -= float(e.d.damage) * float(e.dmul) * dt * 2.0
+		if sk.prog >= float(SK.need):
+			sk.done = true
+			run_saved += 1
+			if smoke:
+				print("SAVED ", sk.def.name)
+			followers.append({"pos": sk.pos, "name": sk.def.name, "col": Color.from_hsv(randf(), 0.45, 0.9)})
+			if followers.size() > int(SK.follow_max):
+				followers.pop_front()
+			ui.show_banner("%s 信主了！（%s）" % [sk.def.name, sk.def.ref], 2.2)
+			if tag_fx.size() < 12:
+				tag_fx.append({"pos": sk.pos + Vector2(-20, -6), "text": "「%s」" % sk.def.line, "col": C_CREAM, "t": 0.0})
+			holies.append({"pos": sk.pos, "t": 0.0, "r": 30.0})
+			Sfx.play("holy", 0.0)
+		elif sk.hp <= 0.0 or sk.life <= 0.0:
+			sk.done = true
+			ui.show_banner("%s 走散了……" % sk.def.name, 1.6)
+			_ring_pop(sk.pos, Color("8a8a96"), 14.0)
+	seekers = seekers.filter(func(sk): return not sk.get("done", false))
+	# 跟著走的人：排成一列跟在主角後面
+	var lead: Vector2 = paul.pos
+	for f in followers:
+		var to: Vector2 = lead - f.pos
+		if to.length() > 9.0:
+			f.pos += to.normalized() * (to.length() - 9.0) * minf(1.0, dt * 6.0)
+		lead = f.pos
+
+
+func _draw_seek(n: Node2D) -> void:
+	var SK: Dictionary = D.seek
+	for sk in seekers:
+		var x: float = roundf(sk.pos.x)
+		var y: float = roundf(sk.pos.y)
+		# 範圍圈與進度
+		_dot_ring(n, Vector2(x, y), float(SK.radius), 0.75, C_CREAM, 4.0, t * 0.6, 1)
+		var k: float = clampf(sk.prog / float(SK.need), 0.0, 1.0)
+		if k > 0.0:
+			n.draw_arc(Vector2(x, y - 6), 12.0, -PI / 2.0, -PI / 2.0 + TAU * k, 24, C_GOLD, 3.0)
+		_draw_person(n, x, y, Color("8a8a96"), Color("5a5a66"))
+		# 頭上的問號，血少時變紅
+		var qc: Color = C_RED if sk.hp < float(SK.hp) * 0.4 else C_CREAM
+		var qy: float = y - 22.0 - (int(t * 3.0) % 2)
+		n.draw_rect(Rect2(x - 3, qy - 1, 7, 9), Color("1a1420"))
+		n.draw_rect(Rect2(x - 1, qy, 3, 1), qc)
+		n.draw_rect(Rect2(x + 1, qy + 1, 1, 2), qc)
+		n.draw_rect(Rect2(x, qy + 3, 1, 2), qc)
+		n.draw_rect(Rect2(x, qy + 6, 1, 1), qc)
+		# 血條
+		n.draw_rect(Rect2(x - 6, y + 2, 12, 2), Color("0b080d"))
+		n.draw_rect(Rect2(x - 6, y + 2, roundf(12.0 * clampf(sk.hp / float(SK.hp), 0.0, 1.0)), 2), C_HEAL)
+	for f in followers:
+		var fx: float = roundf(f.pos.x)
+		var fy: float = roundf(f.pos.y)
+		_draw_person(n, fx, fy, Color("e8dcc0"), f.col)
+		n.draw_rect(Rect2(fx, fy - 12, 1, 1), C_GOLD)
+
+
+## 小人：深色外框、袍子、腰帶、臉
+func _draw_person(n: Node2D, x: float, y: float, robe: Color, sash: Color) -> void:
+	n.draw_rect(Rect2(x - 3, y - 11, 7, 12), Color("1a1420"))
+	n.draw_rect(Rect2(x - 2, y - 6, 5, 6), robe)
+	n.draw_rect(Rect2(x, y - 6, 1, 6), sash)
+	n.draw_rect(Rect2(x - 1, y - 10, 3, 4), Color("e0a878"))
+	n.draw_rect(Rect2(x - 2, y - 11, 5, 2), Color("4a3020"))
+
+
 func _nova(c: Dictionary, s: Dictionary) -> void:
 	if c.level == 0:
 		return
@@ -4010,16 +4163,18 @@ func _separate() -> void:
 							b.pos += push
 
 
-func _damage_paul(n: float) -> void:
+func _damage_paul(n: float, pierce := false) -> void:
 	if fever > 0.0 or won:
 		return
 	var sh: int = armor.get("shield", 0)
-	if sh > 0 and shield_cd <= 0.0:
+	if pierce:
+		pass   # 逼迫：護盾擋不住，只能躲開
+	elif sh > 0 and shield_cd <= 0.0:
 		shield_cd = [12.0, 9.0, 6.0][sh - 1]
 		paul.inv = 0.4
 		_ring_pop(paul.pos + Vector2(0, -8), C_GOLD, 16.0)
 		return
-	if guard > 0:
+	if guard > 0 and not pierce:
 		# 守護連結的護盾
 		guard -= 1
 		paul.inv = 0.4
@@ -4171,8 +4326,37 @@ func _update_lamps(dt: float) -> void:
 				break
 
 
+## 難度導演：敵人平均活不到 DR.target 秒（還沒走到隊伍就倒了），壓力就慢慢升高；
+## 主角血少時壓力往下降，讓人喘口氣。另外從 DR.persecute_from 秒起，定時有「逼迫」砸在主角腳下，站著不動一定會被打到。
+func _update_director(dt: float) -> void:
+	var DR: Dictionary = D.director
+	var el := t - t_start
+	if el > float(DR.from):
+		var hp_frac: float = paul.hp / float(D.paul.hp)
+		if hp_frac < 0.4:
+			pressure = maxf(0.0, pressure - float(DR.relax) * dt)
+		elif life_avg < float(DR.target):
+			pressure = minf(float(DR.max), pressure + float(DR.rise) * dt * (float(DR.target) - life_avg))
+	if el < float(DR.persecute_from) or boss != null or choosing:
+		return
+	if persec_t < 0.0:
+		persec_t = float(DR.persecute_from)
+	if el < persec_t:
+		return
+	persec_t = el + float(DR.persecute_every)
+	# 逼迫：一圈正落在主角腳下，旁邊再兩圈（傷害照主角血量的比例算，局外血量再多也躲不掉）
+	var dmg: float = float(D.paul.hp) * float(DR.persecute_dmg) * (1.0 + el / float(DR.get("persecute_grow", 300)))
+	var warn: float = float(DR.persecute_warn) * (1.5 if calling == "prophet" else 1.0)
+	_tip("persecute")
+	star_falls.append({"pos": paul.pos, "t": warn, "max": warn, "r": 20.0, "dmg": dmg, "pierce": true})
+	for i in 2:
+		var a := randf() * TAU
+		star_falls.append({"pos": paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(25.0, 45.0), "t": warn, "max": warn, "r": 18.0, "dmg": dmg, "pierce": true})
+
+
 ## 各城的關卡機制（馬爾他的暴風、拔摩的星辰各有自己的函式）
 func _update_hazard(dt: float) -> void:
+	_update_director(dt)
 	altar_buff = maxf(0.0, altar_buff - dt)
 	_update_spots(dt)
 	var hz: Dictionary = stage.get("hazard", {})
@@ -4324,7 +4508,7 @@ func _update_stars(dt: float) -> void:
 			blasts.append({"pos": sf.pos, "t": 0.0, "r": sf.r * 1.4, "col": C_GOLD, "evo": false})
 			shake = maxf(shake, 0.15)
 			if paul.pos.distance_to(sf.pos) < sf.r and paul.inv <= 0.0:
-				_damage_paul(sf.dmg)
+				_damage_paul(sf.dmg, sf.get("pierce", false))
 			for c in comps:
 				if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(sf.pos) < sf.r and fever <= 0.0:
 					c.hurt_cd = 0.0
@@ -4799,6 +4983,7 @@ func _draw_air() -> void:
 			n.draw_rect(Rect2(lx, ly - 7 - fl, 1, 2), C_CREAM)
 	_draw_engines(n)
 	_draw_ailments(n)
+	_draw_seek(n)
 	_draw_schools(n)
 	for dn in dnums:
 		var k2: float = dn.t / 0.7
@@ -5415,9 +5600,11 @@ func _finish_run() -> Array:
 		"elites": run_elites, "fevers": run_fevers, "evolutions": run_evolutions, "tasks_done": tasks_done,
 		"task_witness": task_witness, "lights": run_lights, "bread": int(run_bread * (1.0 + prov_bread)),
 		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
-		"combo": combo_best, "party_size": _party_count(), "converts": run_converts, "minions": run_minions, "songs": run_songs, "holies": run_holies, "shocks": run_shocks, "bonds": run_bonds, "relics": run_relics, "school": school_tier.values().max() if not school_tier.is_empty() else 0, "endless": endless, "sets": sets_on.size(), "leader": leader,
+		"combo": combo_best, "party_size": _party_count(), "converts": run_converts, "minions": run_minions, "songs": run_songs, "holies": run_holies, "shocks": run_shocks, "bonds": run_bonds, "relics": run_relics, "saved": run_saved, "school": school_tier.values().max() if not school_tier.is_empty() else 0, "endless": endless, "sets": sets_on.size(), "leader": leader,
 		"trial_points": Save.trial_points(trials), "stage": stage.id,
 		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys(), "relics": relics.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
+	if smoke:
+		print("WITNESS +%d bread +%d saved=%d kills=%d" % [res.witness, res.bread, run_saved, kills])
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
 	if not trials.is_empty():
 		lines.append(["熬煉 %d 點：見證與餅已加成" % Save.trial_points(trials), 11, C_GOLD])
@@ -5464,6 +5651,7 @@ func _win() -> void:
 	var s := int(t)
 	var lines := [
 		["%s　教會建立！" % stage.name if founded_now else "%s　通關" % stage.name, 26, C_GOLD],
+		["這一趟有 %d 個人信主" % run_saved, 13, C_HEAL] if run_saved > 0 else ["", 4, C_CREAM],
 		[D.boss.win_text, 13, C_CREAM],
 		[D.boss.win_ref, 11, Color("c9a46b")],
 		["用時 %02d:%02d　Lv.%d　驅散 %d" % [s / 60, s % 60, level, kills], 13, Color("f4ead2")],
@@ -5474,6 +5662,9 @@ func _win() -> void:
 		if stage_i + 1 < all.size():
 			nxt = "　下一站：" + all[stage_i + 1].name
 		lines.append(["解鎖書信卡「%s」%s" % [stage.epistle.name, nxt], 12, C_HEAL])
+	if founded_now and not Save.data.get("story_seen", []).has("out_" + stage.id) and not stage.get("talk_out", []).is_empty():
+		_start_talk("out")
+		await ui.dialogue_done
 	var share := "我在《宣教之路》%s%s！\n「%s」（%s）\n一起來玩：%s" % [stage.name, "建立了教會" if founded_now else "通關了", D.boss.win_text, D.boss.win_ref, SHARE_URL]
 	ui.show_game_over(lines + _finish_run(), "再走一次", true, stage.get("story", ""), share)
 
@@ -5516,13 +5707,19 @@ func _game_over() -> void:
 # ---------- 自動測試 ----------
 func _smoke_tick() -> void:
 	smoke_frames += 1
+	if smoke_shot != "" and seekers.any(func(sk): return sk.prog > 1.5) and not FileAccess.file_exists(smoke_shot.replace(".png", "_seek.png")):
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_seek.png"))
+	if talking and smoke_frames % 15 == 0:
+		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_talk.png")):
+			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_talk.png"))
+		ui.dialogue_next()
 	if chest_open and smoke_frames % 40 == 0:
 		if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_chest.png")):
 			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_chest.png"))
 		ui._close_chest()
 	if over and smoke_shot == "":
 		# 不截圖時：一結束就印結果離開（大量模擬用）
-		print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d" % [stage.id, t - t_start, won, level, kills, _party_count()])
+		print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d pressure=%.2f" % [stage.id, t - t_start, won, level, kills, _party_count(), pressure])
 		get_tree().quit()
 		return
 	if over and smoke_shot != "":
@@ -5556,6 +5753,7 @@ func _smoke_tick() -> void:
 			if c.level > 0:
 				party.append("%s%d" % [c.key, c.level])
 		print("links fired=%d combo=%d best=%d" % [link_count, combo, combo_best])
+		print("director pressure=%.2f life_avg=%.1f" % [pressure, life_avg])
 		print("bonds=%d " % run_bonds, "schools tier=%s converts=%d minions=%d(%d) songs=%d praise=%.0f holies=%d anoint=%.0f shocks=%d guard=%d trail=%d" % [school_tier, run_converts, run_minions, minions.size(), run_songs, praise, run_holies, anoint, run_shocks, guard, trail.size()])
 		print("t=%.1f hp=%.0f Lv=%d enemies=%d kills=%d fever=%.1f boss=%s party=%s fruits=%s armor=%s evo=%s" % [t, paul.hp, level, enemies.size(), kills, fever,
 			("%.0f/%s" % [boss.hp, boss.state]) if boss != null else "-", party, fruits, armor, evolved.keys()])

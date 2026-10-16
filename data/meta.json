@@ -5,7 +5,7 @@
   "_camp_visible說明": "營火旁同時出現幾位同伴（有話要說的一定會出現，其他隨機）。",
   "camp_visible": 8,
   "party_cap_base": 3,
-  "witness": {"per_kills": 8, "per_seconds": 6, "per_level": 2, "boss_bonus": 150, "lose_ratio": 0.5},
+  "witness": {"per_kills": 40, "kill_cap": 60, "per_seconds": 10, "per_level": 1, "boss_bonus": 60, "saved_each": 4, "lose_ratio": 0.5},
   "affinity": {
     "_說明": "每局結束，隊伍裡的同伴獲得默契 = 他的等級 × 10（通關再 +20）。每升一級攻擊速度 +3%，並解鎖一段生平。",
     "per_level_reached": 10,
@@ -27,7 +27,7 @@
   ],
   "_bread說明": "餅：局內撿到、帶回營地（失敗也全部保留）。在補給帳棚買永久恩典。drop 是掉落機率或數量；每項恩典 per 是每級效果、max 是上限、cost 是第 1 級價格，之後每級再加 cost_step。",
   "bread": {
-    "drop": {"kill": 0.01, "veteran": 0.2, "elite": 5, "chest": 3, "boss": 25},
+    "drop": {"kill": 0.004, "veteran": 0.1, "elite": 3, "chest": 2, "boss": 15},
     "upgrades": [
       {"id": "might", "name": "剛強", "ref": "弗 6:10", "desc": "所有攻擊傷害 +5%", "per": 0.05, "max": 10, "cost": 15, "cost_step": 15},
       {"id": "haste", "name": "殷勤", "ref": "羅 12:11", "desc": "所有攻擊速度 +4%", "per": 0.04, "max": 10, "cost": 15, "cost_step": 15},
@@ -240,6 +240,9 @@
     {"id": "shocks", "name": "神是我的盾牌", "desc": "護盾累計擋下 50 次並反擊（詩 3:3）", "stat": "shocks", "min": 50, "group": "流派", "witness": 80, "bread": 20},
     {"id": "bonds", "name": "兩個人總比一個人好", "desc": "累計發動 30 次同行合擊（傳 4:9）", "stat": "bonds", "min": 30, "group": "流派", "witness": 100, "bread": 30},
     {"id": "relics10", "name": "寶貝放在瓦器裡", "desc": "累計拿到 10 件聖物（林後 4:7）", "stat": "relics", "min": 10, "group": "流派", "witness": 100, "bread": 30},
+    {"id": "saved1", "name": "一個罪人悔改", "desc": "第一次帶人信主（路 15:10）", "stat": "saved", "min": 1, "group": "旅程", "witness": 40},
+    {"id": "saved50", "name": "主將得救的人天天加給他們", "desc": "累計帶 50 個人信主（徒 2:47）", "stat": "saved", "min": 50, "group": "旅程", "witness": 120, "bread": 30},
+    {"id": "saved3000", "name": "門徒的數目加增得甚多", "desc": "累計帶 300 個人信主（徒 6:7）", "stat": "saved", "min": 300, "group": "旅程", "witness": 300, "bread": 80},
     {"id": "gideon", "name": "三百人", "desc": "累計觸發共鳴 30 次", "stat": "resonances", "min": 30, "unlock": "gideon", "witness": 80, "group": "同伴"},
     {"id": "daniel", "name": "一日三次禱告", "desc": "建立 3 間教會", "stat": "churches", "min": 3, "unlock": "daniel", "witness": 80, "group": "同伴"},
     {"id": "jonah", "name": "逃了又回來", "desc": "累計出發 15 次", "stat": "runs", "min": 15, "unlock": "jonah", "witness": 80, "group": "同伴"},

@@ -366,7 +366,9 @@ func stat_value(id: String) -> int:
 
 func finish_run(r: Dictionary) -> Dictionary:
 	var W: Dictionary = meta.witness
-	var gain := int(r.kills / W.per_kills + r.seconds / W.per_seconds + r.level * W.per_level)
+	# 驅散的敵人有上限：build 越強殺得越多，不能讓見證跟著暴增
+	var gain := int(minf(float(r.kills) / float(W.per_kills), float(W.get("kill_cap", 9999))) + r.seconds / W.per_seconds + r.level * W.per_level)
+	gain += int(r.get("saved", 0)) * int(W.get("saved_each", 4))   # 帶人信主
 	if r.won:
 		gain += int(W.boss_bonus)
 	elif not r.get("endless", false):
@@ -393,7 +395,7 @@ func finish_run(r: Dictionary) -> Dictionary:
 	if r.full_party:
 		st.full_party = 1
 	# 見證錄用的統計（累計 add、最高 best）
-	for k in ["resonances", "midbosses", "chests", "links", "kills_total", "fevers_total", "converts", "minions", "songs", "holies", "shocks", "bonds", "relics"]:
+	for k in ["resonances", "midbosses", "chests", "links", "kills_total", "fevers_total", "converts", "minions", "songs", "holies", "shocks", "bonds", "relics", "saved"]:
 		st[k] = int(st.get(k, 0)) + int(r.get(k.replace("_total", ""), 0))
 	for k in ["combo", "level", "party_size", "sets", "school"]:
 		st["best_" + k] = maxi(int(st.get("best_" + k, 0)), int(r.get(k, 0)))

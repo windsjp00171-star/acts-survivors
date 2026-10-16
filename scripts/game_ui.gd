@@ -10,6 +10,7 @@ signal reroll_pressed
 signal pause_pressed
 signal resume_pressed
 signal chest_closed
+signal dialogue_done
 
 const C_INK := Color("f4ead2")
 const C_GOLD := Color("ffd75e")
@@ -23,6 +24,9 @@ const C_DARK := Color("0b080d")
 
 var font: Font
 var root: Control
+var dlg_box: PanelContainer   # 城市的劇情對話
+var dlg_lines: Array = []
+var dlg_i := 0
 var hp_fill: ColorRect
 var xp_fill: ColorRect
 var lv_label: Label
@@ -163,6 +167,82 @@ func _box(bg: Color, border: Color) -> StyleBoxFlat:
 	s.content_margin_top = 6
 	s.content_margin_bottom = 6
 	return s
+
+
+## 劇情對話：下方一個對話框，左邊是說話的人，點一下（或空白鍵）下一句
+## lines 每句是 {name, text, icon, col}
+func show_dialogue(lines: Array) -> void:
+	hide_dialogue()
+	dlg_lines = lines
+	dlg_i = 0
+	dlg_box = PanelContainer.new()
+	dlg_box.add_theme_stylebox_override("panel", _box(Color(0.08, 0.05, 0.1, 0.95), C_GOLD))
+	root.add_child(dlg_box)
+	_dlg_render()
+
+
+func _dlg_render() -> void:
+	if dlg_box == null:
+		return
+	for ch in dlg_box.get_children():
+		ch.queue_free()
+	var L: Dictionary = dlg_lines[dlg_i]
+	var size := vp()
+	var h := HBoxContainer.new()
+	h.add_theme_constant_override("separation", 10)
+	dlg_box.add_child(h)
+	if L.get("icon", "") != "":
+		var ic := UIKit.sprite_icon(L.icon, 4)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		h.add_child(ic)
+	var v := VBoxContainer.new()
+	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(v)
+	var nm := label(L.name, 14, L.get("col", C_GOLD))
+	nm.get_parent().remove_child(nm)
+	v.add_child(nm)
+	var tx := label(L.text, 13, C_INK)
+	tx.get_parent().remove_child(tx)
+	tx.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tx.custom_minimum_size = Vector2(minf(460.0, size.x - 140.0), 0)
+	v.add_child(tx)
+	var col := VBoxContainer.new()
+	col.size_flags_vertical = Control.SIZE_SHRINK_END
+	h.add_child(col)
+	var nx := UIKit.button("下一句 ▶" if dlg_i < dlg_lines.size() - 1 else "出發 ▶", 13, true)
+	nx.custom_minimum_size = Vector2(88, 30)
+	nx.pressed.connect(dialogue_next)
+	col.add_child(nx)
+	if dlg_i < dlg_lines.size() - 1:
+		var sk := UIKit.button("跳過", 11)
+		sk.custom_minimum_size = Vector2(88, 24)
+		sk.pressed.connect(func():
+			dlg_i = dlg_lines.size() - 1
+			dialogue_next())
+		col.add_child(sk)
+	await get_tree().process_frame
+	if dlg_box != null and is_instance_valid(dlg_box):
+		dlg_box.size = Vector2.ZERO
+		dlg_box.position = Vector2(((size.x - dlg_box.size.x) / 2.0), size.y - dlg_box.size.y - 16.0).round()
+		nx.grab_focus()
+
+
+func dialogue_next() -> void:
+	if dlg_box == null:
+		return
+	Sfx.play("ui", 0.0)
+	dlg_i += 1
+	if dlg_i >= dlg_lines.size():
+		hide_dialogue()
+		dialogue_done.emit()
+	else:
+		_dlg_render()
+
+
+func hide_dialogue() -> void:
+	if dlg_box != null and is_instance_valid(dlg_box):
+		dlg_box.queue_free()
+	dlg_box = null
 
 
 func vp() -> Vector2:
