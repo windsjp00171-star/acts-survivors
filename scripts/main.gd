@@ -1811,6 +1811,8 @@ func _leave(scene: String) -> void:
 		over = true
 		_record_run()
 		_finish_run()
+	if scene.ends_with("base.tscn") and str(Save.data.get("pending_cut", "")) != "":
+		scene = "res://scenes/title.tscn"   # 章節過場在標題場景播，播完自己回營地
 	get_tree().change_scene_to_file(scene)
 
 
@@ -6234,6 +6236,8 @@ func _win() -> void:
 	if not Save.data.churches.has(stage.id):
 		Save.data.churches.append(stage.id)
 		founded_now = true
+	if story and founded_now and stage.id in ["stephen", "damascus", "rome"] and not Save.data.get("cuts_seen", []).has(stage.id):
+		Save.data.pending_cut = stage.id   # 回營地前先播這一章結束的過場（title.gd 的 CUTS）
 	if story and leader != "paul" and not Save.is_unlocked("leader_" + leader) and D.leaders.any(func(L): return L.key == leader):
 		Save.data.unlocked.append("leader_" + leader)   # 劇情的主角，自由模式也能選
 	Sfx.music("")
