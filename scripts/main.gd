@@ -727,7 +727,7 @@ func _comp_max_hp() -> float:
 	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1) * (1.3 if calling == "shepherd" else 1.0)
 
 func _speed() -> float:
-	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run")) * (0.85 if relics.has("ark") else 1.0)
+	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run")) * (0.9 if relics.has("ark") else 1.0)
 
 
 func _make_cards() -> Array:
@@ -1338,7 +1338,7 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if altar_buff > 0.0:
 		dmg *= 1.0 + float(stage.get("hazard", {}).get("buff", 0.0))   # 雅典：認識未識之神
 	if relics.has("hair"):
-		dmg *= 1.0 + clampf(1.0 - paul.hp / float(D.paul.hp), 0.0, 1.0)   # 參孫的頭髮
+		dmg *= 1.0 + 0.5 * clampf(1.0 - paul.hp / float(D.paul.hp), 0.0, 1.0)   # 參孫的頭髮
 	if not e.get("burning_hit", false):
 		dmg *= _apply_element(e, dmg, src)
 	if not prophecy.is_empty() and e.pos.distance_to(prophecy.pos) < prophecy.r:
@@ -1914,10 +1914,6 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
-			if relics.has("loaves"):
-				loaves_n += 1
-				if loaves_n % 60 == 0:
-					chests.append({"pos": p.pos + Vector2(randf_range(-30, 30), randf_range(-24, 24))})
 			xp_acc += followers.size() * float(D.seek.xp_each) + Save.up_value("growth") + Save.building_bonus("xp") + Save.gift_global("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
@@ -1930,7 +1926,12 @@ func _step(dt: float) -> void:
 			b.pos += tb.normalized() * G.magnet_speed * dt
 		if tb.length() < 5.0:
 			b.got = true
-			run_bread += 1
+			run_bread += 2 if relics.has("loaves") else 1   # 五餅二魚：餅變兩倍
+			if relics.has("loaves"):
+				loaves_n += 1
+				if loaves_n % 10 == 0:
+					paul.hp = minf(_hp_cap(), paul.hp + 8.0)
+					heals.append({"who": paul, "t": 0.0})
 			Sfx.play("gem", 0.0)
 	breads = breads.filter(func(b): return not b.get("got", false))
 	var regen: float = Save.up_value("renew") + float(set_bonus.get("regen", 0.0)) + Save.building_bonus("regen")
@@ -1987,7 +1988,7 @@ func _companion_skills(dt: float) -> void:
 			continue
 		var s: Dictionary = c.st
 		c.ult_cd = maxf(0.0, float(c.get("ult_cd", 0.0)) - dt)
-		var mult: float = speed_mult * c.aff * c.syn * _school_speed(c) * (2.0 if float(bond_buff.get(c.key, 0.0)) > 0.0 else 1.0) * (0.7 if relics.has("ladder") else 1.0)
+		var mult: float = speed_mult * c.aff * c.syn * _school_speed(c) * (2.0 if float(bond_buff.get(c.key, 0.0)) > 0.0 else 1.0) * (0.8 if relics.has("ladder") else 1.0)
 		if barn_on and c != barn and c.pos.distance_to(barn.pos) < _aura_r(barn):
 			mult *= barn.st.attack_speed
 		c.cd -= dt * mult
@@ -2312,7 +2313,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 				c.echo_n = int(c.get("echo_n", 0)) + 1
 				if c.echo_n % 3 == 0:
 					delayed.append({"t": 0.2, "fn": _cast.bind(c, true, 1)})
-			if relics.has("mantle") and randf() < 0.25:
+			if relics.has("mantle") and randf() < 0.12:
 				delayed.append({"t": 0.15, "fn": _cast.bind(c, true, 1)})
 	return fired
 
@@ -2327,7 +2328,7 @@ func _fire_links(kind: String, src, depth: int) -> void:
 			continue
 		if not _glob(kind) and L.src != src:
 			continue
-		L.cd = float(D.links.kinds[kind].cooldown) * float(D.links.levels.cooldown_mult[int(L.get("lv", 1)) - 1]) * float(L.dst.get("tlinkcd", 1.0)) * (0.5 if relics.has("ladder") else 1.0)
+		L.cd = float(D.links.kinds[kind].cooldown) * float(D.links.levels.cooldown_mult[int(L.get("lv", 1)) - 1]) * float(L.dst.get("tlinkcd", 1.0)) * (0.7 if relics.has("ladder") else 1.0)
 		link_queue.append({"L": L, "depth": depth + 1})
 
 
@@ -3486,18 +3487,15 @@ func _mod_stats(c: Dictionary) -> void:
 			st.damage = float(st.damage) * 0.85
 	if relics.has("staff"):
 		if eng == "beam" and st.has("beams"):
-			st.beams = float(st.beams) + 2.0
-			st.damage = float(st.damage) * 0.75
+			st.beams = float(st.beams) + 1.0
+			st.damage = float(st.damage) * 0.8
 		elif eng == "shot" and st.has("count"):
-			st.count = float(st.count) + 2.0
-			st.damage = float(st.damage) * 0.75
-	if relics.has("sling") and eng == "bolt" and float(st.get("count", 1.0)) > 1.0:
-		st.damage = float(st.damage) * float(st.count) * 2.5 / 2.0
+			st.count = float(st.count) + 1.0
+			st.damage = float(st.damage) * 0.8
+	if relics.has("sling") and eng == "bolt":
+		st.damage = float(st.damage) * float(st.get("count", 1.0))
 		st.count = 1.0
-		st.pierce = float(st.get("pierce", 0.0)) + 3.0
-	elif relics.has("sling") and eng == "bolt":
-		st.damage = float(st.damage) * 1.25
-		st.pierce = float(st.get("pierce", 0.0)) + 3.0
+		st.pierce = float(st.get("pierce", 0.0)) + 2.0
 
 
 func _refresh_all_stats() -> void:
@@ -3625,10 +3623,10 @@ func _update_ailments(dt: float) -> void:
 	if relics.has("shadow"):
 		shadow_t -= dt
 		if shadow_t <= 0.0:
-			shadow_t = 0.3
+			shadow_t = 0.5
 			for e in enemies.duplicate():
 				if not e.dead and e.pos.distance_to(paul.pos) < 18.0:
-					_hurt(e, 5.0 + level * 0.6, paul.pos)
+					_hurt(e, 3.0 + level * 0.3, paul.pos)
 	if relics.has("dove") and paul.hp < float(D.paul.hp) * 0.5:
 		dove_t -= dt
 		if dove_t <= 0.0:
@@ -3640,7 +3638,7 @@ func _update_ailments(dt: float) -> void:
 
 ## 參孫的頭髮：治療最多回到 80%
 func _hp_cap() -> float:
-	return float(D.paul.hp) * (0.8 if relics.has("hair") else 1.0)
+	return float(D.paul.hp) * (0.7 if relics.has("hair") else 1.0)
 
 
 func _draw_ailments(n: Node2D) -> void:
@@ -4218,8 +4216,7 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 	if c.hurt_cd > 0.0:
 		return
 	if relics.has("ark") and not paul.moving:
-		c.hurt_cd = 0.3   # 約櫃：主角站定時同伴不受傷
-		return
+		n *= 0.4   # 約櫃：主角站定時同伴受到的傷害 −60%
 	if int(c.get("garment", 0)) > 0:
 		# 多加縫的衣服擋下這一次
 		c.garment -= 1
