@@ -262,8 +262,7 @@ func _choose_talks(unlocked: Array) -> Array:
 	Save.data.talk_run = runs
 	var cands := []
 	for c in unlocked:
-		var seen: int = int(Save.data.get("talks_seen", {}).get(c.key, 0))
-		if T.talks.has(c.key) and seen < T.talks[c.key].size():
+		if not _talk_lines(c.key).is_empty():
 			cands.append(c.key)
 	cands.shuffle()
 	Save.data.talk_pending = cands.slice(0, int(T.per_visit))
@@ -277,9 +276,22 @@ func _pick_bubbles() -> void:
 
 
 func _add_bubble(key: String) -> void:
+	var lines := _talk_lines(key)
+	if not lines.is_empty():
+		bubbles[key] = lines
+
+
+## 這位同伴下一段要聊的內容；還沒到劇情時間（after 那座城還沒建立教會）就回傳空的
+func _talk_lines(key: String) -> Array:
 	var seen: int = int(Save.data.get("talks_seen", {}).get(key, 0))
-	if T.talks.has(key) and seen < T.talks[key].size():
-		bubbles[key] = T.talks[key][seen]
+	if not T.talks.has(key) or seen >= T.talks[key].size():
+		return []
+	var sg = T.talks[key][seen]
+	if sg is Dictionary:
+		if not Save.data.churches.has(str(sg.get("after", ""))):
+			return []
+		return sg.lines
+	return sg
 
 
 func _start_talk(key: String) -> void:
