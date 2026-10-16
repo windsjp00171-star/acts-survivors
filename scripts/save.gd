@@ -22,7 +22,7 @@ func _defaults() -> Dictionary:
 		"witness": 0, "witness_total": 0,
 		"unlocked": meta.start_unlocked.duplicate(), "bought": [],
 		"affinity": {}, "achievements": [], "starter": meta.default_starter,
-		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1, "bread": 0, "bread_total": 0, "ups": {}, "trials_on": [], "trial_best": {}, "codex": {"enemies": [], "evos": [], "fruits": [], "armor": []},
+		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1, "bread": 0, "bread_total": 0, "ups": {}, "trials_on": [], "trial_best": {}, "faith_best": {}, "faith_sel": 0, "codex": {"enemies": [], "evos": [], "fruits": [], "armor": []},
 		"stats": {"runs": 0, "wins": 0, "elites": 0, "best_kills": 0, "best_fevers": 0,
 			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0, "lights": 0},
 	}
@@ -38,7 +38,28 @@ func load_profile() -> void:
 					data.stats.merge(saved.stats, true)
 				else:
 					data[k] = saved[k]
+	# 舊的熬煉紀錄 → 信心等級（大約每 2 點算一級）
+	if data.faith_best.is_empty() and not data.trial_best.is_empty():
+		for sid in data.trial_best:
+			data.faith_best[sid] = mini(6, int(data.trial_best[sid]) / 2)
 	_refund_old_gifts()
+	_refund_capped_ups()
+	_init_gift_on()
+
+
+## 永久恩典有了上限：超過上限的等級把花掉的餅退回來
+func _refund_capped_ups() -> void:
+	var refund := 0
+	for u in meta.bread.upgrades:
+		var r := up_rank(u.id)
+		if r > int(u.max):
+			for i in range(int(u.max), r):
+				refund += int(u.cost) + i * int(u.cost_step)
+			data.ups[u.id] = int(u.max)
+	if refund > 0:
+		data.bread = int(data.get("bread", 0)) + refund
+		data.refund_note = "永久恩典改成有上限，多出來的等級退回 %d 個餅" % refund
+		save_profile()
 
 
 ## 恩賜樹改版後，舊存檔裡已經不存在的節點：把花掉的餅退回來
@@ -72,12 +93,57 @@ func trials_unlocked() -> bool:
 	return not data.churches.is_empty()
 
 
-func trial_points(ids: Array) -> int:
+## 教會成長：人數與階段（0 是剛建立）
+func church_members(sid: String) -> int:
+	return int(data.get("church_members", {}).get(sid, 0))
+
+
+func church_stage(sid: String) -> int:
 	var n := 0
-	for t in meta.trials.list:
-		if ids.has(t.id):
-			n += int(t.points)
+	for m in meta.church.members:
+		if church_members(sid) >= int(m):
+			n += 1
 	return n
+
+
+## 花見證寫信堅固教會
+func church_letter(sid: String) -> bool:
+	var C: Dictionary = meta.church
+	if not data.churches.has(sid) or int(data.witness) < int(C.letter_cost):
+		return false
+	data.witness = int(data.witness) - int(C.letter_cost)
+	if not data.has("church_members"):
+		data.church_members = {}
+	data.church_members[sid] = church_members(sid) + int(C.letter_add)
+	save_profile()
+	return true
+
+
+## 信心等級：第 n 級要套用的限制（第 1～n 項）
+func faith_ids(n: int) -> Array:
+	var out := []
+	for i in mini(n, meta.faith.levels.size()):
+		out.append(meta.faith.levels[i].id)
+	return out
+
+
+## 這座城最高可以選到第幾級：建立教會後開放第 1 級，之後每通過一級開下一級
+func faith_open(sid: String) -> int:
+	if not data.churches.has(sid):
+		return 0
+	return mini(int(meta.faith.max), int(data.get("faith_best", {}).get(sid, 0)) + 1)
+
+
+func faith_max() -> int:
+	var m := 0
+	for k in data.get("faith_best", {}):
+		m = maxi(m, int(data.faith_best[k]))
+	return m
+
+
+## 舊的計分方式（熬煉點數）只剩相容用：等級越高點數越多
+func trial_points(ids: Array) -> int:
+	return ids.size()
 
 
 func party_cap() -> int:
@@ -281,7 +347,7 @@ func gift_global(kind: String) -> float:
 	for tag in meta.gifts.trees:
 		for nd in gift_nodes(tag):
 			if nd.kind == kind:
-				v += gift_rank(tag, nd.id) * float(nd.per)
+				v += gift_eff(tag, nd.id) * float(nd.per)
 	return v
 
 
@@ -312,8 +378,76 @@ func buy_gift(i: int, tag: String) -> bool:
 	if not data.gifts.has(tag):
 		data.gifts[tag] = {}
 	data.gifts[tag][nd.id] = gift_rank(tag, nd.id) + 1
+	# 學會的節點：配置點數夠就自動裝上；裝著的節點升級後超過上限就先卸下
+	if gift_on(tag, nd.id):
+		if gift_used() > gift_cap():
+			toggle_gift(tag, nd.id)
+	elif gift_used() + gift_rank(tag, nd.id) <= gift_cap():
+		toggle_gift(tag, nd.id)
 	save_profile()
 	return true
+
+
+# ---------- 恩賜配置：學會的節點永久保留，但每次出發只能裝上有限的點數 ----------
+func gift_cap() -> int:
+	var G: Dictionary = meta.gifts.get("loadout", {"base": 10, "per_church": 2, "per_faith": 1})
+	return int(G.base) + data.churches.size() * int(G.per_church) + faith_max() * int(G.per_faith)
+
+
+func gift_on(tag: String, id: String) -> bool:
+	return data.get("gift_on", {}).get(tag, []).has(id)
+
+
+func gift_used() -> int:
+	var n := 0
+	for tag in data.get("gift_on", {}):
+		for id in data.gift_on[tag]:
+			n += gift_rank(tag, id)
+	return n
+
+
+## 遊戲裡實際生效的等級：有裝上才算
+func gift_eff(tag: String, id: String) -> int:
+	return gift_rank(tag, id) if gift_on(tag, id) else 0
+
+
+## 裝上／卸下；點數不夠時回傳 false
+func toggle_gift(tag: String, id: String) -> bool:
+	if not data.has("gift_on"):
+		data.gift_on = {}
+	if not data.gift_on.has(tag):
+		data.gift_on[tag] = []
+	if data.gift_on[tag].has(id):
+		data.gift_on[tag].erase(id)
+		return true
+	if gift_used() + gift_rank(tag, id) > gift_cap():
+		return false
+	data.gift_on[tag].append(id)
+	return true
+
+
+## 舊存檔：還沒有配置時，照樹的順序把學過的節點裝上，裝到上限為止
+func _init_gift_on() -> void:
+	if data.has("gift_on"):
+		return
+	data.gift_on = {}
+	var trees: Array = data.get("gifts", {}).keys()
+	trees.sort_custom(func(a, b): return gift_points(a) > gift_points(b))
+	for tag in trees:
+		if not meta.gifts.trees.has(tag):
+			continue
+		for nd in gift_nodes(tag):
+			if gift_rank(tag, nd.id) > 0:
+				toggle_gift(tag, nd.id)
+	if gift_used() < gift_points_all():
+		data.refund_note = str(data.get("refund_note", "")) + ("\n" if data.has("refund_note") else "") + "恩賜樹改成「配置」：學過的都還在，但每次出發只能裝上 %d 點，到恩賜頁可以自由換" % gift_cap()
+
+
+func gift_points_all() -> int:
+	var n := 0
+	for tag in data.get("gifts", {}):
+		n += gift_points(tag)
+	return n
 
 
 func up_cost(u: Dictionary) -> int:
@@ -356,6 +490,7 @@ func stat_value(id: String) -> int:
 			return n
 		"bread_total": return int(data.get("bread_total", 0))
 		"codex_enemies": return data.get("codex", {}).get("enemies", []).size()
+		"faith_max": return faith_max()
 		"affinity_max":
 			var m := 0
 			for k in data.affinity:
@@ -374,12 +509,21 @@ func finish_run(r: Dictionary) -> Dictionary:
 	elif not r.get("endless", false):
 		gain = int(gain * W.lose_ratio)   # 無盡模式本來就是撐到倒下，不打折
 	gain += int(r.get("task_witness", 0))
-	var tp := int(r.get("trial_points", 0))
-	gain = int(gain * (1.0 + tp * float(meta.trials.witness_per_point)))
-	r.bread = int(int(r.get("bread", 0)) * (1.0 + tp * float(meta.trials.bread_per_point) + building_bonus("bread")))
-	if r.won and tp > 0:
+	var tp := int(r.get("faith", 0))
+	var fm := 1.0 + tp * float(meta.faith.reward_per_level)
+	gain = int(gain * fm)
+	r.bread = int(int(r.get("bread", 0)) * (fm + building_bonus("bread")))
+	if r.won:
 		var sid: String = r.get("stage", "")
-		data.trial_best[sid] = maxi(int(data.trial_best.get(sid, 0)), tp)
+		if not data.has("faith_best"):
+			data.faith_best = {}
+		data.faith_best[sid] = maxi(int(data.faith_best.get(sid, 0)), tp)
+	# 教會成長：在已建立教會的城帶人信主，人數加進那間教會
+	var csid: String = r.get("stage", "")
+	if data.churches.has(csid) and int(r.get("saved", 0)) > 0:
+		if not data.has("church_members"):
+			data.church_members = {}
+		data.church_members[csid] = int(data.church_members.get(csid, 0)) + int(r.saved)
 	var st: Dictionary = data.stats
 	st.runs += 1
 	if r.won:

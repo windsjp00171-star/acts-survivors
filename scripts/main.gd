@@ -84,7 +84,8 @@ var stage := {}           # 這一局的城市（data/stages.json）
 var stage_i := 0
 var epistles := {}        # 已選的書信卡效果
 var founded_now := false  # 這局建立了新的教會
-var trials: Array = []    # 這局打開的熬煉
+var trials: Array = []    # 這局套用的信心等級限制（id）
+var faith := 0            # 信心等級
 var killed_types := {}    # 圖鑑用：這局打倒過的敵人種類   # 第一位同工：第一次升級一定出現他的招募卡
 var comps: Array = []
 var by_key := {}
@@ -251,7 +252,13 @@ func _ready() -> void:
 		D.enemies[k].weight = stage.weights[k]
 	D.boss.merge(stage.boss, true)
 	# 熬煉（難度條件）
-	trials = Save.run_config.get("trials", [])
+	faith = int(Save.run_config.get("faith", 0))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--faith="):
+			faith = int(a.substr(8))
+			Save.run_config.faith = faith
+	trials = Save.faith_ids(faith)
+	Save.run_config.trials = trials
 	endless = bool(Save.run_config.get("endless", false)) or OS.get_cmdline_user_args().has("--endless")
 	if endless:
 		D.waves.max_enemies = int(D.endless.max_enemies)
@@ -275,6 +282,12 @@ func _ready() -> void:
 	if trials.has("lion"):
 		D.boss.hp = float(D.boss.hp) * 1.5
 		D.boss.warn = float(D.boss.warn) * 0.75
+	if trials.has("persecute"):
+		D.director.persecute_every = 5
+	if trials.has("elites"):
+		stage.elite_mult = float(stage.get("elite_mult", 1.0)) * 0.5
+	if trials.has("oath"):
+		D.boss.mid.append({"at": 300, "hp_mult": 0.35})
 	for dd in D.companions:
 		names_all[dd.key] = dd.name
 	names_all["paul"] = "保羅"
@@ -304,6 +317,8 @@ func _ready() -> void:
 	Save.run_config.calling = calling
 	# 永久恩典（用餅兌換的）
 	D.paul.hp = float(D.paul.hp) + Save.up_value("vigor")
+	if trials.has("faithful"):
+		D.paul.hp = float(D.paul.hp) * 0.7   # 信心等級：至死忠心
 	D.paul.speed = float(D.paul.speed) * (1.0 + Save.up_value("run"))
 	D.gems.magnet_radius = float(D.gems.magnet_radius) * (1.0 + Save.up_value("reap") + Save.building_bonus("magnet"))
 	D.armor_slots = int(D.armor_slots) + int(Save.building_bonus("armor"))
@@ -459,7 +474,7 @@ func _ready() -> void:
 	_update_chunks()
 	Sfx.music(stage.music)
 	ground.modulate = Color(stage.tint[0], stage.tint[1], stage.tint[2])
-	ui.show_banner("%s　%s%s" % [stage.name, stage.ref, ("\n熬煉 %d 點" % Save.trial_points(trials)) if not trials.is_empty() else ""], 2.5)
+	ui.show_banner("%s　%s%s" % [stage.name, stage.ref, ("\n信心等級 %d" % faith) if faith > 0 else ""], 2.5)
 
 
 # ---------- 建立場景 ----------
@@ -538,9 +553,9 @@ func _build_world() -> void:
 	# 恩賜樹第 5 層：改寫流派規則
 	for tag in Save.meta.gifts.trees:
 		for nd in Save.gift_nodes(tag):
-			if nd.kind == "mod" and Save.gift_rank(tag, nd.id) > 0:
+			if nd.kind == "mod" and Save.gift_eff(tag, nd.id) > 0:
 				for k in nd.mod:
-					school_mods[k] = float(school_mods.get(k, 0.0)) + float(nd.mod[k]) * Save.gift_rank(tag, nd.id)
+					school_mods[k] = float(school_mods.get(k, 0.0)) + float(nd.mod[k]) * Save.gift_eff(tag, nd.id)
 
 
 ## 恩賜樹：依流派加上傷害、攻速、範圍、專屬連結強度與終極恩賜
@@ -549,7 +564,7 @@ func _apply_gifts(c: Dictionary) -> void:
 	var stats := []
 	if Save.meta.gifts.trees.has(c.tag):
 		for nd in Save.gift_nodes(c.tag):
-			var r := Save.gift_rank(c.tag, nd.id)
+			var r := Save.gift_eff(c.tag, nd.id)   # 只有裝上的節點生效
 			if r <= 0:
 				continue
 			if nd.kind == "stat":
@@ -703,7 +718,7 @@ func _accord() -> float:
 
 
 func _fever_dur() -> float:
-	return float(D.fever.duration) + (3.0 if epistles.has("fever_plus") else 0.0)
+	return float(D.fever.duration) + (3.0 if epistles.has("fever_plus") else 0.0) - (3.0 if trials.has("night") else 0.0)
 
 func _scatter_mult() -> float:
 	return maxf(0.3, 1.0 - fruits.get("peace", 0) * 0.1) * (0.3 if calling == "shepherd" else 1.0)
@@ -800,7 +815,7 @@ func _make_cards() -> Array:
 		var c: Dictionary = by_key[evo.companion]
 		pool.push_front({"kind": "evolve", "key": c.key, "title": "進化！" + evo.name, "tag": c.tag, "desc": c.name + "：" + evo.desc})
 		break
-	var n_cards := 4 if calling == "teacher" else 3
+	var n_cards := (4 if calling == "teacher" else 3) - (1 if trials.has("tempt") else 0)
 	if calling == "teacher":
 		# 教師：有流派卡時一定排進來
 		for sc in pool.filter(func(cd): return cd.kind == "school"):
@@ -2738,6 +2753,8 @@ func _shield_shock(at: Vector2) -> void:
 
 # 醫治：滿溢
 func _heal_paul(n: float) -> void:
+	if trials.has("drought"):
+		n *= 0.6   # 信心等級：乾旱
 	_anoint_add(paul.hp + n - float(D.paul.hp))
 	paul.hp = minf(_hp_cap(), maxf(paul.hp, minf(float(D.paul.hp), paul.hp + n)))
 
@@ -5243,6 +5260,8 @@ func _open_chest() -> void:
 		break
 	if results.is_empty():
 		var n := randi_range(int(D.chest.rolls_min), int(D.chest.rolls_max)) + (1 if randf() < Save.up_value("lucky") else 0)
+		if trials.has("poor"):
+			n = maxi(1, n - 1)   # 信心等級：貧窮
 		for i in n:
 			var pool := _make_cards().filter(func(card): return not card.kind in ["heal", "grace_dmg", "grace_spd", "manna"])
 			if pool.is_empty():
@@ -5601,13 +5620,13 @@ func _finish_run() -> Array:
 		"task_witness": task_witness, "lights": run_lights, "bread": int(run_bread * (1.0 + prov_bread)),
 		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
 		"combo": combo_best, "party_size": _party_count(), "converts": run_converts, "minions": run_minions, "songs": run_songs, "holies": run_holies, "shocks": run_shocks, "bonds": run_bonds, "relics": run_relics, "saved": run_saved, "school": school_tier.values().max() if not school_tier.is_empty() else 0, "endless": endless, "sets": sets_on.size(), "leader": leader,
-		"trial_points": Save.trial_points(trials), "stage": stage.id,
+		"faith": faith, "stage": stage.id,
 		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys(), "relics": relics.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	if smoke:
 		print("WITNESS +%d bread +%d saved=%d kills=%d" % [res.witness, res.bread, run_saved, kills])
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
-	if not trials.is_empty():
-		lines.append(["熬煉 %d 點：見證與餅已加成" % Save.trial_points(trials), 11, C_GOLD])
+	if faith > 0:
+		lines.append(["信心等級 %d：見證與餅 +%d%%%s" % [faith, roundi(faith * float(Save.meta.faith.reward_per_level) * 100), ("　下一級已開放" if won and faith < int(Save.meta.faith.max) else "")], 11, C_GOLD])
 	for a in res.achievements:
 		var txt: String = "見證錄：" + a.name
 		if a.has("unlock"):

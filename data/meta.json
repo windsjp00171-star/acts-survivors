@@ -25,25 +25,26 @@
     {"id": "tent3", "kind": "tent_small", "name": "", "pos": [-70, 58], "stat": "achievements", "min": 4, "news": "營地越來越熱鬧了"},
     {"id": "market", "kind": "market", "name": "市集", "pos": [92, 18], "stat": "runs", "min": 2, "news": "呂底亞在營地擺了市集：可以用見證買下一趟的行囊"}
   ],
-  "_bread說明": "餅：局內撿到、帶回營地（失敗也全部保留）。在補給帳棚買永久恩典。drop 是掉落機率或數量；每項恩典 per 是每級效果、max 是上限、cost 是第 1 級價格，之後每級再加 cost_step。",
+  "_bread說明": "餅：（永久恩典每項有上限，總加成不大：局外成長換的是選擇，不是力量）局內撿到、帶回營地（失敗也全部保留）。在補給帳棚買永久恩典。drop 是掉落機率或數量；每項恩典 per 是每級效果、max 是上限、cost 是第 1 級價格，之後每級再加 cost_step。",
   "bread": {
     "drop": {"kill": 0.004, "veteran": 0.1, "elite": 3, "chest": 2, "boss": 15},
     "upgrades": [
-      {"id": "might", "name": "剛強", "ref": "弗 6:10", "desc": "所有攻擊傷害 +5%", "per": 0.05, "max": 10, "cost": 15, "cost_step": 15},
-      {"id": "haste", "name": "殷勤", "ref": "羅 12:11", "desc": "所有攻擊速度 +4%", "per": 0.04, "max": 10, "cost": 15, "cost_step": 15},
-      {"id": "vigor", "name": "堅忍", "ref": "雅 1:4", "desc": "主角血量 +10", "per": 10, "max": 10, "cost": 10, "cost_step": 10},
-      {"id": "renew", "name": "更新", "ref": "林後 4:16", "desc": "主角每秒回復 0.2 血", "per": 0.2, "max": 3, "cost": 25, "cost_step": 25},
+      {"id": "might", "name": "剛強", "ref": "弗 6:10", "desc": "所有攻擊傷害 +5%", "per": 0.05, "max": 3, "cost": 15, "cost_step": 15},
+      {"id": "haste", "name": "殷勤", "ref": "羅 12:11", "desc": "所有攻擊速度 +4%", "per": 0.04, "max": 3, "cost": 15, "cost_step": 15},
+      {"id": "vigor", "name": "堅忍", "ref": "雅 1:4", "desc": "主角血量 +10", "per": 10, "max": 5, "cost": 10, "cost_step": 10},
+      {"id": "renew", "name": "更新", "ref": "林後 4:16", "desc": "主角每秒回復 0.2 血", "per": 0.2, "max": 2, "cost": 25, "cost_step": 25},
       {"id": "reap", "name": "收割", "ref": "約 4:35", "desc": "撿經驗與餅的範圍 +20%", "per": 0.2, "max": 3, "cost": 10, "cost_step": 10},
       {"id": "growth", "name": "長進", "ref": "彼後 3:18", "desc": "經驗 +6%", "per": 0.06, "max": 3, "cost": 20, "cost_step": 20},
       {"id": "run", "name": "奔跑", "ref": "來 12:1", "desc": "移動速度 +4%", "per": 0.04, "max": 3, "cost": 15, "cost_step": 15},
-      {"id": "aegis", "name": "盾牌", "ref": "詩 3:3", "desc": "主角受到的傷害 -3%", "per": 0.03, "max": 5, "cost": 30, "cost_step": 20},
-      {"id": "accord", "name": "合一", "ref": "詩 133:1", "desc": "同心合意累積 +6%", "per": 0.06, "max": 5, "cost": 25, "cost_step": 20},
-      {"id": "lucky", "name": "滿溢", "ref": "瑪 3:10", "desc": "寶箱有機會多開一項 +10%", "per": 0.1, "max": 3, "cost": 40, "cost_step": 30},
+      {"id": "aegis", "name": "盾牌", "ref": "詩 3:3", "desc": "主角受到的傷害 -3%", "per": 0.03, "max": 3, "cost": 30, "cost_step": 20},
+      {"id": "accord", "name": "合一", "ref": "詩 133:1", "desc": "同心合意累積 +6%", "per": 0.06, "max": 3, "cost": 25, "cost_step": 20},
+      {"id": "lucky", "name": "滿溢", "ref": "瑪 3:10", "desc": "寶箱有機會多開一項 +10%", "per": 0.1, "max": 2, "cost": 40, "cost_step": 30},
       {"id": "rise", "name": "扶持", "ref": "傳 4:10", "desc": "倒下的同伴早一點站起來 -10%", "per": 0.1, "max": 3, "cost": 30, "cost_step": 25}
     ]
   },
   "_gifts說明": "恩賜樹（像暗黑破壞神 2 的技能樹）：六個流派各一棵，用餅學習。每個節點有 row（第幾層）、col（第幾欄）、req（要先學過哪些節點，至少 1 級）；tiers 是學第 row 層前，這棵樹至少要先點幾點。節點效果只作用在這個流派的同伴（主角也算）。names 與 refs（每個節點的經文出處）依 nodes 的順序。",
   "gifts": {
+    "loadout": {"base": 10, "per_church": 2, "per_faith": 1},
     "tiers": [0, 3, 6, 10, 15],
     "nodes": [
       {"id": "dmg", "row": 0, "col": 0, "per": 0.06, "max": 5, "cost": 15, "cost_step": 10, "req": [], "desc": "%s 同伴傷害 +6%%／級"},
@@ -185,20 +186,26 @@
   ],
   "_gift_bread說明": "送餅給同伴：在同伴頁花 cost 個餅，默契 +affinity。",
   "gift_bread": {"cost": 10, "affinity": 15},
-  "_trials說明": "熬煉（難度等級，彼前 1:7）：建立第一間教會後可以在出發前打開。每項有點數，總點數每點見證 +15%、餅 +10%。",
-  "trials": {
-    "witness_per_point": 0.15,
-    "bread_per_point": 0.1,
-    "list": [
-      {"id": "swift", "name": "急流", "ref": "賽 43:2", "desc": "敵人速度 +20%", "points": 1},
-      {"id": "many", "name": "大軍", "ref": "詩 3:6", "desc": "敵人數量 +30%", "points": 2},
-      {"id": "hard", "name": "剛硬", "ref": "出 7:13", "desc": "敵人血量 +40%", "points": 2},
-      {"id": "sharp", "name": "火箭", "ref": "弗 6:16", "desc": "敵人傷害 +40%", "points": 2},
-      {"id": "lion", "name": "吼叫的獅子", "ref": "彼前 5:8", "desc": "Boss 血量 +50%、預警變短", "points": 2},
-      {"id": "simple", "name": "單純", "ref": "太 6:22", "desc": "這局不能重抽", "points": 1},
-      {"id": "alone", "name": "獨行", "ref": "提後 4:16", "desc": "隊伍上限 -1", "points": 2}
-    ]
-  },
+  "_church說明": "教會成長：建立教會後，在那座城帶人信主的人數會加進那間教會；也可以花見證「寫信堅固他們」。members 是每一階的門檻人數。只影響營地的顯示與故事，不影響戰力。",
+  "church": {"members": [5, 15, 35, 70], "letter_cost": 40, "letter_add": 4},
+  "_faith說明": "信心等級（像殺戮尖塔的進階、黑帝斯的熱度；彼前 1:7）：建立一座城的教會後，可以在那座城用更高的等級再挑戰。第 N 級會同時套用第 1～N 項限制；通關第 N 級才能挑戰第 N+1 級。每一級見證與餅 +reward_per_level。",
+  "faith": {"max": 15, "reward_per_level": 0.12, "levels": [
+    {"id": "swift", "name": "急流", "ref": "賽 43:2", "desc": "敵人速度 +20%"},
+    {"id": "hard", "name": "剛硬", "ref": "出 7:13", "desc": "敵人血量 +40%"},
+    {"id": "lion", "name": "吼叫的獅子", "ref": "彼前 5:8", "desc": "Boss 血量 +50%、預警變短"},
+    {"id": "many", "name": "大軍", "ref": "詩 3:6", "desc": "敵人數量 +30%"},
+    {"id": "sharp", "name": "火箭", "ref": "弗 6:16", "desc": "敵人傷害 +40%"},
+    {"id": "simple", "name": "單純", "ref": "太 6:22", "desc": "這局不能重抽"},
+    {"id": "persecute", "name": "患難", "ref": "約 16:33", "desc": "逼迫來得更頻繁（每 7 秒 → 5 秒）"},
+    {"id": "alone", "name": "獨行", "ref": "提後 4:16", "desc": "隊伍上限 -1"},
+    {"id": "drought", "name": "乾旱", "ref": "王上 17:1", "desc": "主角受到的治療 -40%"},
+    {"id": "elites", "name": "列陣", "ref": "弗 6:12", "desc": "菁英出現得多一倍"},
+    {"id": "poor", "name": "貧窮", "ref": "林後 8:9", "desc": "寶箱少開一項"},
+    {"id": "night", "name": "黑夜", "ref": "約 9:4", "desc": "五旬節少 3 秒"},
+    {"id": "tempt", "name": "試探", "ref": "雅 1:12", "desc": "升級時少一張卡可以選"},
+    {"id": "oath", "name": "誓約", "ref": "徒 23:12", "desc": "中途 Boss 多來一次（5:00）"},
+    {"id": "faithful", "name": "至死忠心", "ref": "啟 2:10", "desc": "主角血量 −30%"}
+  ]},
   "shop": [
     {"id": "barn", "kind": "companion", "name": "巴拿巴加入名單", "desc": "鼓勵光環，讓範圍內同伴攻擊加快", "cost": 60},
     {"id": "apollos", "kind": "companion", "name": "亞波羅加入名單", "desc": "直線貫穿的光束，剋謊言", "cost": 100},
@@ -240,6 +247,9 @@
     {"id": "shocks", "name": "神是我的盾牌", "desc": "護盾累計擋下 50 次並反擊（詩 3:3）", "stat": "shocks", "min": 50, "group": "流派", "witness": 80, "bread": 20},
     {"id": "bonds", "name": "兩個人總比一個人好", "desc": "累計發動 30 次同行合擊（傳 4:9）", "stat": "bonds", "min": 30, "group": "流派", "witness": 100, "bread": 30},
     {"id": "relics10", "name": "寶貝放在瓦器裡", "desc": "累計拿到 10 件聖物（林後 4:7）", "stat": "relics", "min": 10, "group": "流派", "witness": 100, "bread": 30},
+    {"id": "faith5", "name": "信心經過試驗", "desc": "任何一座城通過信心等級 5（彼前 1:7）", "stat": "faith_max", "min": 5, "group": "挑戰", "witness": 120, "bread": 40},
+    {"id": "faith10", "name": "比金子更寶貴", "desc": "任何一座城通過信心等級 10（彼前 1:7）", "stat": "faith_max", "min": 10, "group": "挑戰", "witness": 200, "bread": 60},
+    {"id": "faith15", "name": "生命的冠冕", "desc": "任何一座城通過信心等級 15（雅 1:12）", "stat": "faith_max", "min": 15, "group": "挑戰", "witness": 300, "bread": 100},
     {"id": "saved1", "name": "一個罪人悔改", "desc": "第一次帶人信主（路 15:10）", "stat": "saved", "min": 1, "group": "旅程", "witness": 40},
     {"id": "saved50", "name": "主將得救的人天天加給他們", "desc": "累計帶 50 個人信主（徒 2:47）", "stat": "saved", "min": 50, "group": "旅程", "witness": 120, "bread": 30},
     {"id": "saved3000", "name": "門徒的數目加增得甚多", "desc": "累計帶 300 個人信主（徒 6:7）", "stat": "saved", "min": 300, "group": "旅程", "witness": 300, "bread": 80},

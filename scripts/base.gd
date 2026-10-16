@@ -181,6 +181,10 @@ func _display_name(c: Dictionary) -> String:
 # ---------- 出發 ----------
 func _show_home() -> void:
 	_clear("home")
+	if str(Save.data.get("refund_note", "")) != "":
+		_text(content, "改版通知：" + str(Save.data.refund_note), 12, UIKit.HEAL, true)
+		Save.data.erase("refund_note")
+		Save.save_profile()
 	# 主角：保羅以外的人要先在解鎖商店買
 	var lead: String = Save.data.get("leader", "paul")
 	var leaders: Array = G.leaders.filter(func(L): return L.key == "paul" or Save.is_unlocked("leader_" + L.key))
@@ -275,6 +279,25 @@ func _show_home() -> void:
 		_text(col, stg.intro if open else "建立前一間教會後解鎖", 11, UIKit.MUTED, true)
 		if founded:
 			_text(col, "書信卡：" + stg.epistle.name, 11, UIKit.SKY, true)
+			# 教會成長：人數越多，近況越多（不影響戰力）
+			var sid2: String = stg.id
+			var cst := Save.church_stage(sid2)
+			var notes: Array = stg.get("church_notes", [])
+			var line := "%s教會　%d 人" % [stg.name, Save.church_members(sid2)]
+			if cst > 0 and notes.size() >= cst:
+				line += "　%s（%s）" % [notes[cst - 1][0], notes[cst - 1][1]]
+			elif cst < Save.meta.church.members.size():
+				line += "　再 %d 人，教會會有新的近況" % (int(Save.meta.church.members[cst]) - Save.church_members(sid2))
+			_text(col, line, 11, UIKit.HEAL, true)
+			var C: Dictionary = Save.meta.church
+			var lb := UIKit.button("寫信堅固他們　見證 %d → +%d 人" % [int(C.letter_cost), int(C.letter_add)], 11)
+			lb.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+			lb.disabled = int(Save.data.witness) < int(C.letter_cost)
+			lb.pressed.connect(func():
+				if Save.church_letter(sid2):
+					Sfx.play("heal", 0.0)
+					_show_home())
+			col.add_child(lb)
 		if open and i == sel and stg.has("story"):
 			_text(col, "這段故事：" + stg.story, 11, UIKit.INK, true)
 		if open and i != sel:
@@ -304,33 +327,44 @@ func _show_home() -> void:
 			_text(content, "無盡模式最久撐了 %d:%02d" % [best / 60, best % 60], 11, UIKit.SKY)
 	else:
 		_text(content, "無盡模式：建立 %d 間教會後開放（目前 %d 間）" % [int(G.endless.unlock_churches), Save.data.churches.size()], 11, UIKit.MUTED, true)
-	if Save.trials_unlocked():
-		var on: Array = Save.data.trials_on
-		var tp := Save.trial_points(on)
-		_text(content, "熬煉（彼前 1:7）　%d 點：見證 +%d%%、餅 +%d%%" % [tp, roundi(tp * Save.meta.trials.witness_per_point * 100), roundi(tp * Save.meta.trials.bread_per_point * 100)], 15, UIKit.GOLD, true)
-		var best := int(Save.data.trial_best.get(stages[sel].id, 0))
-		if best > 0:
-			_text(content, "%s 最高通過 %d 點" % [stages[sel].name, best], 11, UIKit.SKY)
-		var grid := GridContainer.new()
-		grid.columns = 2
-		grid.add_theme_constant_override("h_separation", 6)
-		grid.add_theme_constant_override("v_separation", 6)
-		content.add_child(grid)
-		for tr in Save.meta.trials.list:
-			var is_on: bool = on.has(tr.id)
-			var tb := UIKit.button("%s %s（%d）\n%s" % ["●" if is_on else "○", tr.name, int(tr.points), tr.desc], 11, is_on)
-			tb.custom_minimum_size = Vector2(0, 44)
-			tb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			tb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			var tid: String = tr.id
-			tb.pressed.connect(func():
-				if Save.data.trials_on.has(tid):
-					Save.data.trials_on.erase(tid)
-				else:
-					Save.data.trials_on.append(tid)
-				Save.save_profile()
-				_show_home())
-			grid.add_child(tb)
+	# 信心等級：建立這座城的教會後開放，通過第 N 級才能挑戰第 N+1 級
+	var sid: String = stages[sel].id
+	var fopen := Save.faith_open(sid)
+	if fopen > 0:
+		var fcur := clampi(int(Save.data.get("faith_sel", 0)), 0, fopen)
+		var FD: Dictionary = Save.meta.faith
+		_text(content, "信心等級（彼前 1:7）", 15, UIKit.GOLD)
+		var fr := _row(content)
+		var minus := UIKit.button("−", 16)
+		minus.custom_minimum_size = Vector2(40, 34)
+		minus.disabled = fcur <= 0
+		minus.pressed.connect(func():
+			Save.data.faith_sel = fcur - 1
+			Save.save_profile()
+			_show_home())
+		fr.add_child(minus)
+		var lv := UIKit.label("  第 %d 級  " % fcur, 18, UIKit.GOLD if fcur > 0 else UIKit.CREAM)
+		fr.add_child(lv)
+		var plus := UIKit.button("＋", 16)
+		plus.custom_minimum_size = Vector2(40, 34)
+		plus.disabled = fcur >= fopen
+		plus.pressed.connect(func():
+			Save.data.faith_sel = fcur + 1
+			Save.save_profile()
+			_show_home())
+		fr.add_child(plus)
+		var best := int(Save.data.get("faith_best", {}).get(sid, 0))
+		fr.add_child(UIKit.label("  見證與餅 +%d%%　%s最高通過第 %d 級" % [roundi(fcur * float(FD.reward_per_level) * 100), stages[sel].name, best], 11, UIKit.SKY))
+		if fcur > 0:
+			var names := []
+			for i2 in fcur:
+				names.append("%d %s" % [i2 + 1, FD.levels[i2].name])
+			_text(content, "・".join(names), 11, UIKit.MUTED, true)
+			_text(content, "第 %d 級新增：%s（%s）" % [fcur, FD.levels[fcur - 1].desc, FD.levels[fcur - 1].ref], 12, UIKit.INK, true)
+		if fopen < int(FD.max) and fcur == fopen:
+			_text(content, "通過第 %d 級，就能挑戰第 %d 級：%s" % [fopen, fopen + 1, FD.levels[fopen].desc], 11, UIKit.MUTED, true)
+	elif not Save.data.churches.is_empty():
+		_text(content, "信心等級：在%s建立教會後開放" % stages[sel].name, 11, UIKit.MUTED, true)
 	# 營地接下來還會出現什麼（小提示）
 	var soon := []
 	var STAT_NAME := {"runs": "出發", "wins": "通關", "witness_total": "累計見證", "achievements": "完成見證錄"}
@@ -376,7 +410,7 @@ func _start() -> void:
 		starter = Save.meta.default_starter
 	var sel := clampi(int(Save.data.stage), 0, stages.size() - 1)
 	Save.run_config = {"starter": starter, "stage": sel if _stage_open(sel) else 0,
-		"trials": Save.data.trials_on.duplicate() if Save.trials_unlocked() else [],
+		"faith": clampi(int(Save.data.get("faith_sel", 0)), 0, Save.faith_open(stages[sel if _stage_open(sel) else 0].id)),
 		"endless": _endless_open() and bool(Save.data.get("endless_on", false)),
 		"calling": _calling_ok(str(Save.data.get("calling", "apostle")))}
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
@@ -689,15 +723,20 @@ func _keep_scroll(v: int) -> void:
 func _show_gifts() -> void:
 	_clear("gifts")
 	var GF: Dictionary = Save.meta.gifts
-	_text(content, "恩賜樹　用「餅」學習", 16, UIKit.GOLD)
-	_text(content, "上面的節點學了才能學連著的下一個；越下面的層要先累積越多點。", 11, UIKit.MUTED, true)
+	_text(content, "恩賜樹　用「餅」學習，出發前「配置」", 16, UIKit.GOLD)
+	var used := Save.gift_used()
+	var cap := Save.gift_cap()
+	_text(content, "配置點數 %d／%d　學過的節點永遠保留，但每次出發只有裝上的才生效（打勾的）。建立教會、通過更高的信心等級，配置點數會增加。" % [used, cap], 12, UIKit.GOLD if used <= cap else UIKit.CREAM, true)
 	var flow := HFlowContainer.new()
 	flow.add_theme_constant_override("h_separation", 6)
 	flow.add_theme_constant_override("v_separation", 6)
 	content.add_child(flow)
 	for tag in GF.trees:
 		var tg: String = tag
-		var b := UIKit.button("%s %d" % [tg, Save.gift_points(tg)], 13 if portrait else 12, tg == gift_tag)
+		var on_n := 0
+		for id in Save.data.get("gift_on", {}).get(tg, []):
+			on_n += Save.gift_rank(tg, id)
+		var b := UIKit.button("%s %d／%d" % [tg, on_n, Save.gift_points(tg)], 13 if portrait else 12, tg == gift_tag)
 		b.custom_minimum_size = Vector2(72, 32) if portrait else Vector2(62, 28)
 		b.pressed.connect(func():
 			gift_tag = tg
@@ -745,12 +784,13 @@ func _show_gifts() -> void:
 		var open := Save.gift_open(i, gift_tag)
 		var full: bool = rank >= int(nd.max)
 		var nb := Button.new()
-		nb.text = "%s\n%s" % [tree.names[i], "●".repeat(rank) + "○".repeat(int(nd.max) - rank)]
+		var eq := Save.gift_on(gift_tag, nd.id)
+		nb.text = "%s%s\n%s" % ["✓" if eq else "", tree.names[i], "●".repeat(rank) + "○".repeat(int(nd.max) - rank)]
 		nb.add_theme_font_override("font", UIKit.font())
 		nb.add_theme_font_size_override("font_size", 11 if portrait else 12)
-		nb.add_theme_color_override("font_color", UIKit.GOLD if rank > 0 else (UIKit.CREAM if open else UIKit.MUTED))
-		var border: Color = UIKit.GOLD if full or i == gift_sel else (UIKit.BRONZE if open else Color("3a2e44"))
-		nb.add_theme_stylebox_override("normal", UIKit.box(Color(0.22, 0.16, 0.1) if rank > 0 else (Color(0.16, 0.12, 0.18) if open else Color(0.08, 0.06, 0.1)), border, 6))
+		nb.add_theme_color_override("font_color", UIKit.GOLD if eq else (UIKit.CREAM if rank > 0 or open else UIKit.MUTED))
+		var border: Color = UIKit.GOLD if eq or i == gift_sel else (UIKit.BRONZE if open or rank > 0 else Color("3a2e44"))
+		nb.add_theme_stylebox_override("normal", UIKit.box(Color(0.24, 0.18, 0.08) if eq else (Color(0.14, 0.12, 0.16) if rank > 0 else (Color(0.16, 0.12, 0.18) if open else Color(0.08, 0.06, 0.1))), border, 6))
 		nb.add_theme_stylebox_override("hover", UIKit.box(Color(0.28, 0.2, 0.14), UIKit.GOLD, 6))
 		nb.size = Vector2(cw - 12, ch - 26)
 		nb.position = center.call(nd) - nb.size / 2.0
@@ -802,6 +842,22 @@ func _show_gifts() -> void:
 				Sfx.play("pick", 0.0)
 				_show_gifts())
 		h.add_child(bb)
+		if rank > 0:
+			# 裝上／卸下（不花餅，隨時可換）
+			var on := Save.gift_on(gift_tag, nd.id)
+			var fits: bool = on or Save.gift_used() + rank <= Save.gift_cap()
+			var tb := UIKit.button(("✓ 已裝上（%d 點）　卸下" % rank) if on else ("裝上（用 %d 點）" % rank), 13, not on and fits)
+			tb.custom_minimum_size = Vector2(110, 34)
+			tb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			tb.disabled = not fits
+			tb.pressed.connect(func():
+				if Save.toggle_gift(gift_tag, nd.id):
+					Save.save_profile()
+					Sfx.play("ui", 0.0)
+					_show_gifts())
+			h.add_child(tb)
+			if not fits:
+				_text(v, "配置點數不夠：先卸下別的節點", 11, UIKit.CREAM, true)
 	var SR: Dictionary = G.get("schools", {}).get(gift_tag, {})
 	if not SR.is_empty():
 		# 流派規則：隊伍裡同流派 2 人啟動，3、4 人升級；第 5 層的節點會改寫規則
@@ -871,6 +927,29 @@ func _show_log() -> void:
 func _show_codex() -> void:
 	_clear("codex")
 	var cx: Dictionary = Save.data.get("codex", {})
+	# 詩歌本：去過的城市音樂可以在這裡點播
+	_text(content, "詩歌本", 16, UIKit.GOLD)
+	_text(content, "去過的城市，那裡的音樂就會收進來，點一下就能播放。", 11, UIKit.MUTED, true)
+	var songs := [["camp", "安提阿營地"]]
+	for st in stages:
+		if Save.data.get("story_seen", []).has("in_" + st.id) or Save.data.churches.has(st.id):
+			songs.append([st.music, st.name])
+	if Save.data.stats.get("wins", 0) > 0:
+		songs.append(["boss", "Boss 戰"])
+	if int(Save.data.stats.get("fevers_total", 0)) > 0:
+		songs.append(["fever", "五旬節"])
+	var sflow := HFlowContainer.new()
+	sflow.add_theme_constant_override("h_separation", 6)
+	sflow.add_theme_constant_override("v_separation", 6)
+	content.add_child(sflow)
+	for sg in songs:
+		var sname: String = sg[0]
+		var sb := UIKit.button("♪ " + sg[1], 12, Sfx.music_name == sname)
+		sb.custom_minimum_size = Vector2(96, 30)
+		sb.pressed.connect(func():
+			Sfx.music(sname)
+			_show_codex())
+		sflow.add_child(sb)
 	# 信仰小辭典：一開始就全部看得到，給還不熟悉聖經的玩家
 	var words: Array = codex.get("words", [])
 	if not words.is_empty():
