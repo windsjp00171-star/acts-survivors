@@ -348,6 +348,50 @@ def camp():
     return tr.render()
 
 
+def pentecost():
+    # 五旬節：G 大調，快、明亮，像一陣大風吹進屋子
+    motif = [(0, 0.5), (2, 0.5), (4, 1), (5, 0.5), (4, 0.5), (2, 1), (4, 1), (7, 2), (6, 0.5), (5, 0.5), (4, 1), (2, 1), (0, 2)]
+    answer = [(7, 1), (9, 0.5), (7, 0.5), (5, 1), (4, 1), (5, 1), (4, 0.5), (2, 0.5), (4, 2), (2, 1), (1, 1), (0, 4)]
+    return battle(67, "rast", 138, [0, 3, 4, 0], motif, answer, lead=kithara,
+                  taiko_a="B.......B..B....", taiko_b="B..B..B.B..B.BB.", frame="F.kk.k.kF.kk.k.k")
+
+
+def stephen():
+    # 司提反：D 自然小調，慢、莊重，合唱很長，像他從頭講起的那篇道
+    motif = [(0, 2), (2, 1), (3, 1), (4, 2), (3, 1), (2, 1), (1, 2), (0, 2)]
+    answer = [(4, 1), (5, 1), (7, 2), (6, 1), (5, 1), (4, 2), (3, 1), (2, 1), (0, 4)]
+
+    def hymn(tr):
+        for bar in range(0, 16, 2):
+            tr.melody(choir, 50, "aeolian", [([0, 3, 5, 4][(bar // 2) % 4], 8)], bar * 4, 0.7)
+    return battle(62, "aeolian", 108, [0, 3, 5, 4], motif, answer,
+                  taiko_a="B...............", taiko_b="B.......B..B....", frame="F.......F...k...", extra=hymn)
+
+
+def samaria():
+    # 撒瑪利亞：E 多利安，輕快的牧歌，城裡大有歡喜
+    motif = [(0, 0.5), (1, 0.5), (2, 1), (4, 1), (3, 0.5), (2, 0.5), (1, 1), (2, 2), (4, 0.5), (5, 0.5), (4, 1), (2, 1), (0, 2)]
+    answer = [(2, 1), (3, 0.5), (4, 0.5), (5, 1), (4, 1), (2, 1), (1, 1), (0, 2), (1, 1), (-1, 1), (0, 4)]
+    return battle(64, "dorian", 124, [0, 3, 0, 4], motif, answer,
+                  taiko_a="B.......B.......", taiko_b="B..B....B..B..B.", frame="F..k.kk.F..k.k..")
+
+
+def joppa():
+    # 約帕：C 混合利底亞，海邊的城，波浪般起伏的旋律
+    motif = [(0, 1), (2, 0.5), (4, 0.5), (5, 1), (4, 1), (2, 1), (4, 1), (6, 2), (5, 1), (4, 0.5), (2, 0.5), (0, 2)]
+    answer = [(4, 1), (6, 1), (7, 1), (6, 0.5), (4, 0.5), (5, 2), (4, 1), (2, 1), (1, 1), (0, 3)]
+    return battle(60, "mixolydian", 120, [0, 6, 3, 0], motif, answer, lead=kithara,
+                  taiko_a="B.......B..B....", taiko_b="B...B...B..B.B..", frame="F...k.k.F...k.k.")
+
+
+def antioch():
+    # 安提阿：A 多利安，出發的歌，步伐穩定往前走
+    motif = [(0, 1), (0, 0.5), (2, 0.5), (3, 1), (4, 1), (3, 0.5), (2, 0.5), (1, 1), (2, 2), (4, 1), (5, 1), (4, 1), (2, 1), (0, 2)]
+    answer = [(5, 1), (4, 1), (3, 1), (4, 1), (2, 2), (3, 1), (1, 1), (2, 1), (-1, 1), (0, 4)]
+    return battle(57, "dorian", 130, [0, 6, 3, 4], motif, answer,
+                  taiko_a="B.......B..B....", taiko_b="B..B..B.B..B.B..", frame="F...k.k.F...k...")
+
+
 def damascus():
     # 大馬士革：A 自然小調，慢、低沉，主題從低處一路往上爬——瞎眼的路上，最後看見光
     motif = [(0, 1), (-1, 0.5), (0, 0.5), (2, 1), (1, 1), (0, 2), (None, 1), (2, 1), (3, 1), (4, 1), (3, 0.5), (2, 0.5), (1, 2)]
@@ -491,7 +535,8 @@ if __name__ == "__main__":
     import sys
     os.makedirs(OUT, exist_ok=True)
     only = sys.argv[1:]   # 只產生指定的曲子：python tools/make_music.py athens rome
-    for name, fn in [("camp", camp), ("damascus", damascus), ("philippi", philippi), ("thessalonica", thessalonica), ("corinth", corinth),
+    for name, fn in [("camp", camp), ("pentecost", pentecost), ("stephen", stephen), ("samaria", samaria),
+                     ("damascus", damascus), ("joppa", joppa), ("antioch", antioch), ("philippi", philippi), ("thessalonica", thessalonica), ("corinth", corinth),
                      ("ephesus", ephesus), ("athens", athens), ("jerusalem", jerusalem), ("malta", malta), ("rome", rome), ("patmos", patmos),
                      ("boss", boss), ("fever", fever)]:
         if only and name not in only:

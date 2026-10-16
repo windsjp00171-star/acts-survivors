@@ -672,7 +672,7 @@ func show_pause(build_text: String) -> void:
 	re.custom_minimum_size = Vector2(200, 34)
 	re.pressed.connect(func(): restart_pressed.emit())
 	v.add_child(re)
-	var home := UIKit.button("放棄，回安提阿", 14)
+	var home := UIKit.button("放棄，回" + Save.camp_name(), 14)
 	home.custom_minimum_size = Vector2(200, 34)
 	home.pressed.connect(func(): home_pressed.emit())
 	v.add_child(home)
@@ -765,7 +765,7 @@ func show_game_over(lines: Array, button_text := "再出發", home_first := fals
 	row.add_theme_constant_override("separation", 12)
 	box.add_child(row)
 	# 通關時主按鈕是「回安提阿」（先回營地看新設施、聊天），失敗時主按鈕是「再出發」
-	var home := UIKit.button("回安提阿", 16, home_first)
+	var home := UIKit.button("回" + Save.camp_name(), 16, home_first)
 	home.custom_minimum_size = Vector2(140, 40)
 	home.pressed.connect(func(): home_pressed.emit())
 	row.add_child(home)

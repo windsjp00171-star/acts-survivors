@@ -6,10 +6,12 @@ const PATH := "user://profile.json"
 var meta: Dictionary
 var data: Dictionary
 var run_config := {}
+var story: Dictionary      # 劇情模式的章節（data/story.json）
 
 
 func _ready() -> void:
 	meta = JSON.parse_string(FileAccess.get_file_as_string("res://data/meta.json"))
+	story = JSON.parse_string(FileAccess.get_file_as_string("res://data/story.json"))
 	load_profile()
 	# 直式螢幕（手機）改用 360×640 當基準，介面與鏡頭會自動換成直式排版
 	var ws := DisplayServer.window_get_size()
@@ -42,10 +44,15 @@ func load_profile() -> void:
 	if data.faith_best.is_empty() and not data.trial_best.is_empty():
 		for sid in data.trial_best:
 			data.faith_best[sid] = mini(6, int(data.trial_best[sid]) / 2)
-	# 0.16：旅程最前面多了大馬士革，舊存檔選的城往後挪一格
-	if FileAccess.file_exists(PATH) and int(data.get("map_ver", 1)) < 2:
-		data.stage = int(data.get("stage", 0)) + 1
-	data.map_ver = 2
+	# 關卡順序改過兩次（0.16 前面多了大馬士革、0.18 多了劇情的新章節）：舊存檔選的城照名字找回來
+	if FileAccess.file_exists(PATH) and int(data.get("map_ver", 1)) < 3:
+		var old_ids: Array = ["philippi", "thessalonica", "athens", "corinth", "ephesus", "jerusalem", "malta", "rome", "patmos"]
+		if int(data.get("map_ver", 1)) == 2:
+			old_ids.push_front("damascus")
+		var sid: String = old_ids[clampi(int(data.get("stage", 0)), 0, old_ids.size() - 1)]
+		var ids: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages.map(func(st): return st.id)
+		data.stage = maxi(0, ids.find(sid))
+	data.map_ver = 3
 	_refund_old_gifts()
 	_refund_capped_ups()
 	_init_gift_on()
@@ -94,7 +101,7 @@ func reset_profile() -> void:
 		if data.has(k):
 			keep[k] = data[k]
 	data = _defaults()
-	data.map_ver = 2
+	data.map_ver = 3
 	data.merge(keep, true)
 	_init_gift_on()
 	save_profile()
@@ -107,6 +114,28 @@ func save_profile() -> void:
 
 func is_unlocked(key: String) -> bool:
 	return data.unlocked.has(key)
+
+
+## 劇情模式：第 i 章開了沒（第一章一定開；之後要先通過前一章）
+func story_open(i: int) -> bool:
+	return i == 0 or data.churches.has(story.chapters[i - 1].stage)
+
+
+## 劇情進行到第幾章（第一個還沒通過的章節；全部通過就是章節數）
+func story_next() -> int:
+	for i in story.chapters.size():
+		if not data.churches.has(story.chapters[i].stage):
+			return i
+	return story.chapters.size()
+
+
+## 營地在哪座城：最後通過的那一章的城（還沒通過任何一章時在耶路撒冷）
+func camp_name() -> String:
+	var name := "耶路撒冷"
+	for ch in story.chapters:
+		if data.churches.has(ch.stage):
+			name = ch.camp
+	return name
 
 
 func trials_unlocked() -> bool:

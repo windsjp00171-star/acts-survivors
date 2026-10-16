@@ -1,0 +1,177 @@
+{
+  "_說明": "劇情模式：福音傳到地極（徒 1:8）。章節照時間順序，通過前一章才開下一章；通過一章就在那座城建立教會（和自由模式共用）。stage 是 stages.json 的 id；leader 是這章固定的主角；cast 是這章會遇到的同伴（第一位一開始就在身邊，其他人升級時出現；加入的那一刻就永久解鎖，自由模式也能用）；solo 是只有主角一個人；camp 是通過這章以後營地所在的城。劇情模式不出聖物、膏抹、信心等級與無盡模式，讓人專心在故事上。 hp_mult／dmg_mult：劇情模式整體的敵人血量與傷害倍率（沒有聖物、膏抹，讓第一次玩的人走得完）。 章節也可以有自己的 hp_mult／dmg_mult（例如雅典只有保羅一個人）。 boss_mult：Boss 血量倍率（劇情的隊伍比較小）。 late：同伴不會一開始就在身邊，要升級時才遇到（雅典：保羅先一個人等提摩太）。",
+  "chapters": [
+    {
+      "stage": "pentecost",
+      "title": "五旬節",
+      "leader": "peter",
+      "cast": [
+        "john",
+        "andrew",
+        "james",
+        "matthew",
+        "thomas",
+        "mary"
+      ],
+      "camp": "耶路撒冷"
+    },
+    {
+      "stage": "stephen",
+      "title": "司提反",
+      "leader": "stephen",
+      "cast": [
+        "philip",
+        "peter",
+        "john"
+      ],
+      "camp": "耶路撒冷"
+    },
+    {
+      "stage": "samaria",
+      "title": "撒瑪利亞與曠野路",
+      "leader": "philip",
+      "cast": [
+        "peter",
+        "john"
+      ],
+      "camp": "撒瑪利亞"
+    },
+    {
+      "stage": "damascus",
+      "title": "大馬士革路上",
+      "leader": "paul",
+      "solo": true,
+      "cast": [],
+      "camp": "大馬士革"
+    },
+    {
+      "stage": "joppa",
+      "title": "約帕與該撒利亞",
+      "leader": "peter",
+      "cast": [
+        "dorcas",
+        "cornelius",
+        "john"
+      ],
+      "camp": "該撒利亞"
+    },
+    {
+      "stage": "antioch",
+      "title": "安提阿與第一次旅程",
+      "leader": "paul",
+      "cast": [
+        "barn",
+        "mark"
+      ],
+      "camp": "安提阿"
+    },
+    {
+      "stage": "philippi",
+      "title": "腓立比",
+      "leader": "paul",
+      "cast": [
+        "silas",
+        "tim",
+        "luke",
+        "lydia"
+      ],
+      "camp": "安提阿"
+    },
+    {
+      "stage": "thessalonica",
+      "title": "帖撒羅尼迦",
+      "leader": "paul",
+      "cast": [
+        "silas",
+        "tim"
+      ],
+      "camp": "安提阿"
+    },
+    {
+      "stage": "athens",
+      "title": "雅典",
+      "leader": "paul",
+      "cast": [
+        "tim"
+      ],
+      "camp": "安提阿",
+      "hp_mult": 0.7,
+      "dmg_mult": 0.8,
+      "boss_mult": 0.6,
+      "late": true
+    },
+    {
+      "stage": "corinth",
+      "title": "哥林多",
+      "leader": "paul",
+      "cast": [
+        "pri",
+        "aq",
+        "silas",
+        "tim"
+      ],
+      "camp": "安提阿"
+    },
+    {
+      "stage": "ephesus",
+      "title": "以弗所",
+      "leader": "paul",
+      "cast": [
+        "pri",
+        "aq",
+        "tim"
+      ],
+      "camp": "以弗所"
+    },
+    {
+      "stage": "jerusalem",
+      "title": "耶路撒冷被捕",
+      "leader": "paul",
+      "cast": [
+        "luke",
+        "tim"
+      ],
+      "camp": "該撒利亞"
+    },
+    {
+      "stage": "malta",
+      "title": "往羅馬的海上",
+      "leader": "paul",
+      "cast": [
+        "luke"
+      ],
+      "camp": "馬爾他",
+      "boss_mult": 0.6,
+      "hp_mult": 0.8,
+      "dmg_mult": 0.85
+    },
+    {
+      "stage": "rome",
+      "title": "羅馬",
+      "leader": "paul",
+      "cast": [
+        "luke",
+        "mark",
+        "tim"
+      ],
+      "camp": "羅馬"
+    },
+    {
+      "stage": "patmos",
+      "title": "拔摩海島",
+      "leader": "john",
+      "cast": [
+        "moses",
+        "elijah",
+        "david",
+        "daniel"
+      ],
+      "camp": "拔摩海島",
+      "hp_mult": 0.65,
+      "dmg_mult": 0.65
+    }
+  ],
+  "hp_mult": 0.85,
+  "dmg_mult": 0.65,
+  "boss_mult": 0.8
+}

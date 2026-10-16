@@ -184,7 +184,7 @@ func _name_of(key: String) -> String:
 func _build_hud() -> void:
 	hud = CanvasLayer.new()
 	add_child(hud)
-	var title := UIKit.label("安提阿", 20, UIKit.GOLD)
+	var title := UIKit.label(Save.camp_name(), 20, UIKit.GOLD)
 	title.position = Vector2(12, 6)
 	hud.add_child(title)
 	witness_label = UIKit.label("", 14, UIKit.SKY)

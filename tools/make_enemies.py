@@ -540,6 +540,99 @@ def boss_damascus():
     c.save("boss_damascus")
 
 
+def _robe(c, x, y, robe, dark, hat=None, skin="#c8946a"):
+    """一個穿袍子的人（Boss 群像用）：頭、袍子、可選的高帽"""
+    for yy in range(y + 4, y + 14):
+        for xx in range(x - 3 - (yy - y - 4) // 4, x + 4 + (yy - y - 4) // 4):
+            c.px(xx, yy, dark if xx > x + 1 else robe)
+    for yy in range(y, y + 4):
+        for xx in range(x - 2, x + 2):
+            c.px(xx, yy, skin)
+    c.px(x - 1, y + 1, "#1b1420")
+    c.px(x + 1, y + 1, "#1b1420")
+    if hat:
+        for yy in range(y - 4, y):
+            for xx in range(x - 2, x + 2):
+                c.px(xx, yy, hat)
+
+
+def boss_pentecost():
+    # 公會的恐嚇（徒 4:17–21）：三位高帽子的長老，一起伸手指著你
+    c = Canvas(40, 40)
+    for i, (x, y) in enumerate([(9, 16), (20, 11), (31, 16)]):
+        _robe(c, x, y, "#3a4a8a", "#24305a", hat="#c8a040")
+        for k in range(5):
+            c.px(x + 3 + k, y + 7 - k // 2, "#c8946a")
+    for x in range(4, 36):
+        c.px(x, 31, "#5a3a20")
+        c.px(x, 32, "#3a2414")
+    c.outline("#140c14")
+    c.save("boss_pentecost")
+
+
+def boss_stephen():
+    # 硬著頸項的人（徒 7:51）：一群人高舉石頭
+    c = Canvas(40, 40)
+    for i, (x, y) in enumerate([(7, 18), (15, 14), (25, 14), (33, 18), (20, 22)]):
+        _robe(c, x, y, ["#6a4a3a", "#5a5a6a", "#7a5a2a", "#4a5a3a", "#6a3a3a"][i], "#2e2420")
+        for dy in range(4):
+            c.px(x + 3, y + 1 - dy, "#c8946a")
+        c.blob(x + 3, y - 5, 2.5, 2.2, ("#4a4440", "#7a7470", "#a8a098"), 0, 130 + i)
+    c.outline("#140c14")
+    c.save("boss_stephen")
+
+
+def boss_samaria():
+    # 貪財的心（徒 8:18–20）：一堆金幣，中間一顆發黑的心
+    c = Canvas(40, 40)
+    for i in range(46):
+        x = 6 + (i * 7) % 28
+        y = 30 - (i // 6) * 3 + (i % 3)
+        c.blob(x, y, 3, 1.6, ("#8a5a10", "#c8a040", "#ffe14d"), 0, 140 + i)
+    for y in range(8, 24):
+        for x in range(10, 30):
+            dx, dy = (x - 20) / 9.0, (y - 15) / 8.0
+            if abs(dx) ** 2 + (dy - abs(dx) ** 0.5 * 0.6) ** 2 < 1:
+                c.px(x, y, "#2a0e14" if h(x, y, 150) > 0.25 else "#4a1a24")
+    c.px(16, 14, "#ff3a2a")
+    c.px(23, 14, "#ff3a2a")
+    c.outline("#140c14")
+    c.save("boss_samaria")
+
+
+def boss_joppa():
+    # 中間隔斷的牆（弗 2:14）：一道很高的牆，上面插滿尖刺，已經裂開
+    c = Canvas(40, 40)
+    for y in range(6, 38):
+        for x in range(4, 36):
+            row = (y - 6) // 4
+            brick = (x + (3 if row % 2 else 0)) % 8 == 0 or (y - 6) % 4 == 0
+            c.px(x, y, "#4a4448" if brick else ("#8a8088" if h(x, y, 160) > 0.3 else "#77707a"))
+    for x in range(4, 36, 3):
+        c.px(x, 5, "#c0c0d0")
+        c.px(x, 4, "#e0e0f0")
+    crack = [(20, 6), (21, 9), (19, 12), (21, 15), (20, 18), (22, 21), (20, 24), (21, 27), (19, 30), (20, 33), (21, 37)]
+    for x, y in crack:
+        for k in range(3):
+            c.px(x, y + k, "#fff4c2")
+    c.outline("#140c14")
+    c.save("boss_joppa")
+
+
+def boss_antioch():
+    # 路司得的群眾（徒 14:13–19）：先拿花圈要獻祭，後來拿起石頭
+    c = Canvas(40, 40)
+    for i, (x, y) in enumerate([(8, 17), (17, 13), (27, 14), (33, 20), (14, 22), (25, 23)]):
+        _robe(c, x, y, ["#8a6a3a", "#5a6a8a", "#7a4a5a", "#4a6a4a", "#8a5a2a", "#5a4a6a"][i], "#2e2420")
+        if i % 2 == 0:
+            c.blob(x + 3, y - 4, 2.4, 2.0, ("#4a4440", "#7a7470", "#a8a098"), 0, 170 + i)
+        else:
+            for k in range(6):
+                c.px(x - 3 + k, y - 2 + (k % 2), ["#ff8aa0", "#ffd75e", "#5a8a2a"][k % 3])
+    c.outline("#140c14")
+    c.save("boss_antioch")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [("fear_b", fear_b), ("strife_b", strife_b), ("lies_b", lies_b), ("sleep_b", sleep_b),
@@ -560,4 +653,9 @@ if __name__ == "__main__":
     boss_ephesus()
     boss_patmos()
     boss_damascus()
+    boss_pentecost()
+    boss_stephen()
+    boss_samaria()
+    boss_joppa()
+    boss_antioch()
     print("done")

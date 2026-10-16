@@ -77,7 +77,15 @@ var hits: Array = []      # Boss 攻擊落下的閃光
 var paul := {}
 var pa := {}              # 保羅自己的攻擊（書信），用和同伴一樣的出招流程
 var first_recruit := ""
-var solo := false         # 這一關只有主角一個人（大馬士革）
+var solo := false         # 這一關只有主角一個人（劇情模式的大馬士革、雅典）
+var story := false        # 劇情模式
+var chapter := {}         # 劇情模式的這一章（data/story.json）
+var vision_on := false    # 對話時畫出光中的耶穌（關卡的 vision 列出哪段對話要畫）
+var tongues: Array = []   # 五旬節：落在頭上的火焰 {who, t}
+var sheets: Array = []    # 約帕：天上降下的大布 {pos, t, max}
+var chariot_done := false # 撒瑪利亞：曠野的車出現過了
+var dmg_log := {}        # 測試用：主角被各種來源打掉的血
+var journey_step := 0     # 安提阿：0 還叫掃羅、1 改稱保羅、2 馬可離隊
 var smoke_max_frames := 1800
 var bot := false            # 測試用：比較會玩的機器人（--bot）
 var leader := "paul"      # 這一局的主角（同伴的 key；預設保羅）
@@ -251,15 +259,32 @@ func _ready() -> void:
 	event_t = float(EV.first)
 	var stages: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages
 	stage_i = clampi(int(Save.run_config.get("stage", 0)), 0, stages.size() - 1)
+	var story_i := int(Save.run_config.get("story", -1))
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--stage="):
 			stage_i = clampi(int(a.substr(8)), 0, stages.size() - 1)
+		if a.begins_with("--story="):
+			story_i = int(a.substr(8))
+	if story_i >= 0 and story_i < Save.story.chapters.size():
+		# 劇情模式：章節決定關卡、主角與會遇到的同伴
+		story = true
+		chapter = Save.story.chapters[story_i]
+		for i in stages.size():
+			if stages[i].id == chapter.stage:
+				stage_i = i
+		Save.run_config.faith = 0
+		Save.run_config.endless = false
 	stage = stages[stage_i]
-	solo = bool(stage.get("solo", false))
+	solo = story and bool(chapter.get("solo", false))
+	if story:
+		stage.hp_mult = float(stage.hp_mult) * float(Save.story.get("hp_mult", 1.0)) * float(chapter.get("hp_mult", 1.0))
+		stage.dmg_mult = float(stage.dmg_mult) * float(Save.story.get("dmg_mult", 1.0)) * float(chapter.get("dmg_mult", 1.0))
 	for k in stage.weights:
 		D.enemies[k].weight = stage.weights[k]
 	D.boss.merge(stage.boss, true)
 	D.director.merge(stage.get("director", {}), true)
+	if story:
+		D.boss.hp = float(D.boss.hp) * float(Save.story.get("boss_mult", 1.0)) * float(chapter.get("boss_mult", 1.0))
 	# 熬煉（難度條件）
 	faith = int(Save.run_config.get("faith", 0))
 	for a in OS.get_cmdline_user_args():
@@ -310,6 +335,8 @@ func _ready() -> void:
 			leader = a.substr(9)
 	if leader != "paul" and not Save.is_unlocked("leader_" + leader) and not OS.get_cmdline_user_args().has("--smoke"):
 		leader = "paul"
+	if story:
+		leader = str(chapter.leader)
 	if stage.has("leader"):
 		leader = str(stage.leader)   # 這一關的主角是固定的（拔摩海島是約翰）
 	for L in D.leaders:
@@ -371,18 +398,24 @@ func _ready() -> void:
 	if starter == leader:
 		starter = "tim" if leader != "tim" else "luke"
 	first_recruit = "" if solo else starter
+	if story:
+		first_recruit = "" if solo or chapter.cast.is_empty() or chapter.get("late", false) else str(chapter.cast[0])
 	if stage.has("leader_level"):
 		_set_level(pa, int(stage.leader_level))   # 年老的約翰：一開始招式就比較熟練
-	if calling == "apostle" and by_key.has(starter) and not solo:
+	if calling == "apostle" and by_key.has(first_recruit) and first_recruit != "":
+		starter = first_recruit
 		# 使徒：第一位同工的流派一開始就算兩人
 		var stag: String = by_key[starter].tag
 		school_mods["solo_" + stag] = float(school_mods.get("solo_" + stag, 0.0)) + 1.0
 	rerolls_left = Save.rerolls()
 	if not smoke or OS.get_cmdline_user_args().has("--prov"):
 		_use_provisions(Save.take_provisions())
-	ui.dialogue_done.connect(func(): talking = false)
-	if stage.get("hazard", {}).get("kind", "") == "blind":
-		blind_state = "vision"
+	ui.dialogue_done.connect(func():
+		talking = false
+		vision_on = false)
+	if stage.get("hazard", {}).get("kind", "") in ["blind", "journey"]:
+		if stage.hazard.kind == "blind":
+			blind_state = "vision"
 		if leader == "paul" and ui.names.has(D.paul.name):
 			ui.names[D.paul.name].text = "掃羅"   # 到徒 13:9 才開始叫保羅
 			ui.hero_label.text = "掃羅"
@@ -390,6 +423,8 @@ func _ready() -> void:
 	var pool: Array = D.tasks.list.duplicate()
 	if solo:
 		pool = pool.filter(func(tk): return not tk.id in ["links", "reso", "party"])   # 一個人的關卡沒有同伴
+	if D.boss.get("mid", []).is_empty():
+		pool = pool.filter(func(tk): return tk.id != "mid")   # 沒有中途 Boss 的關卡
 	pool.shuffle()
 	for i in mini(int(D.tasks.count), pool.size()):
 		run_tasks.append({"def": pool[i], "done": false, "failed": false})
@@ -497,7 +532,7 @@ func _ready() -> void:
 	_update_chunks()
 	Sfx.music(stage.music)
 	ground.modulate = Color(stage.tint[0], stage.tint[1], stage.tint[2])
-	if stage.get("hazard", {}).get("kind", "") != "blind":   # 大馬士革：開場是大光，不蓋上城名
+	if not (stage.get("vision", []).has("in") and (not Save.data.get("story_seen", []).has("in_" + stage.id) or OS.get_cmdline_user_args().has("--talk"))):   # 開場是光中的耶穌時，不蓋上城名
 		ui.show_banner("%s　%s%s" % [stage.name, stage.ref, ("\n信心等級 %d" % faith) if faith > 0 else ""], 2.5)
 
 
@@ -682,6 +717,11 @@ func _set_level(c: Dictionary, lv: int) -> void:
 func _recruit(c: Dictionary) -> void:
 	if solo:
 		return   # 一個人的關卡：沒有同伴加入
+	if story and not Save.is_unlocked(c.key):
+		# 劇情模式：在故事裡加入的那一刻就永久解鎖
+		Save.data.unlocked.append(c.key)
+		Save.save_profile()
+		ui.show_banner("%s 加入了！（同伴名冊多了一位）" % c.name, 2.2)
 	if c.follows == "":
 		c.home = SLOTS[_party_count() % SLOTS.size()]
 	else:
@@ -755,10 +795,10 @@ func _scatter_mult() -> float:
 	return maxf(0.3, 1.0 - fruits.get("peace", 0) * 0.1) * (0.3 if calling == "shepherd" else 1.0)
 
 func _comp_max_hp() -> float:
-	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1) * (1.3 if calling == "shepherd" else 1.0)
+	return D.companion_rules.hp * (1.0 + fruits.get("good", 0) * 0.1) * (1.3 if calling == "shepherd" else 1.0) * (1.25 if epistles.has("comp_hp") else 1.0)
 
 func _speed() -> float:
-	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run")) * (0.9 if relics.has("ark") else 1.0)
+	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run") + (0.1 if epistles.has("run_plus") else 0.0)) * (0.9 if relics.has("ark") else 1.0)
 
 
 func _make_cards() -> Array:
@@ -804,8 +844,10 @@ func _make_cards() -> Array:
 	for c in comps:
 		if c.follows != "" or c.skill == "" or solo:
 			continue
+		if story and c.level == 0 and (not chapter.cast.has(c.key) or c.get("gone", false)):
+			continue   # 劇情模式：只遇得到這一章的人
 		var desc: Array = D.skills[c.skill].desc
-		if c.level == 0 and (not Save.is_unlocked(c.key) or _party_count() >= Save.party_cap()):
+		if c.level == 0 and ((not Save.is_unlocked(c.key) and not story) or _party_count() >= Save.party_cap()):
 			continue
 		if c.level == 0:
 			var nm: String = c.name + ("・" + by_key[c.with].name if c.with != "" else "")
@@ -828,7 +870,7 @@ func _make_cards() -> Array:
 		pool.append(lc)
 	for sc in _school_cards():
 		pool.append(sc)
-	var ac := _anoint_card()
+	var ac := {} if story else _anoint_card()
 	if not ac.is_empty():
 		pool.append(ac)
 	if relics.has("rod"):
@@ -1331,7 +1373,7 @@ func _trial_for_build() -> String:
 func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if e.dead or float(e.get("ally", 0.0)) > 0.0:
 		return
-	if src is Dictionary and calling == "evangelist" and randf() < 0.05 and not e.get("elite", false) and not e.get("boss", false):
+	if src is Dictionary and ((calling == "evangelist" and randf() < 0.05) or (epistles.has("convert_plus") and randf() < 0.02)) and not e.get("elite", false) and not e.get("boss", false):
 		_convert(e, 5.0)   # 傳福音的：不管哪個流派，這一擊都可能把敵人說服過來
 		return
 	if fever > 0.0:
@@ -1656,7 +1698,7 @@ func _event_effects(fx: Dictionary) -> void:
 					c.hp = 0.0
 					c.down = float(D.companion_rules.down_seconds)
 			"recruit":
-				var cand := comps.filter(func(c): return not solo and c.level == 0 and c.follows == "" and c.skill != "" and Save.is_unlocked(c.key))
+				var cand := comps.filter(func(c): return not solo and c.level == 0 and c.follows == "" and c.skill != "" and (chapter.cast.has(c.key) if story else Save.is_unlocked(c.key)))
 				if not cand.is_empty() and _party_count() < Save.party_cap():
 					var c: Dictionary = cand[randi() % cand.size()]
 					_recruit(c)
@@ -1730,7 +1772,7 @@ func _start_fever() -> void:
 
 func _end_fever() -> void:
 	fever = 0.0
-	meter = 0.0
+	meter = 0.3 if epistles.has("refill") else 0.0   # 彼得前書：都要同心
 	Sfx.music("boss" if boss != null and not boss.dead else stage.music)
 	fever_bursts.append({"pos": paul.pos, "r": 0.0, "hit": {}, "mult": float(D.fever.light.burst_mult) if light > 0.0 else 1.0})
 	light = 0.0
@@ -3705,6 +3747,7 @@ func _start_talk(which: String) -> void:
 		seen.append(key)
 		Save.data.story_seen = seen
 		Save.save_profile()
+	vision_on = stage.get("vision", []).has(which)
 	_show_talk(raw)
 
 
@@ -3741,13 +3784,13 @@ func _update_seek(dt: float) -> void:
 		_tip("seek")
 	for sk in seekers:
 		sk.life -= dt
-		sk.pos += Vector2(cos(t * 0.7 + sk.ph), sin(t * 0.5 + sk.ph)) * 3.0 * dt
+		sk.pos += Vector2(cos(t * 0.7 + sk.ph), sin(t * 0.5 + sk.ph)) * 3.0 * dt + sk.get("vel", Vector2.ZERO) * dt
 		if paul.pos.distance_to(sk.pos) < float(SK.radius):
 			sk.prog += dt
 		for e in enemies:
 			if not e.dead and float(e.get("ally", 0.0)) <= 0.0 and e.pos.distance_to(sk.pos) < float(e.r) + 4.0:
 				sk.hp -= float(e.d.damage) * float(e.dmul) * dt * 2.0
-		if sk.prog >= float(SK.need):
+		if sk.prog >= float(SK.need) * (0.7 if epistles.has("seek_fast") else 1.0):
 			sk.done = true
 			run_saved += 1
 			if smoke:
@@ -3756,6 +3799,8 @@ func _update_seek(dt: float) -> void:
 			if followers.size() > int(SK.follow_max):
 				followers.pop_front()
 			ui.show_banner("%s 信主了！（%s）" % [sk.def.name, sk.def.ref], 2.2)
+			if sk.get("chariot", false):
+				_caught_away()
 			if tag_fx.size() < 12:
 				tag_fx.append({"pos": sk.pos + Vector2(-20, -6), "text": "「%s」" % sk.def.line, "col": C_CREAM, "t": 0.0})
 			holies.append({"pos": sk.pos, "t": 0.0, "r": 30.0})
@@ -3784,7 +3829,19 @@ func _draw_seek(n: Node2D) -> void:
 		var k: float = clampf(sk.prog / float(SK.need), 0.0, 1.0)
 		if k > 0.0:
 			n.draw_arc(Vector2(x, y - 6), 12.0, -PI / 2.0, -PI / 2.0 + TAU * k, 24, C_GOLD, 3.0)
-		_draw_person(n, x, y, Color("8a8a96"), Color("5a5a66"))
+		if sk.get("chariot", false):
+			# 曠野的車：木頭車身、兩個輪子、前面一匹馬
+			var fx: float = signf(sk.vel.x)
+			n.draw_rect(Rect2(x - 10, y - 4, 20, 6), Color("5a3a20"))
+			n.draw_rect(Rect2(x - 9, y - 3, 18, 3), Color("8a6438"))
+			for wx in [-6, 6]:
+				n.draw_circle(Vector2(x + wx, y + 3), 3.0, Color("2a1a10"))
+				n.draw_rect(Rect2(x + wx - 1, y + 2, 2, 2), Color("c9a46b"))
+			n.draw_rect(Rect2(x + fx * 14 - 5, y - 8, 10, 6), Color("6a4a30"))
+			n.draw_rect(Rect2(x + fx * 19 - 2, y - 11, 4, 5), Color("6a4a30"))
+			n.draw_rect(Rect2(x + fx * 11 - 1, y - 2, 2, 5), Color("4a3020"))
+			n.draw_rect(Rect2(x + fx * 16 - 1, y - 2, 2, 5), Color("4a3020"))
+		_draw_person(n, x, y - (6 if sk.get("chariot", false) else 0), Color("e8c060") if sk.get("chariot", false) else Color("8a8a96"), Color("a06030") if sk.get("chariot", false) else Color("5a5a66"))
 		# 頭上的問號，血少時變紅
 		var qc: Color = C_RED if sk.hp < float(SK.hp) * 0.4 else C_CREAM
 		var qy: float = y - 22.0 - (int(t * 3.0) % 2)
@@ -3990,7 +4047,7 @@ func _update_projectiles(dt: float) -> void:
 		if s.pos.distance_to(paul.pos + Vector2(0, -6)) < 5.0 and paul.inv <= 0.0:
 			var belt: int = armor.get("belt", 0)
 			if belt < 3:
-				_damage_paul(s.dmg * (1.0 - 0.3 * belt))
+				_damage_paul(s.dmg * (1.0 - 0.3 * belt), false, "shot")
 			else:
 				_ring_pop(s.pos, C_CREAM, 8.0)
 			s.life = 0.0
@@ -4164,7 +4221,7 @@ func _update_enemies(dt: float) -> void:
 		# 碰到保羅
 		e.blink_safe = maxf(0.0, float(e.get("blink_safe", 0.0)) - dt)
 		if p.pos.distance_to(e.pos + Vector2(0, 5)) < e.r and p.inv <= 0.0 and e.blink_safe <= 0.0:
-			_damage_paul(d.damage * e.dmul)
+			_damage_paul(d.damage * e.dmul, false, "touch")
 			e.knock -= dir * 80.0
 			if d.has("drain") and fever <= 0.0:
 				# 黑馬騎士：手裡拿著天平，吸走同心合意（啟 6:5）
@@ -4215,7 +4272,7 @@ func _separate() -> void:
 							b.pos += push
 
 
-func _damage_paul(n: float, pierce := false) -> void:
+func _damage_paul(n: float, pierce := false, src := "") -> void:
 	if fever > 0.0 or won:
 		return
 	if epistles.has("burden"):
@@ -4239,6 +4296,8 @@ func _damage_paul(n: float, pierce := false) -> void:
 	if armor.get("breast", 0) > 0:
 		n *= 1.0 - float(D.armor.breast.per[armor.breast - 1])
 	n *= 1.0 - Save.up_value("aegis")
+	if smoke:
+		dmg_log[src] = float(dmg_log.get(src, 0.0)) + n   # 測試用：被什麼打傷
 	paul.hp -= n
 	_esther_save()
 	Sfx.play("hurt")
@@ -4407,6 +4466,81 @@ func _update_director(dt: float) -> void:
 		star_falls.append({"pos": paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(25.0, 45.0), "t": warn, "max": warn, "r": 18.0, "dmg": dmg, "pierce": true})
 
 
+## 五旬節的火焰、約帕的大布：倒數與落地
+func _update_tongues_sheets(dt: float, hz: Dictionary) -> void:
+	for tg in tongues:
+		tg.t -= dt
+	tongues = tongues.filter(func(tg): return tg.t > 0.0)
+	for sh in sheets:
+		sh.t -= dt
+		if sh.t <= 0.0 and not sh.get("done", false):
+			sh.done = true
+			var n := 0
+			for e in enemies:
+				if not e.dead and not e.get("boss", false) and not e.get("elite", false) and e.pos.distance_to(sh.pos) < float(hz.radius):
+					_convert(e, float(hz.dur))
+					n += 1
+			holies.append({"pos": sh.pos, "t": 0.0, "r": float(hz.radius)})
+			Sfx.play("holy", 0.0)
+			if n > 0:
+				ui.show_banner("神所潔淨的，你不可當作俗物（徒 10:15）　%d 個被說服了" % n, 1.6)
+	sheets = sheets.filter(func(sh): return sh.t > -0.4)
+
+
+## 撒瑪利亞：曠野路上的車（坐在車上的人慢慢經過，陪他夠久就信主）
+func _spawn_chariot(hz: Dictionary) -> void:
+	chariot_done = true
+	var dir := Vector2.RIGHT if randf() < 0.5 else Vector2.LEFT
+	var v := _view_rect()
+	var at := Vector2(v.position.x - 10.0 if dir.x > 0.0 else v.end.x + 10.0, paul.pos.y + randf_range(-30.0, 30.0))
+	seekers.append({"pos": at, "hp": float(D.seek.hp) * 2.0, "prog": 0.0, "def": hz.seeker, "life": float(hz.life), "ph": 0.0,
+		"vel": dir * float(hz.speed), "chariot": true})
+	ui.show_banner(hz.text, 3.0)
+	_tip("seek")
+
+
+func _caught_away() -> void:
+	# 主的靈把腓利提了去（徒 8:39）：主角和隊伍一起到了別的地方
+	var hz: Dictionary = stage.hazard
+	var a := randf() * TAU
+	var off := Vector2(cos(a), sin(a) * 0.8) * 220.0
+	holies.append({"pos": paul.pos, "t": 0.0, "r": 40.0})
+	paul.pos += off
+	for c in comps:
+		if c.level > 0:
+			c.pos += off
+			c.base += off
+	for f in followers:
+		f.pos += off
+	ui.do_flash(0.5)
+	ui.show_banner(hz.caught_text, 3.0)
+
+
+## 安提阿：掃羅改稱保羅；劇情模式裡馬可半路離隊
+func _update_journey(hz: Dictionary) -> void:
+	var el := t - t_start
+	if journey_step == 0 and el >= float(hz.rename_at):
+		journey_step = 1
+		if leader == "paul":
+			if ui.names.has(D.paul.name):
+				ui.names[D.paul.name].text = D.paul.name
+			ui.hero_label.text = D.paul.name
+			ui.show_banner(hz.rename_text, 2.5)
+	if journey_step == 1 and el >= float(hz.depart_at):
+		journey_step = 2
+		var c = by_key.get(hz.depart)
+		if story and c != null and c.level > 0:
+			c.level = 0
+			c.gone = true
+			c.node.visible = false
+			links = links.filter(func(L): return L.src != c and L.dst != c)
+			ui.place_name(c.name, Vector2.ZERO, false)
+			_ring_pop(c.pos, Color("8a8a96"), 14.0)
+			ui.show_banner(hz.depart_text, 3.0)
+			if smoke:
+				print("DEPART ", c.key, " party=", _party_count())
+
+
 ## 大馬士革：路上的大光 → 瞎眼（只看得見身邊）→ 亞拿尼亞走過來按手 → 鱗片掉下、被聖靈充滿
 func _update_blind(dt: float, hz: Dictionary) -> void:
 	var el := t - t_start
@@ -4465,12 +4599,10 @@ func _ananias_arrive(hz: Dictionary) -> void:
 
 ## 黑暗：一格一格的實心黑色，只留主角身邊一個圓；路上的大光是整片亮白
 func _draw_dark() -> void:
-	if blind_state == "" or blind_state == "done":
-		return
 	var n := dark
 	var v := _view_rect().grow(4.0)
 	var c: Vector2 = paul.pos.round()
-	if blind_state == "vision":
+	if vision_on:
 		# 路上：光裡站著耶穌（光柱畫在地面那層，掃羅站在光裡）
 		var at := c + Vector2(0, -36)
 		for i in 12:
@@ -4478,6 +4610,8 @@ func _draw_dark() -> void:
 			n.draw_line(at + Vector2(cos(a), sin(a)) * 14.0, at + Vector2(cos(a), sin(a)) * (24.0 + 4.0 * (i % 2)), Color("ffe9a0"), 2.0)
 		n.draw_circle(at, 13.0, Color("fff8d8"))
 		n.draw_texture_rect(_tex("jesus_0"), Rect2(at + Vector2(-14, -20), Vector2(28, 34)), false)
+		return
+	if blind_state == "" or blind_state == "done" or blind_state == "vision":
 		return
 	if blind_flash > 0.0:
 		n.draw_rect(v, Color("fffbe8") if blind_flash > 0.35 else Color("ffe9a0"))
@@ -4518,6 +4652,14 @@ func _update_hazard(dt: float) -> void:
 	var kind: String = hz.get("kind", "")
 	if kind == "blind":
 		_update_blind(dt, hz)
+		return
+	_update_tongues_sheets(dt, hz)
+	if kind == "chariot":
+		if not chariot_done and t - t_start >= float(hz.at) and boss == null:
+			_spawn_chariot(hz)
+		return
+	if kind == "journey":
+		_update_journey(hz)
 		return
 	if kind in ["", "wind", "stars"] or boss != null or choosing:
 		return
@@ -4570,6 +4712,20 @@ func _update_hazard(dt: float) -> void:
 		"altar", "tent":
 			var a := randf() * TAU
 			spots.append({"kind": kind, "pos": paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(60.0, 90.0), "life": float(hz.life), "on": 0.0})
+		"tongues":
+			# 五旬節：舌頭如火焰落在每個人頭上，燒傷身邊的敵人，同心合意增加
+			for o in [paul] + comps.filter(func(c): return c.level > 0 and c.down <= 0.0):
+				tongues.append({"who": o, "t": 1.4})
+				blasts.append({"pos": o.pos, "t": 0.0, "r": float(hz.radius), "col": C_FLAME, "evo": false})
+				for e in enemies.duplicate():
+					if not e.dead and not e.get("boss", false) and e.pos.distance_to(o.pos) < float(hz.radius):
+						_hurt(e, float(hz.damage) * (1.0 + level * 0.05), o.pos)
+			meter = minf(1.0, meter + float(hz.meter))
+			Sfx.play("holy", 0.0)
+		"sheet":
+			# 約帕：天上降下一塊大布，落地時範圍裡的敵人被說服過來
+			var a2 := randf() * TAU
+			sheets.append({"pos": paul.pos + Vector2(cos(a2), sin(a2) * 0.8) * randf_range(10.0, 40.0), "t": float(hz.warn), "max": float(hz.warn)})
 		"bonfire":
 			for i in int(hz.count):
 				var a := randf() * TAU
@@ -4666,7 +4822,7 @@ func _update_stars(dt: float) -> void:
 			blasts.append({"pos": sf.pos, "t": 0.0, "r": sf.r * 1.4, "col": C_GOLD, "evo": false})
 			shake = maxf(shake, 0.15)
 			if paul.pos.distance_to(sf.pos) < sf.r and paul.inv <= 0.0:
-				_damage_paul(sf.dmg, sf.get("pierce", false))
+				_damage_paul(sf.dmg, sf.get("pierce", false), "persecute" if sf.get("pierce", false) else "star")
 			for c in comps:
 				if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(sf.pos) < sf.r and fever <= 0.0:
 					c.hurt_cd = 0.0
@@ -4835,8 +4991,8 @@ func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, 
 
 func _draw_ground_fx() -> void:
 	var n := ground_fx
-	if blind_state == "vision":
-		# 大馬士革路上：天上一道光柱照在掃羅身上（徒 9:3）
+	if vision_on:
+		# 天上一道光柱照在主角身上（大馬士革路上、升天、司提反看見天開了）
 		var v0 := _view_rect()
 		var c0: Vector2 = paul.pos.round()
 		for i in 5:
@@ -5118,8 +5274,37 @@ func _draw_air() -> void:
 		var k: float = g.t / 0.5
 		_dot_ring(n, g.pos.round() + Vector2(0, -4), g.r * (1.0 - k), 0.8, C_HEAL, 4.0, k * 3.0, 2)
 		_dot_ring(n, g.pos.round() + Vector2(0, -4), g.r * (1.0 - k) - 5.0, 0.8, C_CREAM, 6.0, -k * 3.0, 1)
-	# 星辰：從天上斜斜落下，拖著金色的尾巴
+	# 五旬節：頭上的火焰（實心的紅、橘、金三層）
+	for tg in tongues:
+		var hp: Vector2 = (tg.who.pos + Vector2(0, -24 - (int(t * 8.0) % 2))).round()
+		n.draw_rect(Rect2(hp.x - 3, hp.y - 2, 7, 6), Color("c8301a"))
+		n.draw_rect(Rect2(hp.x - 2, hp.y - 5, 5, 6), C_FLAME)
+		n.draw_rect(Rect2(hp.x - 1, hp.y - 7, 3, 5), C_GOLD)
+		n.draw_rect(Rect2(hp.x, hp.y - 9, 1, 3), Color.WHITE)
+	# 約帕：四角吊著的大布從天上降下來
+	for sh in sheets:
+		if sh.t > 0.0:
+			var k: float = clampf(sh.t / sh.max, 0.0, 1.0)
+			var r: float = float(stage.hazard.radius)
+			var c0: Vector2 = (sh.pos + Vector2(0, -160.0 * k)).round()
+			_dot_ring(n, sh.pos.round(), r, 0.8, C_CREAM, 5.0, t, 1)
+			var w := r * (0.6 + 0.4 * (1.0 - k))
+			for cx in [-1, 1]:
+				n.draw_line(c0 + Vector2(cx * w, -w * 0.5), c0 + Vector2(cx * w * 0.3, -w * 0.5 - 60.0), Color("c9a46b"), 1.0)
+			n.draw_rect(Rect2(c0.x - w, c0.y - w * 0.5, w * 2.0, w), Color("6a5a48"))
+			n.draw_rect(Rect2(c0.x - w + 2, c0.y - w * 0.5 + 2, w * 2.0 - 4, w - 4), Color("f4ead2"))
+			for i in 5:
+				n.draw_rect(Rect2(c0.x - w + 6 + i * (w * 2.0 - 12) / 4.0, c0.y - 2 + (i % 2) * 4, 3, 2), [Color("8a6438"), Color("5a8a2a"), Color("6a5a90"), Color("b05a30"), Color("3a3a3a")][i])
+	# 星辰：從天上斜斜落下，拖著金色的尾巴（司提反那一關是石頭）
 	for sf in star_falls:
+		if sf.t > 0.0 and stage.get("hazard", {}).get("look", "") == "stone" and not sf.get("pierce", false):
+			var ks: float = clampf(sf.t / sf.max, 0.0, 1.0)
+			var spp: Vector2 = (sf.pos + Vector2(-90.0, -60.0) * ks + Vector2(0, -40.0 * sin(ks * PI))).round()
+			_dot_ring(n, sf.pos.round(), sf.r, 0.8, Color("c8b8a0"), 4.0, 0.0, 1)
+			n.draw_rect(Rect2(spp.x - 3, spp.y - 3, 7, 6), Color("3a3430"))
+			n.draw_rect(Rect2(spp.x - 2, spp.y - 3, 5, 5), Color("8a8078"))
+			n.draw_rect(Rect2(spp.x - 2, spp.y - 3, 2, 2), Color("b0a89c"))
+			continue
 		if sf.t > 0.0:
 			var k: float = clampf(sf.t / sf.max, 0.0, 1.0)
 			var sp: Vector2 = (sf.pos + Vector2(40.0, -150.0) * k).round()
@@ -5476,7 +5661,7 @@ func _on_chest_closed() -> void:
 	chest_open = false
 	if relic_pending:
 		relic_pending = false
-		if relics.size() < int(D.relic_rules.max):
+		if relics.size() < int(D.relic_rules.max) and not story:
 			_offer_relic()
 			if choosing:
 				return
@@ -5616,7 +5801,7 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 				b.state = "move"
 				b.timer = 1.0 if phase2 else 1.4
 	if paul.pos.distance_to(b.pos) < b.r and paul.inv <= 0.0:
-		_damage_paul(B.touch_damage)
+		_damage_paul(B.touch_damage, false, "boss")
 
 
 func _make_tele(b: Dictionary) -> Array:
@@ -5729,7 +5914,7 @@ func _resolve_tele() -> void:
 	for sh in tele:
 		hits.append({"sh": sh, "t": 0.0})
 		if _in_shape(sh, paul.pos + Vector2(0, -6)) and paul.inv <= 0.0:
-			_damage_paul(sh.dmg)
+			_damage_paul(sh.dmg, false, "boss")
 		for c in comps:
 			if c.level > 0 and c.down <= 0.0 and _in_shape(sh, c.pos + Vector2(0, -6)):
 				if fever <= 0.0:
@@ -5805,6 +5990,8 @@ func _win() -> void:
 	if not Save.data.churches.has(stage.id):
 		Save.data.churches.append(stage.id)
 		founded_now = true
+	if story and leader != "paul" and not Save.is_unlocked("leader_" + leader) and D.leaders.any(func(L): return L.key == leader):
+		Save.data.unlocked.append("leader_" + leader)   # 劇情的主角，自由模式也能選
 	Sfx.music("")
 	Sfx.play("win", 0.0)
 	Sfx.buzz(250)
@@ -5818,7 +6005,7 @@ func _win() -> void:
 	ui.do_flash(0.8)
 	var s := int(t)
 	var lines := [
-		["%s　教會建立！" % stage.name if founded_now else "%s　通關" % stage.name, 26, C_GOLD],
+		[stage.get("win_title", "%s　教會建立！" % stage.get("church", stage.name)) if founded_now else "%s　通關" % stage.name, 26, C_GOLD],
 		["這一趟有 %d 個人信主" % run_saved, 13, C_HEAL] if run_saved > 0 else ["", 4, C_CREAM],
 		[D.boss.win_text, 13, C_CREAM],
 		[D.boss.win_ref, 11, Color("c9a46b")],
@@ -5877,6 +6064,11 @@ func _smoke_tick() -> void:
 	smoke_frames += 1
 	if smoke_shot != "" and seekers.any(func(sk): return sk.prog > 1.5) and not FileAccess.file_exists(smoke_shot.replace(".png", "_seek.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_seek.png"))
+	if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_hz.png")):
+		# 測試用：各章的關卡機制（火焰、大布、曠野的車、石頭）
+		if tongues.any(func(tg): return tg.t < 1.1) or sheets.any(func(sh): return sh.t < 0.8 and sh.t > 0.0) or seekers.any(func(sk): return sk.get("chariot", false) and paul.pos.distance_to(sk.pos) < 70.0) or (star_falls.size() > 2 and stage.get("hazard", {}).get("look", "") == "stone"):
+			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_hz.png"))
+			return
 	if smoke_shot != "" and blind_state != "":
 		# 測試用：大馬士革的瞎眼、亞拿尼亞、按手時的對話
 		for pair in [["_blind", blind_state == "blind" and t - t_start > 20.0], ["_ananias", blind_state == "blind" and not ananias.is_empty() and paul.pos.distance_to(ananias.pos) < 60.0], ["_atalk", talking and blind_state == "heal"]]:
@@ -5894,6 +6086,7 @@ func _smoke_tick() -> void:
 	if over and smoke_shot == "":
 		# 不截圖時：一結束就印結果離開（大量模擬用）
 		print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d pressure=%.2f" % [stage.id, t - t_start, won, level, kills, _party_count(), pressure])
+		print("DMG ", dmg_log)
 		get_tree().quit()
 		return
 	if over and smoke_shot != "":
