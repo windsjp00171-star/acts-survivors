@@ -169,6 +169,8 @@ var ui: GameUI
 var school_tier := {}      # 流派 → 0..3
 var pa_free: Array = []    # 主角不佔格就帶著的流派（主角本身的流派、恩賜「規則改寫」）
 var fusions_on := {}       # 已經融合的流派組合 "講道+詩歌" → true
+var fz_count := {}         # 融合名稱 → 這局發動幾次（結算顯示）
+var fz_tag_t := {}         # 融合名稱 → 下次可以再冒小字的時間
 var fz_beat := 0           # 讚美為盾：數重拍
 var fz_heal_t := 0.0       # 悔改得醫治：回血間隔
 var fz_guard_t := 0.0      # 弟兄守望：護盾間隔
@@ -2738,6 +2740,19 @@ func _fused(a: String, b: String) -> bool:
 	return fusions_on.has(a + "+" + b) or fusions_on.has(b + "+" + a)
 
 
+## 融合發動了：記次數，偶爾在發動的地方冒出融合的名字（讓玩家看得出是哪個融合在作用）
+func _fz(a: String, b: String, at: Vector2) -> void:
+	for f in D.fusions:
+		if (f.a == a and f.b == b) or (f.a == b and f.b == a):
+			fz_count[f.name] = int(fz_count.get(f.name, 0)) + 1
+			if t >= float(fz_tag_t.get(f.name, 0.0)) and tag_fx.size() < 12:
+				fz_tag_t[f.name] = t + 6.0
+				if at.distance_to(paul.pos) > 90.0:
+					at = paul.pos   # 發動點太遠（可能在畫面外），就冒在主角身上
+				tag_fx.append({"pos": at + Vector2(-10, -6), "text": "「%s」" % f.name, "col": TAG_COL.get(f.b, C_GOLD).lerp(TAG_COL.get(f.a, C_GOLD), 0.35), "t": 0.0})
+			return
+
+
 func _heal_party(n: float) -> void:
 	_heal_paul(n)
 	for c in comps:
@@ -2751,6 +2766,7 @@ func _fusion_downbeat() -> void:
 		for e in enemies:
 			if e.dead or float(e.get("ally", 0.0)) <= 0.0:
 				continue
+			_fz("講道", "詩歌", e.pos)
 			blasts.append({"pos": e.pos, "t": 0.0, "r": 18.0, "col": C_GOLD, "evo": false})
 			for o in enemies.duplicate():
 				if not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_to(e.pos) < 18.0:
@@ -2760,16 +2776,22 @@ func _fusion_downbeat() -> void:
 		if fz_beat % 2 == 0 and guard < _school_guard_cap():
 			guard += 1
 			_ring_pop(paul.pos + Vector2(0, -8), Color("9fd8ff"), 14.0)
+			_fz("詩歌", "守護", paul.pos)
 	if _fused("詩歌", "醫治"):
 		_heal_party(1.5)
 		_anoint_add(4.0)
-	if _fused("詩歌", "差派"):
+		_ring_pop(paul.pos + Vector2(0, -8), C_HEAL, 22.0)
+		_fz("詩歌", "醫治", paul.pos)
+	if _fused("詩歌", "差派") and not trail.is_empty():
+		_fz("詩歌", "差派", trail[-1].pos)
 		for f in trail.slice(maxi(0, trail.size() - 16)):
 			_mote(f.pos, C_FLAME)
 			for o in enemies.duplicate():
 				if not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_squared_to(f.pos) < 120.0:
 					_hurt(o, 4.0 + level * 0.3, Vector2.INF)
 	if _fused("詩歌", "門徒"):
+		if not minions.is_empty():
+			_fz("詩歌", "門徒", minions[0].pos)
 		for m in minions:
 			blasts.append({"pos": m.pos, "t": 0.0, "r": 14.0, "col": Color("e8dcc0"), "evo": false})
 			for o in enemies.duplicate():
@@ -2922,8 +2944,11 @@ func _convert(e: Dictionary, dur: float) -> void:
 	if _fused("講道", "醫治") and t >= fz_heal_t:
 		fz_heal_t = t + 0.25
 		_heal_party(1.0)
+		_mote(paul.pos + Vector2(0, -10), C_HEAL)
+		_fz("講道", "醫治", paul.pos)
 	if _fused("講道", "門徒") and randf() < 0.25:
 		_spawn_minion(e.pos)
+		_fz("講道", "門徒", e.pos)
 	for i in 3:
 		_mote(e.pos + Vector2(0, -6), C_GOLD)
 
@@ -2975,8 +3000,12 @@ func _shield_shock(at: Vector2) -> void:
 		var nx := _nearest_enemies(at, 60.0, 1, {})
 		if not nx.is_empty() and not nx[0].get("boss", false) and not nx[0].get("elite", false):
 			_convert(nx[0], 6.0)
+			link_fx.append({"a": at + Vector2(0, -6), "b": nx[0], "t": 0.0, "depth": 1})
+			_fz("講道", "守護", nx[0].pos)
 	if _fused("守護", "醫治"):
 		_heal_paul(3.0)
+		_mote(paul.pos + Vector2(0, -10), C_HEAL)
+		_fz("守護", "醫治", paul.pos)
 	run_shocks += 1
 	Sfx.play("shield")
 	var r := 40.0 * (1.0 + _sv("守護", "shock_area"))
@@ -3046,8 +3075,12 @@ func _spawn_minion(at: Vector2) -> void:
 	if _fused("守護", "門徒") and t >= fz_guard_t and guard < _school_guard_cap():
 		fz_guard_t = t + 3.0
 		guard += 1
+		_ring_pop(paul.pos + Vector2(0, -8), Color("9fd8ff"), 14.0)
+		_fz("守護", "門徒", paul.pos)
 	if _fused("醫治", "門徒"):
 		_heal_paul(2.0)
+		_mote(paul.pos + Vector2(0, -10), C_HEAL)
+		_fz("醫治", "門徒", at)
 		var low = null
 		for c in comps:
 			if c.level > 0 and c.down <= 0.0 and (low == null or float(c.hp) < float(low.hp)):
@@ -3102,16 +3135,21 @@ func _update_schools_step(dt: float) -> void:
 						_hurt(e, dmg, Vector2.INF)
 						if _fused("講道", "差派") and not e.dead:
 							_persuade(e, 1)
+							_fz("講道", "差派", e.pos)
 						break
 		if _fused("醫治", "差派"):
 			for c in comps:
 				if c.level > 0 and c.down <= 0.0 and trail.any(func(f): return f.pos.distance_squared_to(c.pos) < 144.0):
 					c.hp = minf(_comp_max_hp(), float(c.hp) + 2.0 * 0.35)
+					if randf() < 0.3:
+						_mote(c.pos + Vector2(0, -8), C_HEAL)
+					_fz("醫治", "差派", c.pos)
 		if _fused("差派", "門徒") and paul.moving and not trail.is_empty():
 			fz_pair_t -= 0.35
 			if fz_pair_t <= 0.0:
 				fz_pair_t = 5.0
 				_spawn_minion(trail[-1].pos)
+				_fz("差派", "門徒", trail[-1].pos)
 	for f in trail:
 		f.life -= dt
 	trail = trail.filter(func(f): return f.life > 0.0)
@@ -5757,6 +5795,18 @@ func _draw_schools(n: Node2D) -> void:
 			n.draw_rect(Rect2(bx2 - 2, by2, 5, 4), Color("5a1a08"))
 			n.draw_rect(Rect2(bx2 - 1, by2, 3, 3), C_FLAME)
 			n.draw_rect(Rect2(bx2, by2 - 1, 1, 2), C_GOLD)
+	# 已融合的流派：主角腳下兩色的光點互相繞（一組融合一對）
+	var fi := 0
+	for f in D.fusions:
+		if not _fused(f.a, f.b):
+			continue
+		var fa: float = t * 2.2 + fi * 1.3
+		for j in 2:
+			var ang := fa + j * PI
+			var op: Vector2 = (paul.pos + Vector2(cos(ang) * (12.0 + fi * 2.0), 2.0 + sin(ang) * 4.0)).round()
+			n.draw_rect(Rect2(op.x - 1, op.y - 1, 4, 4), Color("140c10"))
+			n.draw_rect(Rect2(op.x, op.y, 2, 2), TAG_COL.get([f.a, f.b][j], C_GOLD))
+		fi += 1
 	# 主角腳下：讚美（金）與恩膏（綠）的小量條
 	var bars := []
 	if _school_on("詩歌"):
@@ -6155,6 +6205,11 @@ func _finish_run() -> Array:
 		if a.has("unlock"):
 			txt += "　→　%s 加入名單！" % _comp_name(a.unlock)
 		lines.append([txt, 13, C_GOLD])
+	if not fz_count.is_empty():
+		var fl := []
+		for k in fz_count:
+			fl.append("%s ×%d" % [k, int(fz_count[k])])
+		lines.append(["融合發動：" + "、".join(fl), 12, C_GOLD])
 	if not res.affinity_ups.is_empty():
 		var names := []
 		for k in res.affinity_ups:
@@ -6258,6 +6313,9 @@ func _smoke_tick() -> void:
 		if tongues.any(func(tg): return tg.t < 1.1) or sheets.any(func(sh): return sh.t < 0.8 and sh.t > 0.0) or seekers.any(func(sk): return sk.get("chariot", false) and paul.pos.distance_to(sk.pos) < 70.0) or (star_falls.size() > 2 and stage.get("hazard", {}).get("look", "") == "stone"):
 			get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_hz.png"))
 			return
+	if smoke_shot != "" and not fz_count.is_empty() and tag_fx.any(func(f): return str(f.text).begins_with("「") and f.t > 0.1) and not FileAccess.file_exists(smoke_shot.replace(".png", "_fz.png")):
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_fz.png"))
+		return
 	if smoke_shot != "" and blind_state != "":
 		# 測試用：大馬士革的瞎眼、亞拿尼亞、按手時的對話
 		for pair in [["_blind", blind_state == "blind" and t - t_start > 20.0], ["_ananias", blind_state == "blind" and not ananias.is_empty() and paul.pos.distance_to(ananias.pos) < 60.0], ["_atalk", talking and blind_state == "heal"]]:
