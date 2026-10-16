@@ -310,6 +310,8 @@ func _ready() -> void:
 			leader = a.substr(9)
 	if leader != "paul" and not Save.is_unlocked("leader_" + leader) and not OS.get_cmdline_user_args().has("--smoke"):
 		leader = "paul"
+	if stage.has("leader"):
+		leader = str(stage.leader)   # 這一關的主角是固定的（拔摩海島是約翰）
 	for L in D.leaders:
 		if L.key == leader:
 			D.paul.hp = L.hp
@@ -369,6 +371,8 @@ func _ready() -> void:
 	if starter == leader:
 		starter = "tim" if leader != "tim" else "luke"
 	first_recruit = "" if solo else starter
+	if stage.has("leader_level"):
+		_set_level(pa, int(stage.leader_level))   # 年老的約翰：一開始招式就比較熟練
 	if calling == "apostle" and by_key.has(starter) and not solo:
 		# 使徒：第一位同工的流派一開始就算兩人
 		var stag: String = by_key[starter].tag

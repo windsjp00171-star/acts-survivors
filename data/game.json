@@ -5,6 +5,7 @@
   "leaders": [
     { "key": "paul",  "hp": 100, "speed": 42, "desc": "書信直線飛行、可以穿透。血量與速度都中等" },
     { "key": "peter", "hp": 130, "speed": 38, "desc": "血厚、走得慢，撒網把敵人拉在一起" },
+    { "key": "john",  "hp": 130, "speed": 42, "desc": "拔摩海島的主角：年老的約翰，雷聲落在敵人群中" },
     { "key": "tim",   "hp": 80,  "speed": 48, "desc": "血少、跑得快，追蹤光箭又密又準" },
     { "key": "philip", "hp": 90, "speed": 50, "desc": "跑得最快，長距離衝刺" },
     { "key": "lydia", "hp": 110, "speed": 40, "desc": "鋪紫布定住敵人，適合打連結" }
