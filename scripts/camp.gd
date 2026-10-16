@@ -90,8 +90,7 @@ func _ready() -> void:
 		_auto_shots(shot)
 
 
-## 手機的返回鍵：先關面板／對話；在營地上要連按兩次才離開遊戲（不會一按就跳出）
-var back_t := -10.0
+## 手機的返回鍵：先關面板／對話，再回標題畫面
 
 
 func _notification(what: int) -> void:
@@ -103,12 +102,8 @@ func _notification(what: int) -> void:
 		talk.clear()
 		if talk_box != null:
 			talk_box.visible = false
-	elif t - back_t < 2.0:
-		get_tree().quit()
 	else:
-		back_t = t
-		news_label.text = "再按一次返回鍵離開遊戲"
-		news_until = 2.0
+		get_tree().change_scene_to_file("res://scenes/title.tscn")   # 回標題畫面（在標題按返回才離開）
 
 
 func _p(x: float, y: float) -> Vector2:
