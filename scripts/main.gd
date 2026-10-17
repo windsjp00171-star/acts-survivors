@@ -1954,6 +1954,15 @@ func _step(dt: float) -> void:
 
 	var ew: Dictionary = D.elite_wave
 	var peak: bool = t >= ew.peak_from and t < ew.peak_to
+	# 音樂的層次跟著戰況：血很少 → 只剩伴奏、聲音變悶；菁英潮或 Boss → 鼓和旋律往前；開局 → 只有伴奏和輕輕的鼓
+	var mood := "normal"
+	if paul.hp < float(D.paul.hp) * 0.3:
+		mood = "danger"
+	elif peak or (boss != null and not boss.dead):
+		mood = "peak"
+	elif t - t_start < 25.0:
+		mood = "calm"
+	Sfx.set_intensity(mood)
 	if t >= ew.from and boss == null:
 		elite_timer -= dt
 		if elite_timer <= 0.0:

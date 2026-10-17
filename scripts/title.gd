@@ -75,7 +75,7 @@ func _ready() -> void:
 			if ResourceLoader.exists(path):
 				tex["%s_%d" % [k, f]] = load(path)
 	_build()
-	Sfx.music("camp")
+	Sfx.music("title")
 	var shot := ""
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--shot="):
@@ -216,7 +216,7 @@ func _toggle_settings() -> void:
 			if k in ["music", "sfx"]:
 				Sfx.toggle(k)
 				if k == "music" and Save.data.get("music_on", true):
-					Sfx.music("camp")
+					Sfx.music("title")
 			else:
 				Save.data[k + "_on"] = not bool(Save.data.get(k + "_on", false))
 				Save.save_profile()
@@ -255,6 +255,7 @@ func _process(dt: float) -> void:
 func _start_intro(id := "intro") -> void:
 	cut_id = id
 	cut = INTRO if id == "intro" else CUTS[id]
+	Sfx.music("story")
 	if intro_box != null:
 		intro_box.queue_free()   # 上一段還沒收掉（只有測試拍照會連播）
 	intro_i = 0
@@ -314,6 +315,7 @@ func _end_intro() -> void:
 		return
 	Save.data.intro_seen = true
 	Save.save_profile()
+	Sfx.music("title")
 	if intro_box != null:
 		intro_box.queue_free()
 		intro_box = null

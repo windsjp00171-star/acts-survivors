@@ -12,7 +12,7 @@ import wave
 
 import numpy as np
 
-SR = 22050
+SR = 32000
 OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "audio")
 
 
@@ -46,8 +46,8 @@ def bell(freq, sec):
     return y * env(len(t), 0.002, curve=1.0)
 
 
-def noise(sec, lp=0.2):
-    n = np.random.default_rng(7).standard_normal(int(SR * sec))
+def noise(sec, lp=0.2, seed=7):
+    n = np.random.default_rng(seed).standard_normal(int(SR * sec))
     out = np.zeros_like(n)
     acc = 0.0
     for i, v in enumerate(n):  # 一階低通
@@ -97,14 +97,19 @@ def save_ogg(name, y, peak=0.7):
 # ---------- 音效 ----------
 def sfx():
     t = t_axis
-    # 命中：很短很輕的「答」
-    save_wav("hit", noise(0.03, 0.5) * env(int(SR * 0.03), 0.001, curve=6), 0.5)
-    # 驅散：柔和的「啵」，音高往下掉
-    tt = t(0.09)
-    f = 900 - 4000 * tt
-    save_wav("kill", np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.002, curve=5), 0.6)
-    # 撿經驗：小小的高音
-    save_wav("gem", np.sin(2 * np.pi * 1760 * t(0.05)) * env(int(SR * 0.05), 0.002, curve=6), 0.35)
+    # 常出現的聲音各做三個變體（hit、hit_2、hit_3），遊戲裡輪流播，聽久了才不會膩
+    def vname(base, i):
+        return base if i == 0 else "%s_%d" % (base, i + 1)
+    for i in range(3):
+        # 命中：很短很輕的「答」
+        save_wav(vname("hit", i), noise(0.03, [0.5, 0.42, 0.58][i], 7 + i) * env(int(SR * 0.03), 0.001, curve=6), 0.5)
+        # 驅散：柔和的「啵」，音高往下掉
+        tt = t(0.09)
+        f = [900, 1010, 820][i] - 4000 * tt
+        save_wav(vname("kill", i), np.sin(2 * np.pi * np.cumsum(f) / SR) * env(len(tt), 0.002, curve=5)
+                 + 0.12 * noise(0.09, 0.4, 20 + i) * env(len(tt), 0.001, curve=9), 0.6)
+        # 撿經驗：小小的高音（五聲音階上的三個音，連著撿像在彈琴）
+        save_wav(vname("gem", i), np.sin(2 * np.pi * note([93, 95, 98][i]) * t(0.05)) * env(int(SR * 0.05), 0.002, curve=6), 0.35)
     # 升級：撥弦琶音 D F# A D
     save_wav("levelup", mix(*[(i * 0.07, pluck(note(n), 0.7)) for i, n in enumerate([62, 66, 69, 74])]))
     # 選卡
@@ -127,7 +132,9 @@ def sfx():
     save_wav("chest", mix(*[(i * 0.05, bell(note(n), 0.5) * 0.6) for i, n in enumerate([84, 88, 91, 96])]))
     # 受傷：低悶的一下
     tt = t(0.16)
-    save_wav("hurt", np.sin(2 * np.pi * (140 - 300 * tt) * tt) * env(len(tt), 0.002, curve=5) + 0.3 * noise(0.16, 0.1) * env(len(tt), 0.001, curve=8), 0.7)
+    for i in range(2):
+        save_wav(vname("hurt", i), np.sin(2 * np.pi * ([140, 125][i] - 300 * tt) * tt) * env(len(tt), 0.002, curve=5)
+                 + 0.3 * noise(0.16, 0.1, 30 + i) * env(len(tt), 0.001, curve=8), 0.7)
     # 治療：兩個音往上
     save_wav("heal", mix((0, pluck(note(74), 0.35, 0.2)), (0.08, pluck(note(81), 0.4, 0.2))), 0.45)
     # 菁英吼叫：低頻顫動
@@ -171,7 +178,8 @@ def sfx():
     tt = t(0.3)
     save_wav("shatter", noise(0.3, 0.7) * np.exp(-tt * 18) + 0.4 * noise(0.3, 0.05) * np.exp(-tt * 6), 0.5)
     # 說服：柔和的鈴
-    save_wav("persuade", bell(note(88), 0.35) * 0.7, 0.4)
+    for i in range(3):
+        save_wav(vname("persuade", i), bell(note([88, 91, 93][i]), 0.35) * 0.7, 0.4)
     # 護盾反擊：金屬的一聲
     save_wav("shield", bell(note(64), 0.4) + 0.5 * noise(0.4, 0.4) * np.exp(-t(0.4) * 25), 0.55)
 

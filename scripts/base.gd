@@ -1120,7 +1120,9 @@ func _show_codex() -> void:
 	# 詩歌本：去過的城市音樂可以在這裡點播
 	_text(content, "詩歌本", 16, UIKit.GOLD)
 	_text(content, "去過的城市，那裡的音樂就會收進來，點一下就能播放。", 11, UIKit.MUTED, true)
-	var songs := [["camp", "營地"]]
+	var songs := [["title", "宣教之路（主題曲）"], ["camp", "營地"]]
+	if Save.data.get("intro_seen", false):
+		songs.append(["story", "很久以前的故事"])
 	for st in stages:
 		if Save.data.get("story_seen", []).has("in_" + st.id) or Save.data.churches.has(st.id):
 			songs.append([st.music, st.name])
