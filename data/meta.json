@@ -207,7 +207,7 @@
   ]},
   "shop": [
     {"id": "barn", "kind": "companion", "name": "巴拿巴加入名單", "desc": "鼓勵光環，讓範圍內同伴攻擊加快", "cost": 60},
-    {"id": "apollos", "kind": "companion", "name": "亞波羅加入名單", "desc": "直線貫穿的光束，剋謊言", "cost": 100},
+    {"id": "apollos", "kind": "companion", "name": "亞波羅加入名單", "desc": "直線貫穿的光束；練到最高，對謊言三倍傷害", "cost": 100},
     {"id": "pri", "kind": "companion", "name": "百基拉・亞居拉加入名單", "desc": "帳棚屏障，擋住外圈的敵人", "cost": 120},
     {"id": "peter", "kind": "companion", "name": "彼得加入名單", "desc": "【門徒】撒網把敵人拉在一起", "cost": 140},
     {"id": "john", "kind": "companion", "name": "約翰加入名單", "desc": "【門徒】連鎖閃電", "cost": 140},

@@ -11,6 +11,13 @@
 - 新地面 `ground_fucheng`、新物件 `redhouse`、`banyan`、`lantern`、`bamboo`、`oxcart`；新 Boss 圖 `boss_fucheng`（謠言）；新配樂 `music_fucheng`（G 大調五聲音階，三層）
 - 新書信卡效果 `vernacular`：升級卡多一張（最多 4 張）
 - 圖鑑「謠言」、見證錄「直到地極」（16 間教會）、三位新角色的生平與營地閒聊
+- 新樂器（`make_music.py`）：殼仔弦 `kexian`、月琴 `yueqin`、嗩吶 `suona`、北管鑼鼓（小鑼 `x`、大鑼 `G`、鈸 `c`、板鼓 `b`、通鼓 `t`、拍板 `w`）；`fucheng()` 不用 `battle()`，自己編
+- 聖餐：哥林多 `talk_out` 加入保羅傳下主的晚餐（林前 11:23–26）；營地設施 `supper`（`meta.json` 的 camp，`stat: churches`，內容在 `talks.json` 的 `supper`，哥林多前由彼得、之後由保羅；不加默契）；結局 `CUTS.fucheng` 加「主日一起領餅和杯」一幕（`today` 場景的 `supper`）
+- `Save.camp_stat` 支援 `churches`
+
+### 修正
+- 主角沒有進化（例如腓利、呂底亞、馬雅各）時，主角升到 Lv4 的升級卡會出錯
+- 技能說明與實際不符：約翰 `thunder`（多跳兩隻／共 7 隻）、尼哥底母 `lamp`（照亮 2 秒）、提摩太分支「專一」；`bring`、`prayer`、肢體連結「一同受苦」改寫「主角」；馬太 `coin` Lv4 傷害 3→5（原本沒變）；主角司提反、約翰的介紹；亞波羅解鎖說明；果子「和平」的流派標籤「群眾」→「門徒」；合擊「請到我家來住」「大比大，起來」「山上變像」「外邦人也領受」的說明
 
 ### 變更
 - 結局分成兩段：`CUTS.patmos` 播到一八六五年馬雅各上岸為止；新的 `CUTS.fucheng`（通過府城後）接著播回到府城、淡水、教會報、切膚之愛、姬望、今天的你
