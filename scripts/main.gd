@@ -80,6 +80,9 @@ var first_recruit := ""
 var solo := false         # 這一關只有主角一個人（劇情模式的大馬士革、雅典）
 var story := false        # 劇情模式
 var chapter := {}         # 劇情模式的這一章（data/story.json）
+var story_idx := -1       # 劇情模式第幾章（0 起算）
+# 劇情模式裡，各個系統從第幾章（0 起算）開始出現：第一章只要懂走路、選卡、帶同伴
+const STORY_GATE := {"bond": 1, "fruit": 2, "armor": 2, "school": 4, "link": 9}
 var vision_on := false    # 對話時畫出光中的耶穌（關卡的 vision 列出哪段對話要畫）
 var tongues: Array = []   # 五旬節：落在頭上的火焰 {who, t}
 var sheets: Array = []    # 約帕：天上降下的大布 {pos, t, max}
@@ -138,7 +141,7 @@ var event_t := 0.0          # 下一次局內事件的時間（距離開局的�
 var events_done: Array = []
 var enemy_hp_bonus := 0.0   # 事件：之後的敵人血量增加
 var move_bonus := 0.0       # 事件：主角移速
-var prov_bread := 0.0       # 市集的行囊：這局帶回的餅加成
+var prov_bread := 0.0       # 這局帶回的餅加成（舊的市集行囊用過；現在固定 0）
 var tip_queue: Array = []  # 新手教學：等著出現的提示
 var run_chests := 0
 var run_midboss := 0
@@ -279,6 +282,7 @@ func _ready() -> void:
 	if story_i >= 0 and story_i < Save.story.chapters.size():
 		# 劇情模式：章節決定關卡、主角與會遇到的同伴
 		story = true
+		story_idx = story_i
 		chapter = Save.story.chapters[story_i]
 		for i in stages.size():
 			if stages[i].id == chapter.stage:
@@ -367,7 +371,7 @@ func _ready() -> void:
 		if a.begins_with("--calling="):
 			calling = a.substr(10)
 	Save.run_config.calling = calling
-	# 永久恩典（用餅兌換的）
+	# 永久恩典（營地建設）
 	D.paul.hp = float(D.paul.hp) + Save.up_value("vigor")
 	if trials.has("faithful"):
 		D.paul.hp = float(D.paul.hp) * 0.7   # 信心等級：至死忠心
@@ -421,8 +425,10 @@ func _ready() -> void:
 			pa_free.append(tag)
 	_update_schools()
 	rerolls_left = Save.rerolls()
-	if not smoke or OS.get_cmdline_user_args().has("--prov"):
-		_use_provisions(Save.take_provisions())
+	# 營地的倉房：開局先多選幾張升級卡（給足剛好升那幾級的經驗）
+	var L0: Dictionary = D.leveling
+	for k in int(Save.building_bonus("picks")):
+		xp += int(L0.first + k * L0.step + pow(k, 2) * L0.growth)
 	ui.dialogue_done.connect(func():
 		talking = false
 		vision_on = false)
@@ -434,6 +440,8 @@ func _ready() -> void:
 			ui.hero_label.text = "掃羅"
 	_start_talk("in")
 	var pool: Array = D.tasks.list.duplicate()
+	if story:
+		pool = []   # 劇情模式不出旅程任務：專心在這一章的故事
 	if solo:
 		pool = pool.filter(func(tk): return not tk.id in ["links", "reso", "party"])   # 一個人的關卡沒有同伴
 	if D.boss.get("mid", []).is_empty():
@@ -815,12 +823,17 @@ func _speed() -> float:
 	return D.paul.speed * (1.0 + armor.get("shoes", 0) * 0.12 + move_bonus + _sv("差派", "run") + (0.1 if epistles.has("run_plus") else 0.0)) * (0.9 if relics.has("ark") else 1.0)
 
 
+## 劇情模式：這個系統在這一章開放了沒（自由模式全部開放）
+func _sys_open(sys: String) -> bool:
+	return not story or story_idx >= int(STORY_GATE.get(sys, 0))
+
+
 func _make_cards() -> Array:
 	var pool := []
 	for k in D.fruits:
 		var f: Dictionary = D.fruits[k]
 		var lv: int = fruits.get(k, 0)
-		if lv == 0 and not Save.is_unlocked("fruit_" + k):
+		if (lv == 0 and not Save.is_unlocked("fruit_" + k)) or not _sys_open("fruit"):
 			continue
 		var fdesc: String = f.desc
 		if lv == 0:
@@ -835,7 +848,7 @@ func _make_cards() -> Array:
 	for k in D.armor:
 		var a: Dictionary = D.armor[k]
 		var lv: int = armor.get(k, 0)
-		if lv == 0 and not Save.is_unlocked("armor_" + k):
+		if (lv == 0 and not Save.is_unlocked("armor_" + k)) or not _sys_open("armor"):
 			continue
 		if lv == 0 and armor.size() < int(D.armor_slots) + (1 if epistles.has("armor_plus") else 0):
 			var adesc: String = a.desc[0]
@@ -879,13 +892,14 @@ func _make_cards() -> Array:
 		var ep: Dictionary = st.epistle
 		if Save.data.churches.has(st.id) and not epistles.has(ep.effect):
 			pool.append({"kind": "epistle", "key": ep.effect, "title": ep.name, "tag": "書信", "desc": ep.desc})
-	var lc := _link_card()
+	var lc := _link_card() if _sys_open("link") else {}
 	if not lc.is_empty():
 		pool.append(lc)
-	for sc in _school_cards():
-		pool.append(sc)
-	for spc in _support_cards():
-		pool.append(spc)
+	if _sys_open("school"):
+		for sc in _school_cards():
+			pool.append(sc)
+		for spc in _support_cards():
+			pool.append(spc)
 	if relics.has("rod"):
 		for f in pool.filter(func(cd): return cd.kind == "fruit"):
 			pool.append(f)   # 亞倫發芽的杖：果子卡更常出現
@@ -1635,45 +1649,6 @@ func _barrier_pieces() -> Array:
 
 
 # ---------- FEVER ----------
-## 市集買的行囊：出門時生效
-func _use_provisions(ids: Array) -> void:
-	for id in ids:
-		var item: Dictionary = {}
-		for it in Save.meta.market.items:
-			if it.id == id:
-				item = it
-		for k in item.get("effect", {}):
-			var v = item.effect[k]
-			match k:
-				"picks":
-					var L: Dictionary = D.leveling
-					xp += xp_need + int(L.first + L.step + L.growth)
-				"armor":
-					var cand: Array = D.armor.keys().filter(func(a): return armor.get(a, 0) == 0 and (a == "shoes" or Save.is_unlocked("armor_" + a)))
-					if not cand.is_empty():
-						armor[cand[randi() % cand.size()]] = 1
-						_update_sets()
-				"fruit":
-					var fc: Array = D.fruits.keys().filter(func(f): return fruits.get(f, 0) == 0 and Save.is_unlocked("fruit_" + f))
-					if not fc.is_empty():
-						fruits[fc[randi() % fc.size()]] = 1
-				"reroll":
-					rerolls_left += int(v)
-				"guard":
-					guard = mini(guard + int(v), 5)
-				"starter2":
-					if by_key.has(first_recruit) and by_key[first_recruit].level == 0:
-						_recruit(by_key[first_recruit])
-						_set_level(by_key[first_recruit], 2)
-				"meter":
-					meter = minf(1.0, meter + float(v))
-				"bread":
-					prov_bread += float(v)
-	if not ids.is_empty():
-		ui.show_banner("帶著行囊出發了", 1.5)
-		_refresh_build_text()
-
-
 # ---------- 局內事件（使徒行傳的場景，二選一） ----------
 func _start_event() -> void:
 	var pool: Array = EV.events.filter(func(ev): return not events_done.has(ev.id))
@@ -3287,6 +3262,8 @@ func _update_prophecy(dt: float) -> void:
 
 ## 招募卡上的提示：跟隊伍裡的誰是搭檔
 func _bond_hint(k: String) -> String:
+	if not _sys_open("bond"):
+		return ""
 	for B in D.get("bonds", []):
 		var mate: String = B.b if B.a == k else (B.a if B.b == k else "")
 		if mate != "" and not _member(mate).is_empty():
@@ -3295,7 +3272,7 @@ func _bond_hint(k: String) -> String:
 
 
 func _bond_check(c: Dictionary) -> void:
-	if not D.has("bonds"):
+	if not D.has("bonds") or not _sys_open("bond"):
 		return
 	c.last_cast = t
 	for i in D.bonds.size():

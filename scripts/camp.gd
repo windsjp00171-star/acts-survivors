@@ -130,7 +130,7 @@ func _build_camp() -> void:
 			if item.has("news") and Save.data.stats.runs > 0:
 				news.append(item.news)
 		var pos := _p(item.pos[0], item.pos[1])
-		if item.kind in ["depart", "shop", "ach", "log", "market"]:
+		if item.kind in ["depart", "shop", "ach", "log"]:
 			spots.append({"kind": item.kind, "key": "", "name": item.name, "pos": pos, "r": 20.0})
 	Save.save_profile()
 
@@ -455,7 +455,6 @@ func _interact(s: Dictionary) -> void:
 		"shop": panel.open("shop")
 		"ach": panel.open("ach")
 		"log": panel.open("log")
-		"market": panel.open("market")
 		_: panel.open("home")
 
 
@@ -488,7 +487,6 @@ func _verb(s: Dictionary) -> String:
 		"shop": return "補給帳棚（解鎖）"
 		"ach": return "見證牆"
 		"log": return "製作日誌（看看改了什麼）"
-		"market": return "市集（買下一趟的行囊）"
 	return "看旅程地圖、出發"
 
 
@@ -503,7 +501,6 @@ func _draw_props() -> void:
 			"tent_small": _tent(n, p, 0.7, Color("b89870"), Color("6f6a5a"))
 			"ach": _board(n, p)
 			"log": _log_post(n, p)
-			"market": _market(n, p)
 			"depart": _sign(n, p)
 			"banner": _banner(n, p)
 	# 用見證蓋的營地建設
@@ -552,18 +549,6 @@ func _board(n: Node2D, p: Vector2) -> void:
 		n.draw_rect(Rect2(p.x - 11 + (i % 5) * 5, p.y - 19 + (i / 5) * 5, 3, 3), Color("fff4c2"))
 
 
-## 市集的攤子：條紋布棚、桌上擺著東西
-func _market(n: Node2D, p: Vector2) -> void:
-	n.draw_rect(Rect2(p.x - 14, p.y - 8, 28, 8), Color("8a6438"))
-	n.draw_rect(Rect2(p.x - 13, p.y - 20, 2, 12), Color("5a3f28"))
-	n.draw_rect(Rect2(p.x + 11, p.y - 20, 2, 12), Color("5a3f28"))
-	for i in 7:
-		n.draw_rect(Rect2(p.x - 15 + i * 4, p.y - 24, 4, 5), Color("9a4ab8") if i % 2 == 0 else Color("efe2c0"))
-	for i in 4:
-		n.draw_rect(Rect2(p.x - 10 + i * 6, p.y - 11, 3, 3), [Color("e0b060"), Color("7a8a3a"), Color("b05a3a"), Color("ffd75e")][i])
-
-
-## 製作日誌告示：木樁上釘一張紙；有新版本還沒看時，上面有閃爍的驚嘆號
 func _log_post(n: Node2D, p: Vector2) -> void:
 	n.draw_rect(Rect2(p.x - 1, p.y - 18, 2, 18), Color("5a3f28"))
 	n.draw_rect(Rect2(p.x - 8, p.y - 22, 16, 12), Color("efe2c0"))
@@ -613,6 +598,12 @@ func _building(n: Node2D, p: Vector2, id: String) -> void:
 			n.draw_rect(Rect2(p.x - 10, p.y - 12, 20, 12), Color("6a665e"))
 			n.draw_rect(Rect2(p.x - 4, p.y - 8, 8, 6), Color("ff8a2a") if int(t * 4.0) % 2 == 0 else Color("e8481c"))
 			n.draw_rect(Rect2(p.x + 4, p.y - 20, 4, 8), Color("4a4640"))
+		"granary":
+			# 倉房：圓頂的穀倉，門口一袋麥子
+			n.draw_rect(Rect2(p.x - 10, p.y - 14, 20, 14), Color("b89a6a"))
+			n.draw_colored_polygon(PackedVector2Array([p + Vector2(-12, -14), p + Vector2(12, -14), p + Vector2(0, -24)]), Color("8a6438"))
+			n.draw_rect(Rect2(p.x - 3, p.y - 8, 6, 8), W)
+			n.draw_rect(Rect2(p.x + 6, p.y - 5, 6, 5), Color("e0c080"))
 
 
 func _sign(n: Node2D, p: Vector2) -> void:

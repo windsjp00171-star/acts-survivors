@@ -24,7 +24,9 @@
         "peter",
         "john"
       ],
-      "camp": "耶路撒冷"
+      "camp": "耶路撒冷",
+      "hp_mult": 0.88,
+      "dmg_mult": 0.8
     },
     {
       "stage": "samaria",
@@ -34,7 +36,9 @@
         "peter",
         "john"
       ],
-      "camp": "撒瑪利亞"
+      "camp": "撒瑪利亞",
+      "hp_mult": 0.88,
+      "dmg_mult": 0.9
     },
     {
       "stage": "damascus",
@@ -42,7 +46,9 @@
       "leader": "paul",
       "solo": true,
       "cast": [],
-      "camp": "大馬士革"
+      "camp": "大馬士革",
+      "hp_mult": 0.85,
+      "dmg_mult": 0.9
     },
     {
       "stage": "joppa",

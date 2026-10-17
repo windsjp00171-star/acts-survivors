@@ -22,24 +22,23 @@
     {"id": "tent2", "kind": "tent_small", "name": "", "pos": [-128, 30], "stat": "runs", "min": 4, "news": "來同住的人多了，營地多了一頂帳棚"},
     {"id": "banner", "kind": "banner", "name": "", "pos": [-30, -62], "stat": "wins", "min": 1, "news": "腓立比得勝的消息傳回安提阿"},
     {"id": "lamps", "kind": "lamps", "name": "", "pos": [0, 0], "stat": "witness_total", "min": 600, "news": "營地點起了油燈"},
-    {"id": "tent3", "kind": "tent_small", "name": "", "pos": [-70, 58], "stat": "achievements", "min": 4, "news": "營地越來越熱鬧了"},
-    {"id": "market", "kind": "market", "name": "市集", "pos": [92, 18], "stat": "runs", "min": 2, "news": "呂底亞在營地擺了市集：可以用見證買下一趟的行囊"}
+    {"id": "tent3", "kind": "tent_small", "name": "", "pos": [-70, 58], "stat": "achievements", "min": 4, "news": "營地越來越熱鬧了"}
   ],
-  "_bread說明": "餅：（永久恩典每項有上限，總加成不大：局外成長換的是選擇，不是力量）局內撿到、帶回營地（失敗也全部保留）。在補給帳棚買永久恩典。drop 是掉落機率或數量；每項恩典 per 是每級效果、max 是上限、cost 是第 1 級價格，之後每級再加 cost_step。",
+  "_bread說明": "餅：局內撿到、帶回營地（失敗也全部保留），用來學恩賜樹。drop 是掉落機率或數量。upgrades 是「營地建設」裡的永久恩典（用見證蓋，和其他建設放在同一區；per 是每級效果、max 是上限、cost 是第 1 級的見證，之後每級再加 cost_step）。原則：局外成長換的是選擇，不是力量，每項都有上限。",
   "bread": {
     "drop": {"kill": 0.004, "veteran": 0.1, "elite": 3, "chest": 2, "boss": 15},
     "upgrades": [
-      {"id": "might", "name": "剛強", "ref": "弗 6:10", "desc": "所有攻擊傷害 +5%", "per": 0.05, "max": 3, "cost": 15, "cost_step": 15},
-      {"id": "haste", "name": "殷勤", "ref": "羅 12:11", "desc": "所有攻擊速度 +4%", "per": 0.04, "max": 3, "cost": 15, "cost_step": 15},
-      {"id": "vigor", "name": "堅忍", "ref": "雅 1:4", "desc": "主角血量 +10", "per": 10, "max": 5, "cost": 10, "cost_step": 10},
-      {"id": "renew", "name": "更新", "ref": "林後 4:16", "desc": "主角每秒回復 0.2 血", "per": 0.2, "max": 2, "cost": 25, "cost_step": 25},
-      {"id": "reap", "name": "收割", "ref": "約 4:35", "desc": "撿經驗與餅的範圍 +20%", "per": 0.2, "max": 3, "cost": 10, "cost_step": 10},
-      {"id": "growth", "name": "長進", "ref": "彼後 3:18", "desc": "經驗 +6%", "per": 0.06, "max": 3, "cost": 20, "cost_step": 20},
-      {"id": "run", "name": "奔跑", "ref": "來 12:1", "desc": "移動速度 +4%", "per": 0.04, "max": 3, "cost": 15, "cost_step": 15},
-      {"id": "aegis", "name": "盾牌", "ref": "詩 3:3", "desc": "主角受到的傷害 -3%", "per": 0.03, "max": 3, "cost": 30, "cost_step": 20},
-      {"id": "accord", "name": "合一", "ref": "詩 133:1", "desc": "同心合意累積 +6%", "per": 0.06, "max": 3, "cost": 25, "cost_step": 20},
-      {"id": "lucky", "name": "滿溢", "ref": "瑪 3:10", "desc": "寶箱有機會多開一項 +10%", "per": 0.1, "max": 2, "cost": 40, "cost_step": 30},
-      {"id": "rise", "name": "扶持", "ref": "傳 4:10", "desc": "倒下的同伴早一點站起來 -10%", "per": 0.1, "max": 3, "cost": 30, "cost_step": 25}
+      {"id": "might", "name": "剛強", "ref": "弗 6:10", "desc": "所有攻擊傷害 +5%", "per": 0.05, "max": 3, "cost": 45, "cost_step": 45},
+      {"id": "haste", "name": "殷勤", "ref": "羅 12:11", "desc": "所有攻擊速度 +4%", "per": 0.04, "max": 3, "cost": 45, "cost_step": 45},
+      {"id": "vigor", "name": "堅忍", "ref": "雅 1:4", "desc": "主角血量 +10", "per": 10, "max": 5, "cost": 30, "cost_step": 30},
+      {"id": "renew", "name": "更新", "ref": "林後 4:16", "desc": "主角每秒回復 0.2 血", "per": 0.2, "max": 2, "cost": 75, "cost_step": 75},
+      {"id": "reap", "name": "收割", "ref": "約 4:35", "desc": "撿經驗與餅的範圍 +20%", "per": 0.2, "max": 3, "cost": 30, "cost_step": 30},
+      {"id": "growth", "name": "長進", "ref": "彼後 3:18", "desc": "經驗 +6%", "per": 0.06, "max": 3, "cost": 60, "cost_step": 60},
+      {"id": "run", "name": "奔跑", "ref": "來 12:1", "desc": "移動速度 +4%", "per": 0.04, "max": 3, "cost": 45, "cost_step": 45},
+      {"id": "aegis", "name": "盾牌", "ref": "詩 3:3", "desc": "主角受到的傷害 -3%", "per": 0.03, "max": 3, "cost": 90, "cost_step": 60},
+      {"id": "accord", "name": "合一", "ref": "詩 133:1", "desc": "同心合意累積 +6%", "per": 0.06, "max": 3, "cost": 75, "cost_step": 60},
+      {"id": "lucky", "name": "滿溢", "ref": "瑪 3:10", "desc": "寶箱有機會多開一項 +10%", "per": 0.1, "max": 2, "cost": 120, "cost_step": 90},
+      {"id": "rise", "name": "扶持", "ref": "傳 4:10", "desc": "倒下的同伴早一點站起來 -10%", "per": 0.1, "max": 3, "cost": 90, "cost_step": 75}
     ]
   },
   "_gifts說明": "恩賜樹（像暗黑破壞神 2 的技能樹）：六個流派各一棵，用餅學習。每個節點有 row（第幾層）、col（第幾欄）、req（要先學過哪些節點，至少 1 級）；tiers 是學第 row 層前，這棵樹至少要先點幾點。節點效果只作用在這個流派的同伴（主角也算）。names 與 refs（每個節點的經文出處）依 nodes 的順序。",
@@ -182,10 +181,9 @@
     {"id": "library", "name": "書房", "ref": "提後 4:13", "desc": "經驗 +8%／級", "cost": 250, "bonus": {"xp": 0.08}, "pos": [52, -58], "max": 3},
     {"id": "table", "name": "愛筵長桌", "ref": "猶 1:12", "desc": "每局帶回的餅 +25%／級", "cost": 300, "bonus": {"bread": 0.25}, "pos": [8, 54], "max": 3},
     {"id": "garden", "name": "園子", "ref": "歌 4:16", "desc": "同伴獲得的默契 +30%／級", "cost": 300, "bonus": {"affinity": 0.3}, "pos": [-20, 74], "max": 3},
-    {"id": "forge", "name": "工坊", "ref": "徒 18:3", "desc": "軍裝可以多穿一件", "cost": 600, "bonus": {"armor": 1}, "pos": [134, -36], "max": 1}
+    {"id": "forge", "name": "工坊", "ref": "徒 18:3", "desc": "軍裝可以多穿一件", "cost": 600, "bonus": {"armor": 1}, "pos": [134, -36], "max": 1},
+    {"id": "granary", "name": "倉房", "ref": "創 41:49", "desc": "每局開始時先選 1 張升級卡／級", "cost": 250, "bonus": {"picks": 1}, "pos": [96, 40], "max": 2}
   ],
-  "_gift_bread說明": "送餅給同伴：在同伴頁花 cost 個餅，默契 +affinity。",
-  "gift_bread": {"cost": 10, "affinity": 15},
   "_church說明": "教會成長：建立教會後，在那座城帶人信主的人數會加進那間教會；也可以花見證「寫信堅固他們」。members 是每一階的門檻人數。只影響營地的顯示與故事，不影響戰力。",
   "church": {"members": [5, 15, 35, 70], "letter_cost": 40, "letter_add": 4},
   "_faith說明": "信心等級（像殺戮尖塔的進階、黑帝斯的熱度；彼前 1:7）：建立一座城的教會後，可以在那座城用更高的等級再挑戰。第 N 級會同時套用第 1～N 項限制；通關第 N 級才能挑戰第 N+1 級。每一級見證與餅 +reward_per_level。",
@@ -305,21 +303,5 @@
     {"id": "fever50", "name": "聖靈充滿", "desc": "累計開 50 次五旬節", "stat": "fevers_total", "min": 50, "group": "挑戰", "witness": 100},
     {"id": "with", "name": "常與你們同在", "desc": "？？？（在五旬節時遇見）", "stat": "lights", "min": 1, "witness": 50, "unlock": "mary", "group": "隱藏", "secret": true},
     {"id": "lights5", "name": "以馬內利", "desc": "？？？（在五旬節時遇見 5 次）", "stat": "lights", "min": 5, "group": "隱藏", "witness": 150, "secret": true}
-  ],
-  "_market說明": "市集：每趟回營地換一批（offers 個），用見證買「行囊」，下一局出門時生效、用完就沒了。effect：picks 開局先選幾張升級卡、armor 隨機一件軍裝、fruit 隨機一個果子、reroll 多幾次重抽、guard 開局護盾層數、starter2 第一位同工開局就加入（Lv2）、meter 開局同心合意、bread 這局帶回的餅加成。",
-  "market": {
-    "offers": 4,
-    "items": [
-      {"id": "ration", "name": "乾糧", "ref": "太 14:20", "desc": "開局先選 2 張升級卡", "cost": 60, "effect": {"picks": 2}},
-      {"id": "armor", "name": "舊軍裝", "ref": "弗 6:11", "desc": "開局隨機穿上一件已解鎖的軍裝", "cost": 70, "effect": {"armor": 1}},
-      {"id": "fruit", "name": "一籃果子", "ref": "加 5:22", "desc": "開局隨機得到一個已解鎖的聖靈果子", "cost": 70, "effect": {"fruit": 1}},
-      {"id": "scroll", "name": "新的書卷", "ref": "提後 4:13", "desc": "這局多 2 次重抽", "cost": 40, "effect": {"reroll": 2}},
-      {"id": "oil", "name": "香膏", "ref": "可 14:3", "desc": "開局主角有 3 層護盾", "cost": 50, "effect": {"guard": 3}},
-      {"id": "letter", "name": "推薦信", "ref": "林後 3:1", "desc": "第一位同工開局就加入，而且是 Lv2", "cost": 80, "effect": {"starter2": 1}},
-      {"id": "lamp", "name": "油燈", "ref": "太 25:4", "desc": "開局同心合意 50%", "cost": 45, "effect": {"meter": 0.5}},
-      {"id": "basket", "name": "空籃子", "ref": "約 6:13", "desc": "這局帶回的餅 +50%", "cost": 60, "effect": {"bread": 0.5}}
-    ]
-  },
-  "exchange": {"witness": 10, "bread": 3},
-  "pray": {"witness": 15, "affinity": 15}
+  ]
 }

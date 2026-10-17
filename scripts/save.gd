@@ -53,6 +53,11 @@ func load_profile() -> void:
 		var ids: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages.map(func(st): return st.id)
 		data.stage = maxi(0, ids.find(sid))
 	data.map_ver = 3
+	# 0.25 拿掉市集：還沒用掉的行囊折回見證
+	var bag: Array = data.get("provisions", [])
+	if not bag.is_empty():
+		data.witness = int(data.witness) + 60 * bag.size()
+		data.provisions = []
 	_refund_old_gifts()
 	_refund_capped_ups()
 	_init_gift_on()
@@ -65,7 +70,7 @@ func _refund_capped_ups() -> void:
 		var r := up_rank(u.id)
 		if r > int(u.max):
 			for i in range(int(u.max), r):
-				refund += int(u.cost) + i * int(u.cost_step)
+				refund += (int(u.cost) + i * int(u.cost_step)) / 3   # 當年是用餅買的（現在標價是見證）
 			data.ups[u.id] = int(u.max)
 	if refund > 0:
 		data.bread = int(data.get("bread", 0)) + refund
@@ -248,7 +253,7 @@ func camp_built(item: Dictionary) -> bool:
 	return camp_stat(item.stat) >= int(item.min)
 
 
-## 永久恩典（用餅兌換）
+## 永久恩典（營地建設裡用見證蓋）
 func up_rank(id: String) -> int:
 	return int(data.ups.get(id, 0))
 
@@ -297,79 +302,6 @@ func buy_building(b: Dictionary) -> bool:
 		bd = conv
 	bd[b.id] = lv + 1
 	data.buildings = bd
-	save_profile()
-	return true
-
-
-# ---------- 市集：每趟回營地換一批行囊 ----------
-func market_offers() -> Array:
-	var items: Array = meta.market.items.duplicate()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = int(data.stats.runs) * 7919 + 13
-	for i in range(items.size() - 1, 0, -1):
-		var j := rng.randi_range(0, i)
-		var tmp = items[i]
-		items[i] = items[j]
-		items[j] = tmp
-	return items.slice(0, int(meta.market.offers))
-
-
-func market_bought(id: String) -> bool:
-	return data.get("market_run", -1) == int(data.stats.runs) and data.get("market_bought", []).has(id)
-
-
-func buy_provision(item: Dictionary) -> bool:
-	if market_bought(item.id) or int(data.witness) < int(item.cost):
-		return false
-	if data.get("market_run", -1) != int(data.stats.runs):
-		data.market_run = int(data.stats.runs)
-		data.market_bought = []
-	data.witness -= int(item.cost)
-	data.market_bought.append(item.id)
-	if not data.has("provisions"):
-		data.provisions = []
-	data.provisions.append(item.id)
-	save_profile()
-	return true
-
-
-## 出門時拿走行囊（用完就沒了）
-func take_provisions() -> Array:
-	var out: Array = data.get("provisions", [])
-	data.provisions = []
-	save_profile()
-	return out
-
-
-## 傳揚見證：見證換餅
-func exchange(times: int) -> bool:
-	var X: Dictionary = meta.exchange
-	if int(data.witness) < int(X.witness) * times:
-		return false
-	data.witness -= int(X.witness) * times
-	data.bread = int(data.get("bread", 0)) + int(X.bread) * times
-	save_profile()
-	return true
-
-
-## 為同伴代禱：見證換默契
-func pray_for(key: String) -> bool:
-	var P: Dictionary = meta.pray
-	if int(data.witness) < int(P.witness):
-		return false
-	data.witness -= int(P.witness)
-	data.affinity[key] = affinity_xp(key) + int(P.affinity)
-	save_profile()
-	return true
-
-
-## 送餅給同伴：默契增加
-func gift_bread(key: String) -> bool:
-	var G2: Dictionary = meta.gift_bread
-	if int(data.get("bread", 0)) < int(G2.cost):
-		return false
-	data.bread = int(data.bread) - int(G2.cost)
-	data.affinity[key] = affinity_xp(key) + int(G2.affinity)
 	save_profile()
 	return true
 
@@ -503,11 +435,12 @@ func up_cost(u: Dictionary) -> int:
 	return int(u.cost) + up_rank(u.id) * int(u.cost_step)
 
 
+## 永久恩典（0.25 起和營地建設放在一起，用見證蓋）
 func buy_up(u: Dictionary) -> bool:
 	var c := up_cost(u)
-	if up_rank(u.id) >= int(u.max) or int(data.bread) < c:
+	if up_rank(u.id) >= int(u.max) or int(data.witness) < c:
 		return false
-	data.bread = int(data.bread) - c
+	data.witness = int(data.witness) - c
 	data.ups[u.id] = up_rank(u.id) + 1
 	save_profile()
 	return true
