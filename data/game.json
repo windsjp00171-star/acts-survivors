@@ -73,9 +73,9 @@
       "branches": [ { "name": "擴張", "desc": "光環範圍更大", "add": {"radius": 20} }, { "name": "激勵", "desc": "光環內攻擊更快", "add": {"attack_speed": 0.2} } ]
     },
     "heal": {
-      "base": { "cooldown": 3.2, "amount": 6, "revive_speed": 1, "instant_revive": 0 },
+      "base": { "renew": 0.15, "cleanse": 1, "cooldown": 3.2, "amount": 6, "revive_speed": 1, "instant_revive": 0 },
       "levels": [ { "amount": 10 }, { "cooldown": 2.4 }, { "revive_speed": 2 }, { "instant_revive": 1, "amount": 14 } ],
-      "desc": ["定期幫全隊回血", "治療量提升", "治療更頻繁", "倒下的同伴站起來的速度加倍", "每次治療直接扶起倒下的同伴"],
+      "desc": ["定期幫全隊回血；被醫治的同伴醒過來、被嚇散的回到隊伍，3 秒內出手加快 15%", "治療量提升", "治療更頻繁", "倒下的同伴站起來的速度加倍", "每次治療直接扶起倒下的同伴"],
       "branches": [ { "name": "急救", "desc": "治療更頻繁", "add": {"cooldown": -0.8} }, { "name": "醫生的手", "desc": "每次治療，一道光打向附近 2 隻敵人（治療量的 1.5 倍）", "add": {"smite": 2} } ]
     },
     "tent": {
@@ -120,9 +120,9 @@
     },
     "fire": {
       "engine": "strike",
-      "base": { "cooldown": 2.4, "range": 150, "count": 1, "radius": 16, "damage": 5, "delay": 0.6 },
+      "base": { "consecrate": 2, "cooldown": 2.4, "range": 150, "count": 1, "radius": 16, "damage": 5, "delay": 0.6 },
       "levels": [ { "count": 2 }, { "radius": 22 }, { "damage": 8 }, { "count": 4, "cooldown": 1.8 } ],
-      "desc": ["火從天降：地上先出現預兆，火柱再落進敵群", "一次降下 2 道火", "火的範圍變大", "火的威力提升", "一次 4 道，降得更快（王上 18:38）"],
+      "desc": ["火從天降：地上先出現預兆，火柱再落進敵群；火落下的地方，旁邊的自己人回一點血", "一次降下 2 道火", "火的範圍變大", "火的威力提升", "一次 4 道，降得更快（王上 18:38）"],
       "branches": [ { "name": "燒盡祭物", "desc": "火落下的地方留下一片火，燒傷走進去的敵人", "add": {}, "onhit": ["ember"]}, { "name": "火雨", "desc": "多降兩道火", "add": {"count": 2} } ]
     },
     "net": {
@@ -190,9 +190,9 @@
     },
     "sew": {
       "engine": "garment",
-      "base": { "cooldown": 4.0, "count": 2, "max": 1, "paul": 0 },
+      "base": { "reflect": 6, "cooldown": 4.0, "count": 2, "max": 1, "paul": 0 },
       "levels": [ { "count": 3 }, { "cooldown": 3.2 }, { "max": 2 }, { "count": 5, "paul": 1 } ],
-      "desc": ["縫衣服：定時替血最少的 2 位同伴披上衣服，可以擋下一次傷害", "一次縫 3 件", "縫得更快", "每人最多可以疊 2 件", "一次 5 件，也替主角加一層護盾（徒 9:39）"],
+      "desc": ["縫衣服：定時替血最少的 2 位同伴披上衣服，可以擋下一次傷害；衣服擋下攻擊時放出光，傷害身邊的敵人", "一次縫 3 件", "縫得更快", "每人最多可以疊 2 件", "一次 5 件，也替主角加一層護盾（徒 9:39）"],
       "branches": [ { "name": "勤快", "desc": "縫得更快", "add": {"cooldown": -0.8} }, { "name": "厚衣", "desc": "每次多縫兩件", "add": {"count": 2} } ]
     },
     "errand": {
@@ -204,9 +204,9 @@
     },
     "prayer": {
       "engine": "nova",
-      "base": { "melee": 0.15, "leech": 1, "cooldown": 3.0, "radius": 40, "damage": 9, "knock": 50, "slams": 1, "heal": 2 },
+      "base": { "heal_team": 2, "melee": 0.15, "leech": 1, "cooldown": 3.0, "radius": 40, "damage": 9, "knock": 50, "slams": 1, "heal": 2 },
       "levels": [ { "radius": 48 }, { "damage": 15 }, { "cooldown": 2.3, "heal": 3 }, { "slams": 2, "radius": 56 } ],
-      "desc": ["跪下禱告：身邊一圈震開敵人，順便幫主角回一點血；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "範圍變大", "威力提升", "禱告更頻繁、回得更多", "連跪兩次，範圍更大（雅 5:16）"],
+      "desc": ["跪下禱告：身邊一圈震開敵人，主角和身邊的同伴都回血、醒過來；打中的敵人露出破綻（2 秒內全隊打他更痛 15%）", "範圍變大", "威力提升", "禱告更頻繁、回得更多", "連跪兩次，範圍更大（雅 5:16）"],
       "branches": [ { "name": "迫切", "desc": "禱告更頻繁", "add": {"cooldown": -0.7} }, { "name": "醫治", "desc": "每次多回 3 血", "add": {"heal": 3} } ]
     },
     "dawn": {
@@ -274,9 +274,9 @@
     },
     "medicine": {
       "engine": "shot", "look": "vial",
-      "base": { "cooldown": 0.75, "range": 130, "damage": 4, "speed": 210, "count": 1, "pierce": 1, "spread": 14 },
+      "base": { "atone": 1, "cooldown": 0.75, "range": 130, "damage": 4, "speed": 210, "count": 1, "pierce": 1, "spread": 14 },
       "levels": [ { "damage": 6 }, { "count": 2 }, { "pierce": 3, "cooldown": 0.6 }, { "count": 3, "damage": 8, "pierce": 4 } ],
-      "desc": ["藥瓶：朝最近的敵人丟出藥瓶，直線飛行、穿透 1 隻", "藥效更強", "一次丟兩瓶", "藥瓶可以穿透 3 隻，丟得更快", "一次三瓶、穿透 4 隻、更重（太 9:12）"],
+      "desc": ["藥瓶：朝最近的敵人丟出藥瓶，直線飛行、穿透 1 隻；打出去的傷害有一成化成醫治，給隊伍裡血最少的人", "藥效更強", "一次丟兩瓶", "藥瓶可以穿透 3 隻，丟得更快", "一次三瓶、穿透 4 隻、更重（太 9:12）"],
       "branches": [ { "name": "重藥", "desc": "每瓶更重、更能穿透", "add": {"damage": 2, "pierce": 2} }, { "name": "止痛", "desc": "藥瓶打中時，主角回一點血", "add": {}, "onhit": ["leech"]} ]
     },
     "street": {
@@ -504,7 +504,9 @@
         {"id": "cloth", "name": "彼此擔當", "ref": "徒 9:39", "desc": "聖光時全隊披上一件衣服（擋一次傷害）", "mod": {"holy_garment": 1}},
         {"id": "rise", "name": "起來行走", "ref": "徒 3:6", "desc": "聖光扶起所有倒下的同伴", "mod": {"revive_all": 1}},
         {"id": "stripes", "name": "鞭傷", "ref": "賽 53:5", "desc": "主角每次被治療，一道光打向最近的敵人（治療量的 3 倍）", "mod": {"heal_smite": 3}},
-        {"id": "river", "name": "活水的江河", "ref": "約 7:38", "desc": "聖光過後地上留下一片活水 5 秒：在裡面的人回血，進來的敵人變慢", "mod": {"holy_pool": 1}}
+        {"id": "river", "name": "活水的江河", "ref": "約 7:38", "desc": "聖光過後地上留下一片活水 5 秒：在裡面的人回血，進來的敵人變慢", "mod": {"holy_pool": 1}},
+        {"id": "atone", "name": "以善勝惡", "ref": "羅 12:21", "desc": "醫治流派的人打出去的傷害，一成五化成醫治，給隊伍裡血最少的人", "mod": {"atone": 0.15}},
+        {"id": "renew", "name": "如鷹返老還童", "ref": "詩 103:5", "desc": "每次被醫治的同伴，3 秒內出手加快 25%", "mod": {"renew": 0.25}}
       ]},
     "差派": {"name": "腳蹤", "icon": "➤", "ref": "羅 10:15",
       "desc": "主角移動時留下發光的腳蹤，敵人踩到會受傷、變慢；差派同伴在主角移動時攻擊更快，站著不動會變慢",

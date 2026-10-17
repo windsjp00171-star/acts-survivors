@@ -125,6 +125,7 @@ var sparks: Array = []    # 命中火花
 var impacts: Array = []   # 投射物打中的地方：一圈光、往前噴的光芒（只是畫面，不影響傷害）
 var blasting := false     # 輔助「爆裂」的連帶傷害進行中（避免連鎖爆炸無限觸發）
 var smite_cd := 0.0       # 醫治「鞭傷」的冷卻
+var atone_cd := 0.0       # 醫治「以善勝惡」的冷卻
 var guard_slow_t := 0.0   # 守護「四圍的火城」的間隔
 const IMPACT_COL := {"letter": Color("fff4c2"), "vial": Color("8ae0d0"), "stone": Color("d8d0c0"), "coin": Color("ffd75e"),
 	"pilum": Color("e0e0e8"), "fig": Color("c87ac8"), "errand": Color("d8a860")}
@@ -1467,6 +1468,11 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		if float(src.get("texpose", 0.0)) > 0.0:
 			e.exposed_t = 2.0
 			e.expose = maxf(float(e.get("expose", 0.0)), float(src.texpose))
+		var atone: float = (_sv("醫治", "atone") if _tagged(src, "醫治") else 0.0) + (0.1 if src.has("st") and float(src.st.get("atone", 0.0)) > 0.0 else 0.0)
+		if atone > 0.0 and t >= atone_cd:
+			# 以善勝惡：醫治的人打出去的傷害，一部分化成血最少的人的醫治
+			atone_cd = t + 0.3
+			_atone(dmg * atone)
 		if src.has("st") and float(src.st.get("melee", 0.0)) > 0.0:
 			# 近戰：貼身打中的敵人露出破綻（2 秒內全隊打他更痛），自己也吸回一點力氣
 			e.exposed_t = maxf(float(e.get("exposed_t", 0.0)), 2.0)
@@ -2261,6 +2267,9 @@ func _companion_skills(dt: float) -> void:
 		var s: Dictionary = c.st
 		c.ult_cd = maxf(0.0, float(c.get("ult_cd", 0.0)) - dt)
 		var mult: float = speed_mult * c.aff * c.syn * _school_speed(c) * (2.0 if float(bond_buff.get(c.key, 0.0)) > 0.0 else 1.0) * (0.8 if relics.has("ladder") else 1.0)
+		if float(c.get("renew_t", 0.0)) > 0.0:
+			c.renew_t = float(c.renew_t) - dt
+			mult *= 1.0 + float(c.get("renew_amt", 0.0))   # 重新得力：剛被醫治的人出手更快
 		if barn_on and c != barn and c.pos.distance_to(barn.pos) < _aura_r(barn):
 			mult *= barn.st.attack_speed
 		c.cd -= dt * mult
@@ -2338,7 +2347,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					o.hp = _comp_max_hp() * D.companion_rules.revive_hp
 				if o.down <= 0.0:
 					_anoint_add((o.hp + float(s.amount) - _comp_max_hp()) * 0.3)
-					o.hp = minf(_comp_max_hp(), o.hp + s.amount)
+					_heal_comp(o, float(s.amount), float(s.get("renew", 0.0)), float(s.get("cleanse", 0.0)) > 0.0)
 					heals.append({"who": o, "t": 0.0})
 					_ring_pop(o.pos + Vector2(0, -8), C_HEAL, 12.0)
 		"beam":
@@ -2945,11 +2954,44 @@ func _fz(a: String, b: String, at: Vector2) -> void:
 			return
 
 
+## 以善勝惡：把一點醫治給隊伍裡（含主角）血量比例最低的人
+func _atone(n: float) -> void:
+	n = clampf(n, 0.5, 6.0)
+	var low = null
+	var low_k := paul.hp / float(D.paul.hp)
+	for c in comps:
+		if c.level > 0 and c.down <= 0.0 and float(c.hp) / _comp_max_hp() < low_k:
+			low = c
+			low_k = float(c.hp) / _comp_max_hp()
+	if low == null:
+		_heal_paul(n)
+		_mote(paul.pos + Vector2(0, -10), C_HEAL)
+	else:
+		_heal_comp(low, n)
+		_mote(low.pos + Vector2(0, -10), C_HEAL)
+
+
 func _heal_party(n: float) -> void:
 	_heal_paul(n)
 	for c in comps:
 		if c.level > 0 and c.down <= 0.0:
-			c.hp = minf(_comp_max_hp(), float(c.hp) + n)
+			_heal_comp(c, n)
+
+
+## 醫治一位同伴：補血；醫治流派「重新得力」讓他 3 秒內攻擊加快；cleanse 時把睡著、被嚇散的叫回來
+func _heal_comp(o: Dictionary, n: float, renew := 0.0, cleanse := false) -> void:
+	o.hp = minf(_comp_max_hp(), float(o.hp) + n)
+	var rn: float = renew + _sv("醫治", "renew")
+	if rn > 0.0:
+		o.renew_t = 3.0
+		o.renew_amt = maxf(float(o.get("renew_amt", 0.0)) if float(o.get("renew_t", 0.0)) > 0.0 else 0.0, rn)
+	if cleanse:
+		if float(o.get("sleep", 0.0)) > 0.0:
+			o.sleep = 0.0
+			_ring_pop(o.pos + Vector2(0, -8), C_CREAM, 12.0)
+		if o.off.length() > 10.0:
+			o.off = Vector2.ZERO   # 被嚇散的立刻回到隊伍
+			o.vel = Vector2.ZERO
 
 
 ## 融合：重拍的時候
@@ -4437,6 +4479,12 @@ func _nova(c: Dictionary, s: Dictionary) -> void:
 				e.knock += (e.pos - center).normalized() * float(s.knock)
 				if float(s.get("stun", 0.0)) > 0.0:
 					e.stun = maxf(e.stun, float(s.stun))
+	if float(s.get("heal_team", 0.0)) > 0.0:
+		# 雅各：義人祈禱的力量，身邊的同伴也得醫治、醒過來
+		for o in comps:
+			if o != c and o.level > 0 and o.down <= 0.0 and o.pos.distance_to(center) < r + 20.0:
+				_heal_comp(o, float(s.heal_team), 0.0, true)
+				heals.append({"who": o, "t": 0.0})
 	if float(s.get("heal", 0.0)) > 0.0:
 		# 雅各：禱告順便幫保羅回血
 		paul.hp = minf(float(D.paul.hp), paul.hp + float(s.heal))
@@ -4561,6 +4609,13 @@ func _update_projectiles(dt: float) -> void:
 		if f.t <= 0.0 and not f.get("hit", false):
 			f.hit = true
 			blasts.append({"pos": f.pos, "t": 0.0, "r": f.r, "col": Color("5a8ab0") if f.get("look", "") == "spit" else (C_GOLD if f.evo else C_FLAME), "evo": f.evo})
+			if f.owner is Dictionary and f.owner.has("st") and float(f.owner.st.get("consecrate", 0.0)) > 0.0:
+				var hv: float = float(f.owner.st.consecrate)
+				if paul.pos.distance_to(f.pos) < f.r + 24.0:
+					_heal_paul(hv)
+				for o in comps:
+					if o.level > 0 and o.down <= 0.0 and o.pos.distance_to(f.pos) < f.r + 24.0:
+						_heal_comp(o, hv)
 			_burst(f.pos, 8, C_FLAME, C_GOLD)
 			for e in _enemies_near(f.pos, f.r + 8.0):
 				if not e.dead and e.pos.distance_to(f.pos) < f.r + (8.0 if e.get("boss", false) else 0.0):
@@ -4877,6 +4932,12 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 		c.garment -= 1
 		c.hurt_cd = 0.4
 		_ring_pop(c.pos + Vector2(0, -8), Color("e8d8b0"), 12.0)
+		if by_key.has("dorcas") and by_key.dorcas.level > 0 and float(by_key.dorcas.st.get("reflect", 0.0)) > 0.0:
+			# 衣服擋下時，光往外推，傷害身邊的敵人
+			blasts.append({"pos": c.pos + Vector2(0, -6), "t": 0.0, "r": 24.0, "col": Color("e8d8b0"), "evo": false})
+			for e in _enemies_near(c.pos, 30.0):
+				if not e.dead and e.pos.distance_to(c.pos) < 24.0:
+					_hurt(e, float(by_key.dorcas.st.reflect) + level * 0.3, c.pos, by_key.dorcas)
 		return
 	if guard > 0 and _sv("守護", "yoke") > 0.0:
 		# 同負一軛：主角的護盾替同伴擋下
