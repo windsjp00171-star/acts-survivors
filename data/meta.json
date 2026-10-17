@@ -237,6 +237,7 @@
     {"id": "churches4", "name": "教會越來越多", "desc": "建立 4 間教會", "stat": "churches", "min": 4, "group": "旅程", "witness": 200, "bread": 50},
     {"id": "churches8", "name": "眾教會都問你們安", "desc": "建立 8 間教會（羅 16:16）", "stat": "churches", "min": 8, "group": "旅程", "witness": 300, "bread": 80},
     {"id": "patmos", "name": "我必快來", "desc": "在拔摩海島勝過大紅龍（啟 22:20）", "stat": "churches", "min": 15, "group": "旅程", "witness": 400, "bread": 100},
+    {"id": "fucheng", "name": "直到地極", "desc": "在府城建立教會：福音傳到了台灣（徒 1:8）", "stat": "churches", "min": 16, "group": "旅程", "witness": 400, "bread": 100},
     {"id": "school3", "name": "同心合意", "desc": "一局裡讓一個流派深化到 3 階", "stat": "best_school", "min": 3, "group": "流派", "witness": 80},
     {"id": "converts", "name": "信的人很多", "desc": "累計說服 100 個被黑暗捆綁的人（徒 17:4）", "stat": "converts", "min": 100, "group": "流派", "witness": 80, "bread": 20},
     {"id": "minions", "name": "得人如得魚", "desc": "累計招來 50 位小門徒（路 5:10）", "stat": "minions", "min": 50, "group": "流派", "witness": 80, "bread": 20},

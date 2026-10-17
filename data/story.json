@@ -186,6 +186,19 @@
       "hp_mult": 0.5,
       "dmg_mult": 0.55,
       "boss_mult": 0.6
+    },
+    {
+      "stage": "fucheng",
+      "title": "第 29 章：府城",
+      "leader": "maxwell",
+      "cast": [
+        "bunsui",
+        "kauchang"
+      ],
+      "camp": "府城",
+      "hp_mult": 0.55,
+      "dmg_mult": 0.6,
+      "boss_mult": 0.6
     }
   ],
   "hp_mult": 0.85,

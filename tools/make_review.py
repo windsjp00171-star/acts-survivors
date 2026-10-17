@@ -137,7 +137,7 @@ for i, ch in enumerate(story["chapters"]):
         w(f"**書信卡**：{ep.get('name', '')}——{ep.get('desc', '')}")
         w("")
     if ch["stage"] in cuts:
-        title = "結局「第 29 章」" if ch["stage"] == "patmos" else "通過後的過場"
+        title = "結局" if ch["stage"] == "fucheng" else "通過後的過場"
         w(f"**{title}**")
         w("")
         for t in cuts[ch["stage"]]:

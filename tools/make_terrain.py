@@ -196,6 +196,23 @@ def g_patmos(x, y):
     return "#6a6068" if n > 0.55 else "#5a5058" if n > 0.4 else "#4c444c"
 
 
+def g_fucheng(x, y):
+    # 府城的街：踩實的黃土路，有些地方鋪了舊紅磚（磚縫灰白、邊角磨圓），偶爾一點青苔
+    n = pnoise(x, y, 16, 31) * 0.6 + pnoise(x, y, 32, 32) * 0.4
+    patch = pnoise(x, y, 32, 34)
+    if patch > 0.66:
+        row = y // 4
+        bx = (x + (row % 2) * 4) // 8
+        if (x + (row % 2) * 4) % 8 == 0 or y % 4 == 0:
+            return "#9a8068"
+        return "#b4886a" if h(bx, row, 35) > 0.5 else "#a87e62"
+    if h(x, y, 33) > 0.99:
+        return "#e0d0b0"
+    if h(x, y, 36) > 0.996:
+        return "#6a7a4a"
+    return "#c4a47a" if n > 0.62 else "#b49470" if n > 0.42 else "#a48662"
+
+
 # ---------- 物件 ----------
 class C:
     def __init__(self, w, h_):
@@ -552,6 +569,94 @@ def scroll_stone():
     c.save("tablet")
 
 
+def redhouse():
+    # 府城的紅磚厝：紅磚牆、紅瓦屋頂、屋脊兩端翹起來的燕尾、木門與窗櫺
+    c = C(34, 28)
+    for y in range(11, 27):
+        for x in range(4, 30):
+            brick = (x + (2 if (y // 2) % 2 else 0)) % 4 == 0 or y % 2 == 0
+            c.px(x, y, "#8a3a2a" if brick else ("#c0563e" if h(x, y, 80) > 0.3 else "#b04c36"))
+    for y in range(5, 11):              # 屋頂（往兩邊斜下來）
+        w = (y - 5) * 2
+        c.rect(10 - w // 2, y, 14 + w, 1, "#a84030" if y % 2 else "#c45a40")
+    c.rect(3, 10, 28, 1, "#7a2e22")
+    c.rect(9, 4, 16, 1, "#7a2e22")      # 屋脊
+    c.px(8, 3, "#7a2e22")               # 燕尾
+    c.px(7, 2, "#7a2e22")
+    c.px(25, 3, "#7a2e22")
+    c.px(26, 2, "#7a2e22")
+    c.rect(14, 18, 6, 9, "#4a2e1a")     # 木門
+    c.rect(15, 19, 2, 8, "#6a4426")
+    c.rect(17, 19, 2, 8, "#6a4426")
+    for x0 in (6, 23):                  # 窗櫺
+        c.rect(x0, 14, 5, 4, "#3a2416")
+        for k in range(x0 + 1, x0 + 5, 2):
+            c.rect(k, 14, 1, 4, "#8a6438")
+    c.outline("#3a1a12")
+    for x in range(34):
+        c.px(x, 27, (20, 14, 8, 90))
+    c.save("redhouse")
+
+
+def banyan():
+    # 榕樹：粗樹幹、垂下來的氣根、寬寬的樹冠
+    c = C(38, 36)
+    for y in range(16, 36):
+        c.rect(16 - (1 if y > 31 else 0), y, 6 + (2 if y > 31 else 0), 1, "#6a5040" if y % 4 else "#5a4232")
+    for i in range(8):
+        c.oval(5 + h(i, 90) * 28, 6 + h(i, 91) * 10, 6 + h(i, 92) * 3, 4.5, ("#2e5a2a", "#3e7a36", "#5e9a4a"), 90 + i, 0.25)
+    for k, x in enumerate((7, 11, 26, 30)):
+        for y in range(16, 22 + k % 2 * 4):
+            c.px(x, y, "#5a4232")
+    c.outline("#1a2a14")
+    c.save("banyan")
+
+
+def lantern():
+    # 掛在竹竿上的紅燈籠
+    c = C(12, 30)
+    c.rect(5, 4, 2, 26, "#8a7a3a")
+    c.rect(5, 4, 6, 1, "#8a7a3a")
+    c.oval(9, 10, 2.6, 3.4, ("#a82018", "#d8382a", "#ff7a5a"), 95)
+    c.rect(8, 6, 3, 1, "#2a1a10")
+    c.rect(8, 14, 3, 1, "#2a1a10")
+    c.px(9, 15, "#ffd75e")
+    c.outline("#2a1410")
+    c.save("lantern")
+
+
+def bamboo():
+    # 竹叢：一節一節的青竹，頂上幾片葉子
+    c = C(20, 34)
+    for i, (x, top) in enumerate([(5, 6), (9, 2), (13, 5), (16, 10)]):
+        for y in range(top, 34):
+            c.px(x, y, "#4a7a2a" if (y - top) % 6 else "#2a4a1a")
+            c.px(x + 1, y, "#6a9a3a" if (y - top) % 6 else "#2a4a1a")
+        for k in range(3):
+            yy = top + 3 + k * 6
+            c.px(x + 2, yy, "#5a9a3a")
+            c.px(x + 3, yy + 1, "#5a9a3a")
+            c.px(x - 1, yy + 2, "#5a9a3a")
+            c.px(x - 2, yy + 3, "#5a9a3a")
+    c.outline("#1a2a10")
+    c.save("bamboo")
+
+
+def oxcart():
+    # 牛車：木板車斗、兩個大木輪
+    c = C(26, 16)
+    c.rect(2, 4, 20, 5, "#8a643a")
+    c.rect(2, 4, 20, 1, "#a8804a")
+    for x in range(2, 22, 4):
+        c.rect(x, 4, 1, 5, "#6a4a2a")
+    c.rect(20, 8, 6, 1, "#6a4a2a")       # 車轅
+    for cx in (7, 17):
+        c.oval(cx, 11, 4, 4, ("#4a321e", "#5e4028", "#6a4a2a"), 96)
+        c.oval(cx, 11, 1.2, 1.2, ("#2a1a10", "#2a1a10", "#2a1a10"), 97)
+    c.outline("#2a1a10")
+    c.save("oxcart")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [("thessalonica", g_thessalonica), ("corinth", g_corinth), ("ephesus", g_ephesus), ("athens", g_athens),
@@ -588,4 +693,10 @@ if __name__ == "__main__":
     stall()
     dye()
     stairs()
+    ground("fucheng", g_fucheng)
+    redhouse()
+    banyan()
+    lantern()
+    bamboo()
+    oxcart()
     print("done")

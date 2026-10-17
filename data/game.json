@@ -9,7 +9,8 @@
     { "key": "john",  "hp": 130, "speed": 42, "desc": "拔摩海島的主角：年老的約翰，雷聲落在敵人群中" },
     { "key": "tim",   "hp": 80,  "speed": 48, "desc": "血少、跑得快，追蹤光箭又密又準" },
     { "key": "philip", "hp": 90, "speed": 50, "desc": "跑得最快，長距離衝刺" },
-    { "key": "lydia", "hp": 110, "speed": 40, "desc": "鋪紫布定住敵人，適合打連結" }
+    { "key": "lydia", "hp": 110, "speed": 40, "desc": "鋪紫布定住敵人，適合打連結" },
+    { "key": "maxwell", "hp": 110, "speed": 42, "desc": "府城的洋醫生：丟出藥瓶直線穿透，帶著醫治的流派" }
   ],
   "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
   "_companions說明": "color 是這位同伴招式的顏色（畫面上用顏色分辨誰在出招）；skill 對應下面的 skills；tag 是流派；era 顯示在名冊上。站位依加入順序自動排。",
@@ -46,7 +47,10 @@
     { "key": "jonah", "name": "約拿", "skill": "fish", "tag": "差派", "era": "舊約", "color": "#5a8ab0" },
     { "key": "noah", "name": "挪亞", "skill": "flood", "tag": "守護", "era": "舊約", "color": "#3a7ad0" },
     { "key": "esther", "name": "以斯帖", "skill": "decree", "tag": "醫治", "era": "舊約", "color": "#c060c0" },
-    { "key": "miriam", "name": "米利暗", "skill": "timbrel", "tag": "詩歌", "era": "舊約", "color": "#ff6a8a" }
+    { "key": "miriam", "name": "米利暗", "skill": "timbrel", "tag": "詩歌", "era": "舊約", "color": "#ff6a8a" },
+    { "key": "maxwell", "name": "馬雅各", "skill": "medicine", "tag": "醫治", "era": "台灣", "color": "#8ae0d0" },
+    { "key": "bunsui", "name": "吳文水", "skill": "street", "tag": "講道", "era": "台灣", "color": "#ffb05e" },
+    { "key": "kauchang", "name": "高長", "skill": "cook", "tag": "門徒", "era": "台灣", "color": "#c8e070" }
   ],
   "_skills說明": "branches 是升到 Lv3 時的二選一（add 會加在數值上，之後的升級也保留）。base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。engine 是借用哪一種招式的運作方式（bolt 追蹤、ring 擴散圈、beam 直線、nova 身邊重擊、strike 預兆後落下、shot 直線飛行、net 撒網、chain 連鎖閃電、thrust 近身刺擊、gather 收聚），look 是外觀。",
   "skills": {
@@ -268,6 +272,27 @@
       "desc": ["夜裡來見耶穌：提燈照出一道光；被照亮的敵人 3 秒內受到的傷害 +30%", "光更寬", "光的末端爆開", "兩道光，被照亮的敵人受到的傷害 +45%", "光照得更遠更強（約 3:2）"],
       "branches": [ { "name": "長燈", "desc": "光照得更遠", "add": {"length": 50} }, { "name": "雙燈", "desc": "多一道光", "add": {"beams": 1} } ]
     },
+    "medicine": {
+      "engine": "shot", "look": "vial",
+      "base": { "cooldown": 0.75, "range": 130, "damage": 4, "speed": 210, "count": 1, "pierce": 1, "spread": 14 },
+      "levels": [ { "damage": 6 }, { "count": 2 }, { "pierce": 3, "cooldown": 0.6 }, { "count": 3, "damage": 8, "pierce": 4 } ],
+      "desc": ["藥瓶：朝最近的敵人丟出藥瓶，直線飛行、穿透 1 隻", "藥效更強", "一次丟兩瓶", "藥瓶可以穿透 3 隻，丟得更快", "一次三瓶、穿透 4 隻、更重（太 9:12）"],
+      "branches": [ { "name": "重藥", "desc": "每瓶更重、更能穿透", "add": {"damage": 2, "pierce": 2} }, { "name": "多開幾帖", "desc": "一次多丟兩瓶", "add": {"count": 2} } ]
+    },
+    "street": {
+      "engine": "beam",
+      "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 2, "range": 130, "beams": 1, "burst": 0, "lies_mult": 2 },
+      "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 3 } ],
+      "desc": ["街頭講道：在醫館門口講耶穌，話語像一道光直直貫穿；對謊言兩倍傷害", "講得更清楚、傳得更遠", "話的末端爆開", "一次兩道", "三道光，對謊言三倍傷害（羅 10:14）"],
+      "branches": [ { "name": "大聲", "desc": "光更寬", "add": {"width": 6} }, { "name": "多講一段", "desc": "多一道光", "add": {"beams": 1} } ]
+    },
+    "cook": {
+      "engine": "gather",
+      "base": { "cooldown": 5.0, "radius": 90, "damage": 3, "knock": 80, "heal": 2 },
+      "levels": [ { "radius": 120 }, { "cooldown": 4.5 }, { "damage": 3, "knock": 100 }, { "radius": 170, "heal": 8 } ],
+      "desc": ["煮飯的：把附近的經驗與餅帶到主角身邊、推開身邊的敵人，順便讓主角吃一點、回一點血", "帶得更遠", "帶得更頻繁", "推得更用力", "整個畫面都帶來，回血更多"],
+      "branches": [ { "name": "遠方", "desc": "帶得更遠", "add": {"radius": 60} }, { "name": "推開", "desc": "推得更遠、傷得更重", "add": {"knock": 60, "damage": 3} } ]
+    },
     "trumpet": {
       "engine": "orbit", "look": "horn",
       "base": { "cooldown": 6.0, "count": 3, "radius": 30, "spin": 2.2, "damage": 2, "hit_every": 0.5, "max_radius": 70, "shout": 6, "knock": 120 },
@@ -319,7 +344,7 @@
     }
   },
   "_music_bpm說明": "每首音樂的速度（要跟 tools/make_music.py 一致），詩歌的「節拍」用它對拍子。",
-  "music_bpm": {"pentecost": 138, "stephen": 108, "samaria": 124, "damascus": 112, "joppa": 120, "antioch": 130, "philippi": 132, "thessalonica": 144, "athens": 126, "corinth": 136, "ephesus": 128, "jerusalem": 116, "malta": 140, "rome": 120, "patmos": 112, "boss": 150, "fever": 140},
+  "music_bpm": {"pentecost": 138, "stephen": 108, "samaria": 124, "damascus": 112, "joppa": 120, "antioch": 130, "philippi": 132, "thessalonica": 144, "athens": 126, "corinth": 136, "ephesus": 128, "jerusalem": 116, "malta": 140, "rome": 120, "patmos": 112, "fucheng": 126, "boss": 150, "fever": 140},
   "_director說明": "難度導演：from 秒以後，被打倒的敵人平均活不到 target 秒（太快被清掉），壓力每秒升 rise ×差距，最多 max（敵人血量 ×(1+壓力)）；主角血量低於 40% 時每秒降 relax。persecute_*：從某秒起定時在主角腳下落下「逼迫」，傷害是主角血量上限的比例，每過 persecute_grow 秒再多一倍。",
   "director": {"from": 45, "target": 4.0, "rise": 0.02, "max": 6.0, "relax": 0.08, "persecute_from": 60, "persecute_every": 7, "persecute_dmg": 0.18, "persecute_grow": 200, "persecute_warn": 1.2},
   "_seek說明": "帶人信主：每隔一陣子，地圖上會出現一位在尋找的人（灰色、頭上有問號）。主角在他身邊累積 need 秒，他就信主跟著隊伍（最多 follow_max 位，每位讓經驗 +xp_each）。敵人碰到他會受傷，血量歸零就走散了。結算時每位信主的人見證 +witness_each。",

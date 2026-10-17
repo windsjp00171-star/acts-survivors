@@ -633,6 +633,25 @@ def boss_antioch():
     c.save("boss_antioch")
 
 
+def boss_fucheng():
+    # 謠言（府城，1865）：一團越滾越大的黑煙，上面長滿竊竊私語的嘴，一句傳一句
+    c = Canvas(40, 40)
+    for i, (x, y, rx, ry) in enumerate([(20, 22, 15, 13), (11, 17, 8, 7), (29, 16, 8, 7), (20, 10, 9, 7), (14, 30, 8, 6), (27, 30, 8, 6)]):
+        c.blob(x, y, rx, ry, ("#1e1626", "#3a2e44", "#5a4a66"), 0.35, 180 + i)
+    for k, (x, y) in enumerate([(14, 16), (26, 15), (20, 24), (12, 27), (28, 27), (20, 9)]):
+        w = 3 if k % 2 else 4
+        for dx in range(-w // 2, w - w // 2):
+            c.px(x + dx, y, "#7a1a24")
+            c.px(x + dx, y + 1, "#2a0a10")
+        c.px(x - w // 2 - 1, y, "#c8b8d0")
+        c.px(x + w - w // 2, y, "#c8b8d0")
+    for x, y in [(6, 8), (34, 7), (3, 24), (37, 22)]:
+        for j in range(3):
+            c.px(x + j * (1 if x < 20 else -1), y - j, "#a898b8")
+    c.outline("#140c14")
+    c.save("boss_fucheng")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, fn in [("fear_b", fear_b), ("strife_b", strife_b), ("lies_b", lies_b), ("sleep_b", sleep_b),
@@ -658,4 +677,5 @@ if __name__ == "__main__":
     boss_samaria()
     boss_joppa()
     boss_antioch()
+    boss_fucheng()
     print("done")

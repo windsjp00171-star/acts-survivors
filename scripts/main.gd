@@ -934,7 +934,7 @@ func _make_cards() -> Array:
 		var c: Dictionary = by_key[evo.companion]
 		pool.push_front({"kind": "evolve", "key": c.key, "title": "進化！" + evo.name, "tag": c.tag, "desc": c.name + "：" + evo.desc})
 		break
-	var n_cards := (4 if calling == "teacher" else 3) - (1 if trials.has("tempt") else 0)
+	var n_cards := mini(4, (4 if calling == "teacher" else 3) + (1 if epistles.has("vernacular") else 0)) - (1 if trials.has("tempt") else 0)
 	if calling == "teacher":
 		# 教師：有流派卡時一定排進來
 		for sc in pool.filter(func(cd): return cd.kind == "school"):
@@ -5822,6 +5822,14 @@ func _draw_air() -> void:
 			var d: Vector2 = b.dir
 			n.draw_line(b.pos - d * 9.0, b.pos, Color("8a6438"), 2.0)
 			n.draw_line(b.pos - d * 1.0, b.pos + d * 3.0, C_FLAME if on_fire else Color("e0e0e8"), 2.0)
+		elif b.look == "vial":
+			# 藥瓶：淡青色的玻璃瓶、褐色軟木塞，跟著方向轉
+			var d: Vector2 = b.dir
+			var side := d.orthogonal()
+			var c0: Vector2 = b.pos
+			n.draw_line(c0 - d * 7.0, c0, Color(Color("8ae0d0"), 0.35), 2.0)
+			n.draw_colored_polygon(PackedVector2Array([c0 - d * 3 - side * 2, c0 + d * 2 - side * 2, c0 + d * 2 + side * 2, c0 - d * 3 + side * 2]), C_FLAME if on_fire else Color("bff0e6"))
+			n.draw_line(c0 + d * 2, c0 + d * 4, Color("8a5a30"), 2.0)
 		elif b.look == "fig":
 			n.draw_rect(Rect2(x - 2, y - 2, 4, 4), Color("2a1420"))
 			n.draw_rect(Rect2(x - 1, y - 1, 3, 3), C_FLAME if on_fire else Color("8a4a8a"))
@@ -6435,7 +6443,7 @@ func _win() -> void:
 	if not Save.data.churches.has(stage.id):
 		Save.data.churches.append(stage.id)
 		founded_now = true
-	if story and founded_now and stage.id in ["stephen", "damascus", "rome", "patmos"] and not Save.data.get("cuts_seen", []).has(stage.id):
+	if story and founded_now and stage.id in ["stephen", "damascus", "rome", "patmos", "fucheng"] and not Save.data.get("cuts_seen", []).has(stage.id):
 		Save.data.pending_cut = stage.id   # 回營地前先播這一章結束的過場（title.gd 的 CUTS）
 	if story and leader != "paul" and not Save.is_unlocked("leader_" + leader) and D.leaders.any(func(L): return L.key == leader):
 		Save.data.unlocked.append("leader_" + leader)   # 劇情的主角，自由模式也能選

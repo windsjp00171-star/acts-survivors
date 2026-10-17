@@ -4,7 +4,19 @@
 
 ## [Unreleased]
 
+## [0.29.0] - 2026-10-17
+
+### 新增
+- 第 16 章「第 29 章：府城」（`stages.json` 的 `fucheng`、`story.json` 第 16 章）：一八六五年台南府城。主角馬雅各（`maxwell`，醫治，`medicine` 招式借用 `shot` 引擎、新外觀 `vial`），同伴吳文水（`bunsui`，講道，`street` 借用 `beam`）、高長（`kauchang`，門徒，`cook` 借用 `gather`）
+- 新地面 `ground_fucheng`、新物件 `redhouse`、`banyan`、`lantern`、`bamboo`、`oxcart`；新 Boss 圖 `boss_fucheng`（謠言）；新配樂 `music_fucheng`（G 大調五聲音階，三層）
+- 新書信卡效果 `vernacular`：升級卡多一張（最多 4 張）
+- 圖鑑「謠言」、見證錄「直到地極」（16 間教會）、三位新角色的生平與營地閒聊
+
 ### 變更
+- 結局分成兩段：`CUTS.patmos` 播到一八六五年馬雅各上岸為止；新的 `CUTS.fucheng`（通過府城後）接著播回到府城、淡水、教會報、切膚之愛、姬望、今天的你
+- 全部通過後的標題畫面，路上的人改成使徒與台灣的見證人（高長、保羅、約翰、彼得、馬雅各）
+
+### 文件
 - README 全部改寫成目前的樣子（十五章劇情、資料檔各管什麼、`tools/release.sh` 發版流程、`tools/sim/storysim.sh`、測試參數、存檔檔案），讓別人也接得起來
 - 新增 `tools/make_review.py`：把遊戲裡的經文、對話、過場、結局、同伴生平、信仰小辭典整理成 `docs/審閱文字包.md`，給牧者審閱
 

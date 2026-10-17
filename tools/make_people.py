@@ -151,6 +151,41 @@ def walking_staff(px, f):
     px(11, 5, "#8a6438")
 
 
+def doctor_bag(px, f):
+    # 馬雅各：黑色的醫生提包
+    for x in (10, 11, 12):
+        for y in (11, 12):
+            px(x, y, "#1e1a1e")
+    px(11, 10, "#8a6438")
+    px(12, 11, "#c8a040")
+
+
+def queue(px, f):
+    # 清朝的髮辮：從後腦垂下來（畫在左邊）
+    for y in (6, 7, 8, 9, 10, 11):
+        px(2, y + (1 if f and y > 8 else 0), "#1a1420")
+
+
+def bowl_queue(px, f):
+    # 高長：髮辮＋手上一碗飯
+    queue(px, f)
+    for x in (10, 11, 12):
+        px(x, 12, "#e8e4dc")
+    px(10, 11, "#f4f0e8")
+    px(11, 11, "#ffffff")
+    px(12, 11, "#f4f0e8")
+
+
+def book_queue(px, f):
+    # 吳文水：髮辮＋手上的聖經
+    queue(px, f)
+    for y in (10, 11, 12):
+        px(10, y, "#2a1a14")
+        px(11, y, "#3a2a5a")
+        px(12, y, "#2a1a14")
+    px(11, 11, "#ffd75e")
+
+
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     person("gideon", "#3a2414", "#8a5a30", "#5e3b22", "#c8302a", beard="#3a2414", item=torch_jar)
@@ -162,4 +197,8 @@ if __name__ == "__main__":
     person("jesus", "#4a2c18", "#f4f0e6", "#cfc6b4", "#b0302a", beard="#4a2c18", long_hair=True, item=glory)
     person("ananias", "#9a9288", "#6a7a4a", "#4a5a32", "#e0d4b8", beard="#c8c0b4", item=walking_staff)
     person("disciple", "#2a1a10", "#7a6a8a", "#5a4a6a", "#d8c8a0")
+    # 台灣（1865）：蘇格蘭醫生穿深色外套、白領；吳文水、高長是清朝的打扮（剃前額、髮辮、長衫／短衫）
+    person("maxwell", "#8a5a34", "#2a2a3a", "#1a1a26", "#f4f0e8", skin="#f0c8a8", beard="#8a5a34", item=doctor_bag)
+    person("bunsui", "#3a3440", "#3a5a8a", "#2a4064", "#2a2030", item=book_queue)
+    person("kauchang", "#3a3440", "#6a5a44", "#4a3e2e", "#c8b890", item=bowl_queue)
     print("done")

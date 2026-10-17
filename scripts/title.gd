@@ -38,14 +38,16 @@ const CUTS := {
 		{"scene": "years", "text": "很多年過去了。使徒們一個一個，跑完了他們的路。"},
 		{"scene": "sea", "text": "年老的約翰被流放到拔摩海島。在主日，他被聖靈感動，聽見身後有大聲音。"},
 	],
-	# 結局：使徒行傳的「第 29 章」——福音一路傳到台灣，傳到今天的你（看完回到清晨的標題畫面）
+	# 拔摩海島之後：使徒行傳的「第 29 章」開始——福音一路傳到台灣（看完回到標題，下一章是府城）
 	"patmos": [
 		{"scene": "newheaven", "text": "約翰看見一個新天新地。神要擦去他們一切的眼淚，不再有死亡，也不再有悲哀。"},
 		{"scene": "years", "text": "使徒們跑完了他們的路。可是這條路沒有停下來，一代又一代的人接著走，走到了台灣。"},
 		{"scene": "sinkang", "text": "一六二七年，荷蘭的牧師甘治士來到台南的新港社，和西拉雅族人住在一起，學他們的話。"},
 		{"scene": "ship", "text": "一八六五年，一位蘇格蘭醫生馬雅各，坐船來到台灣。"},
-		{"scene": "tainan", "text": "他在台南府城的看西街開了醫館，一邊看病，一邊傳福音。才二十幾天，就被謠言趕出城。"},
-		{"scene": "tainan", "back": true, "text": "他沒有放棄。四年後，他又回到府城。"},
+	],
+	# 結局：通過府城（第 29 章）以後——這條路走到今天的你（看完回到清晨的標題畫面）
+	"fucheng": [
+		{"scene": "tainan", "back": true, "text": "一八六九年，馬雅各回到府城，在二老口開了醫館和禮拜堂。這一次，他留下來了。"},
 		{"scene": "tamsui", "text": "一八七二年，馬偕在淡水上岸，走遍了北台灣。"},
 		{"scene": "print", "text": "一八八五年，巴克禮牧師在府城印出《台灣府城教會報》。這是台灣第一份報紙，用白話字寫，讓不識漢字的阿公阿嬤也讀得懂神的話。"},
 		{"scene": "skin", "text": "一九二八年，彰化的蘭大衛醫生要救一個腿爛掉的孩子周金耀。他的妻子連瑪玉，割下自己腿上的皮給他——人稱「切膚之愛」。"},
@@ -109,17 +111,17 @@ func _ready() -> void:
 		_start_intro()
 
 
-## 路上的人：下一章的主角在中間，旁邊是這一章會遇到的同伴；全部通過後是約翰和舊約的見證人
+## 路上的人：下一章的主角在中間，旁邊是這一章會遇到的同伴；全部通過後是使徒和台灣的見證人
 func _pick_walkers() -> void:
 	var CH: Array = Save.story.chapters
 	var i := Save.story_next()
 	dawn = i >= CH.size()
 	var ch: Dictionary = CH[mini(i, CH.size() - 1)]
 	var side: Array = Array(ch.cast).slice(0, 4)
-	if dawn:
-		side = ["peter", "paul", "moses", "elijah"]
 	var row: Array = []
-	if side.size() >= 2:
+	if dawn:
+		row = ["kauchang", "paul", "john", "peter", "maxwell"]
+	elif side.size() >= 2:
 		row = [side[1], side[0], ch.leader] + side.slice(2, 4)
 	else:
 		row = side + [ch.leader]
@@ -359,8 +361,8 @@ func _end_intro() -> void:
 		Save.data.cuts_seen = seen
 		Save.data.pending_cut = ""
 		Save.save_profile()
-		if cut_id == "patmos":
-			get_tree().change_scene_to_file("res://scenes/title.tscn")   # 結局看完：回到新天新地的清晨
+		if cut_id in ["patmos", "fucheng"]:
+			get_tree().change_scene_to_file("res://scenes/title.tscn")   # 回到標題：下一章是府城；結局看完是新天新地的清晨
 			return
 		_start()
 		return

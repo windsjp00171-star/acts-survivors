@@ -674,6 +674,14 @@ def patmos():
                   taiko_a="B.......B...B...", taiko_b="B..B....B.BB..B.", frame="F...k...F...k.kk", extra=vision)
 
 
+def fucheng():
+    # 府城（1865）：G 大調五聲音階（只用 do re mi sol la），撥弦像月琴主奏、笛聲回答；C 段是「宣教之路」主題
+    motif = [(0, 1), (1, 0.5), (2, 0.5), (4, 1), (2, 1), (4, 1), (5, 1), (4, 2), (None, 1), (2, 1), (1, 1), (0, 1), (1, 2), (2, 2)]
+    answer = [(4, 1), (5, 0.5), (4, 0.5), (2, 1), (1, 1), (2, 1.5), (4, 0.5), (5, 2), (7, 1), (5, 1), (4, 1), (2, 1), (1, 2), (0, 2)]
+    return battle(67, "rast", 126, [0, 5, 3, 4], motif, answer, lead=kithara,
+                  taiko_a="B.......B.......", taiko_b="B..B....B..B.B..", frame="F.k.k...F.k.kk..")
+
+
 # ---------- 營地、標題、過場（單一檔案） ----------
 def camp():
     # 營地：慢、溫暖。D 多利安，阿洛斯主奏、基薩拉琴分解和弦、輕輕的框鼓；中間是「宣教之路」主題
@@ -753,7 +761,7 @@ SONGS = [("camp", camp, False), ("title", title, False), ("story", story, False)
          ("pentecost", pentecost, True), ("stephen", stephen, True), ("samaria", samaria, True),
          ("damascus", damascus, True), ("joppa", joppa, True), ("antioch", antioch, True), ("philippi", philippi, True),
          ("thessalonica", thessalonica, True), ("corinth", corinth, True), ("ephesus", ephesus, True), ("athens", athens, True),
-         ("jerusalem", jerusalem, True), ("malta", malta, True), ("rome", rome, True), ("patmos", patmos, True),
+         ("jerusalem", jerusalem, True), ("malta", malta, True), ("rome", rome, True), ("patmos", patmos, True), ("fucheng", fucheng, True),
          ("boss", boss, True), ("fever", fever, False)]
 
 if __name__ == "__main__":
