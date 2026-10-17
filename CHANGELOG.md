@@ -4,6 +4,20 @@
 
 ## [Unreleased]
 
+## [0.32.0] - 2026-10-17
+
+### 新增
+- 主角輔助 `pillar`「光柱」（25%，0.3 秒後落下，1.2 倍）、`zap`「雷擊」（30%，跳 3 隻、各 0.6 倍）；可裝在投射物、光束、刺擊、扇形
+- 進化的命中效果 `onhit`（`evolutions`）：paul／tim 光柱、matthew／cornelius 雷擊、david／zacchaeus 爆裂；`_anoint_on_hit` 同時看 `anoints` 與 `onhit`
+- 近戰屬性 `melee`（破綻 +15%，沿用 `exposed_t`／`expose`）與 `leech`（每 0.25 秒最多一次）；`_lunge`：近戰同伴出手前往最近的敵人跨一步（最多 40）
+- 測試：`DEALT` 印出每位成員的傷害／出手次數（`dealt`、`casts`）
+
+### 變更
+- 近戰招式數值：`touch`／`run`／`prayer`／`timbrel` 傷害 ×2.4、`jawbone` ×2.24；`touch` 寬度 +6、`jawbone` 範圍 +8、`prayer` +6、`timbrel` 射程 +8。模擬（帖撒羅尼迦、Lv4 四人隊）近戰隊總傷害從約遠程隊的三分之一提高到約一半到三分之二（另有破綻加成全隊）
+
+### 修正
+- 迴力（馬可）沒有 `look` 欄位，命中特效出錯（0.31.0）
+
 ## [0.31.0] - 2026-10-17
 
 ### 新增

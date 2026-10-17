@@ -1460,6 +1460,18 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		if float(src.get("texpose", 0.0)) > 0.0:
 			e.exposed_t = 2.0
 			e.expose = maxf(float(e.get("expose", 0.0)), float(src.texpose))
+		if src.has("st") and float(src.st.get("melee", 0.0)) > 0.0:
+			# 近戰：貼身打中的敵人露出破綻（2 秒內全隊打他更痛），自己也吸回一點力氣
+			e.exposed_t = maxf(float(e.get("exposed_t", 0.0)), 2.0)
+			e.expose = maxf(float(e.get("expose", 0.0)), float(src.st.melee))
+			if t < float(src.get("leech_cd", 0.0)):
+				pass   # 吸血每 0.25 秒最多一次（範圍打到一大群時不會一下補滿）
+			elif src == pa:
+				src.leech_cd = t + 0.25
+				_heal_paul(float(src.st.get("leech", 1.0)))
+			elif src.level > 0 and float(src.get("down", 0.0)) <= 0.0:
+				src.leech_cd = t + 0.25
+				src.hp = minf(_comp_max_hp(), float(src.hp) + float(src.st.get("leech", 1.0)))
 		if src == pa and armor.get("sword", 0) > 0:
 			dmg *= 1.0 + float(D.armor.sword.per[armor.sword - 1])
 		# 流派規則
@@ -1492,6 +1504,8 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if e.get("boss", false) and boss != null and boss.state == "break":
 		dmg *= D.boss.break_mult
 	e.hp -= dmg
+	if src is Dictionary:
+		src.dealt = float(src.get("dealt", 0.0)) + minf(dmg, maxf(0.0, dmg + e.hp))   # 這一局打出的傷害（結算排行用）
 	e.flash = 0.08
 	Sfx.play("hit")
 	if from != Vector2.INF:
@@ -1816,6 +1830,7 @@ func _event_effects(fx: Dictionary) -> void:
 					var c: Dictionary = up[randi() % up.size()]
 					c.hp = 0.0
 					c.down = float(D.companion_rules.down_seconds)
+					c.down_total = float(c.get("down_total", 0.0)) + 1.0
 			"recruit":
 				var cand := comps.filter(func(c): return not solo and c.level == 0 and c.follows == "" and c.skill != "" and (chapter.cast.has(c.key) if story else Save.is_unlocked(c.key)))
 				if not cand.is_empty() and _party_count() < Save.party_cap():
@@ -2353,6 +2368,8 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			var tl := _nearest_enemies(c.pos, s.range + 20.0, 1)
 			fired = tl.size() > 0
 			if fired:
+				if c.look != "dash":
+					_lunge(c, s)
 				var from: Vector2 = c.pos + Vector2(0, -6)
 				var dir: Vector2 = (tl[0].pos - from).normalized()
 				var crit := false
@@ -2405,6 +2422,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			if int(s.paul) > 0:
 				guard = mini(guard + 1, 3)
 		"nova":
+			_lunge(c, s)
 			var slams := int(s.slams)
 			for i in slams:
 				delayed.append({"t": i * 0.25, "fn": _nova.bind(c, s)})
@@ -2525,6 +2543,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			var tl6 := _nearest_enemies(c.pos, float(s.range) * _area() + 20.0, 1)
 			fired = not tl6.is_empty()
 			if fired:
+				_lunge(c, s)
 				var cdir: Vector2 = (tl6[0].pos - c.pos).normalized()
 				for i in int(s.pulses):
 					delayed.append({"t": i * 0.18, "fn": _cone_hit.bind(c, s, cdir)})
@@ -2532,6 +2551,8 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 			fired = false
 			if not triggered:
 				c.cd = 1.0
+	if fired:
+		c.casts = int(c.get("casts", 0)) + 1
 	if fired and not triggered:
 		c.cd = s.cooldown
 	if fired:
@@ -3622,7 +3643,7 @@ func _update_engines(dt: float) -> void:
 		for e in enemies:
 			if not e.dead and not b.hit.has(e.node) and e.pos.distance_to(b.pos + Vector2(0, 4)) < float(e.r) + 4.0:
 				b.hit[e.node] = true
-				_impact(b.pos, b.owner, b.dmg, b.look, (e.pos - b.pos).normalized())
+				_impact(b.pos, b.owner, b.dmg, b.get("look", ""), (e.pos - b.pos).normalized())
 				_hurt(e, b.dmg, b.pos, b.owner)
 	boomers = boomers.filter(func(b): return b.life > 0.0)
 	# 桑樹
@@ -4035,9 +4056,25 @@ func _apply_element(e: Dictionary, dmg: float, src) -> float:
 
 ## 膏抹：連鎖、餘燼、觸發
 func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
-	var an: Array = src.get("anoints", [])
+	var an: Array = src.get("anoints", []) + src.get("onhit", [])
 	if an.is_empty():
 		return
+	var base: float = dmg / maxf(0.01, _dmg_mult())   # 之後的 _hurt 會再乘一次倍率，這裡先除掉
+	if an.has("pillar") and not chaining and t >= float(src.get("pillar_cd", 0.0)) and randf() < 0.25:
+		# 光柱：打中的地方，天上降下一道光柱
+		src.pillar_cd = t + 0.2
+		fires.append({"pos": e.pos, "t": 0.3, "max": 0.3, "r": 18.0 * _area(), "dmg": base * 1.2, "owner": src, "evo": true, "look": "glory"})
+	if an.has("zap") and not chaining and t >= float(src.get("zap_cd", 0.0)) and randf() < 0.3:
+		# 雷擊：打中後，閃電跳向附近 3 隻
+		src.zap_cd = t + 0.2
+		chaining = true
+		var prev: Vector2 = e.pos + Vector2(0, -4)
+		var seen := {e.node: true}
+		for o in _nearest_enemies(e.pos, 70.0, 3, seen):
+			zaps.append({"pts": [prev, o.pos + Vector2(0, -4)], "t": 0.0, "evo": true, "col": C_GOLD})
+			_hurt(o, base * 0.6, Vector2.INF, src)
+			prev = o.pos + Vector2(0, -4)
+		chaining = false
 	if an.has("chain") and not chaining and t >= float(src.get("chain_cd", 0.0)):
 		src.chain_cd = t + 0.12
 		var nx := _nearest_enemies(e.pos, 55.0, 1, {e.node: true})
@@ -4263,6 +4300,21 @@ func _draw_person(n: Node2D, x: float, y: float, robe: Color, sash: Color) -> vo
 	n.draw_rect(Rect2(x - 2, y - 11, 5, 2), Color("4a3020"))
 
 
+## 近戰同伴出手前往最近的敵人跨一步（最多 40），打完被隊形拉回來；主角不會被拉走
+func _lunge(c: Dictionary, s: Dictionary) -> void:
+	if c == pa or float(s.get("melee", 0.0)) <= 0.0:
+		return
+	var tl := _nearest_enemies(c.pos, 80.0, 1)
+	if tl.is_empty():
+		return
+	var to: Vector2 = tl[0].pos - c.pos
+	if to.length() < 14.0:
+		return
+	c.off = to.normalized() * minf(to.length() - 8.0, 40.0)
+	c.vel = -c.off * 5.0
+	c.pos = c.base + c.off
+
+
 func _nova(c: Dictionary, s: Dictionary) -> void:
 	if c.level == 0:
 		return
@@ -4321,7 +4373,7 @@ func _update_projectiles(dt: float) -> void:
 				if e.dead or b.hit.has(e.node) or e.pos.distance_to(b.pos + Vector2(0, 4)) > e.r + 3.0:
 					continue
 				b.hit[e.node] = true
-				_impact(b.pos, b.owner, b.dmg, b.look, b.vel.normalized())
+				_impact(b.pos, b.owner, b.dmg, b.get("look", ""), b.vel.normalized())
 				_hurt(e, b.dmg, b.pos - b.vel.normalized() * 4.0, b.owner)
 				if b.owner is Dictionary and float(b.owner.st.get("pin", 0.0)) > 0.0 and not e.get("boss", false):
 					e.stun = maxf(e.stun, float(b.owner.st.pin))   # 哥尼流的標槍把敵人釘住
@@ -4345,7 +4397,7 @@ func _update_projectiles(dt: float) -> void:
 		if to.length() < 4.0:
 			b.hit[tg.node] = true
 			var big: bool = tg.get("elite", false) or tg.get("boss", false)
-			_impact(b.pos, b.owner, b.dmg * (b.emult if big else 1.0), b.look, b.dir)
+			_impact(b.pos, b.owner, b.dmg * (b.emult if big else 1.0), b.get("look", ""), b.dir)
 			_hurt(tg, b.dmg * (b.emult if big else 1.0), b.pos - to, b.owner)
 			if b.split > 0 and not b.child:
 				for o in _nearest_enemies(b.pos, 70.0, b.split, b.hit):
@@ -6146,6 +6198,8 @@ func _evolve(evo: Dictionary) -> void:
 	run_evolutions += 1
 	if evo.has("stats"):
 		c.st.merge(evo.stats, true)
+	if evo.has("onhit"):
+		c.onhit = evo.onhit   # 進化帶的命中效果（光柱、雷擊、爆裂）
 	if evo.has("every") and quake_key == "":
 		quake_key = c.key
 		evo_timer = 2.0
@@ -6602,6 +6656,11 @@ func _smoke_tick() -> void:
 		# 不截圖時：一結束就印結果離開（大量模擬用）
 		print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d pressure=%.2f" % [stage.id, t - t_start, won, level, kills, _party_count(), pressure])
 		print("DMG ", dmg_log)
+		var dealt := {}
+		for c in [pa] + comps:
+			if c.level > 0:
+				dealt[c.key] = roundi(float(c.get("dealt", 0.0)))
+		print("DEALT ", dealt)
 		print("SUPPORTS ", pa.get("anoints", []), " slots=", _support_slots(), " fusions=", fusions_on.keys(), " tiers=", school_tier)
 		get_tree().quit()
 		return
@@ -6651,4 +6710,9 @@ func _smoke_tick() -> void:
 		get_viewport().get_texture().get_image().save_png(smoke_shot)
 	if smoke_frames >= smoke_max_frames:
 		print("SMOKE DONE t=%.1f fps=%d" % [t, Engine.get_frames_per_second()])
+		var dealt2 := {}
+		for c in [pa] + comps:
+			if c.level > 0:
+				dealt2[c.key] = "%d/%d次/倒%.0f" % [roundi(float(c.get("dealt", 0.0))), int(c.get("casts", 0)), float(c.get("down_total", 0.0))]
+		print("DEALT ", dealt2)
 		get_tree().quit()
