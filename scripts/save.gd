@@ -112,6 +112,37 @@ func reset_profile() -> void:
 	save_profile()
 
 
+## 存檔碼：把整個存檔壓縮成一段文字（換手機、換瀏覽器時帶走）
+const CODE_HEAD := "ACTS1:"
+
+
+func export_code() -> String:
+	var raw := JSON.stringify(data).to_utf8_buffer()
+	return CODE_HEAD + Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_GZIP))
+
+
+## 匯入存檔碼：成功就取代目前的存檔（目前的先備份到 profile_backup.json），失敗回傳原因
+func import_code(code: String) -> String:
+	var c := code.strip_edges().replace("\n", "").replace(" ", "")
+	if not c.begins_with(CODE_HEAD):
+		return "這不是宣教之路的存檔碼（開頭應該是 %s）" % CODE_HEAD
+	var packed := Marshalls.base64_to_raw(c.substr(CODE_HEAD.length()))
+	if packed.is_empty():
+		return "存檔碼不完整，請確認整段都複製到了"
+	var raw := packed.decompress_dynamic(-1, FileAccess.COMPRESSION_GZIP)
+	var saved = JSON.parse_string(raw.get_string_from_utf8()) if not raw.is_empty() else null
+	if not (saved is Dictionary) or not saved.has("stats") or not saved.has("witness"):
+		return "存檔碼讀不出來，請確認整段都複製到了"
+	var b := FileAccess.open("user://profile_backup.json", FileAccess.WRITE)
+	b.store_string(JSON.stringify(data, "  "))
+	var f := FileAccess.open(PATH, FileAccess.WRITE)
+	f.store_string(JSON.stringify(saved, "  "))
+	f = null
+	load_profile()   # 重新讀進來，舊版本的存檔也會照常轉換
+	save_profile()
+	return ""
+
+
 func save_profile() -> void:
 	var f := FileAccess.open(PATH, FileAccess.WRITE)
 	f.store_string(JSON.stringify(data, "  "))

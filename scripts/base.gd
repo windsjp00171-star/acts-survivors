@@ -1041,6 +1041,7 @@ func _show_log() -> void:
 		_show_home())
 	content.add_child(rb)
 	content.add_child(rnote)
+	_save_code_ui()
 	for i in devlog.entries.size():
 		var e: Dictionary = devlog.entries[i]
 		var box := PanelContainer.new()
@@ -1053,6 +1054,49 @@ func _show_log() -> void:
 		_text(v, e.date, 11, UIKit.MUTED)
 		for it in e.items:
 			_text(v, "・" + it, 12, UIKit.INK, true)
+
+
+## 存檔碼：換手機、換瀏覽器時把進度帶走
+func _save_code_ui() -> void:
+	_text(content, "帶走存檔（換手機、換電腦時用）", 14, UIKit.GOLD)
+	_text(content, "按「複製存檔碼」，把這段文字傳給自己（LINE、Email 都可以）；到新的裝置上，貼進下面的框框按「匯入」。", 11, UIKit.MUTED, true)
+	var box := TextEdit.new()
+	box.custom_minimum_size = Vector2(0, 64)
+	box.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
+	box.placeholder_text = "在這裡貼上存檔碼（ACTS1: 開頭）"
+	box.add_theme_font_size_override("font_size", 11)
+	content.add_child(box)
+	var row := HFlowContainer.new()
+	row.add_theme_constant_override("h_separation", 6)
+	content.add_child(row)
+	var msg := UIKit.label("", 11, UIKit.SKY)
+	msg.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	var cp := UIKit.button("複製存檔碼", 12)
+	cp.pressed.connect(func():
+		var code := Save.export_code()
+		DisplayServer.clipboard_set(code)
+		box.text = code
+		box.select_all()
+		msg.text = "已經複製了（如果貼不出來，就長按上面的框框全選、複製）")
+	row.add_child(cp)
+	var im := UIKit.button("匯入", 12)
+	im.pressed.connect(func():
+		if box.text.strip_edges() == "":
+			msg.text = "先把存檔碼貼進上面的框框"
+			return
+		if im.text == "匯入":
+			im.text = "會取代現在的進度，再按一次確定"
+			msg.text = "現在的進度會先備份（profile_backup.json）"
+			return
+		var err := Save.import_code(box.text)
+		im.text = "匯入"
+		if err != "":
+			msg.text = err
+			return
+		Sfx.play("holy", 0.0)
+		_show_home())
+	row.add_child(im)
+	content.add_child(msg)
 
 
 func _show_codex() -> void:

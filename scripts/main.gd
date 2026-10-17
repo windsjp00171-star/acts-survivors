@@ -152,6 +152,7 @@ var gems: Array = []
 var parts: Array = []
 var heals: Array = []
 var pops: Array = []
+var film := false          # 測試用：錄影模式
 var hitstop := 0.0        # 打擊停頓：大的命中讓整個畫面停一下下（秒）
 var hitstop_cd := 0.0
 var poofs: Array = []    # 被驅散的敵人：壓扁、往上淡出（0.3 秒）
@@ -391,9 +392,12 @@ func _ready() -> void:
 			t = float(a.substr(5))
 		elif a == "--light":
 			force_light = true
+		elif a == "--film":
+			film = true   # 錄宣傳影片：機器人照常速玩，打擊停頓等效果照常
 		elif a == "--bot":
 			bot = true
-			Engine.time_scale = 4.0   # 機器人模擬：時間跑快 4 倍
+			if not OS.get_cmdline_user_args().has("--film"):
+				Engine.time_scale = 4.0   # 機器人模擬：時間跑快 4 倍（--film 錄影時用正常速度）
 		elif a.begins_with("--frames="):
 			smoke_max_frames = int(a.substr(9))   # 測試用：跑更久（整局約 25000 格）
 		elif a == "--nofever":
@@ -1604,7 +1608,7 @@ func _burst(at: Vector2, n: int, c1: Color, c2: Color) -> void:
 
 ## 打擊停頓：大的命中、打倒菁英時整個畫面停一下（很短，不會擋到操作）；冷卻中就不停，避免連續卡頓
 func _hit_stop(sec: float, shake_amt := 0.0) -> void:
-	if smoke or _fx_lite() or hitstop_cd > 0.0:
+	if (smoke and not film) or _fx_lite() or hitstop_cd > 0.0:
 		return
 	hitstop = maxf(hitstop, sec)
 	hitstop_cd = 0.25
