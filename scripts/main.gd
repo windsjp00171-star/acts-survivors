@@ -124,6 +124,9 @@ var resonances: Array = []  # 共鳴衝擊波（畫面效果）
 var sparks: Array = []    # 命中火花
 var tag_fx: Array = []    # 流派專屬連結效果的小字
 var dnums: Array = []     # 跳出來的傷害數字
+var gem_chain := 0         # 連續撿經驗：音一階一階往上
+var gem_last := -9.0
+const GEM_STEPS := [1.0, 1.122, 1.26, 1.498, 1.682, 2.0, 2.245, 2.52]   # 五聲音階（do re mi sol la do' re' mi'）
 var guard := 0            # 守護連結給的護盾層數
 var haste_t := 0.0        # 詩歌連結：全隊加速剩下幾秒
 var haste_amt := 0.0
@@ -727,6 +730,8 @@ func _stats(skill: String, lv: int) -> Dictionary:
 
 
 func _set_level(c: Dictionary, lv: int) -> void:
+	if int(c.get("level", 0)) == 0 and lv > 0:
+		c.name_until = t + 5.0   # 剛加入：名字顯示幾秒
 	c.level = lv
 	if c.skill != "":
 		c.st = _stats(c.skill, lv)
@@ -1513,6 +1518,9 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		_fire_links("kill", src, 0)
 	if by_player and e.get("elite", false):
 		_hit_stop(0.07, 0.18)
+		_ring_pop(e.pos + Vector2(0, -6), C_GOLD, 26.0)
+		_burst(e.pos + Vector2(0, -6), 16, C_GOLD, C_CREAM)
+		Sfx.play("shatter", 0.04, 0.85)
 		# 菁英（黑暗的營壘）被拆毀：被它困住的人在那裡出現
 		if not solo:
 			_spawn_seeker(e.pos, {"name": "從黑暗中出來的人", "ref": "徒 26:18", "line": "我好像……醒過來了。"})
@@ -2125,7 +2133,9 @@ func _step(dt: float) -> void:
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
 				xp += 1
-			Sfx.play("gem", 0.15)
+			gem_chain = gem_chain + 1 if t - gem_last < 0.45 else 0
+			gem_last = t
+			Sfx.play("gem", 0.0, GEM_STEPS[mini(gem_chain / 2, GEM_STEPS.size() - 1)])
 	gems = gems.filter(func(g): return not g.got)
 	for b in breads:
 		var tb: Vector2 = p.pos + Vector2(0, -6) - b.pos
@@ -5343,14 +5353,17 @@ func _render(dt: float) -> void:
 	dark.queue_redraw()
 
 	var ct := get_viewport().get_canvas_transform()
-	ui.place_name(D.paul.name, ct * p.pos, not over and not choosing)
+	var all_names := bool(Save.data.get("names_on", false))
+	var calm_ui := not over and not choosing
+	ui.place_name(D.paul.name, ct * p.pos, calm_ui and (all_names or t - t_start < 6.0))
 	for c in comps:
+		var nm_on: bool = calm_ui and c.level > 0 and (all_names or t < float(c.get("name_until", 0.0)) or float(c.get("down", 0.0)) > 0.0)
 		if c.follows != "":
 			ui.place_name(c.name, Vector2.ZERO, false)
 		elif c.with != "":
-			ui.place_name(c.name, ct * ((c.pos + by_key[c.with].pos) / 2.0), c.level > 0 and not over and not choosing)
+			ui.place_name(c.name, ct * ((c.pos + by_key[c.with].pos) / 2.0), nm_on)
 		else:
-			ui.place_name(c.name, ct * c.pos, c.level > 0 and not over and not choosing)
+			ui.place_name(c.name, ct * c.pos, nm_on)
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
 		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text(), "combo": combo, "combo_t": combo_t, "boss_in": _boss_in()})

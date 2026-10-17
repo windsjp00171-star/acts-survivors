@@ -69,7 +69,7 @@ func _on(kind: String) -> bool:
 	return bool(Save.data.get(kind + "_on", true))
 
 
-func play(name: String, pitch_jitter := 0.06) -> void:
+func play(name: String, pitch_jitter := 0.06, base_pitch := 1.0) -> void:
 	if not _on("sfx"):
 		return
 	var now := Time.get_ticks_msec() / 1000.0
@@ -100,7 +100,7 @@ func play(name: String, pitch_jitter := 0.06) -> void:
 		if not p.playing:
 			p.stream = variants[name].pick_random()
 			p.volume_db = VOL.get(name, -5.0)
-			p.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
+			p.pitch_scale = base_pitch + randf_range(-pitch_jitter, pitch_jitter)
 			p.play()
 			return
 

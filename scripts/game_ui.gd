@@ -158,6 +158,9 @@ func _rect(c: Color, pos: Vector2, size: Vector2) -> ColorRect:
 	return r
 
 
+const LOCKED := Color(0.55, 0.55, 0.6, 1.0)   # 卡片剛跳出、還不能按的樣子
+
+
 func _box(bg: Color, border: Color) -> StyleBoxFlat:
 	var s := StyleBoxFlat.new()
 	s.bg_color = bg
@@ -621,7 +624,7 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 	# 剛跳出時先鎖住（變暗），避免滑動移動時手指誤觸
 	for b in card_buttons:
 		b.disabled = true
-		b.get_parent().modulate.a = 0.55
+		b.get_parent().modulate = LOCKED   # 變暗但不透明（後面的數字不會透出來）
 	await get_tree().process_frame
 	if cards_box == null:
 		return
@@ -633,12 +636,12 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 			var cd: Control = card_buttons[i].get_parent()
 			var tw := cd.create_tween()
 			tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)   # 選卡時遊戲暫停，動畫照樣跑
-			cd.modulate.a = 0.0
+			cd.modulate = Color(LOCKED, 0.0)
 			cd.pivot_offset = cd.size / 2.0
 			cd.scale = Vector2(0.92, 0.92)
 			tw.tween_interval(0.06 * mini(i, 2))
 			tw.set_parallel(true)
-			tw.tween_property(cd, "modulate:a", 0.55, 0.18).set_ease(Tween.EASE_OUT)
+			tw.tween_property(cd, "modulate:a", 1.0, 0.18).set_ease(Tween.EASE_OUT)
 			tw.tween_property(cd, "scale", Vector2.ONE, 0.18).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	var my_id := cards_box.get_instance_id()
 	get_tree().create_timer(delay, true).timeout.connect(func():
@@ -647,7 +650,7 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 		for b in card_buttons:
 			if is_instance_valid(b):
 				b.disabled = false
-				b.get_parent().modulate.a = 1.0
+				b.get_parent().modulate = Color.WHITE
 		if not card_buttons.is_empty() and is_instance_valid(card_buttons[0]):
 			card_buttons[0].grab_focus())
 	if rerolls > 0:
@@ -715,7 +718,7 @@ func show_pause(build_text: String) -> void:
 			refresh.call())
 		row.add_child(tb)
 	# 預設關閉的設定：特效精簡、字大一點
-	for kind in [["fxlite", "特效精簡"], ["bigtext", "字大一點"]]:
+	for kind in [["fxlite", "特效精簡"], ["bigtext", "字大一點"], ["names", "名字一直顯示"]]:
 		var tb2 := UIKit.button("", 13)
 		tb2.custom_minimum_size = Vector2(88, 30)
 		var k2: String = kind[0]
