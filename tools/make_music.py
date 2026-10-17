@@ -242,11 +242,113 @@ def shaker(vel=1.0):
     return NOISE_HP[: len(t)] * np.exp(-t * 90) * vel * 0.18
 
 
-KIT = {"D": doum, "T": tek, "k": ka, "F": daf, "C": clap, "B": taiko, "S": snare, "h": shaker}
+# ---- 台灣（府城 1865）：北管的鑼鼓、殼仔弦、月琴、嗩吶 ----
+def kexian(f, sec, vel=1.0):
+    """殼仔弦（椰殼胡琴）：拉弦的鋸齒波、鼻音很重的共振峰；每個音從下面滑上來，慢慢加上揉弦"""
+    t = ta(sec)
+    scoop = 1 - 0.06 * np.exp(-t / 0.035)
+    vib = 1 + 0.009 * np.sin(2 * np.pi * 5.8 * t) * np.clip((t - 0.15) / 0.3, 0, 1)
+    ph = 2 * np.pi * np.cumsum(f * scoop * vib) / SR
+    y = np.zeros_like(t)
+    for k in range(1, 16):
+        fk = f * k
+        if fk > 7500:
+            break
+        w = (np.exp(-((fk - 1100) / 380) ** 2) * 1.4 + np.exp(-((fk - 2600) / 500) ** 2) * 0.6 + 0.35) / k ** 0.6
+        y += w * np.sin(k * ph)
+    bow = _noise(NOISE_HP, len(t)) * 0.04
+    env = np.clip(t / 0.04, 0, 1) * (0.85 + 0.15 * np.clip(t / 0.3, 0, 1)) * np.clip((sec - t) / 0.08, 0, 1)
+    return (y + bow) * env * vel * 0.11
+
+
+def yueqin(f, sec, vel=1.0):
+    """月琴：兩條同音的弦、亮而短的撥弦，帶一點金屬的泛音"""
+    t = ta(min(sec, 1.2))
+    y = np.zeros_like(t)
+    for det in (1.0, 1.004):
+        for k, a in [(1, 1.0), (2, 0.7), (3, 0.5), (4, 0.35), (5, 0.25), (6, 0.15), (8, 0.08)]:
+            y += a * np.sin(2 * np.pi * f * det * k * t) * np.exp(-t * (4 + k * 2.5))
+    pick = _noise(NOISE_HP, len(t)) * np.exp(-t * 300) * 0.4
+    return (y + pick) * np.clip(t / 0.001, 0, 1) * vel * 0.17
+
+
+def suona(f, sec, vel=1.0):
+    """嗩吶：很亮、很衝的雙簧，起音往上推，長音有揉音"""
+    t = ta(sec)
+    scoop = 1 - 0.04 * np.exp(-t / 0.03)
+    vib = 1 + 0.008 * np.sin(2 * np.pi * 6.2 * t) * np.clip((t - 0.2) / 0.3, 0, 1)
+    ph = 2 * np.pi * np.cumsum(f * scoop * vib) / SR
+    y = np.zeros_like(t)
+    for k in range(1, 20):
+        fk = f * k
+        if fk > 9000:
+            break
+        w = (np.exp(-((fk - 1500) / 600) ** 2) + 0.8 * np.exp(-((fk - 3200) / 700) ** 2) + 0.2) / k ** 0.35
+        y += w * np.sin(k * ph)
+    env = np.clip(t / 0.02, 0, 1) * np.clip((sec - t) / 0.06, 0, 1)
+    return np.tanh(y * 0.5) * env * vel * 0.16
+
+
+def _metal(freqs, sec, decay, glide=0.0):
+    t = ta(sec)
+    y = np.zeros_like(t)
+    for i, (fr, a) in enumerate(freqs):
+        g = 1 + glide * (1 - np.exp(-t * 6))
+        y += a * np.sin(2 * np.pi * np.cumsum(np.full_like(t, fr) * g) / SR + i) * np.exp(-t * decay * (1 + i * 0.15))
+    return y
+
+
+def xiaoluo(vel=1.0):
+    """小鑼「噹」：打下去音會往上飄"""
+    y = _metal([(780, 1.0), (1650, 0.4), (2470, 0.25)], 0.5, 7, glide=0.12)
+    return y * vel * 0.22
+
+
+def daluo(vel=1.0):
+    """大鑼「匡」：低沉、很長，音往下沉"""
+    t = ta(1.4)
+    y = _metal([(165, 1.0), (243, 0.6), (371, 0.45), (529, 0.3), (812, 0.2)], 1.4, 2.2, glide=-0.06)
+    hit = NOISE_LP[: len(t)] * np.exp(-t * 30) * 1.5
+    return (y + hit) * vel * 0.32
+
+
+def bo(vel=1.0):
+    """鈸「鏘」：亮的金屬雜訊"""
+    t = ta(0.7)
+    n = _noise(NOISE_HP, len(t))
+    shimmer = _metal([(3100, 0.3), (4700, 0.2), (5900, 0.15)], 0.7, 5)
+    return (n * np.exp(-t * 6) * 0.6 + shimmer) * vel * 0.2
+
+
+def bangu(vel=1.0):
+    """板鼓：又高又乾的一下（帶頭打拍子的鼓）"""
+    t = ta(0.12)
+    f = 420 + 200 * np.exp(-t * 60)
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 40) * vel * 0.5
+
+
+def tonggu(vel=1.0):
+    """通鼓：低一點的鼓"""
+    t = ta(0.4)
+    f = 110 + 80 * np.exp(-t * 25)
+    body = np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 9)
+    return (body + NOISE_LP[: len(t)] * np.exp(-t * 40)) * vel * 0.7
+
+
+def paiban(vel=1.0):
+    """拍板：木頭「喀」"""
+    t = ta(0.05)
+    return (np.sin(2 * np.pi * 1900 * t) + 0.6 * np.sin(2 * np.pi * 3100 * t)) * np.exp(-t * 120) * vel * 0.35
+
+
+KIT = {"D": doum, "T": tek, "k": ka, "F": daf, "C": clap, "B": taiko, "S": snare, "h": shaker,
+       "x": xiaoluo, "G": daluo, "c": bo, "b": bangu, "t": tonggu, "w": paiban}
 # 樂器的左右位置（-1 左、1 右）與寬度（右聲道晚幾毫秒，聽起來比較開）
 PAN = {doum: 0.0, tek: 0.35, ka: 0.35, daf: -0.35, clap: 0.2, taiko: 0.0, snare: 0.12, shaker: 0.45,
+       xiaoluo: 0.3, daluo: -0.1, bo: 0.2, bangu: -0.25, tonggu: 0.0, paiban: 0.4,
+       kexian: 0.1, yueqin: -0.3, suona: 0.0,
        bass: 0.0, spic: 0.35, strings: 0.0, brass: -0.15, aulos: 0.05, kithara: -0.3, choir: 0.0, drone: 0.0}
-WIDTH = {choir: 14, strings: 11, drone: 9, brass: 4}
+WIDTH = {choir: 14, strings: 11, drone: 9, brass: 4, daluo: 6, kexian: 3}
 
 
 # ---------- 殘響 ----------
@@ -675,11 +777,61 @@ def patmos():
 
 
 def fucheng():
-    # 府城（1865）：G 大調五聲音階（只用 do re mi sol la），撥弦像月琴主奏、笛聲回答；C 段是「宣教之路」主題
-    motif = [(0, 1), (1, 0.5), (2, 0.5), (4, 1), (2, 1), (4, 1), (5, 1), (4, 2), (None, 1), (2, 1), (1, 1), (0, 1), (1, 2), (2, 2)]
-    answer = [(4, 1), (5, 0.5), (4, 0.5), (2, 1), (1, 1), (2, 1.5), (4, 0.5), (5, 2), (7, 1), (5, 1), (4, 1), (2, 1), (1, 2), (0, 2)]
-    return battle(67, "rast", 126, [0, 5, 3, 4], motif, answer, lead=kithara,
-                  taiko_a="B.......B.......", taiko_b="B..B....B..B.B..", frame="F.k.k...F.k.kk..")
+    """府城（1865）：G 大調五聲音階（do re mi sol la）。北管的鑼鼓（板鼓帶頭、大鑼、小鑼、鈸）、
+    殼仔弦拉主旋律、月琴撥伴奏，A' 段嗩吶接手；C 段鑼鼓停下來，殼仔弦慢慢拉「宣教之路」主題。"""
+    root, mode, bpm = 67, "rast", 126
+    motif = [(4, 1), (5, 0.5), (4, 0.5), (2, 1), (1, 0.5), (2, 0.5), (4, 2), (5, 1), (7, 1), (5, 1.5), (4, 0.5), (2, 1), (1, 1), (0, 2), (None, 1)]
+    answer = [(2, 1), (4, 0.5), (2, 0.5), (1, 1), (0, 1), (-2, 1.5), (-1, 0.5), (0, 2), (2, 1), (1, 0.5), (2, 0.5), (4, 1), (5, 1), (4, 2), (2, 1), (1, 1)]
+    prog = [0, 4, 5, 4]
+    q = THEME
+    c_bars = int(np.ceil(beats(q) / 4)) + 1
+    A, B, C = 2, 10, 18
+    A2 = C + c_bars
+    total = A2 + 8
+    tr = Track(bpm=bpm, bars=total)
+    in_c = lambda bar: C <= bar < A2
+    # ---- 鑼鼓：板鼓打底、匡（大鑼）在小節頭、小鑼與鈸穿插；段落交界一串「匡七台七匡」 ----
+    pat_a = {"b": "b.b.b.b.b.bbb.b.", "G": "G...............", "x": "....x.x.....x.x.", "c": "........c.......", "t": "t.....t.t.......", "w": "w...w...w...w..."}
+    pat_b = {"b": "b.b.bbb.b.b.bbb.", "G": "G.......G.......", "x": "..x.x.x...x.x.x.", "c": "....c.......c...", "t": "t..t..t.t..t....", "w": "w...w...w...w..."}
+    roll = {"b": "bbbbbbbbbbbbbbbb", "G": "G.......G...G...", "c": "....c.c.....c.c.", "x": "..x...x...x...x."}
+    for bar in range(total):
+        if in_c(bar):
+            for i, ch in enumerate("w.......w......."):
+                if ch != ".":
+                    tr.hit(bar * 4 + i / 4, ch, 0.7)
+            if bar % 4 == 0:
+                tr.hit(bar * 4, "x", 0.5)
+            continue
+        pat = roll if bar in (A - 1, B - 1, C - 1, total - 1) else (pat_a if bar < B or A2 <= bar < A2 + 4 else pat_b)
+        for ch, line in pat.items():
+            for i, c in enumerate(line):
+                if c != ".":
+                    tr.hit(bar * 4 + i / 4, ch, (0.75 + 0.25 * RNG.random()) * (0.6 if ch == "b" and i % 4 else 1.0))
+    # ---- 伴奏：月琴撥分解和弦；殼仔弦低八度拉長音當低音（像大廣弦） ----
+    tr.layer = "harm"
+    for bar in range(A, total):
+        c = prog[bar % len(prog)] if not in_c(bar) else [0, 3, 4, 0][(bar - C) // 2 % 4]
+        soft = 0.6 if in_c(bar) else 1.0
+        for i, d in enumerate([0, 4, 7, 4, 2, 4, 7, 4]):
+            if in_c(bar) and i % 2:
+                continue
+            tr.note(yueqin, bar * 4 + i * 0.5, hz(deg(root - 12, mode, c + d)), 0.5, soft, 0.9 if i % 4 == 0 else 0.6)
+        tr.note(kexian, bar * 4, hz(deg(root - 24, mode, c)), tr.beat * 3.8, 0.55 * soft)
+        if not in_c(bar):
+            for beat in range(4):
+                tr.note(bass, bar * 4 + beat, hz(deg(root - 24, mode, c)), 0.2, 0.7, 0.8)
+    # ---- 旋律：殼仔弦；B 段月琴高八度跟著輪指；A' 嗩吶接手 ----
+    tr.layer = "top"
+    pos = tr.melody(kexian, root, mode, motif, A * 4)
+    tr.melody(kexian, root, mode, answer, pos)
+    pos = tr.melody(kexian, root, mode, motif, B * 4, octave=1)
+    tr.melody(yueqin, root, mode, motif, B * 4, 0.6, octave=1)
+    tr.melody(kexian, root, mode, answer, pos, octave=1)
+    tr.melody(kexian, root, mode, q, C * 4 + 2, 0.85)
+    pos = tr.melody(suona, root, mode, motif, A2 * 4, 0.9)
+    tr.melody(kexian, root, mode, motif, A2 * 4, 0.5, octave=1)
+    tr.melody(suona, root, mode, answer, pos, 0.9)
+    return tr.render({"perc": 0.5, "harm": 0.8, "top": 1.1})
 
 
 # ---------- 營地、標題、過場（單一檔案） ----------

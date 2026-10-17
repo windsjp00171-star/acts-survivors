@@ -53,6 +53,7 @@ const CUTS := {
 		{"scene": "skin", "text": "一九二八年，彰化的蘭大衛醫生要救一個腿爛掉的孩子周金耀。他的妻子連瑪玉，割下自己腿上的皮給他——人稱「切膚之愛」。"},
 		{"scene": "mountain", "text": "日本統治的時候，花蓮山上的姬望受洗信主。她在夜裡偷偷把福音教給族人，大家躲在山洞裡一起敬拜。"},
 		{"scene": "today", "text": "今天，這條路走到了你住的城市。"},
+		{"scene": "today", "supper": true, "text": "主日，大家一起領餅和杯，記念主耶穌為我們死，也為我們復活。祂今天還活著。"},
 		{"scene": "today", "you": true, "text": "這條路，還沒有走完。\n「直到地極，作我的見證。」（徒 1:8）"},
 	],
 }
@@ -766,7 +767,24 @@ func _draw_cut(it: Dictionary, vs: Vector2, cx: float, floor_y: float, s: float,
 				draw_rect(Rect2(lx - 1, horizon - 40, 2, 60), Color("1a1820"))
 				draw_circle(Vector2(lx, horizon - 40), 4.0, Color("fff0b0"))
 			var fy := vs.y * 0.7
-			if it.get("you", false):
+			if it.get("supper", false):
+				# 聖餐：路中間一張桌子，上面有餅和杯，大家圍著桌子
+				var ty := fy - 6.0 * s
+				draw_rect(Rect2(cx - 30.0 * s, ty, 60.0 * s, 4.0 * s), Color("8a643a"))
+				draw_rect(Rect2(cx - 30.0 * s, ty, 60.0 * s, 1.0 * s), Color("f4ead2"))
+				draw_rect(Rect2(cx - 26.0 * s, ty + 4.0 * s, 3.0 * s, 10.0 * s), Color("6a4a2a"))
+				draw_rect(Rect2(cx + 23.0 * s, ty + 4.0 * s, 3.0 * s, 10.0 * s), Color("6a4a2a"))
+				draw_rect(Rect2(cx - 14.0 * s, ty - 3.0 * s, 10.0 * s, 3.0 * s), Color("d8a860"))    # 餅
+				draw_rect(Rect2(cx - 13.0 * s, ty - 4.0 * s, 8.0 * s, 1.0 * s), Color("e8c080"))
+				draw_rect(Rect2(cx + 6.0 * s, ty - 7.0 * s, 6.0 * s, 4.0 * s), Color("8a2a3a"))     # 杯
+				draw_rect(Rect2(cx + 8.0 * s, ty - 3.0 * s, 2.0 * s, 2.0 * s), Color("c8a040"))
+				draw_rect(Rect2(cx + 6.0 * s, ty - 1.0 * s, 6.0 * s, 1.0 * s), Color("c8a040"))
+				for i in 4:
+					var side := -1.0 if i < 2 else 1.0
+					var px := cx + side * (44.0 + (i % 2) * 20.0) * s
+					_who("disciple", Vector2(px, fy + (i % 2) * 4.0), s * 0.9, W)
+				draw_circle(Vector2(cx, ty - 12.0 * s), 30.0 * s, Color(1.0, 0.9, 0.6, 0.06 + 0.03 * sin(t * 2.0)))
+			elif it.get("you", false):
 				# 你：走在路的中間，往前走
 				_who("disciple", Vector2(cx, fy), s * 1.1, W)
 				for i in 3:

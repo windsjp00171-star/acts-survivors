@@ -13,7 +13,7 @@
     "thresholds": [30, 80, 160, 280, 450],
     "bonus_per_level": 0.03
   },
-  "_camp說明": "安提阿營地的設施：條件達成才會出現。stat 可以用 runs、wins、elites、best_kills、best_fevers、tasks、witness_total、achievements（已達成數）。kind：depart 出發、shop 解鎖、ach 見證錄，其他是裝飾。pos 是相對營火的位置。",
+  "_camp說明": "安提阿營地的設施：條件達成才會出現。stat 可以用 runs、wins、elites、best_kills、best_fevers、tasks、witness_total、achievements（已達成數）。kind：depart 出發、shop 解鎖、ach 見證錄、supper 擘餅的桌子（內容在 talks.json 的 supper），其他是裝飾。stat 也可以用 churches（建立了幾間教會）。pos 是相對營火的位置。",
   "camp": [
     {"id": "sign", "kind": "depart", "name": "旅程路標", "pos": [132, 34], "stat": "runs", "min": 0},
     {"id": "log", "kind": "log", "name": "製作日誌", "pos": [56, 62], "stat": "runs", "min": 0},
@@ -22,7 +22,8 @@
     {"id": "tent2", "kind": "tent_small", "name": "", "pos": [-128, 30], "stat": "runs", "min": 4, "news": "來同住的人多了，營地多了一頂帳棚"},
     {"id": "banner", "kind": "banner", "name": "", "pos": [-30, -62], "stat": "wins", "min": 1, "news": "腓立比得勝的消息傳回安提阿"},
     {"id": "lamps", "kind": "lamps", "name": "", "pos": [0, 0], "stat": "witness_total", "min": 600, "news": "營地點起了油燈"},
-    {"id": "tent3", "kind": "tent_small", "name": "", "pos": [-70, 58], "stat": "achievements", "min": 4, "news": "營地越來越熱鬧了"}
+    {"id": "tent3", "kind": "tent_small", "name": "", "pos": [-70, 58], "stat": "achievements", "min": 4, "news": "營地越來越熱鬧了"},
+    {"id": "supper", "kind": "supper", "name": "擘餅的桌子", "pos": [-74, 2], "stat": "churches", "min": 1, "news": "營地擺了一張桌子：大家可以一起擘餅，記念主"}
   ],
   "_bread說明": "餅：局內撿到、帶回營地（失敗也全部保留），用來學恩賜樹。drop 是掉落機率或數量。upgrades 是「營地建設」裡的永久恩典（用見證蓋，和其他建設放在同一區；per 是每級效果、max 是上限、cost 是第 1 級的見證，之後每級再加 cost_step）。原則：局外成長換的是選擇，不是力量，每項都有上限。",
   "bread": {

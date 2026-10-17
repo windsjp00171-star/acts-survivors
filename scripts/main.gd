@@ -879,9 +879,9 @@ func _make_cards() -> Array:
 			pool.append({"kind": "armor", "key": k, "title": "%s　Lv%d → %d" % [a.name, lv, lv + 1], "tag": a.tag, "desc": a.desc[lv]})
 	if pa.level < 5:
 		var pd: String = D.skills[pa.skill].desc[pa.level]
-		if pa.level == 4:
-			var pe := _evo_of(pa.key)
-			pd += "\n滿級＋果子「%s」→ 進化「%s」" % [D.fruits[pe.fruit].name, pe.name]
+		var pe := _evo_of(pa.key)
+		if pa.level == 4 and not pe.is_empty():
+			pd +="\n滿級＋果子「%s」→ 進化「%s」" % [D.fruits[pe.fruit].name, pe.name]
 		pool.append({"kind": "up", "key": pa.key, "title": "%s%s　Lv%d → %d" % [pa.name, "的書信" if pa.key == "paul" else "（主角）", pa.level, pa.level + 1], "tag": pa.tag, "desc": pd})
 	for c in comps:
 		if c.follows != "" or c.skill == "" or solo:

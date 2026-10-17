@@ -130,7 +130,7 @@ func _build_camp() -> void:
 			if item.has("news") and Save.data.stats.runs > 0:
 				news.append(item.news)
 		var pos := _p(item.pos[0], item.pos[1])
-		if item.kind in ["depart", "shop", "ach", "log"]:
+		if item.kind in ["depart", "shop", "ach", "log", "supper"]:
 			spots.append({"kind": item.kind, "key": "", "name": item.name, "pos": pos, "r": 20.0})
 	Save.save_profile()
 
@@ -294,6 +294,17 @@ func _talk_lines(key: String) -> Array:
 	return sg
 
 
+## 擘餅的桌子：同伴圍著一起記念主（不加默契、不記錄，隨時可以來）
+func _start_supper() -> void:
+	var sp: Dictionary = T.get("supper", {})
+	talk = sp.get("after_corinth" if Save.data.churches.has("corinth") else "before_corinth", [])
+	if talk.is_empty():
+		return
+	talk_key = ""
+	talk_i = 0
+	_show_line()
+
+
 func _start_talk(key: String) -> void:
 	talk = bubbles[key]
 	talk_key = key
@@ -327,8 +338,11 @@ func _advance_talk() -> void:
 	if talk_i < talk.size():
 		_show_line()
 		return
-	# 聊完：默契增加、記錄看過
 	talk_box.visible = false
+	if talk_key == "":
+		talk = []      # 擘餅：安靜地結束，不加默契
+		return
+	# 聊完：默契增加、記錄看過
 	var seen: Dictionary = Save.data.get("talks_seen", {})
 	seen[talk_key] = int(seen.get(talk_key, 0)) + 1
 	Save.data.talks_seen = seen
@@ -455,6 +469,7 @@ func _interact(s: Dictionary) -> void:
 		"shop": panel.open("shop")
 		"ach": panel.open("ach")
 		"log": panel.open("log")
+		"supper": _start_supper()
 		_: panel.open("home")
 
 
@@ -487,6 +502,7 @@ func _verb(s: Dictionary) -> String:
 		"shop": return "補給帳棚（解鎖）"
 		"ach": return "見證牆"
 		"log": return "製作日誌（看看改了什麼）"
+		"supper": return "一起擘餅，記念主"
 	return "看旅程地圖、出發"
 
 
@@ -503,6 +519,7 @@ func _draw_props() -> void:
 			"log": _log_post(n, p)
 			"depart": _sign(n, p)
 			"banner": _banner(n, p)
+			"supper": _supper_table(n, p)
 	# 用見證蓋的營地建設
 	for bd in Save.meta.buildings:
 		if Save.built(bd.id):
@@ -527,6 +544,18 @@ func _draw_props() -> void:
 			n.draw_circle(lp + Vector2(0, -9), 6.0, Color(1.0, 0.8, 0.4, 0.15))
 			n.draw_rect(Rect2(lp.x, lp.y - 8, 1, 8), Color("5a3f28"))
 			n.draw_rect(Rect2(lp.x - 1, lp.y - 10, 3, 2), Color("ffd75e"))
+
+
+func _supper_table(n: Node2D, p: Vector2) -> void:
+	# 矮木桌，上面一個餅、一個杯
+	n.draw_rect(Rect2(p.x - 12, p.y - 6, 24, 3), Color("8a643a"))
+	n.draw_rect(Rect2(p.x - 12, p.y - 6, 24, 1), Color("f4ead2"))
+	n.draw_rect(Rect2(p.x - 10, p.y - 3, 2, 4), Color("5a3f28"))
+	n.draw_rect(Rect2(p.x + 8, p.y - 3, 2, 4), Color("5a3f28"))
+	n.draw_rect(Rect2(p.x - 7, p.y - 9, 6, 3), Color("d8a860"))
+	n.draw_rect(Rect2(p.x - 6, p.y - 10, 4, 1), Color("e8c080"))
+	n.draw_rect(Rect2(p.x + 2, p.y - 11, 4, 3), Color("8a2a3a"))
+	n.draw_rect(Rect2(p.x + 3, p.y - 8, 2, 2), Color("c8a040"))
 
 
 func _tent(n: Node2D, p: Vector2, s: float, cloth: Color, stripe: Color) -> void:

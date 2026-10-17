@@ -312,6 +312,7 @@ func camp_stat(stat: String) -> int:
 	match stat:
 		"witness_total": return int(data.witness_total)
 		"achievements": return data.achievements.size()
+		"churches": return data.churches.size()
 	return int(data.stats.get(stat, 0))
 
 
