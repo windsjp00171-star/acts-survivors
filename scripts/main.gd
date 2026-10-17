@@ -124,6 +124,8 @@ var resonances: Array = []  # 共鳴衝擊波（畫面效果）
 var sparks: Array = []    # 命中火花
 var impacts: Array = []   # 投射物打中的地方：一圈光、往前噴的光芒（只是畫面，不影響傷害）
 var blasting := false     # 輔助「爆裂」的連帶傷害進行中（避免連鎖爆炸無限觸發）
+var smite_cd := 0.0       # 醫治「鞭傷」的冷卻
+var guard_slow_t := 0.0   # 守護「四圍的火城」的間隔
 const IMPACT_COL := {"letter": Color("fff4c2"), "vial": Color("8ae0d0"), "stone": Color("d8d0c0"), "coin": Color("ffd75e"),
 	"pilum": Color("e0e0e8"), "fig": Color("c87ac8"), "errand": Color("d8a860")}
 var tag_fx: Array = []    # 流派專屬連結效果的小字
@@ -507,6 +509,10 @@ func _ready() -> void:
 				_evolve(evo)
 	for a in OS.get_cmdline_user_args():
 		# 測試用：--relics=hair,mantle　--anoint=tim:multi,chain
+		if a.begins_with("--mods="):
+			# 測試用：--mods=march:1,heal_smite:3（直接改寫流派規則的數值）
+			for kv in a.substr(7).split(","):
+				school_mods[kv.get_slice(":", 0)] = float(kv.get_slice(":", 1))
 		if a.begins_with("--relics="):
 			for id in a.substr(9).split(","):
 				_take_relic(id)
@@ -1503,6 +1509,12 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		dmg *= 1.0 + 0.5 * mini(armor.get("belt", 0), 2)
 	if e.get("boss", false) and boss != null and boss.state == "break":
 		dmg *= D.boss.break_mult
+	if src is Dictionary and (e.get("elite", false) or e.get("boss", false)) and src.get("anoints", []).has("heavy"):
+		dmg *= 1.6   # 輔助「磐石」
+	if int(e.get("msg", 0)) > 0 and _sv("講道", "msg_expose") > 0.0:
+		dmg *= 1.0 + _sv("講道", "msg_expose")   # 兩刃的劍：已經累積信息的敵人更痛
+	if not e.has("hp0"):
+		e.hp0 = e.hp   # 第一次被打時的血量（「收割」用）
 	e.hp -= dmg
 	if src is Dictionary:
 		src.dealt = float(src.get("dealt", 0.0)) + minf(dmg, maxf(0.0, dmg + e.hp))   # 這一局打出的傷害（結算排行用）
@@ -1562,6 +1574,14 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			nb = 1
 		for i in nb:
 			breads.append({"pos": e.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
+		if src is Dictionary and src.get("anoints", []).has("release") and not blasting:
+			# 得釋放：驅散的地方爆開光
+			blasting = true
+			blasts.append({"pos": e.pos + Vector2(0, -4), "t": 0.0, "r": 26.0, "col": C_GOLD, "evo": false})
+			for o in _enemies_near(e.pos, 36.0):
+				if o != e and not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_to(e.pos) < 26.0 + float(o.r):
+					_hurt(o, 8.0 + level, e.pos, src)
+			blasting = false
 		if src is Dictionary:
 			# 恩賜：驅散時累積同心合意、替主角回血、多掉經驗
 			if float(src.get("tmeter", 0.0)) > 0.0 and fever <= 0.0:
@@ -3033,6 +3053,13 @@ func _update_beat(dt: float) -> void:
 			c.beat_mult = m
 	if beat_down:
 		_fusion_downbeat()
+		if _sv("詩歌", "march") > 0.0:
+			# 列隊前進：重拍時身邊的敵人變慢，全隊攻擊加快一下
+			for e in _enemies_near(paul.pos, 120.0):
+				if not e.dead and e.pos.distance_to(paul.pos) < 120.0:
+					e.slow_t = maxf(float(e.get("slow_t", 0.0)), 1.0)
+			haste_t = maxf(haste_t, 1.0)
+			haste_amt = maxf(haste_amt, 0.15)
 
 
 ## 詩歌同伴只在拍子上出手
@@ -3068,6 +3095,11 @@ func _praise_song() -> void:
 	if _sv("詩歌", "newsong") > 0.0:
 		haste_t = 5.0
 		haste_amt = maxf(haste_amt, 0.3)
+	if _sv("詩歌", "ambush") > 0.0:
+		# 自相擊殺：畫面上的黑暗勢力亂了陣腳，互相攻擊
+		for e in enemies:
+			if not e.dead and v.has_point(e.pos) and not e.get("boss", false) and not e.get("elite", false) and float(e.get("ally", 0.0)) <= 0.0:
+				e.confused = maxf(float(e.get("confused", 0.0)), 3.0)
 
 
 # 講道：說服
@@ -3121,6 +3153,13 @@ func _update_ally(e: Dictionary, dt: float) -> void:
 	e.ally -= dt
 	if e.ally <= 0.0:
 		e.ally = 0.0
+		if _sv("講道", "convert_heal") > 0.0:
+			# 使人和好：被說服的人回家時，主角與附近的同伴回血
+			_heal_paul(_sv("講道", "convert_heal"))
+			for c in comps:
+				if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(e.pos) < 80.0:
+					c.hp = minf(_comp_max_hp(), float(c.hp) + _sv("講道", "convert_heal"))
+			_mote(paul.pos + Vector2(0, -10), C_HEAL)
 		if _sv("講道", "convert_boom") > 0.0:
 			var r := 36.0
 			blasts.append({"pos": e.pos, "t": 0.0, "r": r, "col": C_GOLD, "evo": false})
@@ -3183,6 +3222,8 @@ func _shield_shock(at: Vector2) -> void:
 			_hurt(e, dmg, at)
 			if not e.get("boss", false):
 				e.knock += (e.pos - at).normalized() * 140.0
+				if _sv("守護", "shield_stun") > 0.0:
+					e.stun = maxf(e.stun, 1.5)   # 大小的盾牌：被震開的敵人暈眩
 
 
 # 醫治：滿溢
@@ -3191,6 +3232,13 @@ func _heal_paul(n: float) -> void:
 		n *= 0.6   # 信心等級：乾旱
 	_anoint_add(paul.hp + n - float(D.paul.hp))
 	paul.hp = minf(_hp_cap(), maxf(paul.hp, minf(float(D.paul.hp), paul.hp + n)))
+	if n > 0.0 and _sv("醫治", "heal_smite") > 0.0 and t >= smite_cd:
+		# 鞭傷：主角被治療時，一道光打向最近的敵人
+		var nx := _nearest_enemies(paul.pos, 130.0, 1)
+		if not nx.is_empty():
+			smite_cd = t + 0.25
+			zaps.append({"pts": [paul.pos + Vector2(0, -10), nx[0].pos + Vector2(0, -4)], "t": 0.0, "evo": true, "col": C_HEAL})
+			_hurt(nx[0], maxf(4.0, n * _sv("醫治", "heal_smite")) + level * 0.5, Vector2.INF)
 
 
 func _anoint_add(v: float) -> void:
@@ -3208,6 +3256,8 @@ func _holy_light() -> void:
 	var r := 64.0 * k
 	var dmg := _sv("醫治", "holy_dmg") * k * (1.0 + level * 0.04)
 	holies.append({"pos": paul.pos, "t": 0.0, "r": r})
+	if _sv("醫治", "holy_pool") > 0.0 and spots.size() < 40:
+		spots.append({"kind": "water", "pos": paul.pos, "life": 5.0, "tick": 0.0, "r": r * 0.6})   # 活水：留下一片水
 	ui.show_banner("滿溢！聖光", 1.2)
 	if _fused("守護", "醫治") and guard < _school_guard_cap():
 		guard += 1
@@ -3238,6 +3288,13 @@ func _spawn_minion(at: Vector2) -> void:
 		return
 	run_minions += 1
 	minions.append({"pos": at, "life": 12.0 + _sv("門徒", "minion_life"), "cd": 0.3, "hop": 0.0, "ph": randf() * TAU})
+	if _sv("門徒", "minion_net") > 0.0:
+		# 撒在深水：小門徒一出現就撒網，把身邊的敵人拉過來定住
+		nets.append({"pos": at, "r": 50.0, "t": 0.0, "evo": false, "look": "", "stun": 0.8, "col": Color("e8dcc0")})
+		for e in _enemies_near(at, 56.0):
+			if not e.dead and not e.get("boss", false) and e.pos.distance_to(at) < 50.0:
+				e.knock += (at - e.pos) * 3.0
+				e.stun = maxf(e.stun, 0.8)
 	if _fused("守護", "門徒") and t >= fz_guard_t and guard < _school_guard_cap():
 		fz_guard_t = t + 3.0
 		guard += 1
@@ -3276,6 +3333,13 @@ func _minions_strike() -> void:
 
 ## 每一格：腳蹤、護盾長回來、讚美、小門徒
 func _update_schools_step(dt: float) -> void:
+	if guard > 0 and _sv("守護", "guard_slow") > 0.0:
+		guard_slow_t -= dt
+		if guard_slow_t <= 0.0:
+			guard_slow_t = 0.3
+			for e in _enemies_near(paul.pos, 50.0):
+				if not e.dead and e.pos.distance_to(paul.pos) < 50.0:
+					e.slow_t = maxf(float(e.get("slow_t", 0.0)), 0.5)
 	# 差派：腳蹤
 	if _school_on("差派"):
 		if paul.moving:
@@ -3284,6 +3348,8 @@ func _update_schools_step(dt: float) -> void:
 				trail_t = _sv("差派", "trail_every")
 				var life := 3.0 + _sv("差派", "trail_life")
 				trail.append({"pos": paul.pos + Vector2(0, 1), "life": life, "max": life, "side": trail.size() % 2})
+				if _sv("差派", "trail_heal") > 0.0:
+					_heal_paul(_sv("差派", "trail_heal"))   # 如鹿的腳：走得越多，回得越多
 		trail_tick -= dt
 		if trail_tick <= 0.0 and not trail.is_empty():
 			trail_tick = 0.35
@@ -3298,6 +3364,9 @@ func _update_schools_step(dt: float) -> void:
 				for f in trail:
 					if f.pos.distance_squared_to(e.pos) < 110.0:
 						e.slow_t = 0.8
+						if _sv("差派", "trail_expose") > 0.0:
+							e.exposed_t = maxf(float(e.get("exposed_t", 0.0)), 2.0)   # 腳前的燈：踩到的露出破綻
+							e.expose = maxf(float(e.get("expose", 0.0)), _sv("差派", "trail_expose"))
 						_hurt(e, dmg, Vector2.INF)
 						if _fused("講道", "差派") and not e.dead:
 							_persuade(e, 1)
@@ -3364,6 +3433,8 @@ func _update_schools_step(dt: float) -> void:
 			m.cd = 0.6
 			m.hop = 0.15
 			_hurt(tl[0], _minion_dmg(), m.pos)
+			if tl[0].dead and _sv("門徒", "minion_heal") > 0.0:
+				_heal_paul(_sv("門徒", "minion_heal"))   # 彼此相顧
 	minions = minions.filter(func(m): return m.life > 0.0)
 
 
@@ -4083,6 +4154,25 @@ func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
 			zaps.append({"pts": [e.pos + Vector2(0, -4), nx[0].pos + Vector2(0, -4)], "t": 0.0, "evo": false, "col": src.get("col", C_GOLD)})
 			_hurt(nx[0], dmg * 0.5 / maxf(0.01, _dmg_mult()), Vector2.INF, src)
 			chaining = false
+	if an.has("still") and not e.get("boss", false) and randf() < 0.2:
+		e.stun = maxf(e.stun, 1.0)   # 平靜：定住
+	if an.has("slow"):
+		e.slow_t = maxf(float(e.get("slow_t", 0.0)), 1.5)   # 沉重：變慢
+	if an.has("mark"):
+		e.exposed_t = maxf(float(e.get("exposed_t", 0.0)), 3.0)   # 印記：之後受到的傷害更多
+		e.expose = maxf(float(e.get("expose", 0.0)), 0.2)
+	if an.has("leech") and t >= float(src.get("leech_a_cd", 0.0)):
+		src.leech_a_cd = t + 0.3
+		_heal_paul(1.0)   # 恩典夠用
+	if an.has("harvest") and not e.get("elite", false) and not e.get("boss", false) and e.hp > 0.0 and e.hp <= float(e.get("hp0", 1.0)) * 0.15:
+		e.hp = 0.0   # 收割：剩一點點血的直接散去
+		_ring_pop(e.pos + Vector2(0, -6), C_CREAM, 12.0)
+	if an.has("split") and not chaining and t >= float(src.get("split_cd", 0.0)):
+		# 分光：打中後分出 2 支小光箭
+		src.split_cd = t + 0.15
+		for o in _nearest_enemies(e.pos, 80.0, 2, {e.node: true}):
+			bolts.append({"pos": e.pos + Vector2(0, -6), "target": o, "life": 0.8, "pierce": 0, "split": 0, "child": true,
+				"dmg": maxf(1.0, base * 0.4), "size": 1, "hit": {e.node: true}, "spd": 220.0, "emult": 1.0, "look": "", "owner": src})
 	if an.has("blast") and not blasting:
 		# 爆裂：打中的地方炸開，波及旁邊的敵人（四成傷害）
 		blasting = true
@@ -5205,6 +5295,18 @@ func _update_spots(dt: float) -> void:
 						breads.append({"pos": sp.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
 					ui.show_banner("在帳棚裡歇一下腳：護盾 +%d" % int(hz.guard), 1.5)
 					_ring_pop(sp.pos, Color("9fd8ff"), 30.0)
+			"water":
+				sp.tick -= dt
+				if sp.tick <= 0.0:
+					sp.tick = 0.5
+					if paul.pos.distance_to(sp.pos) < sp.r:
+						paul.hp = minf(float(D.paul.hp), paul.hp + 1.5)
+					for c in comps:
+						if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(sp.pos) < sp.r:
+							c.hp = minf(_comp_max_hp(), float(c.hp) + 1.5)
+					for e in _enemies_near(sp.pos, sp.r + 8.0):
+						if not e.dead and e.pos.distance_to(sp.pos) < sp.r:
+							e.slow_t = maxf(float(e.get("slow_t", 0.0)), 0.8)
 			"ember":
 				sp.tick -= dt
 				if sp.tick <= 0.0:
@@ -5230,6 +5332,11 @@ func _draw_spots(n: Node2D) -> void:
 		var y: float = roundf(sp.pos.y)
 		var blinking: bool = sp.life < 2.0 and int(t * 8.0) % 2 == 0
 		match sp.kind:
+			"water":
+				# 活水：淡藍的一片，邊緣有慢慢轉的點
+				var wa: float = clampf(sp.life / 1.0, 0.0, 1.0)
+				n.draw_circle(Vector2(x, y), sp.r, Color(0.45, 0.75, 0.95, 0.12 * wa))
+				_dot_ring(n, Vector2(x, y), sp.r, 0.8, Color(Color("9fd8ff"), wa), 5.0, t * 0.8, 1)
 			"ember":
 				var fl2 := int(t * 10.0 + x) % 2
 				_dot_ring(n, Vector2(x, y), 12.0, 0.75, C_FLAME, 4.0, t * 2.0, 1)
@@ -6714,5 +6821,5 @@ func _smoke_tick() -> void:
 		for c in [pa] + comps:
 			if c.level > 0:
 				dealt2[c.key] = "%d/%d次/倒%.0f" % [roundi(float(c.get("dealt", 0.0))), int(c.get("casts", 0)), float(c.get("down_total", 0.0))]
-		print("DEALT ", dealt2)
+		print("DEALT ", dealt2, " tiers=", school_tier, " anoints=", pa.get("anoints", []))
 		get_tree().quit()

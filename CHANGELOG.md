@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+## [0.33.0] - 2026-10-17
+
+### 新增
+- 主角輔助 8 種：`still`、`slow`、`mark`、`heavy`、`harvest`、`leech`、`release`（驅散時，在 `_kill`）、`split`（投射物）；`_hurt` 記下 `hp0`（第一次被打時的血量）
+- 流派深化卡 12 張（每流派 +2）與對應規則：`convert_heal`、`msg_expose`、`march`、`ambush`、`shield_stun`、`guard_slow`、`heal_smite`、`holy_pool`（場地 `water`）、`trail_expose`、`trail_heal`、`minion_heal`、`minion_net`
+- 測試參數 `--mods=鍵:值,…` 直接改寫流派規則；`SMOKE DONE` 後印出流派階數與輔助
+
 ## [0.32.0] - 2026-10-17
 
 ### 新增
