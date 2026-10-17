@@ -3115,9 +3115,9 @@ func _update_beat(dt: float) -> void:
 			haste_amt = maxf(haste_amt, 0.15)
 
 
-## 詩歌同伴只在拍子上出手
+## 詩歌同伴只在拍子上出手（「節拍」流派成形以後才有拍子；還沒成形時照一般方式出手）
 func _beat_ready(c: Dictionary) -> bool:
-	return not _tagged(c, "詩歌") or beat_now
+	return not _school_on("詩歌") or not _tagged(c, "詩歌") or beat_now
 
 
 func _on_beat_cast(c: Dictionary) -> void:
@@ -5681,6 +5681,24 @@ func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, 
 
 func _draw_ground_fx() -> void:
 	var n := ground_fx
+	# 馬利亞的香膏：地上一片淡粉金色的香膏（畫在人物腳下），中間一個打開的玉瓶
+	for z in zones:
+		var k: float = clampf(z.life / z.max, 0.0, 1.0)
+		var fade: float = clampf(k * 3.0, 0.0, 1.0) * clampf((z.max - z.life) / 0.25, 0.0, 1.0)   # 出現與消失都淡入淡出
+		var zc: Vector2 = z.pos.round()
+		var zcol: Color = z.owner.col
+		for i in 3:
+			var rr: float = z.r * (1.0 - i * 0.28)
+			n.draw_set_transform(zc, 0.0, Vector2(1.0, 0.62))
+			n.draw_circle(Vector2.ZERO, rr, Color(zcol.lerp(C_CREAM, i * 0.35), (0.16 + i * 0.07) * fade))
+			n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		n.draw_set_transform(zc, 0.0, Vector2(1.0, 0.62))
+		n.draw_arc(Vector2.ZERO, z.r, 0.0, TAU, 40, Color(zcol, 0.55 * fade), 1.5)
+		n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		# 玉瓶：白色瓶身、金色瓶口，倒出來的香膏
+		n.draw_rect(Rect2(zc.x - 2, zc.y - 6, 5, 6), Color(Color("f4ead2"), fade))
+		n.draw_rect(Rect2(zc.x - 1, zc.y - 8, 3, 2), Color(C_GOLD, fade))
+		n.draw_rect(Rect2(zc.x + 3, zc.y - 1, 3, 1), Color(zcol.lerp(C_CREAM, 0.4), fade))
 	if vision_on:
 		# 天上一道光柱照在主角身上（大馬色路上、升天、司提反看見天開了）
 		var v0 := _view_rect()
