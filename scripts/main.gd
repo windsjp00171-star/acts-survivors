@@ -122,6 +122,10 @@ var combo_best := 0
 var combo_tier := 0       # 這一串連擊已經共鳴到第幾層
 var resonances: Array = []  # 共鳴衝擊波（畫面效果）
 var sparks: Array = []    # 命中火花
+var impacts: Array = []   # 投射物打中的地方：一圈光、往前噴的光芒（只是畫面，不影響傷害）
+var blasting := false     # 輔助「爆裂」的連帶傷害進行中（避免連鎖爆炸無限觸發）
+const IMPACT_COL := {"letter": Color("fff4c2"), "vial": Color("8ae0d0"), "stone": Color("d8d0c0"), "coin": Color("ffd75e"),
+	"pilum": Color("e0e0e8"), "fig": Color("c87ac8"), "errand": Color("d8a860")}
 var tag_fx: Array = []    # 流派專屬連結效果的小字
 var dnums: Array = []     # 跳出來的傷害數字
 var gem_chain := 0         # 連續撿經驗：音一階一階往上
@@ -1646,6 +1650,15 @@ func _hit_stop(sec: float, shake_amt := 0.0) -> void:
 	shake = maxf(shake, shake_amt)
 
 
+## 投射物打中的那一點：一圈光＋往前噴的光芒，打得越重越大（穿透時每一個打中的點都有）
+func _impact(at: Vector2, src, dmg: float, look, dir: Vector2) -> void:
+	if impacts.size() >= (25 if _fx_lite() else 90):
+		return
+	var col: Color = IMPACT_COL.get(str(look), src.get("col", C_GOLD) if src is Dictionary else C_GOLD)
+	impacts.append({"pos": at, "t": 0.0, "col": col, "size": clampf(5.0 + sqrt(maxf(dmg, 0.0)) * 1.8, 5.0, 16.0),
+		"dir": dir if dir.length() > 0.1 else Vector2.RIGHT, "rot": randf_range(-0.4, 0.4)})
+
+
 func _ring_pop(at: Vector2, col: Color, size: float) -> void:
 	if pops.size() < 80:
 		pops.append({"pos": at, "t": 0.0, "size": size, "col": col})
@@ -2172,6 +2185,9 @@ func _step(dt: float) -> void:
 	for sp in sparks:
 		sp.t += dt
 	sparks = sparks.filter(func(sp): return sp.t < 0.12)
+	for im in impacts:
+		im.t += dt
+	impacts = impacts.filter(func(im): return im.t < 0.2)
 
 	var p4 := Time.get_ticks_usec()
 	chunk_timer -= dt
@@ -3606,6 +3622,7 @@ func _update_engines(dt: float) -> void:
 		for e in enemies:
 			if not e.dead and not b.hit.has(e.node) and e.pos.distance_to(b.pos + Vector2(0, 4)) < float(e.r) + 4.0:
 				b.hit[e.node] = true
+				_impact(b.pos, b.owner, b.dmg, b.look, (e.pos - b.pos).normalized())
 				_hurt(e, b.dmg, b.pos, b.owner)
 	boomers = boomers.filter(func(b): return b.life > 0.0)
 	# 桑樹
@@ -4029,6 +4046,15 @@ func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
 			zaps.append({"pts": [e.pos + Vector2(0, -4), nx[0].pos + Vector2(0, -4)], "t": 0.0, "evo": false, "col": src.get("col", C_GOLD)})
 			_hurt(nx[0], dmg * 0.5 / maxf(0.01, _dmg_mult()), Vector2.INF, src)
 			chaining = false
+	if an.has("blast") and not blasting:
+		# 爆裂：打中的地方炸開，波及旁邊的敵人（四成傷害）
+		blasting = true
+		var br := 20.0 * _area()
+		blasts.append({"pos": e.pos + Vector2(0, -4), "t": 0.0, "r": br, "col": src.get("col", C_FLAME), "evo": false})
+		for o in _enemies_near(e.pos, br + 12.0):
+			if o != e and not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_to(e.pos) < br + float(o.r):
+				_hurt(o, dmg * 0.4 / maxf(0.01, _dmg_mult()), e.pos, src)
+		blasting = false
 	if an.has("ember") and t >= float(src.get("ember_cd", 0.0)) and spots.size() < 40:
 		src.ember_cd = t + 0.6
 		spots.append({"kind": "ember", "pos": e.pos, "life": 3.0, "tick": 0.0, "dmg": maxf(2.0, float(src.st.get("damage", 2.0)) * 0.5), "owner": src})
@@ -4295,6 +4321,7 @@ func _update_projectiles(dt: float) -> void:
 				if e.dead or b.hit.has(e.node) or e.pos.distance_to(b.pos + Vector2(0, 4)) > e.r + 3.0:
 					continue
 				b.hit[e.node] = true
+				_impact(b.pos, b.owner, b.dmg, b.look, b.vel.normalized())
 				_hurt(e, b.dmg, b.pos - b.vel.normalized() * 4.0, b.owner)
 				if b.owner is Dictionary and float(b.owner.st.get("pin", 0.0)) > 0.0 and not e.get("boss", false):
 					e.stun = maxf(e.stun, float(b.owner.st.pin))   # 哥尼流的標槍把敵人釘住
@@ -4318,6 +4345,7 @@ func _update_projectiles(dt: float) -> void:
 		if to.length() < 4.0:
 			b.hit[tg.node] = true
 			var big: bool = tg.get("elite", false) or tg.get("boss", false)
+			_impact(b.pos, b.owner, b.dmg * (b.emult if big else 1.0), b.look, b.dir)
 			_hurt(tg, b.dmg * (b.emult if big else 1.0), b.pos - to, b.owner)
 			if b.split > 0 and not b.child:
 				for o in _nearest_enemies(b.pos, 70.0, b.split, b.hit):
@@ -5882,6 +5910,22 @@ func _draw_air() -> void:
 			n.draw_rect(Rect2(roundf(q.pos.x), roundf(q.pos.y) - 1, 1, 3), Color(qc, a))
 		else:
 			n.draw_rect(Rect2(roundf(q.pos.x), roundf(q.pos.y), 1, 1), qc)
+	for im in impacts:
+		var k: float = im.t / 0.2
+		var sz: float = im.size
+		var ic: Color = im.col
+		if im.t < 0.05:
+			n.draw_circle(im.pos, sz * 0.45, Color(1, 1, 1, 0.9))
+		n.draw_arc(im.pos, sz * (0.35 + 0.9 * k), 0.0, TAU, 16, Color(ic, 1.0 - k), 2.0 * (1.0 - k) + 1.0)
+		if not _fx_lite():
+			# 往前噴：六道光芒偏向投射物前進的方向
+			var base_a: float = im.dir.angle() + im.rot
+			for j in 6:
+				var a: float = base_a + (j - 2.5) * 0.42
+				var r1: float = sz * (0.3 + 0.7 * k)
+				var r2: float = sz * (0.7 + 1.1 * k) * (1.15 if j == 2 or j == 3 else 0.85)
+				var v := Vector2.from_angle(a)
+				n.draw_line(im.pos + v * r1, im.pos + v * r2, Color(ic.lightened(0.3), 1.0 - k), 1.0)
 	for sp in sparks:
 		var sx: float = roundf(sp.pos.x)
 		var sy: float = roundf(sp.pos.y)

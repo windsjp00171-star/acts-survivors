@@ -369,6 +369,7 @@
     {"id": "multi", "name": "多重", "desc": "投射物 +2，每發傷害 ×0.7", "engines": ["bolt", "shot", "boomerang", "turret"]},
     {"id": "pierce", "name": "穿透", "desc": "投射物多穿透 2 隻", "engines": ["bolt", "shot"]},
     {"id": "chain", "name": "連鎖", "desc": "打中後，跳到附近另一個敵人（傷害一半）", "engines": ["all"]},
+    {"id": "blast", "name": "爆裂", "desc": "投射物打中時炸開，波及旁邊的敵人（四成傷害）；穿透的話每一個打中的點都會炸", "engines": ["bolt", "shot", "boomerang", "turret"]},
     {"id": "ember", "name": "餘燼", "desc": "打中的地方留下一小片火，燒傷走進去的敵人", "engines": ["all"]},
     {"id": "echo", "name": "回音", "desc": "每出手 3 次，多放一次", "engines": ["all"]},
     {"id": "expand", "name": "擴張", "desc": "範圍與長度 ×1.4，出手間隔 ×1.25", "engines": ["ring", "nova", "net", "strike", "beam", "zone", "trap", "pet", "swallow", "wave", "cone", "orbit", "aura", "thrust", "gather"]},
