@@ -43,7 +43,6 @@ const CUTS := {
 		{"scene": "newheaven", "text": "約翰看見一個新天新地。神要擦去他們一切的眼淚，不再有死亡，也不再有悲哀。"},
 		{"scene": "years", "text": "使徒們跑完了他們的路。可是這條路沒有停下來，一代又一代的人接著走，走到了台灣。"},
 		{"scene": "sinkang", "text": "一六二七年，荷蘭的牧師甘治士來到台南的新港社，和西拉雅族人住在一起，學他們的話。"},
-		{"scene": "church", "text": "一八六〇年前後，西班牙道明會的郭德剛神父來到打狗（今天的高雄），蓋起了天主堂。"},
 		{"scene": "ship", "text": "一八六五年，一位蘇格蘭醫生馬雅各，坐船來到台灣。"},
 		{"scene": "tainan", "text": "他在台南府城的看西街開了醫館，一邊看病，一邊傳福音。才二十幾天，就被謠言趕出城。"},
 		{"scene": "tainan", "back": true, "text": "他沒有放棄。四年後，他又回到府城。"},
@@ -655,25 +654,6 @@ func _draw_cut(it: Dictionary, vs: Vector2, cx: float, floor_y: float, s: float,
 			for i in 4:
 				var vx := cx + (i - 1.5) * 52.0 + (36.0 if i >= 2 else -36.0)
 				_who("disciple", Vector2(vx, fy + 6.0 - (i % 2) * 8.0), s * 0.9, Color(0.85, 0.65, 0.5, fade))
-		"church":
-			# 打狗：海邊的小天主堂，十字架
-			var horizon := vs.y * 0.52
-			_bands(vs, horizon, [Color("6a9ac8"), Color("8ab4d8"), Color("b8d0e0"), Color("e0e8e0")])
-			draw_rect(Rect2(0, horizon, vs.x * 0.4, vs.y), Color("3a6a9a"))
-			for i in 10:
-				var wx := fmod(i * 61.0 + t * 8.0, vs.x * 0.4)
-				draw_rect(Rect2(wx, horizon + 8 + (i % 5) * 12, 14, 2), Color("8ab8e0"))
-			draw_rect(Rect2(vs.x * 0.4, horizon, vs.x * 0.6, vs.y), Color("c8b88a"))
-			var chx := vs.x * 0.66
-			var chy := horizon + 40.0
-			draw_rect(Rect2(chx - 34, chy - 40, 68, 40), Color("f0ece0"))
-			draw_colored_polygon(PackedVector2Array([Vector2(chx - 40, chy - 38), Vector2(chx, chy - 66), Vector2(chx + 40, chy - 38)]), Color("a04a3a"))
-			draw_rect(Rect2(chx - 2, chy - 92, 4, 26), Color("5a3a20"))
-			draw_rect(Rect2(chx - 9, chy - 84, 18, 4), Color("5a3a20"))
-			draw_rect(Rect2(chx - 8, chy - 22, 16, 22), Color("5a3a20"))
-			for k in 2:
-				draw_rect(Rect2(chx - 26 + k * 42, chy - 30, 10, 12), Color("6a8ab8"))
-			_who("disciple", Vector2(chx - 70.0, vs.y * 0.7), s, Color(0.95, 0.92, 0.85, fade))
 		"print":
 			# 府城的印刷間：一台印刷機、一張張印好的報紙
 			draw_rect(Rect2(0, 0, vs.x, floor_y), Color("3a2c24"))
