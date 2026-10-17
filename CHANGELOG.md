@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 變更
+- README 全部改寫成目前的樣子（十五章劇情、資料檔各管什麼、`tools/release.sh` 發版流程、`tools/sim/storysim.sh`、測試參數、存檔檔案），讓別人也接得起來
+
 ## [0.28.2] - 2026-10-17
 
 ### 變更
