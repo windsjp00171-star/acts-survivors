@@ -2,7 +2,7 @@ extends Control
 ## 標題畫面：遊戲開啟後的第一個畫面。夜空、遠山、往地平線延伸的路，一群人往遠方的光走去。
 ## 走在路上的人跟著劇情進度換（下一章的主角在中間）；拔摩海島通過後，夜空變成新天新地的清晨。
 ## 第一次開遊戲先播一段開場（升天、五旬節），可以跳過，設定裡可以重看。
-## 劇情模式第一次通過司提反、大馬士革、羅馬這幾章，回營地前會先來這裡播章節過場（CUTS），播完直接進營地。
+## 劇情模式第一次通過司提反、大馬色、羅馬這幾章，回營地前會先來這裡播章節過場（CUTS），播完直接進營地。
 ## 「開始」進營地；「設定」切音樂、音效、特效精簡、字大一點。手機返回鍵在這裡是離開遊戲。
 
 const PX := 3.0             # 像素放大倍數（背景用的「一格」）
@@ -26,7 +26,7 @@ const CUTS := {
 		{"scene": "scatter", "who": ["disciple", "philip", "disciple"], "text": "從那天起，耶路撒冷的信徒四散。可是他們走到哪裡，就把福音傳到哪裡。"},
 	],
 	"damascus": [
-		{"scene": "wall", "text": "掃羅在大馬士革傳講耶穌。猶太人商量要殺他，日夜在城門守著。"},
+		{"scene": "wall", "text": "掃羅在大馬色傳講耶穌。猶太人商量要殺他，日夜在城門守著。"},
 		{"scene": "wall", "lower": true, "text": "門徒趁著夜裡，用筐子把他從城牆上縋下去。"},
 		{"scene": "meet", "text": "到了耶路撒冷，門徒都怕他。只有巴拿巴接待他，帶他去見使徒。"},
 		{"scene": "alone", "text": "後來弟兄們送他回家鄉大數。有好幾年，他就在那裡。"},
@@ -516,7 +516,7 @@ func _draw_cut(it: Dictionary, vs: Vector2, cx: float, floor_y: float, s: float,
 				for i in who.size():
 					_who(who[i], Vector2(cx + (i - (who.size() - 1) / 2.0) * 22.0 * s * 0.5, vs.y * 0.68 - absf(i - (who.size() - 1) / 2.0) * 10.0), s, W)
 		"wall":
-			# 大馬士革的城牆，夜裡；第二幕筐子慢慢縋下去
+			# 大馬色的城牆，夜裡；第二幕筐子慢慢縋下去
 			_bands(vs, floor_y, [Color("0b0716"), Color("120a22"), Color("1a0f2e")])
 			for st in stars:
 				draw_rect(Rect2((st.p * Vector2(vs.x, floor_y * 0.6)).floor(), Vector2(2, 2)), Color("c8b8e8"))

@@ -77,7 +77,7 @@ var hits: Array = []      # Boss 攻擊落下的閃光
 var paul := {}
 var pa := {}              # 保羅自己的攻擊（書信），用和同伴一樣的出招流程
 var first_recruit := ""
-var solo := false         # 這一關只有主角一個人（劇情模式的大馬士革、雅典）
+var solo := false         # 這一關只有主角一個人（劇情模式的大馬色、雅典）
 var story := false        # 劇情模式
 var chapter := {}         # 劇情模式的這一章（data/story.json）
 var story_idx := -1       # 劇情模式第幾章（0 起算）
@@ -86,7 +86,7 @@ const STORY_GATE := {"bond": 1, "fruit": 2, "armor": 2, "school": 4, "link": 9}
 var vision_on := false    # 對話時畫出光中的耶穌（關卡的 vision 列出哪段對話要畫）
 var tongues: Array = []   # 五旬節：落在頭上的火焰 {who, t}
 var sheets: Array = []    # 約帕：天上降下的大布 {pos, t, max}
-var chariot_done := false # 撒瑪利亞：曠野的車出現過了
+var chariot_done := false # 撒馬利亞：曠野的車出現過了
 var dmg_log := {}        # 測試用：主角被各種來源打掉的血
 var journey_step := 0     # 安提阿：0 還叫掃羅、1 改稱保羅、2 馬可離隊
 var smoke_max_frames := 1800
@@ -163,7 +163,7 @@ var hitstop_cd := 0.0
 var poofs: Array = []    # 被驅散的敵人：壓扁、往上淡出（0.3 秒）
 var chunks := {}
 var solids: Array = []      # 擋路的物件（石柱、石牆）：Rect2
-var wind_t := 8.0           # 馬爾他的暴風：倒數到下一陣風
+var wind_t := 8.0           # 米利大的暴風：倒數到下一陣風
 var wind_on := 0.0          # 這一陣風還剩幾秒
 var wind_dir := Vector2.RIGHT
 var chunk_timer := 0.0
@@ -254,7 +254,7 @@ var names_all := {}        # 說話的人 key → 名字（主角換人時也找
 var pressure := 0.0        # 0 起跳，敵人血量 ×(1 + pressure)
 var life_avg := 5.0        # 最近被打倒的敵人平均活了幾秒
 var persec_t := -1.0       # 逼迫：下一次落在主角腳下的時間
-# 大馬士革：瞎眼（blind_state："" 沒有、"vision" 路上的大光、"blind" 看不見、"heal" 鱗片掉下、"done"）
+# 大馬色：瞎眼（blind_state："" 沒有、"vision" 路上的大光、"blind" 看不見、"heal" 鱗片掉下、"done"）
 var blind_state := ""
 var blind_r := 0.0
 var blind_flash := 0.0     # 大光：整個畫面亮白
@@ -4747,7 +4747,7 @@ func _collide_solids() -> void:
 			e.pos = _push_out(e.pos, 3.0)
 
 
-## 關卡機制：馬爾他的暴風每隔一陣子吹過來，把所有人往同一個方向推
+## 關卡機制：米利大的暴風每隔一陣子吹過來，把所有人往同一個方向推
 func _update_wind(dt: float) -> void:
 	var hz: Dictionary = stage.get("hazard", {})
 	if hz.get("kind", "") != "wind":
@@ -4847,7 +4847,7 @@ func _update_tongues_sheets(dt: float, hz: Dictionary) -> void:
 	sheets = sheets.filter(func(sh): return sh.t > -0.4)
 
 
-## 撒瑪利亞：曠野路上的車（坐在車上的人慢慢經過，陪他夠久就信主）
+## 撒馬利亞：曠野路上的車（坐在車上的人慢慢經過，陪他夠久就信主）
 func _spawn_chariot(hz: Dictionary) -> void:
 	chariot_done = true
 	var dir := Vector2.RIGHT if randf() < 0.5 else Vector2.LEFT
@@ -4901,7 +4901,7 @@ func _update_journey(hz: Dictionary) -> void:
 				print("DEPART ", c.key, " party=", _party_count())
 
 
-## 大馬士革：路上的大光 → 瞎眼（只看得見身邊）→ 亞拿尼亞走過來按手 → 鱗片掉下、被聖靈充滿
+## 大馬色：路上的大光 → 瞎眼（只看得見身邊）→ 亞拿尼亞走過來按手 → 鱗片掉下、被聖靈充滿
 func _update_blind(dt: float, hz: Dictionary) -> void:
 	var el := t - t_start
 	match blind_state:
@@ -5003,7 +5003,7 @@ func _draw_dark() -> void:
 			n.draw_colored_polygon(PackedVector2Array([tip, tip - d * 7.0 + side * 4.0, tip - d * 7.0 - side * 4.0]), C_GOLD)
 
 
-## 各城的關卡機制（馬爾他的暴風、拔摩的星辰各有自己的函式）
+## 各城的關卡機制（米利大的暴風、拔摩的星辰各有自己的函式）
 func _update_hazard(dt: float) -> void:
 	_update_director(dt)
 	altar_buff = maxf(0.0, altar_buff - dt)
@@ -5403,7 +5403,7 @@ func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, 
 func _draw_ground_fx() -> void:
 	var n := ground_fx
 	if vision_on:
-		# 天上一道光柱照在主角身上（大馬士革路上、升天、司提反看見天開了）
+		# 天上一道光柱照在主角身上（大馬色路上、升天、司提反看見天開了）
 		var v0 := _view_rect()
 		var c0: Vector2 = paul.pos.round()
 		for i in 5:
@@ -6308,7 +6308,7 @@ func _make_tele(b: Dictionary) -> Array:
 				var a := PI / 4.0 + i * PI / 2.0
 				out.append({"kind": "circle", "c": paul.pos + Vector2(cos(a), sin(a) * 0.8) * 40.0, "r": 18.0, "dmg": float(B.slam.damage)})
 		"tide":
-			# 馬爾他：一道道海浪直直打過來，只有浪與浪之間是安全的
+			# 米利大：一道道海浪直直打過來，只有浪與浪之間是安全的
 			var vt := _view_rect().grow(40.0)
 			for i in 5:
 				var x: float = paul.pos.x + (i - 2) * 46.0 + randf_range(-6, 6)
@@ -6528,7 +6528,7 @@ func _smoke_tick() -> void:
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_fz.png"))
 		return
 	if smoke_shot != "" and blind_state != "":
-		# 測試用：大馬士革的瞎眼、亞拿尼亞、按手時的對話
+		# 測試用：大馬色的瞎眼、亞拿尼亞、按手時的對話
 		for pair in [["_blind", blind_state == "blind" and t - t_start > 20.0], ["_ananias", blind_state == "blind" and not ananias.is_empty() and paul.pos.distance_to(ananias.pos) < 60.0], ["_atalk", talking and blind_state == "heal"]]:
 			if pair[1] and not FileAccess.file_exists(smoke_shot.replace(".png", pair[0] + ".png")):
 				get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", pair[0] + ".png"))

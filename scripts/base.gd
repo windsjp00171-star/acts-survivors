@@ -443,7 +443,7 @@ func _show_home() -> void:
 	_text(content, "提示：每局結束都會帶回「見證」，用來解鎖新同伴、果子、軍裝和隊伍位置。完成見證錄的目標可以解鎖舊約人物。", 12, UIKit.MUTED, true)
 
 
-## 呼召要等劇情走過大馬士革（第 4 章）才出現；之前一律是「使徒」
+## 呼召要等劇情走過大馬色（第 4 章）才出現；之前一律是「使徒」
 func _callings_open() -> bool:
 	return Save.data.churches.has("damascus")
 
@@ -495,7 +495,7 @@ func _show_story() -> void:
 	go.pressed.connect(func(): _start_story(sel))
 	content.add_child(go)
 	_text(content, "福音傳到地極", 16, UIKit.GOLD)
-	_text(content, "「聖靈降臨在你們身上，你們就必得著能力，並要在耶路撒冷、猶太全地，和撒瑪利亞，直到地極，作我的見證。」（徒 1:8）", 11, UIKit.MUTED, true)
+	_text(content, "「聖靈降臨在你們身上，你們就必得著能力，並要在耶路撒冷、猶太全地，和撒馬利亞，直到地極，作我的見證。」（徒 1:8）", 11, UIKit.MUTED, true)
 	_text(content, "每一章的主角和會遇到的同伴都照聖經；在故事裡加入的人，自由模式也能帶。", 11, UIKit.MUTED, true)
 	for i in CH.size():
 		var ch: Dictionary = CH[i]
@@ -959,16 +959,21 @@ func _show_gifts() -> void:
 		var box := PanelContainer.new()
 		box.add_theme_stylebox_override("panel", UIKit.box(Color(0.14, 0.1, 0.16), UIKit.GOLD, 6))
 		side.add_child(box)
-		var h: BoxContainer = HBoxContainer.new() if portrait else VBoxContainer.new()
-		h.add_theme_constant_override("separation", 8)
-		box.add_child(h)
+		# 說明在上、按鈕排在下面一列（手機上放同一列會把畫面撐寬）
+		var hv := VBoxContainer.new()
+		hv.add_theme_constant_override("separation", 8)
+		box.add_child(hv)
 		var v := VBoxContainer.new()
 		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		h.add_child(v)
+		hv.add_child(v)
+		var h := HFlowContainer.new()
+		h.add_theme_constant_override("h_separation", 8)
+		h.add_theme_constant_override("v_separation", 6)
+		hv.add_child(h)
 		_text(v, "%s　Lv%d／%d" % [tree.names[gift_sel], rank, int(nd.max)], 15, UIKit.CREAM)
 		if tree.has("refs"):
 			_text(v, "（%s）" % tree.refs[gift_sel], 11, UIKit.SKY)
-		_text(v, nd.desc % gift_tag, 12, UIKit.INK, true)
+		_text(v, (nd.desc % gift_tag) if "%s" in str(nd.desc) else str(nd.desc), 12, UIKit.INK, true)
 		if nd.id == "link" or nd.id == "ult":
 			var TL: Dictionary = G.tag_links.get(gift_tag, {})
 			if not TL.is_empty():

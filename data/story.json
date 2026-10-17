@@ -30,23 +30,23 @@
     },
     {
       "stage": "samaria",
-      "title": "撒瑪利亞與曠野路",
+      "title": "撒馬利亞與曠野路",
       "leader": "philip",
       "cast": [
         "peter",
         "john"
       ],
-      "camp": "撒瑪利亞",
+      "camp": "撒馬利亞",
       "hp_mult": 0.88,
       "dmg_mult": 0.9
     },
     {
       "stage": "damascus",
-      "title": "大馬士革路上",
+      "title": "大馬色路上",
       "leader": "paul",
       "solo": true,
       "cast": [],
-      "camp": "大馬士革",
+      "camp": "大馬色",
       "hp_mult": 0.85,
       "dmg_mult": 0.9
     },
@@ -153,7 +153,7 @@
       "cast": [
         "luke"
       ],
-      "camp": "馬爾他",
+      "camp": "米利大",
       "boss_mult": 0.6,
       "hp_mult": 0.7,
       "dmg_mult": 0.8

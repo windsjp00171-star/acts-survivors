@@ -57,7 +57,7 @@ func load_profile() -> void:
 	if data.faith_best.is_empty() and not data.trial_best.is_empty():
 		for sid in data.trial_best:
 			data.faith_best[sid] = mini(6, int(data.trial_best[sid]) / 2)
-	# 關卡順序改過兩次（0.16 前面多了大馬士革、0.18 多了劇情的新章節）：舊存檔選的城照名字找回來
+	# 關卡順序改過兩次（0.16 前面多了大馬色、0.18 多了劇情的新章節）：舊存檔選的城照名字找回來
 	if saved != null and int(data.get("map_ver", 1)) < 3:
 		var old_ids: Array = ["philippi", "thessalonica", "athens", "corinth", "ephesus", "jerusalem", "malta", "rome", "patmos"]
 		if int(data.get("map_ver", 1)) == 2:
