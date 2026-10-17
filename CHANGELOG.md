@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-17
+
+### 新增
+- 醫治：`_heal_comp`（`renew` 得力加攻速、`cleanse` 叫醒與拉回隊伍）、`_atone`（傷害化成醫治給血量比例最低的人）；招式屬性 `renew`／`cleanse`（heal）、`heal_team`（prayer）、`consecrate`（fire）、`atone`（medicine）、`reflect`（sew）；醫治深化卡 `atone`、`renew`
+
+### 變更
+- 劇情整體倍率 `hp_mult` 0.85→1.0、`dmg_mult` 0.65→0.78、`boss_mult` 0.8→0.9。模擬（mid 存檔）第 2、7、15 章仍全勝，但通關時間變長、難度導演壓力明顯下降（代表打得比較吃力）
+
 ## [0.34.0] - 2026-10-17
 
 ### 變更
