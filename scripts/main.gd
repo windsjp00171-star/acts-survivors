@@ -510,6 +510,18 @@ func _ready() -> void:
 				_evolve(evo)
 	for a in OS.get_cmdline_user_args():
 		# 測試用：--relics=hair,mantle　--anoint=tim:multi,chain
+		if a.begins_with("--branch="):
+			# 測試用：--branch=tim:1（強制選 Lv3 的第幾條分支）
+			var bk := a.substr(9).get_slice(":", 0)
+			by_key[bk].branch = int(a.substr(9).get_slice(":", 1))
+			_set_level(by_key[bk], maxi(3, int(by_key[bk].level)))
+		if a.begins_with("--only="):
+			# 測試用：--only=tim（只留這幾位同伴，其他人不上場）
+			var keep: Array = Array(a.substr(7).split(","))
+			only_keys = keep
+			for c in comps:
+				if not keep.has(c.key) and c.level > 0:
+					c.level = 0
 		if a.begins_with("--mods="):
 			# 測試用：--mods=march:1,heal_smite:3（直接改寫流派規則的數值）
 			for kv in a.substr(7).split(","):
@@ -771,6 +783,8 @@ func _set_level(c: Dictionary, lv: int) -> void:
 func _recruit(c: Dictionary) -> void:
 	if solo:
 		return   # 一個人的關卡：沒有同伴加入
+	if not only_keys.is_empty() and not only_keys.has(c.key):
+		return   # 測試用：--only
 	if story and not Save.is_unlocked(c.key):
 		# 劇情模式：在故事裡加入的那一刻就永久解鎖
 		Save.data.unlocked.append(c.key)
@@ -1472,6 +1486,7 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		if atone > 0.0 and t >= atone_cd:
 			# 以善勝惡：醫治的人打出去的傷害，一部分化成血最少的人的醫治
 			atone_cd = t + 0.3
+			_fxc("以善勝惡")
 			_atone(dmg * atone)
 		if src.has("st") and float(src.st.get("melee", 0.0)) > 0.0:
 			# 近戰：貼身打中的敵人露出破綻（2 秒內全隊打他更痛），自己也吸回一點力氣
@@ -1584,6 +1599,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		if src is Dictionary and _fx_of(src).has("release") and not blasting:
 			# 得釋放：驅散的地方爆開光
 			blasting = true
+			_fxc("爆光")
 			blasts.append({"pos": e.pos + Vector2(0, -4), "t": 0.0, "r": 26.0, "col": C_GOLD, "evo": false})
 			for o in _enemies_near(e.pos, 36.0):
 				if o != e and not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_to(e.pos) < 26.0 + float(o.r):
@@ -2300,6 +2316,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 				var pool := _nearest_enemies(c.pos, s.range, 12)
 				pool.sort_custom(func(a, b): return float(a.hp) > float(b.hp))
 				targets = pool.slice(0, int(s.count))
+				_fxc("追血多")
 			fired = targets.size() > 0
 			for i in (int(s.count) if fired else 0):
 				var tg: Dictionary = targets[i % targets.size()]
@@ -2330,6 +2347,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 				var nx := _nearest_enemies(c.pos, 140.0, int(s.smite))
 				for o in nx:
 					zaps.append({"pts": [c.pos + Vector2(0, -10), o.pos + Vector2(0, -4)], "t": 0.0, "evo": false, "col": C_HEAL})
+					_fxc("醫生的手")
 					_hurt(o, float(s.amount) * 1.5, Vector2.INF, c)
 			_anoint_add(_sv("醫治", "anoint_bonus"))
 			heals.append({"who": paul, "t": 0.0})
@@ -2984,6 +3002,7 @@ func _heal_comp(o: Dictionary, n: float, renew := 0.0, cleanse := false) -> void
 	var rn: float = renew + _sv("醫治", "renew")
 	if rn > 0.0:
 		o.renew_t = 3.0
+		_fxc("得力")
 		o.renew_amt = maxf(float(o.get("renew_amt", 0.0)) if float(o.get("renew_t", 0.0)) > 0.0 else 0.0, rn)
 	if cleanse:
 		if float(o.get("sleep", 0.0)) > 0.0:
@@ -4194,10 +4213,12 @@ func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
 	if an.has("pillar") and not chaining and t >= float(src.get("pillar_cd", 0.0)) and randf() < 0.25:
 		# 光柱：打中的地方，天上降下一道光柱
 		src.pillar_cd = t + 0.2
+		_fxc("光柱")
 		fires.append({"pos": e.pos, "t": 0.3, "max": 0.3, "r": 18.0 * _area(), "dmg": base * 1.2, "owner": src, "evo": true, "look": "glory"})
 	if an.has("zap") and not chaining and t >= float(src.get("zap_cd", 0.0)) and randf() < 0.3:
 		# 雷擊：打中後，閃電跳向附近 3 隻
 		src.zap_cd = t + 0.2
+		_fxc("雷擊")
 		chaining = true
 		var prev: Vector2 = e.pos + Vector2(0, -4)
 		var seen := {e.node: true}
@@ -4223,13 +4244,16 @@ func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
 		e.expose = maxf(float(e.get("expose", 0.0)), 0.2)
 	if an.has("leech") and t >= float(src.get("leech_a_cd", 0.0)):
 		src.leech_a_cd = t + 0.3
+		_fxc("吸血")
 		_heal_paul(1.0)   # 恩典夠用
 	if an.has("harvest") and not e.get("elite", false) and not e.get("boss", false) and e.hp > 0.0 and e.hp <= float(e.get("hp0", 1.0)) * 0.15:
 		e.hp = 0.0   # 收割：剩一點點血的直接散去
+		_fxc("收割")
 		_ring_pop(e.pos + Vector2(0, -6), C_CREAM, 12.0)
 	if an.has("split") and not chaining and t >= float(src.get("split_cd", 0.0)):
 		# 分光：打中後分出 2 支小光箭
 		src.split_cd = t + 0.15
+		_fxc("分光")
 		for o in _nearest_enemies(e.pos, 80.0, 2, {e.node: true}):
 			bolts.append({"pos": e.pos + Vector2(0, -6), "target": o, "life": 0.8, "pierce": 0, "split": 0, "child": true,
 				"dmg": maxf(1.0, base * 0.4), "size": 1, "hit": {e.node: true}, "spd": 220.0, "emult": 1.0, "look": "", "owner": src})
@@ -4237,6 +4261,7 @@ func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
 		# 爆裂：打中的地方炸開，波及旁邊的敵人（四成傷害）
 		blasting = true
 		var br := 20.0 * _area()
+		_fxc("爆裂")
 		blasts.append({"pos": e.pos + Vector2(0, -4), "t": 0.0, "r": br, "col": src.get("col", C_FLAME), "evo": false})
 		for o in _enemies_near(e.pos, br + 12.0):
 			if o != e and not o.dead and float(o.get("ally", 0.0)) <= 0.0 and o.pos.distance_to(e.pos) < br + float(o.r):
@@ -4461,6 +4486,7 @@ func _lunge(c: Dictionary, s: Dictionary) -> void:
 	if to.length() < 14.0:
 		return
 	c.off = to.normalized() * minf(to.length() - 8.0, 40.0)
+	_fxc("跨步")
 	c.vel = -c.off * 5.0
 	c.pos = c.base + c.off
 
@@ -4484,6 +4510,7 @@ func _nova(c: Dictionary, s: Dictionary) -> void:
 		for o in comps:
 			if o != c and o.level > 0 and o.down <= 0.0 and o.pos.distance_to(center) < r + 20.0:
 				_heal_comp(o, float(s.heal_team), 0.0, true)
+				_fxc("禱告醫治")
 				heals.append({"who": o, "t": 0.0})
 	if float(s.get("heal", 0.0)) > 0.0:
 		# 雅各：禱告順便幫保羅回血
@@ -4611,6 +4638,7 @@ func _update_projectiles(dt: float) -> void:
 			blasts.append({"pos": f.pos, "t": 0.0, "r": f.r, "col": Color("5a8ab0") if f.get("look", "") == "spit" else (C_GOLD if f.evo else C_FLAME), "evo": f.evo})
 			if f.owner is Dictionary and f.owner.has("st") and float(f.owner.st.get("consecrate", 0.0)) > 0.0:
 				var hv: float = float(f.owner.st.consecrate)
+				_fxc("火中醫治")
 				if paul.pos.distance_to(f.pos) < f.r + 24.0:
 					_heal_paul(hv)
 				for o in comps:
@@ -4934,6 +4962,7 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 		_ring_pop(c.pos + Vector2(0, -8), Color("e8d8b0"), 12.0)
 		if by_key.has("dorcas") and by_key.dorcas.level > 0 and float(by_key.dorcas.st.get("reflect", 0.0)) > 0.0:
 			# 衣服擋下時，光往外推，傷害身邊的敵人
+			_fxc("衣服反擊")
 			blasts.append({"pos": c.pos + Vector2(0, -6), "t": 0.0, "r": 24.0, "col": Color("e8d8b0"), "evo": false})
 			for e in _enemies_near(c.pos, 30.0):
 				if not e.dead and e.pos.distance_to(c.pos) < 24.0:
@@ -6830,8 +6859,48 @@ func _game_over() -> void:
 
 
 # ---------- 自動測試 ----------
+## 測試用：每 5 格看一次場上的狀態，結束時印出「效果有沒有真的發生」
+var fx_stat := {}
+var only_keys: Array = []   # 測試用：只讓這幾位上場
+var fx_hp := {}
+
+
+func _fxc(k: String) -> void:
+	if smoke:
+		fx_stat["觸發:" + k] = float(fx_stat.get("觸發:" + k, 0.0)) + 1.0
+
+
+func _fx_sample() -> void:
+	var add := func(k: String, v: float): fx_stat[k] = float(fx_stat.get(k, 0.0)) + v
+	for e in enemies:
+		if e.dead:
+			continue
+		if float(e.get("stun", 0.0)) > 0.0: add.call("暈眩", 1)
+		if float(e.get("slow_t", 0.0)) > 0.0: add.call("變慢", 1)
+		if float(e.get("exposed_t", 0.0)) > 0.0: add.call("破綻", 1)
+		if float(e.get("confused", 0.0)) > 0.0: add.call("混亂", 1)
+		if float(e.get("burn_t", 0.0)) > 0.0: add.call("燃燒", 1)
+		if float(e.get("ally", 0.0)) > 0.0: add.call("被說服", 1)
+	for c in [pa] + comps:
+		if c.level > 0:
+			add.call("衣服", int(c.get("garment", 0)))
+			var hp: float = paul.hp if c == pa else float(c.hp)
+			var was: float = float(fx_hp.get(c.key, hp))
+			if hp > was: add.call("回血", hp - was)
+			fx_hp[c.key] = hp
+	add.call("香氣", zones.size())
+	add.call("瓶子", jars.size())
+	add.call("樹", trees.size())
+	add.call("獅子", 1 if comps.any(func(c): return c.has("lions") and c.level > 0) else 0)
+	add.call("小門徒", minions.size())
+	add.call("護盾", guard)
+	add.call("加速", 1 if haste_t > 0.0 else 0)
+
+
 func _smoke_tick() -> void:
 	smoke_frames += 1
+	if smoke_frames % 5 == 0:
+		_fx_sample()
 	if smoke_shot != "" and seekers.any(func(sk): return sk.prog > 1.5) and not FileAccess.file_exists(smoke_shot.replace(".png", "_seek.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_seek.png"))
 	if smoke_shot != "" and not FileAccess.file_exists(smoke_shot.replace(".png", "_hz.png")):
@@ -6919,4 +6988,9 @@ func _smoke_tick() -> void:
 			if c.level > 0:
 				dealt2[c.key] = "%d/%d次/倒%.0f" % [roundi(float(c.get("dealt", 0.0))), int(c.get("casts", 0)), float(c.get("down_total", 0.0))]
 		print("DEALT ", dealt2, " tiers=", school_tier, " anoints=", pa.get("anoints", []))
+		var fxr := {}
+		for k in fx_stat:
+			if float(fx_stat[k]) > 0.0:
+				fxr[k] = roundi(float(fx_stat[k]))
+		print("FX ", fxr)
 		get_tree().quit()
