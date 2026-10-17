@@ -38,6 +38,22 @@ const CUTS := {
 		{"scene": "years", "text": "很多年過去了。使徒們一個一個，跑完了他們的路。"},
 		{"scene": "sea", "text": "年老的約翰被流放到拔摩海島。在主日，他被聖靈感動，聽見身後有大聲音。"},
 	],
+	# 結局：使徒行傳的「第 29 章」——福音一路傳到台灣，傳到今天的你（看完回到清晨的標題畫面）
+	"patmos": [
+		{"scene": "newheaven", "text": "約翰看見一個新天新地。神要擦去他們一切的眼淚，不再有死亡，也不再有悲哀。"},
+		{"scene": "years", "text": "使徒們跑完了他們的路。可是這條路沒有停下來，一代又一代的人接著走，走到了台灣。"},
+		{"scene": "sinkang", "text": "一六二七年，荷蘭的牧師甘治士來到台南的新港社，和西拉雅族人住在一起，學他們的話。"},
+		{"scene": "church", "text": "一八六〇年前後，西班牙道明會的郭德剛神父來到打狗（今天的高雄），蓋起了天主堂。"},
+		{"scene": "ship", "text": "一八六五年，一位蘇格蘭醫生馬雅各，坐船來到台灣。"},
+		{"scene": "tainan", "text": "他在台南府城的看西街開了醫館，一邊看病，一邊傳福音。才二十幾天，就被謠言趕出城。"},
+		{"scene": "tainan", "back": true, "text": "他沒有放棄。四年後，他又回到府城。"},
+		{"scene": "tamsui", "text": "一八七二年，馬偕在淡水上岸，走遍了北台灣。"},
+		{"scene": "print", "text": "一八八五年，巴克禮牧師在府城印出《台灣府城教會報》。這是台灣第一份報紙，用白話字寫，讓不識漢字的阿公阿嬤也讀得懂神的話。"},
+		{"scene": "skin", "text": "一九二八年，彰化的蘭大衛醫生要救一個腿爛掉的孩子周金耀。他的妻子連瑪玉，割下自己腿上的皮給他——人稱「切膚之愛」。"},
+		{"scene": "mountain", "text": "日本統治的時候，花蓮山上的姬望受洗信主。她在夜裡偷偷把福音教給族人，大家躲在山洞裡一起敬拜。"},
+		{"scene": "today", "text": "今天，這條路走到了你住的城市。"},
+		{"scene": "today", "you": true, "text": "這條路，還沒有走完。\n「直到地極，作我的見證。」（徒 1:8）"},
+	],
 }
 
 var walkers: Array = ["silas", "tim", "paul", "luke", "barn"]   # 中間（第 3 位）最前面
@@ -297,7 +313,7 @@ func _next_intro() -> void:
 		_end_intro()
 		return
 	intro_label.text = cut[intro_i].text
-	if cut[intro_i].scene in ["wind", "fire", "sky", "sea"]:
+	if cut[intro_i].scene in ["wind", "fire", "sky", "sea", "newheaven"]:
 		Sfx.play("holy", 0.0)
 
 
@@ -311,6 +327,9 @@ func _end_intro() -> void:
 		Save.data.cuts_seen = seen
 		Save.data.pending_cut = ""
 		Save.save_profile()
+		if cut_id == "patmos":
+			get_tree().change_scene_to_file("res://scenes/title.tscn")   # 結局看完：回到新天新地的清晨
+			return
 		_start()
 		return
 	Save.data.intro_seen = true
@@ -536,6 +555,212 @@ func _draw_cut(it: Dictionary, vs: Vector2, cx: float, floor_y: float, s: float,
 			for r in rows:
 				var half := 4.0 + float(r) / rows * vs.x * 0.3
 				draw_rect(Rect2(cx - half, horizon + r * PX, half * 2.0, PX), Color("5a4430") if (r / 3) % 2 == 0 else Color("624a34"))
+		"newheaven":
+			# 新天新地：清晨的天、生命河從光裡流出來、約翰站在岸邊
+			var horizon := vs.y * 0.52
+			_bands(vs, horizon, [Color("3a6aa8"), Color("5a86b8"), Color("7aa0c4"), Color("a8bcc8"), Color("d8c8b0"), Color("f0d0a0")])
+			_pillar(cx, horizon, fade)
+			_hills(vs, horizon, 0.3, Color("6a8a6a"), 26.0, 0.015)
+			draw_rect(Rect2(0, horizon, vs.x, vs.y - horizon), Color("5a7a40"))
+			var rows := int((vs.y - horizon) / PX)
+			for r in rows:
+				var half := 3.0 + float(r) / rows * vs.x * 0.12
+				var wob := sin(r * 0.4 + t * 2.0) * 2.0
+				draw_rect(Rect2(cx - half + wob, horizon + r * PX, half * 2.0, PX), Color("8ac8e8") if (r + int(t * 6.0)) % 4 else Color("d8f0ff"))
+			for i in 6:
+				var tx := cx + (i - 2.5) * vs.x * 0.14
+				draw_rect(Rect2(tx - 2, horizon + 6, 4, 18), Color("5a4030"))
+				draw_circle(Vector2(tx, horizon + 2), 10.0, Color("4a8a3a"))
+				draw_rect(Rect2(tx - 3, horizon - 2, 2, 2), Color("ffd75e"))
+			_who("john", Vector2(cx - 60.0, vs.y * 0.68), s, W)
+		"ship":
+			# 十九世紀的帆船，黃昏的海
+			var horizon := vs.y * 0.55
+			_bands(vs, horizon, [Color("2a1a3a"), Color("5a2a4a"), Color("a04a4a"), Color("e08a5a"), Color("f0c080")])
+			draw_rect(Rect2(0, horizon, vs.x, vs.y - horizon), Color("1a2a4a"))
+			for i in 24:
+				var wy := horizon + 6.0 + (i % 8) * (vs.y - horizon) / 8.0
+				var wx := fmod(i * 97.0 + t * (10.0 + (i % 3) * 5.0), vs.x + 60.0) - 30.0
+				draw_rect(Rect2(wx, wy, 18 + (i % 4) * 6, 2), Color("3a5a8a"))
+			var sx := lerpf(vs.x * 0.15, vs.x * 0.55, clampf(intro_t / 5.5, 0.0, 1.0))
+			var sy := horizon + 14.0 + sin(t * 1.5) * 2.0
+			draw_colored_polygon(PackedVector2Array([Vector2(sx - 40, sy), Vector2(sx + 44, sy), Vector2(sx + 32, sy + 14), Vector2(sx - 30, sy + 14)]), Color("3a2418"))
+			draw_rect(Rect2(sx - 1, sy - 50, 3, 50), Color("2a1a10"))
+			draw_rect(Rect2(sx + 19, sy - 36, 2, 36), Color("2a1a10"))
+			draw_colored_polygon(PackedVector2Array([Vector2(sx + 2, sy - 48), Vector2(sx + 2, sy - 8), Vector2(sx + 28, sy - 10)]), Color("e8dcc4"))
+			draw_colored_polygon(PackedVector2Array([Vector2(sx - 2, sy - 46), Vector2(sx - 2, sy - 8), Vector2(sx - 30, sy - 10)]), Color("d8ccb4"))
+			draw_colored_polygon(PackedVector2Array([Vector2(sx + 22, sy - 34), Vector2(sx + 22, sy - 8), Vector2(sx + 40, sy - 10)]), Color("e8dcc4"))
+		"tainan", "tamsui":
+			# 台南府城的老街（紅瓦、紅燈籠）／淡水的河口與觀音山
+			var horizon := vs.y * 0.5
+			if sc == "tamsui":
+				_bands(vs, horizon, [Color("6a8ab8"), Color("8aa4c8"), Color("b0c0d0"), Color("d8d4c4")])
+				# 對岸的觀音山
+				var m := PackedVector2Array([Vector2(vs.x * 0.45, horizon), Vector2(vs.x * 0.62, horizon - 70), Vector2(vs.x * 0.7, horizon - 58), Vector2(vs.x * 0.8, horizon - 76), Vector2(vs.x, horizon - 30), Vector2(vs.x, horizon)])
+				draw_colored_polygon(m, Color("4a6a5a"))
+				draw_rect(Rect2(0, horizon, vs.x, vs.y * 0.18), Color("4a6a8a"))
+				for i in 14:
+					var wx := fmod(i * 83.0 + t * 8.0, vs.x)
+					draw_rect(Rect2(wx, horizon + 6 + (i % 5) * 10, 16, 2), Color("8aaaca"))
+				draw_rect(Rect2(0, horizon + vs.y * 0.18, vs.x, vs.y), Color("8a7a5a"))
+				var k := clampf(intro_t / 5.0, 0.0, 1.0)
+				_who("disciple", Vector2(lerpf(vs.x * 0.2, vs.x * 0.45, k), vs.y * 0.68), s, W)
+			else:
+				_bands(vs, horizon, [Color("e0b080"), Color("e8c898"), Color("f0dcb0")])
+				for i in 7:
+					var hx0 := i * vs.x / 6.0 - 30.0
+					var hw := vs.x / 6.0 + 8.0
+					var top := horizon - 40.0 - (i % 2) * 10.0
+					draw_rect(Rect2(hx0, top + 12, hw, horizon - top), Color("c8a888") if i % 2 else Color("d8b898"))
+					draw_colored_polygon(PackedVector2Array([Vector2(hx0 - 6, top + 14), Vector2(hx0 + hw / 2.0, top - 4), Vector2(hx0 + hw + 6, top + 14)]), Color("a03a2a"))
+					draw_rect(Rect2(hx0 + hw / 2.0 - 8, horizon - 24, 16, 24), Color("4a2a1a"))
+					var ly := top + 22 + sin(t * 2.0 + i) * 1.5
+					draw_circle(Vector2(hx0 + 12, ly), 4.0, Color("e0402a"))
+					draw_rect(Rect2(hx0 + 11, ly - 7, 2, 3), Color("2a1a10"))
+				draw_rect(Rect2(0, horizon, vs.x, vs.y - horizon), Color("a89070"))
+				for x in range(0, int(vs.x), 20):
+					draw_rect(Rect2(x, horizon, 1, vs.y - horizon), Color("98805e"))
+				var fy := vs.y * 0.68
+				if it.get("back", false):
+					var k := clampf(intro_t / 5.0, 0.0, 1.0)
+					_who("disciple", Vector2(lerpf(-20.0, cx, k), fy), s, W)
+				else:
+					_who("disciple", Vector2(cx - 30.0, fy), s, W)
+					_who("disciple", Vector2(cx + 30.0, fy - 6.0), s * 0.9, shade)
+					_who("disciple", Vector2(cx + 60.0, fy), s * 0.9, shade)
+					draw_rect(Rect2(cx - 52.0, fy - 34.0, 10, 10), Color("f4ead2"))
+					draw_rect(Rect2(cx - 48.0, fy - 33.0, 2, 8), Color("c0392b"))
+					draw_rect(Rect2(cx - 51.0, fy - 30.0, 8, 2), Color("c0392b"))
+		"sinkang":
+			# 新港社：西拉雅族的茅草屋、檳榔樹，一位穿黑袍的牧師坐在族人中間
+			var horizon := vs.y * 0.5
+			_bands(vs, horizon, [Color("7aa8c8"), Color("9ac0d0"), Color("c8d8c8"), Color("e8e0b8")])
+			_hills(vs, horizon, 0.4, Color("5a8a5a"), 20.0, 0.02)
+			draw_rect(Rect2(0, horizon, vs.x, vs.y - horizon), Color("8a9a5a"))
+			for i in 5:
+				var hx0 := vs.x * (0.08 + i * 0.21)
+				var hy := horizon + 4.0 + (i % 2) * 10.0
+				for k in 3:
+					draw_rect(Rect2(hx0 - 18 + k * 16, hy - 4, 2, 12), Color("5a4030"))
+				draw_rect(Rect2(hx0 - 20, hy - 22, 40, 18), Color("b89a6a"))
+				draw_colored_polygon(PackedVector2Array([Vector2(hx0 - 26, hy - 20), Vector2(hx0, hy - 42), Vector2(hx0 + 26, hy - 20)]), Color("c8a860"))
+			for i in 4:
+				var px := vs.x * (0.15 + i * 0.24)
+				draw_rect(Rect2(px - 1, horizon - 60, 3, 60), Color("8a7a5a"))
+				for a in 5:
+					var ang := -PI * (0.1 + a * 0.2)
+					draw_line(Vector2(px, horizon - 60), Vector2(px, horizon - 60) + Vector2(cos(ang), sin(ang)) * 16.0, Color("4a7a3a"), 3.0)
+			var fy := vs.y * 0.7
+			_who("disciple", Vector2(cx, fy), s, Color(0.45, 0.42, 0.5, fade))
+			for i in 4:
+				var vx := cx + (i - 1.5) * 52.0 + (36.0 if i >= 2 else -36.0)
+				_who("disciple", Vector2(vx, fy + 6.0 - (i % 2) * 8.0), s * 0.9, Color(0.85, 0.65, 0.5, fade))
+		"church":
+			# 打狗：海邊的小天主堂，十字架
+			var horizon := vs.y * 0.52
+			_bands(vs, horizon, [Color("6a9ac8"), Color("8ab4d8"), Color("b8d0e0"), Color("e0e8e0")])
+			draw_rect(Rect2(0, horizon, vs.x * 0.4, vs.y), Color("3a6a9a"))
+			for i in 10:
+				var wx := fmod(i * 61.0 + t * 8.0, vs.x * 0.4)
+				draw_rect(Rect2(wx, horizon + 8 + (i % 5) * 12, 14, 2), Color("8ab8e0"))
+			draw_rect(Rect2(vs.x * 0.4, horizon, vs.x * 0.6, vs.y), Color("c8b88a"))
+			var chx := vs.x * 0.66
+			var chy := horizon + 40.0
+			draw_rect(Rect2(chx - 34, chy - 40, 68, 40), Color("f0ece0"))
+			draw_colored_polygon(PackedVector2Array([Vector2(chx - 40, chy - 38), Vector2(chx, chy - 66), Vector2(chx + 40, chy - 38)]), Color("a04a3a"))
+			draw_rect(Rect2(chx - 2, chy - 92, 4, 26), Color("5a3a20"))
+			draw_rect(Rect2(chx - 9, chy - 84, 18, 4), Color("5a3a20"))
+			draw_rect(Rect2(chx - 8, chy - 22, 16, 22), Color("5a3a20"))
+			for k in 2:
+				draw_rect(Rect2(chx - 26 + k * 42, chy - 30, 10, 12), Color("6a8ab8"))
+			_who("disciple", Vector2(chx - 70.0, vs.y * 0.7), s, Color(0.95, 0.92, 0.85, fade))
+		"print":
+			# 府城的印刷間：一台印刷機、一張張印好的報紙
+			draw_rect(Rect2(0, 0, vs.x, floor_y), Color("3a2c24"))
+			for x in range(0, int(vs.x), 24):
+				draw_rect(Rect2(x, 0, 1, floor_y), Color("2e221c"))
+			draw_rect(Rect2(0, floor_y, vs.x, vs.y - floor_y), Color("5a4430"))
+			var px0 := cx + 20.0
+			draw_rect(Rect2(px0 - 30, floor_y - 10, 60, 40), Color("2a2a2e"))
+			draw_rect(Rect2(px0 - 34, floor_y - 18, 68, 8), Color("4a4a50"))
+			draw_rect(Rect2(px0 - 3, floor_y - 60, 6, 42), Color("4a4a50"))
+			var turn := sin(t * 3.0) * 14.0
+			draw_line(Vector2(px0, floor_y - 56), Vector2(px0 + 24.0, floor_y - 56 + turn), Color("8a8a90"), 4.0)
+			for i in 5:
+				var sx := cx - 140.0 + i * 22.0
+				var sy := floor_y + 6.0 - i * 3.0
+				draw_rect(Rect2(sx, sy, 34, 44), Color("f4ead2"))
+				for l in 6:
+					draw_rect(Rect2(sx + 4, sy + 6 + l * 6, 26 - (l % 3) * 5, 2), Color("3a2a1a"))
+			_who("disciple", Vector2(px0 + 56.0, floor_y + 34.0), s, Color(0.9, 0.88, 0.85, fade))
+		"skin":
+			# 醫院的病房：病床上的孩子、醫生、站在一旁的醫生娘；窗外的光
+			draw_rect(Rect2(0, 0, vs.x, floor_y), Color("e0d8c8"))
+			draw_rect(Rect2(cx - 30.0, floor_y * 0.22, 60, 50), Color("8a7a5a"))
+			draw_rect(Rect2(cx - 26.0, floor_y * 0.22 + 4, 52, 42), Color("fff4c2"))
+			draw_rect(Rect2(0, floor_y, vs.x, vs.y - floor_y), Color("a89880"))
+			var by := floor_y + 30.0
+			draw_rect(Rect2(cx - 70, by - 18, 90, 12), Color("f4f0e8"))
+			draw_rect(Rect2(cx - 70, by - 6, 4, 14), Color("6a6a70"))
+			draw_rect(Rect2(cx + 16, by - 6, 4, 14), Color("6a6a70"))
+			var head := Vector2(cx - 64, by - 30)
+			draw_texture_rect_region(_tx("disciple"), Rect2(head, Vector2(14, 8) * s * 0.8), Rect2(0, 0, 14, 8), W)
+			_who("disciple", Vector2(cx + 50.0, by + 10.0), s, Color(0.95, 0.95, 0.95, fade))
+			_who("disciple", Vector2(cx + 90.0, by + 12.0), s * 0.95, Color(1.0, 0.85, 0.9, fade))
+			for i in 3:
+				var a := t * 1.5 + i * TAU / 3.0
+				draw_rect(Rect2(cx - 30.0 + cos(a) * 30.0, by - 40.0 + sin(a) * 6.0, 2, 2), Color("ffd75e"))
+		"mountain":
+			# 花蓮的山，夜裡；山洞裡一小堆火，幾個人圍著
+			_bands(vs, floor_y, [Color("0b0716"), Color("120a22"), Color("1a1430")])
+			for st in stars:
+				draw_rect(Rect2((st.p * Vector2(vs.x, floor_y * 0.6)).floor(), Vector2(2, 2)), Color("c8b8e8"))
+			draw_colored_polygon(PackedVector2Array([Vector2(0, floor_y + 10), Vector2(vs.x * 0.2, floor_y - 120), Vector2(vs.x * 0.45, floor_y - 60), Vector2(vs.x * 0.7, floor_y - 150), Vector2(vs.x, floor_y - 40), Vector2(vs.x, vs.y), Vector2(0, vs.y)]), Color("1a2a24"))
+			var cave := Vector2(cx, floor_y + 30.0)
+			draw_circle(cave, 70.0, Color("0e1210"))
+			draw_rect(Rect2(cave.x - 70, cave.y, 140, 60), Color("0e1210"))
+			var fl := 4.0 + sin(t * 9.0) * 2.0
+			draw_circle(cave + Vector2(0, 26), 26.0, Color(1.0, 0.6, 0.2, 0.12))
+			draw_rect(Rect2(cave.x - 4, cave.y + 26 - fl, 8, fl), Color("ff8a2a"))
+			draw_rect(Rect2(cave.x - 2, cave.y + 22 - fl, 4, fl), Color("ffd75e"))
+			for i in 4:
+				var gx := cave.x + (i - 1.5) * 30.0
+				_who("disciple", Vector2(gx, cave.y + 40.0 - (i % 2) * 4.0), s * 0.8, Color(0.7, 0.5, 0.4, fade))
+		"today":
+			# 今天的城市：黃昏的天、亮著燈的大樓、一條路；最後一幕走在中間的是「你」
+			var horizon := vs.y * 0.55
+			_bands(vs, horizon, [Color("1a1a3a"), Color("3a2a5a"), Color("7a4a6a"), Color("d08a6a"), Color("f0c090")])
+			for i in 12:
+				var bw := 30.0 + _hashf(i, 1) * 40.0
+				var bx := i * vs.x / 11.0 - 20.0
+				var bh := 50.0 + _hashf(i, 2) * 110.0
+				draw_rect(Rect2(bx, horizon - bh, bw, bh), Color("2a2438"))
+				for wy in range(int(horizon - bh) + 6, int(horizon) - 4, 9):
+					for wx in range(int(bx) + 4, int(bx + bw) - 4, 8):
+						if _hashf(wx, wy) > 0.45:
+							draw_rect(Rect2(wx, wy, 3, 4), Color("ffd78a"))
+			draw_rect(Rect2(0, horizon, vs.x, vs.y - horizon), Color("3a3440"))
+			var rows := int((vs.y - horizon) / PX)
+			for r in rows:
+				var half := 6.0 + float(r) / rows * vs.x * 0.32
+				draw_rect(Rect2(cx - half, horizon + r * PX, half * 2.0, PX), Color("5a5460"))
+				if r % 6 < 3:
+					draw_rect(Rect2(cx - 1.5, horizon + r * PX, 3, PX), Color("e8e0c8"))
+			for i in 4:
+				var lx := cx + (i - 1.5) * vs.x * 0.24
+				draw_rect(Rect2(lx - 1, horizon - 40, 2, 60), Color("1a1820"))
+				draw_circle(Vector2(lx, horizon - 40), 4.0, Color("fff0b0"))
+			var fy := vs.y * 0.7
+			if it.get("you", false):
+				# 你：走在路的中間，往前走
+				_who("disciple", Vector2(cx, fy), s * 1.1, W)
+				for i in 3:
+					var a := t * 2.0 + i * TAU / 3.0
+					draw_rect(Rect2(cx + cos(a) * 26.0, fy - 30.0 + sin(a) * 8.0, 2, 2), Color("fff4c2"))
+			else:
+				for i in 5:
+					var px := fmod(i * 140.0 + t * (14.0 + i * 3.0), vs.x + 40.0) - 20.0
+					_who("disciple", Vector2(px, fy - (i % 2) * 10.0), s * 0.85, shade)
 		"sea":
 			# 拔摩海島：海、岩石、年老的約翰；後來天上有光
 			var horizon := vs.y * 0.5
@@ -551,6 +776,12 @@ func _draw_cut(it: Dictionary, vs: Vector2, cx: float, floor_y: float, s: float,
 			draw_rect(Rect2(cx - 90.0, iy, 180.0, 40.0), Color("3a3038"))
 			draw_rect(Rect2(cx - 60.0, iy - 14.0, 110.0, 16.0), Color("4a3e44"))
 			_who("john", Vector2(cx, iy), s, W)
+
+
+func _hashf(a: int, b: int) -> float:
+	var v := (a * 374761393 + b * 668265263) & 0x7fffffff
+	v = ((v ^ (v >> 13)) * 1274126177) & 0x7fffffff
+	return float(v & 0xffff) / 65535.0
 
 
 ## 一個人：腳底中心在 foot
