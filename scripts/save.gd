@@ -2,6 +2,8 @@ extends Node
 ## 存檔（自動載入，名稱 Save）：見證、解鎖、默契、統計、見證錄。存在 user://profile.json。
 
 const PATH := "user://profile.json"
+const TMP := "user://profile.json.tmp"     # 寫存檔時先寫這裡，確認完整才換上去
+const PREV := "user://profile_prev.json"   # 上一次的存檔（主檔壞了就用它救回來）
 
 var meta: Dictionary
 var data: Dictionary
@@ -30,22 +32,33 @@ func _defaults() -> Dictionary:
 	}
 
 
+func _read_json(p: String) -> Variant:
+	if not FileAccess.file_exists(p):
+		return null
+	var v = JSON.parse_string(FileAccess.get_file_as_string(p))
+	return v if v is Dictionary and v.has("stats") else null
+
+
 func load_profile() -> void:
 	data = _defaults()
-	if FileAccess.file_exists(PATH):
-		var saved = JSON.parse_string(FileAccess.get_file_as_string(PATH))
-		if saved is Dictionary:
-			for k in saved:
-				if k == "stats":
-					data.stats.merge(saved.stats, true)
-				else:
-					data[k] = saved[k]
+	# 主檔讀不出來（寫到一半斷電、被關掉）：依序改用寫好但還沒換上的暫存檔、上一次的存檔
+	var saved = _read_json(PATH)
+	if saved == null:
+		saved = _read_json(TMP)
+	if saved == null:
+		saved = _read_json(PREV)
+	if saved != null:
+		for k in saved:
+			if k == "stats":
+				data.stats.merge(saved.stats, true)
+			else:
+				data[k] = saved[k]
 	# 舊的熬煉紀錄 → 信心等級（大約每 2 點算一級）
 	if data.faith_best.is_empty() and not data.trial_best.is_empty():
 		for sid in data.trial_best:
 			data.faith_best[sid] = mini(6, int(data.trial_best[sid]) / 2)
 	# 關卡順序改過兩次（0.16 前面多了大馬士革、0.18 多了劇情的新章節）：舊存檔選的城照名字找回來
-	if FileAccess.file_exists(PATH) and int(data.get("map_ver", 1)) < 3:
+	if saved != null and int(data.get("map_ver", 1)) < 3:
 		var old_ids: Array = ["philippi", "thessalonica", "athens", "corinth", "ephesus", "jerusalem", "malta", "rome", "patmos"]
 		if int(data.get("map_ver", 1)) == 2:
 			old_ids.push_front("damascus")
@@ -143,9 +156,31 @@ func import_code(code: String) -> String:
 	return ""
 
 
+## 寫存檔：先寫暫存檔、讀回來確認完整，再把舊的存成「上一次」、暫存檔換成正式的。
+## 任何一步中斷，下次讀檔都還找得到一份完整的（見 load_profile）。
 func save_profile() -> void:
+	var txt := JSON.stringify(data, "  ")
+	var f := FileAccess.open(TMP, FileAccess.WRITE)
+	if f == null:
+		_write_direct(txt)
+		return
+	f.store_string(txt)
+	f.close()
+	if FileAccess.get_file_as_string(TMP) != txt:
+		_write_direct(txt)   # 暫存檔寫不完整（空間不夠之類）：退回直接寫
+		return
+	if FileAccess.file_exists(PATH):
+		if FileAccess.file_exists(PREV):
+			DirAccess.remove_absolute(PREV)
+		DirAccess.rename_absolute(PATH, PREV)
+	if DirAccess.rename_absolute(TMP, PATH) != OK:
+		_write_direct(txt)
+
+
+func _write_direct(txt: String) -> void:
 	var f := FileAccess.open(PATH, FileAccess.WRITE)
-	f.store_string(JSON.stringify(data, "  "))
+	if f != null:
+		f.store_string(txt)
 
 
 func is_unlocked(key: String) -> bool:

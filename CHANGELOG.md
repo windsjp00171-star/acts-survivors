@@ -4,6 +4,14 @@
 
 ## [Unreleased]
 
+## [0.28.1] - 2026-10-17
+
+### 新增
+- 存檔防壞（`save.gd`）：`save_profile` 先寫 `profile.json.tmp`、讀回比對，再把舊檔換成 `profile_prev.json`、暫存檔換成正式檔；任何一步失敗退回直接寫。`load_profile` 主檔讀不出來時依序改讀暫存檔、上一次的存檔
+- 標題畫面視窗大小改變時自動重新排版（`title.gd` 的 `_relayout`，0.25 秒防抖）；直橫向改變時重新載入標題畫面；開場播放中只重排字幕與按鈕
+- `tools/release.sh`：一鍵發版（檢查製作日誌與更新紀錄 → 版號 → 字型 → 匯入 → 錯誤檢查 → 提交 → 匯出網頁、Windows、Android → 網頁版換檔名 → GitHub Pages → 打包到 build/dist）
+- `tools/sim/storysim.sh` 與 `tools/sim/profiles/`（fresh、after_ch1、mid）：劇情難度模擬收進專案，會自動備份並還原本機存檔
+
 ## [0.28.0] - 2026-10-17
 
 ### 新增

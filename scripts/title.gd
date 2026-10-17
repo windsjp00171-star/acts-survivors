@@ -72,6 +72,10 @@ var title_box: VBoxContainer
 var settings_box: PanelContainer
 var portrait := false
 var started := false
+var btns: BoxContainer
+var skip_btn: Button
+var hint_label: Label
+var resize_t := 0.0         # 視窗大小改變後，等一下再重新排版（拖動視窗時不要一直排）
 
 
 func _ready() -> void:
@@ -90,6 +94,7 @@ func _ready() -> void:
 			if ResourceLoader.exists(path):
 				tex["%s_%d" % [k, f]] = load(path)
 	_build()
+	get_viewport().size_changed.connect(func(): resize_t = 0.25)
 	Sfx.music("title")
 	var shot := ""
 	for a in OS.get_cmdline_user_args():
@@ -147,7 +152,7 @@ func _build() -> void:
 	_reparent(verse)
 
 	# 直式：按鈕上下排在人群下面；橫式：左右排在最下面
-	var btns: BoxContainer = VBoxContainer.new() if portrait else HBoxContainer.new()
+	btns = VBoxContainer.new() if portrait else HBoxContainer.new()
 	btns.add_theme_constant_override("separation", 10)
 	add_child(btns)
 	var go := UIKit.button("開始", 20, true)
@@ -166,6 +171,30 @@ func _build() -> void:
 	add_child(ver_label)
 	ver_label.position = Vector2(8, vs.y - 20)
 	ver_label.visible = intro_i < 0
+
+
+## 視窗大小變了（網頁嵌在別的頁面裡、手機轉向、拖動視窗）：重新排版。
+## 直橫向換了就整個重新載入標題畫面（直式與橫式的排法不同）；開場播放中只重排字幕與按鈕。
+func _relayout() -> void:
+	var vs := get_viewport().get_visible_rect().size
+	var now_portrait := vs.y > vs.x
+	if now_portrait != portrait and intro_i < 0:
+		get_tree().reload_current_scene()
+		return
+	title_box.position = Vector2(0, vs.y * (0.12 if portrait else 0.08))
+	title_box.size = Vector2(vs.x, 0)
+	if btns != null:
+		btns.position = Vector2(round((vs.x - btns.size.x) / 2.0), round(vs.y * 0.79) if portrait else vs.y - btns.size.y - 14.0)
+	if ver_label != null:
+		ver_label.position = Vector2(8, vs.y - 20)
+	if settings_box != null:
+		settings_box.position = ((vs - settings_box.size) / 2.0).round()
+	if intro_box != null:
+		intro_label.custom_minimum_size = Vector2(vs.x - 40.0, 0)
+		intro_label.size.x = vs.x - 40.0
+		intro_label.position = Vector2(20, vs.y * (0.74 if portrait else 0.76))
+		skip_btn.position = Vector2(vs.x - 92, 12)
+		hint_label.position = Vector2(12, vs.y - 22)
 
 
 func _reparent(l: Label) -> void:
@@ -259,6 +288,10 @@ func _toggle_settings() -> void:
 
 func _process(dt: float) -> void:
 	t += dt
+	if resize_t > 0.0:
+		resize_t -= dt
+		if resize_t <= 0.0:
+			_relayout()
 	if intro_i >= 0:
 		intro_t += dt
 		if intro_t > 5.5:
@@ -294,14 +327,14 @@ func _start_intro(id := "intro") -> void:
 	intro_label.custom_minimum_size = Vector2(vs.x - 40.0, 0)
 	intro_label.position = Vector2(20, vs.y * (0.74 if portrait else 0.76))
 	intro_box.add_child(intro_label)
-	var skip := UIKit.button("跳過 ▶", 12)
-	skip.custom_minimum_size = Vector2(80, 30)
-	skip.position = Vector2(vs.x - 92, 12)
-	skip.pressed.connect(_end_intro)
-	intro_box.add_child(skip)
-	var hint := UIKit.label("點一下畫面到下一幕", 10, UIKit.MUTED)
-	hint.position = Vector2(12, vs.y - 22)
-	intro_box.add_child(hint)
+	skip_btn = UIKit.button("跳過 ▶", 12)
+	skip_btn.custom_minimum_size = Vector2(80, 30)
+	skip_btn.position = Vector2(vs.x - 92, 12)
+	skip_btn.pressed.connect(_end_intro)
+	intro_box.add_child(skip_btn)
+	hint_label = UIKit.label("點一下畫面到下一幕", 10, UIKit.MUTED)
+	hint_label.position = Vector2(12, vs.y - 22)
+	intro_box.add_child(hint_label)
 	intro_label.text = cut[0].text
 
 
