@@ -149,6 +149,8 @@ var gems: Array = []
 var parts: Array = []
 var heals: Array = []
 var pops: Array = []
+var hitstop := 0.0        # 打擊停頓：大的命中讓整個畫面停一下下（秒）
+var hitstop_cd := 0.0
 var poofs: Array = []    # 被驅散的敵人：壓扁、往上淡出（0.3 秒）
 var chunks := {}
 var solids: Array = []      # 擋路的物件（石柱、石牆）：Rect2
@@ -944,6 +946,11 @@ func _level_up() -> void:
 	Sfx.play("levelup", 0.0)
 	ui.do_flash(0.5)
 	_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 60.0)
+	# 升級的光把身邊的敵人推開一點（選完卡回到戰場時有喘息的空間）
+	blasts.append({"pos": paul.pos, "t": 0.0, "r": 70.0, "col": C_GOLD, "evo": false})
+	for e in enemies:
+		if not e.dead and not e.get("boss", false) and e.pos.distance_to(paul.pos) < 70.0:
+			e.knock += (e.pos - paul.pos).normalized() * 220.0
 	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, _card_delay(), rerolls_left)
 
 
@@ -1449,7 +1456,13 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	e.flash = 0.08
 	Sfx.play("hit")
 	if from != Vector2.INF:
-		e.knock += (e.pos - from).normalized() * 40.0
+		# 擊退：打得越重退得越遠（菁英、Boss 退得少）
+		var kb := 34.0 + minf(dmg, 40.0) * 0.8
+		if e.get("elite", false) or e.get("boss", false):
+			kb *= 0.35
+		e.knock += (e.pos - from).normalized() * kb
+	if e.get("boss", false) and dmg >= 30.0:
+		_hit_stop(0.035, 0.08)
 	_dmg_number(e, dmg, src)
 	var hcol: Color = src.get("col", C_GOLD) if src is Dictionary else C_GOLD
 	if sparks.size() < (30 if _fx_lite() else 120):
@@ -1468,6 +1481,8 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 	e.dead = true
 	if by_player and src != null:
 		_fire_links("kill", src, 0)
+	if by_player and e.get("elite", false):
+		_hit_stop(0.07, 0.18)
 	if poofs.size() < 60 and not e.get("boss", false) and not _fx_lite():
 		poofs.append({"tex": e.node.texture, "pos": e.pos.round(), "off": e.node.offset, "t": 0.0, "flip": e.node.flip_h})
 	e.node.queue_free()
@@ -1563,6 +1578,15 @@ func _burst(at: Vector2, n: int, c1: Color, c2: Color) -> void:
 		var a := randf() * TAU
 		var s := 20.0 + randf() * 40.0
 		parts.append({"pos": at, "vel": Vector2(cos(a) * s, sin(a) * s * 0.7 - 14.0), "life": 0.3 + randf() * 0.4, "max": 0.7, "c1": c1, "c2": c2})
+
+
+## 打擊停頓：大的命中、打倒菁英時整個畫面停一下（很短，不會擋到操作）；冷卻中就不停，避免連續卡頓
+func _hit_stop(sec: float, shake_amt := 0.0) -> void:
+	if smoke or _fx_lite() or hitstop_cd > 0.0:
+		return
+	hitstop = maxf(hitstop, sec)
+	hitstop_cd = 0.25
+	shake = maxf(shake, shake_amt)
 
 
 func _ring_pop(at: Vector2, col: Color, size: float) -> void:
@@ -1842,7 +1866,10 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.05)
-	if not over and not choosing and not chest_open and not paused and not talking:
+	hitstop_cd = maxf(0.0, hitstop_cd - delta)
+	if hitstop > 0.0:
+		hitstop -= delta   # 停頓中：世界不動，只重畫
+	elif not over and not choosing and not chest_open and not paused and not talking:
 		t += dt
 		_step(dt)
 	_render(dt)
@@ -2563,7 +2590,7 @@ func _dmg_number(e: Dictionary, dmg: float, src) -> void:
 			return
 	if dnums.size() >= 40:
 		return
-	dnums.append({"e": e.node, "pos": e.pos + Vector2(randf_range(-4, 4), -14), "v": dmg, "t": 0.0, "col": col})
+	dnums.append({"e": e.node, "pos": e.pos + Vector2(randf_range(-4, 4), -14), "v": dmg, "t": 0.0, "col": col, "dx": randf_range(-10.0, 10.0)})
 
 
 ## 觸發條件是否不看來源（受傷、治療、菁英、共鳴、五旬節）
@@ -5648,10 +5675,13 @@ func _draw_air() -> void:
 	_draw_schools(n)
 	for dn in dnums:
 		var k2: float = dn.t / 0.7
-		var big: bool = dn.v >= 20.0
+		var big: bool = dn.v >= 20.0 + level * 1.5   # 大傷害：比這個等級平常的一擊大很多
 		var txt := str(roundi(dn.v))
-		var fs := 10 if big else 8
-		var pos2: Vector2 = (dn.pos + Vector2(-fs * txt.length() * 0.3, -k2 * 10.0)).round()
+		# 跳出來時先大一點再縮回去（0.1 秒），之後往上飄、往旁邊偏一點
+		var pop := 1.0 + 0.6 * clampf(1.0 - dn.t / 0.1, 0.0, 1.0)
+		var fs := roundi((11 if big else 8) * pop)
+		var rise := 14.0 * (1.0 - pow(1.0 - minf(k2 * 1.6, 1.0), 2.0))
+		var pos2: Vector2 = (dn.pos + Vector2(-fs * txt.length() * 0.3 + float(dn.get("dx", 0.0)) * k2, -rise)).round()
 		var a2 := 1.0 if k2 < 0.6 else (1.0 - k2) / 0.4
 		n.draw_string_outline(UIKit.font(), pos2, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 2, Color(Color("140c10"), a2))
 		n.draw_string(UIKit.font(), pos2, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Color.WHITE.lerp(dn.col, 0.6) if not big else C_GOLD, a2))

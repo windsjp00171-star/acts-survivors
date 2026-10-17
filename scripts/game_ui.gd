@@ -627,6 +627,19 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 		return
 	cards_box.position = ((size - cards_box.size) / 2.0).round() + Vector2(0, 14)
 	card_ready_at = now + delay
+	# 卡片一張接一張彈出來（每張 0.18 秒、間隔 0.06 秒；卡片在鎖住的時間內就出現完，不會擋到選擇）
+	if not bool(Save.data.get("fxlite_on", false)):
+		for i in card_buttons.size():
+			var cd: Control = card_buttons[i].get_parent()
+			var tw := cd.create_tween()
+			tw.set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)   # 選卡時遊戲暫停，動畫照樣跑
+			cd.modulate.a = 0.0
+			cd.pivot_offset = cd.size / 2.0
+			cd.scale = Vector2(0.92, 0.92)
+			tw.tween_interval(0.06 * mini(i, 2))
+			tw.set_parallel(true)
+			tw.tween_property(cd, "modulate:a", 0.55, 0.18).set_ease(Tween.EASE_OUT)
+			tw.tween_property(cd, "scale", Vector2.ONE, 0.18).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	var my_id := cards_box.get_instance_id()
 	get_tree().create_timer(delay, true).timeout.connect(func():
 		if cards_box == null or cards_box.get_instance_id() != my_id:
