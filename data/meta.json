@@ -69,9 +69,9 @@
           {"id": "elite", "kind": "elite", "row": 2, "col": 0, "per": 0.12, "max": 3, "cost": 50, "cost_step": 25, "req": ["crit"], "desc": "%s 同伴對菁英與 Boss 傷害 +12%%／級"},
           {"id": "link", "kind": "link", "row": 2, "col": 2, "per": 0.5, "max": 3, "cost": 50, "cost_step": 25, "req": ["expose"], "desc": "%s 專屬連結效果 +50%%／級"},
           {"id": "ult", "kind": "ult", "row": 3, "col": 1, "per": 1, "max": 1, "cost": 200, "cost_step": 0, "req": ["elite", "link"], "desc": "%s 同伴自己出手時，也會觸發專屬連結效果（每 3 秒一次）"},
-          {"id": "rule_a", "kind": "mod", "row": 4, "col": 0, "per": 1, "max": 1, "cost": 70, "cost_step": 40, "req": ["elite"], "mod": {"convert_spread": 2}, "desc": "%s規則改寫：被說服的敵人打到的對象也會累積 2 層信息"},
+          {"id": "rule_a", "kind": "mod", "row": 4, "col": 0, "per": 1, "max": 1, "cost": 70, "cost_step": 40, "req": ["elite"], "mod": {"convert_spread": 2}, "desc": "%s規則改寫：被說服的人打到的對象也會累積 2 層信息"},
           {"id": "rule_key", "kind": "mod", "row": 4, "col": 1, "per": 1, "max": 1, "cost": 250, "cost_step": 0, "req": ["ult"], "mod": {"solo_講道": 1}, "desc": "%s規則改寫：主角每局一開始就帶著講道的輔助「說服」（不佔輔助格）"},
-          {"id": "rule_b", "kind": "mod", "row": 4, "col": 2, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["link"], "mod": {"convert_dur": 3}, "desc": "%s規則改寫：被說服的敵人多留 3 秒／級"}
+          {"id": "rule_b", "kind": "mod", "row": 4, "col": 2, "per": 1, "max": 2, "cost": 70, "cost_step": 40, "req": ["link"], "mod": {"convert_dur": 3}, "desc": "%s規則改寫：被說服的人多留 3 秒／級"}
         ],
         "ref": "提後 4:2"
       },
@@ -238,7 +238,7 @@
     {"id": "churches8", "name": "眾教會都問你們安", "desc": "建立 8 間教會（羅 16:16）", "stat": "churches", "min": 8, "group": "旅程", "witness": 300, "bread": 80},
     {"id": "patmos", "name": "我必快來", "desc": "在拔摩海島勝過大紅龍（啟 22:20）", "stat": "churches", "min": 15, "group": "旅程", "witness": 400, "bread": 100},
     {"id": "school3", "name": "同心合意", "desc": "一局裡讓一個流派深化到 3 階", "stat": "best_school", "min": 3, "group": "流派", "witness": 80},
-    {"id": "converts", "name": "信的人很多", "desc": "累計說服 100 個敵人（徒 17:4）", "stat": "converts", "min": 100, "group": "流派", "witness": 80, "bread": 20},
+    {"id": "converts", "name": "信的人很多", "desc": "累計說服 100 個被黑暗捆綁的人（徒 17:4）", "stat": "converts", "min": 100, "group": "流派", "witness": 80, "bread": 20},
     {"id": "minions", "name": "得人如得魚", "desc": "累計招來 50 位小門徒（路 5:10）", "stat": "minions", "min": 50, "group": "流派", "witness": 80, "bread": 20},
     {"id": "songs", "name": "對口唱和", "desc": "累計唱出 20 次全場的詩歌（弗 5:19）", "stat": "songs", "min": 20, "group": "流派", "witness": 80, "bread": 20},
     {"id": "holies", "name": "福杯滿溢", "desc": "累計放出 20 次聖光（詩 23:5）", "stat": "holies", "min": 20, "group": "流派", "witness": 80, "bread": 20},

@@ -441,7 +441,11 @@ func _ready() -> void:
 	_start_talk("in")
 	var pool: Array = D.tasks.list.duplicate()
 	if story:
-		pool = []   # 劇情模式不出旅程任務：專心在這一章的故事
+		# 劇情模式不出旅程任務，只有一個目標：從黑暗中贏回人（帶尋找的人信主）
+		pool = []
+		if not solo:
+			var goal := 2 if story_idx < 3 else (3 if story_idx < 8 else 4)
+			run_tasks.append({"def": {"id": "souls", "name": "從黑暗中贏回人", "stat": "saved", "goal": goal, "by": 0, "witness": 15 * goal}, "done": false, "failed": false})
 	if solo:
 		pool = pool.filter(func(tk): return not tk.id in ["links", "reso", "party"])   # 一個人的關卡沒有同伴
 	if D.boss.get("mid", []).is_empty():
@@ -1055,6 +1059,7 @@ func _task_value(stat: String) -> int:
 		"bread": return run_bread
 		"midboss": return run_midboss
 		"party": return _party_count()
+		"saved": return run_saved
 	return 0
 
 
@@ -1497,6 +1502,9 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		_fire_links("kill", src, 0)
 	if by_player and e.get("elite", false):
 		_hit_stop(0.07, 0.18)
+		# 菁英（黑暗的營壘）被拆毀：被它困住的人在那裡出現
+		if not solo:
+			_spawn_seeker(e.pos, {"name": "從黑暗中出來的人", "ref": "徒 26:18", "line": "我好像……醒過來了。"})
 	if poofs.size() < 60 and not e.get("boss", false) and not _fx_lite():
 		poofs.append({"tex": e.node.texture, "pos": e.pos.round(), "off": e.node.offset, "t": 0.0, "flip": e.node.flip_h})
 	e.node.queue_free()
@@ -2943,7 +2951,7 @@ func _persuade(e: Dictionary, n: int) -> void:
 	_convert(e, _sv("講道", "convert_dur"))
 
 
-## 敵人被說服、倒戈幫你打（同時最多 14 隻）
+## 被黑暗捆綁的人被說服、得了釋放，暫時一起對抗黑暗（同時最多 14 位）
 func _convert(e: Dictionary, dur: float) -> void:
 	if e.dead or float(e.get("ally", 0.0)) > 0.0:
 		return
@@ -2955,6 +2963,7 @@ func _convert(e: Dictionary, dur: float) -> void:
 		return
 	e.ally = dur
 	Sfx.play("persuade")
+	_tip("convert")
 	e.stun = 0.0
 	e.knock = Vector2.ZERO
 	run_converts += 1
@@ -2971,7 +2980,8 @@ func _convert(e: Dictionary, dur: float) -> void:
 		_mote(e.pos + Vector2(0, -6), C_GOLD)
 
 
-## 被說服的敵人：去撞其他敵人，時間到就離開（算你驅散的）
+## 被說服的人：每個黑暗的勢力背後都捆綁著一個人；說服了，他就得釋放（金色），
+## 跟你一起去撞黑暗，時間到就回家去（算你驅散的）
 func _update_ally(e: Dictionary, dt: float) -> void:
 	e.ally -= dt
 	if e.ally <= 0.0:
@@ -2985,6 +2995,9 @@ func _update_ally(e: Dictionary, dt: float) -> void:
 		if calling == "evangelist":
 			for i in 2:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
+		# 得釋放的人回家去了；有的想知道更多，留下來成了尋找的人
+		if randf() < 0.15 and not solo:
+			_spawn_seeker(e.pos, {"name": "得釋放的人", "ref": "徒 26:18", "line": "我想知道更多……"})
 		_kill(e, true)
 		return
 	var best = null
@@ -4015,20 +4028,30 @@ func _show_talk(raw: Array) -> void:
 	ui.show_dialogue(lines)
 
 
+## 出現一位尋找的人：先用這座城自己的人物，用完了才用 fallback
+## （黑暗的勢力被驅散、被捆綁的人得了釋放，也會在那裡出現想知道更多的人——徒 26:18）
+func _spawn_seeker(at: Vector2, fallback: Dictionary) -> bool:
+	var SK: Dictionary = D.seek
+	if run_seek_spawned >= int(SK.max_per_run) or seekers.size() >= 2 or boss != null:
+		return false
+	var pool: Array = stage.get("seekers", []).filter(func(x): return not seek_used.has(x.name))
+	var def: Dictionary = pool.pick_random() if not pool.is_empty() else fallback
+	seek_used[def.name] = true
+	run_seek_spawned += 1
+	seekers.append({"pos": at, "hp": float(SK.hp), "prog": 0.0, "def": def, "life": 40.0, "ph": randf() * TAU})
+	ui.show_banner("有人在尋找：%s" % def.name, 2.0)
+	_tip("seek")
+	return true
+
+
 func _update_seek(dt: float) -> void:
 	var SK: Dictionary = D.seek
 	if seek_t < 0.0:
 		seek_t = float(SK.first)
 	if t - t_start >= seek_t and seekers.is_empty() and run_seek_spawned < int(SK.max_per_run) and boss == null:
 		seek_t = t - t_start + randf_range(float(SK.every[0]), float(SK.every[1]))
-		var pool: Array = stage.get("seekers", []).filter(func(x): return not seek_used.has(x.name))
-		var def: Dictionary = pool.pick_random() if not pool.is_empty() else {"name": "迷路的人", "ref": "路 19:10", "line": "我好像一直在找什麼……"}
-		seek_used[def.name] = true
-		run_seek_spawned += 1
 		var a := randf() * TAU
-		seekers.append({"pos": paul.pos + Vector2(cos(a), sin(a) * 0.7) * randf_range(70.0, 95.0), "hp": float(SK.hp), "prog": 0.0, "def": def, "life": 40.0, "ph": randf() * TAU})
-		ui.show_banner("有人在尋找：%s" % def.name, 2.0)
-		_tip("seek")
+		_spawn_seeker(paul.pos + Vector2(cos(a), sin(a) * 0.7) * randf_range(70.0, 95.0), {"name": "迷路的人", "ref": "路 19:10", "line": "我好像一直在找什麼……"})
 	for sk in seekers:
 		sk.life -= dt
 		sk.pos += Vector2(cos(t * 0.7 + sk.ph), sin(t * 0.5 + sk.ph)) * 3.0 * dt + sk.get("vel", Vector2.ZERO) * dt
