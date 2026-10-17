@@ -153,6 +153,11 @@ var parts: Array = []
 var heals: Array = []
 var pops: Array = []
 var film := false          # 測試用：錄影模式
+var auto_lite := false    # 畫面一直卡（每秒不到 40 格超過 3 秒）：這一局自動改用特效精簡
+var low_fps_t := 0.0
+var perf := false          # 測試用：--perf 每 300 格印出各部分平均花多少時間
+var perf_us := {}
+var perf_n := 0
 var hitstop := 0.0        # 打擊停頓：大的命中讓整個畫面停一下下（秒）
 var hitstop_cd := 0.0
 var poofs: Array = []    # 被驅散的敵人：壓扁、往上淡出（0.3 秒）
@@ -392,6 +397,8 @@ func _ready() -> void:
 			t = float(a.substr(5))
 		elif a == "--light":
 			force_light = true
+		elif a == "--perf":
+			perf = true
 		elif a == "--film":
 			film = true   # 錄宣傳影片：機器人照常速玩，打擊停頓等效果照常
 		elif a == "--bot":
@@ -1606,6 +1613,22 @@ func _burst(at: Vector2, n: int, c1: Color, c2: Color) -> void:
 		parts.append({"pos": at, "vel": Vector2(cos(a) * s, sin(a) * s * 0.7 - 14.0), "life": 0.3 + randf() * 0.4, "max": 0.7, "c1": c1, "c2": c2})
 
 
+func _perf(k: String, us: int) -> void:
+	perf_us[k] = int(perf_us.get(k, 0)) + us
+
+
+func _perf_report() -> void:
+	perf_n += 1
+	if perf_n % 300 != 0:
+		return
+	var out := []
+	for k in perf_us:
+		out.append("%s %.2f" % [k, perf_us[k] / 300.0 / 1000.0])
+	var alive := enemies.filter(func(e): return not e.dead).size()
+	print("PERF t=%d 敵人=%d 粒子=%d 飛行=%d ｜ %s（毫秒／格）" % [int(t), alive, parts.size(), bolts.size() + shots.size(), "、".join(out)])
+	perf_us.clear()
+
+
 ## 打擊停頓：大的命中、打倒菁英時整個畫面停一下（很短，不會擋到操作）；冷卻中就不停，避免連續卡頓
 func _hit_stop(sec: float, shake_amt := 0.0) -> void:
 	if (smoke and not film) or _fx_lite() or hitstop_cd > 0.0:
@@ -1620,9 +1643,47 @@ func _ring_pop(at: Vector2, col: Color, size: float) -> void:
 		pops.append({"pos": at, "t": 0.0, "size": size, "col": col})
 
 
+## 敵人分格：每一格畫面先把敵人依位置分到 32×32 的格子裡，找「附近的敵人」時只看附近幾格，
+## 不用每次都把全部敵人掃一遍（敵人上百隻時，手機才不會卡）。Boss 很大，每次都一併列入。
+const GRID := 32.0
+var egrid := {}
+var egrid_big: Array = []
+
+
+func _build_grid() -> void:
+	egrid.clear()
+	egrid_big.clear()
+	for e in enemies:
+		if e.dead:
+			continue
+		if e.get("boss", false):
+			egrid_big.append(e)
+			continue
+		var k := Vector2i(floori(e.pos.x / GRID), floori(e.pos.y / GRID))
+		if egrid.has(k):
+			egrid[k].append(e)
+		else:
+			egrid[k] = [e]
+
+
+## 某個點 rad 範圍附近可能碰得到的敵人（只是候選，距離還是要自己再算；這一格畫面剛出生的不在裡面）
+func _enemies_near(at: Vector2, rad: float) -> Array:
+	var out: Array = egrid_big.duplicate()
+	var x0 := floori((at.x - rad) / GRID)
+	var x1 := floori((at.x + rad) / GRID)
+	var y0 := floori((at.y - rad) / GRID)
+	var y1 := floori((at.y + rad) / GRID)
+	for gx in range(x0, x1 + 1):
+		for gy in range(y0, y1 + 1):
+			var k := Vector2i(gx, gy)
+			if egrid.has(k):
+				out.append_array(egrid[k])
+	return out
+
+
 func _nearest_enemies(from: Vector2, max_d: float, n: int, skip := {}) -> Array:
 	var cand := []
-	for e in enemies:
+	for e in (_enemies_near(from, max_d + 8.0) if max_d <= 240.0 else enemies):
 		if e.dead or skip.has(e.node) or float(e.get("ally", 0.0)) > 0.0:
 			continue
 		var d: float = from.distance_squared_to(e.pos)
@@ -1854,12 +1915,22 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	var dt := minf(delta, 0.05)
 	hitstop_cd = maxf(0.0, hitstop_cd - delta)
+	if not auto_lite and not smoke and not over and not choosing and not paused:
+		low_fps_t = low_fps_t + delta if Engine.get_frames_per_second() < 40 else maxf(0.0, low_fps_t - delta)
+		if low_fps_t > 3.0:
+			auto_lite = true   # 舊手機：少畫一點粒子與特效，讓遊戲保持順暢
+	var pr0 := Time.get_ticks_usec()
 	if hitstop > 0.0:
 		hitstop -= delta   # 停頓中：世界不動，只重畫
 	elif not over and not choosing and not chest_open and not paused and not talking:
 		t += dt
 		_step(dt)
+	var pr1 := Time.get_ticks_usec()
 	_render(dt)
+	if perf:
+		_perf("更新合計", pr1 - pr0)
+		_perf("畫面", Time.get_ticks_usec() - pr1)
+		_perf_report()
 	if smoke:
 		_smoke_tick()
 
@@ -1940,14 +2011,24 @@ func _step(dt: float) -> void:
 	if bi >= 0.0 and bi < 12.0:
 		_tip("boss")
 	_update_beat(dt)
+	var p0 := Time.get_ticks_usec()
+	_build_grid()
 	_companion_skills(dt)
+	var p1 := Time.get_ticks_usec()
 	_update_projectiles(dt)
+	var p2 := Time.get_ticks_usec()
 	_update_enemies(dt)
+	var p3 := Time.get_ticks_usec()
 	_update_schools_step(dt)
 	_update_engines(dt)
 	_update_ailments(dt)
 	_update_seek(dt)
 	_run_link_queue()
+	if perf:
+		_perf("招式", p1 - p0)
+		_perf("飛行物", p2 - p1)
+		_perf("敵人", p3 - p2)
+		_perf("流派等", Time.get_ticks_usec() - p3)
 	enemies = enemies.filter(func(e): return not e.dead)
 	for f in link_fx:
 		f.t += dt
@@ -2082,6 +2163,7 @@ func _step(dt: float) -> void:
 		sp.t += dt
 	sparks = sparks.filter(func(sp): return sp.t < 0.12)
 
+	var p4 := Time.get_ticks_usec()
 	chunk_timer -= dt
 	if chunk_timer <= 0.0:
 		_update_chunks()
@@ -2091,6 +2173,8 @@ func _step(dt: float) -> void:
 	_update_hazard(dt)
 	_update_lamps(dt)
 	_collide_solids()
+	if perf:
+		_perf("場景", Time.get_ticks_usec() - p4)
 
 	if xp >= xp_need and not over and not chest_open and not choosing:
 		_level_up()
@@ -2517,7 +2601,7 @@ func _resonance(tier: int) -> void:
 ## 往上飄的光點（驅散、連鎖都會用到）
 ## 設定「特效精簡」：碎片、光點、畫面震動減少
 func _fx_lite() -> bool:
-	return bool(Save.data.get("fxlite_on", false))
+	return auto_lite or bool(Save.data.get("fxlite_on", false))
 
 
 func _mote(at: Vector2, col: Color) -> void:
@@ -4197,7 +4281,7 @@ func _update_projectiles(dt: float) -> void:
 		if b.get("straight", false):
 			b.pos += b.vel * dt
 			b.life -= dt
-			for e in enemies:
+			for e in _enemies_near(b.pos, 40.0):
 				if e.dead or b.hit.has(e.node) or e.pos.distance_to(b.pos + Vector2(0, 4)) > e.r + 3.0:
 					continue
 				b.hit[e.node] = true
@@ -4255,7 +4339,7 @@ func _update_projectiles(dt: float) -> void:
 		if r.r <= 0.0:
 			continue
 		var center: Vector2 = c.pos + Vector2(0, -6)
-		for e in enemies:
+		for e in _enemies_near(center, r.r + 3.0 + r.thick * 2.0 + 8.0):
 			if not e.dead and not r.hit.has(e.node) and absf(center.distance_to(e.pos) - r.r) < 3.0 + r.thick * 2.0 + (10.0 if e.get("boss", false) else 0.0):
 				r.hit[e.node] = true
 				if e.d.get("immune", "") == "ring":
@@ -4280,7 +4364,7 @@ func _update_projectiles(dt: float) -> void:
 			f.hit = true
 			blasts.append({"pos": f.pos, "t": 0.0, "r": f.r, "col": Color("5a8ab0") if f.get("look", "") == "spit" else (C_GOLD if f.evo else C_FLAME), "evo": f.evo})
 			_burst(f.pos, 8, C_FLAME, C_GOLD)
-			for e in enemies:
+			for e in _enemies_near(f.pos, f.r + 8.0):
 				if not e.dead and e.pos.distance_to(f.pos) < f.r + (8.0 if e.get("boss", false) else 0.0):
 					_hurt(e, f.dmg, f.pos, f.owner)
 	fires = fires.filter(func(f): return f.t > -0.35)
