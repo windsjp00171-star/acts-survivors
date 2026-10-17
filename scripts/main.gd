@@ -750,6 +750,7 @@ func _set_level(c: Dictionary, lv: int) -> void:
 		if bi >= 0:
 			for k in D.skills[c.skill].branches[bi].add:
 				c.st[k] = float(c.st.get(k, 0)) + float(D.skills[c.skill].branches[bi].add[k])
+			c.branch_fx = D.skills[c.skill].branches[bi].get("onhit", [])   # 分支帶的命中效果
 			c.st.cooldown = maxf(0.2, float(c.st.get("cooldown", 1.0)))
 		if evolved.has(c.key) and evolved[c.key].has("stats"):
 			c.st.merge(evolved[c.key].stats, true)
@@ -1509,7 +1510,7 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		dmg *= 1.0 + 0.5 * mini(armor.get("belt", 0), 2)
 	if e.get("boss", false) and boss != null and boss.state == "break":
 		dmg *= D.boss.break_mult
-	if src is Dictionary and (e.get("elite", false) or e.get("boss", false)) and src.get("anoints", []).has("heavy"):
+	if src is Dictionary and (e.get("elite", false) or e.get("boss", false)) and _fx_of(src).has("heavy"):
 		dmg *= 1.6   # 輔助「磐石」
 	if int(e.get("msg", 0)) > 0 and _sv("講道", "msg_expose") > 0.0:
 		dmg *= 1.0 + _sv("講道", "msg_expose")   # 兩刃的劍：已經累積信息的敵人更痛
@@ -1574,7 +1575,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			nb = 1
 		for i in nb:
 			breads.append({"pos": e.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
-		if src is Dictionary and src.get("anoints", []).has("release") and not blasting:
+		if src is Dictionary and _fx_of(src).has("release") and not blasting:
 			# 得釋放：驅散的地方爆開光
 			blasting = true
 			blasts.append({"pos": e.pos + Vector2(0, -4), "t": 0.0, "r": 26.0, "col": C_GOLD, "evo": false})
@@ -2285,6 +2286,11 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 	match c.engine:
 		"bolt":
 			var targets := _nearest_enemies(c.pos, s.range, int(s.count))
+			if float(s.get("prio", 0.0)) > 0.0:
+				# 追根究柢：在射程內挑血最多的
+				var pool := _nearest_enemies(c.pos, s.range, 12)
+				pool.sort_custom(func(a, b): return float(a.hp) > float(b.hp))
+				targets = pool.slice(0, int(s.count))
 			fired = targets.size() > 0
 			for i in (int(s.count) if fired else 0):
 				var tg: Dictionary = targets[i % targets.size()]
@@ -2311,6 +2317,11 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 					"thick": int(s.thick), "knock": float(s.get("knock", 0.0)), "look": c.look, "evo": evolved.has(c.key)})
 		"heal":
 			_heal_paul(float(s.amount))
+			if float(s.get("smite", 0.0)) > 0.0:
+				var nx := _nearest_enemies(c.pos, 140.0, int(s.smite))
+				for o in nx:
+					zaps.append({"pts": [c.pos + Vector2(0, -10), o.pos + Vector2(0, -4)], "t": 0.0, "evo": false, "col": C_HEAL})
+					_hurt(o, float(s.amount) * 1.5, Vector2.INF, c)
 			_anoint_add(_sv("醫治", "anoint_bonus"))
 			heals.append({"who": paul, "t": 0.0})
 			_ring_pop(c.pos + Vector2(0, -8), C_HEAL, 40.0)
@@ -4126,8 +4137,15 @@ func _apply_element(e: Dictionary, dmg: float, src) -> float:
 
 
 ## 膏抹：連鎖、餘燼、觸發
+## 這位成員打中時會觸發的效果：主角輔助＋進化＋Lv3 分支
+func _fx_of(src) -> Array:
+	if not src is Dictionary:
+		return []
+	return src.get("anoints", []) + src.get("onhit", []) + src.get("branch_fx", [])
+
+
 func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
-	var an: Array = src.get("anoints", []) + src.get("onhit", [])
+	var an: Array = _fx_of(src)
 	if an.is_empty():
 		return
 	var base: float = dmg / maxf(0.01, _dmg_mult())   # 之後的 _hurt 會再乘一次倍率，這裡先除掉

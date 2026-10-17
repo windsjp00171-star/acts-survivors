@@ -58,13 +58,13 @@
       "base": { "cooldown": 0.4, "range": 120, "damage": 1, "speed": 200, "count": 1, "split": 0, "pierce": 0, "size": 1 },
       "levels": [ { "count": 2 }, { "split": 2 }, { "count": 3, "cooldown": 0.32 }, { "pierce": 2, "size": 2, "damage": 2 } ],
       "desc": ["追蹤光箭，自動射向最近的敵人", "一次射 2 支光箭", "命中後分裂成 2 支小箭", "一次射 3 支，射得更快", "光箭變大、威力加倍，可以穿透 2 隻敵人"],
-      "branches": [ { "name": "專一", "desc": "光箭變大、威力大增", "add": {"damage": 2, "size": 1} }, { "name": "四散", "desc": "命中後多分裂兩支", "add": {"split": 2} } ]
+      "branches": [ { "name": "追根究柢", "desc": "光箭不再找最近的，改追射程內血最多的敵人，傷害 +1", "add": {"prio": 1, "damage": 1} }, { "name": "到處傳揚", "desc": "光箭打中後，分出 2 支小光箭射向附近的敵人", "add": {}, "onhit": ["split"]} ]
     },
     "ring": {
       "base": { "cooldown": 2.0, "max_radius": 52, "damage": 1, "speed": 60, "rings": 1, "returns": 0, "stun": 0, "thick": 1, "knock": 4 },
       "levels": [ { "max_radius": 72, "damage": 2, "knock": 6 }, { "returns": 1 }, { "rings": 2, "thick": 2, "knock": 9 }, { "stun": 0.8, "max_radius": 90, "knock": 12 } ],
       "desc": ["詩歌聲波一圈圈擴散，輕輕推開敵人", "聲波更大、威力加倍", "聲波擴散到底會再收回來，打兩次", "一次唱出兩圈，聲波更粗、推得更遠", "聲波更大，被打中的敵人會暈眩"],
-      "branches": [ { "name": "高聲", "desc": "聲波傳得更遠", "add": {"max_radius": 25} }, { "name": "和聲", "desc": "一次多唱一圈", "add": {"rings": 1} } ]
+      "branches": [ { "name": "震動監牢", "desc": "聲波打到的敵人，兩成機會被定住 1 秒；聲波更大", "add": {"max_radius": 10}, "onhit": ["still"]}, { "name": "和聲", "desc": "一次多唱一圈", "add": {"rings": 1} } ]
     },
     "aura": {
       "base": { "radius": 28, "attack_speed": 1.25, "pull": 0, "fear_immune": 0 },
@@ -76,117 +76,117 @@
       "base": { "cooldown": 3.2, "amount": 6, "revive_speed": 1, "instant_revive": 0 },
       "levels": [ { "amount": 10 }, { "cooldown": 2.4 }, { "revive_speed": 2 }, { "instant_revive": 1, "amount": 14 } ],
       "desc": ["定期幫全隊回血", "治療量提升", "治療更頻繁", "倒下的同伴站起來的速度加倍", "每次治療直接扶起倒下的同伴"],
-      "branches": [ { "name": "急救", "desc": "治療更頻繁", "add": {"cooldown": -0.8} }, { "name": "豐盛", "desc": "每次治療更多", "add": {"amount": 6} } ]
+      "branches": [ { "name": "急救", "desc": "治療更頻繁", "add": {"cooldown": -0.8} }, { "name": "醫生的手", "desc": "每次治療，一道光打向附近 2 隻敵人（治療量的 1.5 倍）", "add": {"smite": 2} } ]
     },
     "tent": {
       "base": { "cycle": 4.6, "radius": 36, "pieces": 4, "damage": 1, "knockback": 14, "always_up": 0 },
       "levels": [ { "pieces": 6 }, { "damage": 3, "knockback": 22 }, { "radius": 46 }, { "pieces": 10, "always_up": 1 } ],
       "desc": ["外圈架起帳棚布擋住敵人", "帳棚布增加到 6 片", "撞上帳棚會被重重彈開", "帳棚圈擴大", "帳棚圍成一整圈，不再收起來"],
-      "branches": [ { "name": "多搭幾片", "desc": "帳棚布多三片", "add": {"pieces": 3} }, { "name": "更堅固", "desc": "撞上去傷得更重、彈得更遠", "add": {"damage": 2, "knockback": 10} } ]
+      "branches": [ { "name": "多搭幾片", "desc": "帳棚布多三片", "add": {"pieces": 3} }, { "name": "家中的教會", "desc": "撞上帳棚的敵人變慢 1.5 秒", "add": {}, "onhit": ["slow"]} ]
     },
     "beam": {
       "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 2, "range": 130, "beams": 1, "burst": 0, "lies_mult": 1 },
       "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 3 } ],
       "desc": ["朝敵人射出一道貫穿的光束", "光束更寬更長", "光束末端爆開", "一次兩道光束", "三道光束，對謊言三倍傷害"],
-      "branches": [ { "name": "更寬", "desc": "光束更寬", "add": {"width": 6} }, { "name": "更多道", "desc": "多一道光束", "add": {"beams": 1} } ]
+      "branches": [ { "name": "更寬", "desc": "光束更寬", "add": {"width": 6} }, { "name": "講解更詳細", "desc": "光束照到的地方分出小光箭，射向附近的敵人", "add": {}, "onhit": ["split"]} ]
     },
     "letter": {
       "engine": "shot", "look": "letter",
       "base": { "cooldown": 0.75, "range": 130, "damage": 4, "speed": 210, "count": 1, "pierce": 1, "spread": 14 },
       "levels": [ { "damage": 6 }, { "count": 2 }, { "pierce": 3, "cooldown": 0.6 }, { "count": 3, "damage": 8, "pierce": 4 } ],
       "desc": ["保羅的書信：朝最近的敵人丟出書信，直線飛行、穿透 1 隻", "書信更有份量", "一次寫兩封", "書信可以穿透 3 隻，寫得更快", "一次三封、穿透 4 隻、更重（帖後 3:17）"],
-      "branches": [ { "name": "長篇書信", "desc": "每封更重、更能穿透", "add": {"damage": 2, "pierce": 2} }, { "name": "多封短信", "desc": "一次多寫兩封", "add": {"count": 2} } ]
+      "branches": [ { "name": "長篇書信", "desc": "每封更重、更能穿透", "add": {"damage": 2, "pierce": 2} }, { "name": "書信傳開", "desc": "書信打中後，分出 2 支小光箭", "add": {}, "onhit": ["split"]} ]
     },
     "sling": {
       "engine": "bolt", "look": "stone",
       "base": { "cooldown": 1.1, "range": 140, "damage": 3, "speed": 240, "count": 1, "split": 0, "pierce": 0, "size": 1, "elite_mult": 3 },
       "levels": [ { "damage": 4 }, { "count": 2 }, { "pierce": 2 }, { "elite_mult": 6, "size": 2, "cooldown": 0.8 } ],
       "desc": ["甩石機弦：慢但重的石子，對菁英與 Boss 三倍傷害", "石子更重", "一次甩出 2 顆", "石子可以穿透 2 隻敵人", "甩得更快，對菁英與 Boss 六倍傷害（撒上 17:49）"],
-      "branches": [ { "name": "巨石", "desc": "石子更重更大", "add": {"damage": 3, "size": 1} }, { "name": "連發", "desc": "多甩一顆、甩得更快", "add": {"count": 1, "cooldown": -0.2} } ]
+      "branches": [ { "name": "巨石", "desc": "石子更重，對菁英與 Boss 再 +60%", "add": {"damage": 3, "size": 1}, "onhit": ["heavy"]}, { "name": "打倒巨人", "desc": "甩中的敵人兩成機會被打暈 1 秒；多甩一顆", "add": {"count": 1}, "onhit": ["still"]} ]
     },
     "jawbone": {
       "engine": "nova",
       "base": { "melee": 0.15, "leech": 1, "cooldown": 2.2, "radius": 40, "damage": 15, "knock": 80, "slams": 1, "stun": 0.4, "tough": 0.5 },
       "levels": [ { "radius": 48 }, { "damage": 25 }, { "cooldown": 1.7, "stun": 0.7 }, { "slams": 2, "radius": 56, "knock": 110, "damage": 31 } ],
       "desc": ["驢腮骨：重擊身邊一圈，震飛並暈眩敵人；參孫自己受到的傷害減半；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "範圍變大", "威力大幅提升", "砸得更頻繁、暈得更久", "連砸兩下，範圍更大、更重（士 15:16）"],
-      "branches": [ { "name": "橫掃", "desc": "重擊範圍更大", "add": {"radius": 12} }, { "name": "連擊", "desc": "砸得更頻繁", "add": {"cooldown": -0.7} } ]
+      "branches": [ { "name": "橫掃", "desc": "重擊範圍更大", "add": {"radius": 12} }, { "name": "拆毀房屋", "desc": "被重擊驅散的敵人當場爆開，傷害身邊的敵人", "add": {}, "onhit": ["release"]} ]
     },
     "sea": {
       "engine": "beam", "look": "sea",
       "base": { "cooldown": 3.0, "length": 150, "width": 12, "damage": 2, "range": 140, "beams": 1, "burst": 0, "lies_mult": 1, "stun": 0.6 },
       "levels": [ { "width": 18 }, { "stun": 1.2, "damage": 3 }, { "beams": 2 }, { "length": 220, "width": 26, "stun": 1.6 } ],
       "desc": ["分開紅海：寬大的水道直線沖開敵人並使其暈眩", "水道更寬", "暈眩更久、威力提升", "一次分開兩道", "水道更長更寬，暈眩更久（出 14:21）"],
-      "branches": [ { "name": "深水", "desc": "水道更長", "add": {"length": 60} }, { "name": "困住", "desc": "暈眩更久", "add": {"stun": 0.8} } ]
+      "branches": [ { "name": "深水", "desc": "水道更長", "add": {"length": 60} }, { "name": "海水復合", "desc": "被水沖到的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {}, "onhit": ["mark"]} ]
     },
     "fire": {
       "engine": "strike",
       "base": { "cooldown": 2.4, "range": 150, "count": 1, "radius": 16, "damage": 5, "delay": 0.6 },
       "levels": [ { "count": 2 }, { "radius": 22 }, { "damage": 8 }, { "count": 4, "cooldown": 1.8 } ],
       "desc": ["火從天降：地上先出現預兆，火柱再落進敵群", "一次降下 2 道火", "火的範圍變大", "火的威力提升", "一次 4 道，降得更快（王上 18:38）"],
-      "branches": [ { "name": "大火", "desc": "火柱範圍更大", "add": {"radius": 8} }, { "name": "火雨", "desc": "多降兩道火", "add": {"count": 2} } ]
+      "branches": [ { "name": "燒盡祭物", "desc": "火落下的地方留下一片火，燒傷走進去的敵人", "add": {}, "onhit": ["ember"]}, { "name": "火雨", "desc": "多降兩道火", "add": {"count": 2} } ]
     },
     "net": {
       "engine": "net",
       "base": { "cooldown": 2.4, "range": 130, "radius": 30, "damage": 4, "pull": 60, "stun": 0.6 },
       "levels": [ { "radius": 38 }, { "damage": 7 }, { "cooldown": 1.7 }, { "radius": 50, "stun": 1.0, "pull": 90, "damage": 9 } ],
       "desc": ["得人的漁夫：撒網把一群敵人拉在一起，短暫定住", "網撒得更大", "收網更用力", "撒得更頻繁", "大網，定住更久（路 5:6）"],
-      "branches": [ { "name": "大網", "desc": "網撒得更大", "add": {"radius": 12} }, { "name": "重網", "desc": "傷害更高、定得更久", "add": {"damage": 4, "stun": 0.4} } ]
+      "branches": [ { "name": "拉在一起", "desc": "網收得更緊、撒得更大，把敵人拉成一團", "add": {"pull": 60, "radius": 12} }, { "name": "定在原地", "desc": "不拉了，網住的敵人定在原地更久", "add": {"pull": -60, "stun": 0.6, "damage": 2} } ]
     },
     "thunder": {
       "engine": "chain",
       "base": { "cooldown": 1.1, "range": 130, "damage": 4, "jumps": 3, "jump_range": 55, "decay": 0.9 },
       "levels": [ { "jumps": 5 }, { "damage": 6 }, { "jumps": 7, "jump_range": 65 }, { "cooldown": 0.7, "damage": 8 } ],
       "desc": ["雷子：閃電打中一隻後，再跳向附近 3 隻敵人", "多跳兩隻（共跳 5 隻）", "閃電更強", "共跳 7 隻、跳得更遠", "打得更快更重（可 3:17）"],
-      "branches": [ { "name": "長鏈", "desc": "多跳三隻", "add": {"jumps": 3} }, { "name": "重擊", "desc": "閃電更強", "add": {"damage": 3} } ]
+      "branches": [ { "name": "長鏈", "desc": "多跳三隻", "add": {"jumps": 3} }, { "name": "雷子的脾氣", "desc": "閃電打到的敵人兩成機會麻痺 1 秒", "add": {"damage": 1}, "onhit": ["still"]} ]
     },
     "touch": {
       "engine": "thrust",
       "base": { "melee": 0.15, "leech": 1, "cooldown": 0.9, "range": 56, "width": 18, "damage": 15, "crit": 0.15, "crit_mult": 3 },
       "levels": [ { "damage": 21 }, { "crit": 0.3 }, { "range": 72, "width": 22 }, { "cooldown": 0.6, "crit_mult": 4 } ],
       "desc": ["伸過手來：朝前方近身一刺，有機會打出三倍會心；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "刺得更重", "會心機率加倍", "刺得更遠更寬", "刺得更快，會心四倍（約 20:27）"],
-      "branches": [ { "name": "長矛", "desc": "刺得更遠", "add": {"range": 20} }, { "name": "篤信", "desc": "會心機率更高", "add": {"crit": 0.25} } ]
+      "branches": [ { "name": "探入", "desc": "刺中的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {}, "onhit": ["mark"]}, { "name": "篤信", "desc": "會心機率更高", "add": {"crit": 0.25} } ]
     },
     "coin": {
       "engine": "bolt", "look": "coin",
       "base": { "cooldown": 0.6, "range": 130, "damage": 3, "speed": 180, "count": 1, "split": 2, "pierce": 0, "size": 1, "bread_chance": 0.04 },
       "levels": [ { "split": 3 }, { "count": 2 }, { "damage": 5 }, { "count": 3, "split": 4 } ],
       "desc": ["稅吏：丟出錢幣，打中後分散成 2 枚；被他驅散的敵人有機會掉餅", "分散成 3 枚", "一次丟兩枚", "錢幣更重", "一次三枚、分散成 4 枚（太 9:9）"],
-      "branches": [ { "name": "多枚", "desc": "一次多丟一枚", "add": {"count": 1} }, { "name": "散財", "desc": "分散得更多", "add": {"split": 2} } ]
+      "branches": [ { "name": "多枚", "desc": "一次多丟一枚", "add": {"count": 1} }, { "name": "稅吏的帳", "desc": "被錢幣驅散的敵人更常掉餅", "add": {"bread_chance": 0.06} } ]
     },
     "bring": {
       "engine": "gather",
       "base": { "cooldown": 5.0, "radius": 90, "damage": 3, "knock": 80, "heal": 0 },
       "levels": [ { "radius": 120 }, { "cooldown": 4.5 }, { "damage": 3, "knock": 100 }, { "radius": 170, "heal": 6 } ],
       "desc": ["帶人來：把附近的經驗與餅帶到主角身邊，並把身邊的敵人推開", "帶得更遠", "帶得更頻繁", "推得更用力", "整個畫面都帶來，順便幫主角回血（約 1:41）"],
-      "branches": [ { "name": "遠方", "desc": "帶得更遠", "add": {"radius": 60} }, { "name": "推開", "desc": "推得更遠、傷得更重", "add": {"knock": 60, "damage": 3} } ]
+      "branches": [ { "name": "遠方", "desc": "帶得更遠", "add": {"radius": 60} }, { "name": "帶到耶穌面前", "desc": "推開的敵人兩成機會暈一下，推得更遠", "add": {"knock": 40}, "onhit": ["still"]} ]
     },
     "glory": {
       "engine": "strike", "look": "glory",
       "base": { "cooldown": 2.2, "range": 150, "count": 1, "radius": 18, "damage": 5, "delay": 0.5, "linked_mult": 2 },
       "levels": [ { "count": 2 }, { "radius": 24 }, { "linked_mult": 3, "damage": 7 }, { "count": 3, "cooldown": 1.6 } ],
       "desc": ["滿有恩惠能力：天上降下光柱；被連結觸發時威力兩倍", "一次降下 2 道光", "光柱範圍變大", "被連結觸發時威力三倍", "一次 3 道，降得更快（徒 6:8）"],
-      "branches": [ { "name": "連結者", "desc": "被連結觸發時再多一倍", "add": {"linked_mult": 1} }, { "name": "多道", "desc": "多降一道光", "add": {"count": 1} } ]
+      "branches": [ { "name": "連結者", "desc": "被連結觸發時再多一倍", "add": {"linked_mult": 1} }, { "name": "天開了", "desc": "光柱照到的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {}, "onhit": ["mark"]} ]
     },
     "run": {
       "engine": "thrust", "look": "dash",
       "base": { "melee": 0.15, "leech": 1, "cooldown": 1.0, "range": 90, "width": 8, "damage": 9, "crit": 0.1, "crit_mult": 2 },
       "levels": [ { "range": 120 }, { "damage": 15 }, { "width": 12, "cooldown": 0.8 }, { "range": 160, "crit": 0.25 } ],
       "desc": ["跑過去：腓利親自衝向敵人，沿路一直線都打到，再跑回隊伍；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "衝得更遠", "衝得更重", "衝得更寬、更頻繁", "衝得極遠，常常打出會心（徒 8:30）"],
-      "branches": [ { "name": "遠行", "desc": "衝得更遠", "add": {"range": 40} }, { "name": "快腿", "desc": "衝得更頻繁", "add": {"cooldown": -0.25} } ]
+      "branches": [ { "name": "遠行", "desc": "衝得更遠", "add": {"range": 40} }, { "name": "被提去", "desc": "衝過去驅散的敵人，當場爆開光", "add": {}, "onhit": ["release"]} ]
     },
     "purple": {
       "engine": "net", "look": "purple",
       "base": { "cooldown": 3.0, "range": 130, "radius": 34, "damage": 2, "pull": 0, "stun": 1.2 },
       "levels": [ { "radius": 42 }, { "stun": 1.6 }, { "cooldown": 2.3, "damage": 4 }, { "radius": 56, "stun": 2.0 } ],
       "desc": ["賣紫色布的：鋪開一大片紫布，蓋住的敵人動彈不得", "布鋪得更大", "定得更久", "鋪得更頻繁、更痛", "大片紫布，定住 2 秒（徒 16:14）"],
-      "branches": [ { "name": "大匹", "desc": "布鋪得更大", "add": {"radius": 14} }, { "name": "厚布", "desc": "定得更久", "add": {"stun": 0.6} } ]
+      "branches": [ { "name": "大匹", "desc": "布鋪得更大", "add": {"radius": 14} }, { "name": "紫色的價值", "desc": "被布蓋住的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {}, "onhit": ["mark"]} ]
     },
     "pilum": {
       "engine": "shot", "look": "pilum",
       "base": { "cooldown": 1.3, "range": 140, "damage": 5, "speed": 220, "count": 1, "pierce": 3, "spread": 10, "pin": 0.5 },
       "levels": [ { "damage": 7 }, { "count": 2 }, { "pierce": 6 }, { "count": 3, "damage": 9, "cooldown": 1.0 } ],
       "desc": ["百夫長：擲出羅馬標槍，直線穿透 3 隻，把敵人釘住 0.5 秒", "標槍更重", "一次擲兩支", "穿透 6 隻", "一次三支、更重更快（徒 10:1）"],
-      "branches": [ { "name": "重槍", "desc": "標槍更重", "add": {"damage": 4} }, { "name": "列隊", "desc": "多擲一支", "add": {"count": 1} } ]
+      "branches": [ { "name": "釘住", "desc": "標槍釘得更久，對菁英與 Boss 再 +60%", "add": {"pin": 0.5}, "onhit": ["heavy"]}, { "name": "列隊", "desc": "多擲一支", "add": {"count": 1} } ]
     },
     "sew": {
       "engine": "garment",
@@ -200,7 +200,7 @@
       "base": { "cooldown": 1.3, "range": 90, "damage": 3, "speed": 170, "count": 1, "pierce": 99, "combo_keep": 0.5 },
       "levels": [ { "count": 2 }, { "damage": 5 }, { "range": 115, "cooldown": 1.0 }, { "count": 3, "combo_keep": 0.8, "damage": 7 } ],
       "desc": ["跑腿的：丟出會飛回來的皮袋，去程和回程都打得到；每次出手讓連鎖多撐 0.5 秒", "一次兩個", "打得更重", "飛得更遠、更常出手", "一次三個，連鎖撐得更久（提後 4:11）"],
-      "branches": [ { "name": "續航", "desc": "連鎖每次多撐 0.4 秒", "add": {"combo_keep": 0.4} }, { "name": "遠行", "desc": "飛得更遠", "add": {"range": 30} } ]
+      "branches": [ { "name": "續航", "desc": "連鎖每次多撐 0.4 秒", "add": {"combo_keep": 0.4} }, { "name": "帶回來", "desc": "皮袋打中時，主角回一點血", "add": {}, "onhit": ["leech"]} ]
     },
     "prayer": {
       "engine": "nova",
@@ -214,14 +214,14 @@
       "base": { "cooldown": 3.0, "life": 4.0, "radius": 30, "damage": 2, "tick": 0.5, "heal_comp": 2, "max": 2 },
       "levels": [ { "radius": 36 }, { "damage": 3 }, { "life": 5.5, "max": 3 }, { "heal_comp": 4, "radius": 44, "damage": 4 } ],
       "desc": ["帶著香膏：在地上留下一片香氣，同伴站在裡面會回血，敵人進來會受傷", "香氣更大", "敵人受到的傷害提升", "香氣留得更久，最多三片", "回血更多、範圍最大（可 16:1）"],
-      "branches": [ { "name": "馨香", "desc": "範圍更大", "add": {"radius": 10} }, { "name": "長存", "desc": "多留 2 秒", "add": {"life": 2.0} } ]
+      "branches": [ { "name": "馨香", "desc": "範圍更大", "add": {"radius": 10} }, { "name": "香膏的記念", "desc": "走進香氣的敵人變慢 1.5 秒", "add": {}, "onhit": ["slow"]} ]
     },
     "fig": {
       "engine": "turret", "look": "fig",
       "base": { "cooldown": 5.0, "life": 8.0, "fire_every": 0.8, "range": 110, "damage": 2, "speed": 170, "count": 1, "max": 2, "loot": 1 },
       "levels": [ { "count": 2 }, { "damage": 3 }, { "life": 11.0, "max": 3 }, { "count": 3, "fire_every": 0.55 } ],
       "desc": ["爬上桑樹：在附近種一棵桑樹，樹會一直往敵人丟果子；被果子驅散的敵人多掉一顆經驗", "一次丟兩顆", "果子更重", "樹留得更久，最多三棵", "一次三顆、丟得更快（路 19:4）"],
-      "branches": [ { "name": "茂盛", "desc": "樹多留 4 秒", "add": {"life": 4.0} }, { "name": "熟果", "desc": "果子更重", "add": {"damage": 2} } ]
+      "branches": [ { "name": "茂盛", "desc": "樹多留 4 秒", "add": {"life": 4.0} }, { "name": "償還四倍", "desc": "果子打中時炸開，波及旁邊的敵人", "add": {}, "onhit": ["blast"]} ]
     },
     "jars": {
       "engine": "trap", "look": "jars",
@@ -235,21 +235,21 @@
       "base": { "cooldown": 1.6, "damage": 6, "radius": 16, "stun": 0.4, "reach": 90, "lions": 1 },
       "levels": [ { "damage": 9 }, { "cooldown": 1.2 }, { "radius": 22, "stun": 0.7 }, { "lions": 2, "damage": 12 } ],
       "desc": ["獅子坑：一頭被封住口的獅子跟著你，撲向附近的敵人", "撲得更重", "撲得更頻繁", "撲擊範圍更大、暈得更久", "兩頭獅子（但 6:22）"],
-      "branches": [ { "name": "猛撲", "desc": "撲得更遠", "add": {"reach": 40} }, { "name": "獅吼", "desc": "暈得更久", "add": {"stun": 0.5} } ]
+      "branches": [ { "name": "猛撲", "desc": "撲得更遠", "add": {"reach": 40} }, { "name": "撕裂", "desc": "獅子撲倒驅散的敵人當場爆開，傷害身邊的敵人", "add": {}, "onhit": ["release"] } ]
     },
     "fish": {
       "engine": "swallow", "look": "fish",
       "base": { "cooldown": 4.0, "length": 70, "width": 16, "count": 4, "damage": 6, "hold": 2.0, "spit_r": 30 },
       "levels": [ { "count": 6 }, { "damage": 9 }, { "length": 90, "width": 22, "spit_r": 38 }, { "count": 9, "damage": 13, "hold": 1.5 } ],
       "desc": ["大魚：大魚冒出來，把一排敵人吞下去；過一會兒吐成一團砸出去，吞得越多砸得越重", "一次吞六隻", "咬得更重", "吞得更大口、吐得更遠", "一次吞九隻、吐得更快（拿 2:10）"],
-      "branches": [ { "name": "大口", "desc": "多吞兩隻", "add": {"count": 2} }, { "name": "快吐", "desc": "更快吐出來", "add": {"hold": -0.6} } ]
+      "branches": [ { "name": "大口", "desc": "多吞兩隻", "add": {"count": 2} }, { "name": "大魚肚腹", "desc": "更快吐出來，被砸到的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {"hold": -0.6}, "onhit": ["mark"] } ]
     },
     "flood": {
       "engine": "wave", "look": "flood",
       "base": { "cooldown": 7.0, "damage": 5, "push": 160, "speed": 170, "height": 90, "waves": 1 },
       "levels": [ { "height": 130 }, { "damage": 8 }, { "cooldown": 5.5, "push": 220 }, { "waves": 2, "height": 180, "damage": 11 } ],
       "desc": ["洪水：一道洪水從畫面一側整片推過去，把敵人沖走", "洪水更寬", "沖得更重", "更常發生、沖得更遠", "連來兩道，幾乎蓋滿畫面（創 7:17）"],
-      "branches": [ { "name": "大淵", "desc": "洪水更寬", "add": {"height": 40} }, { "name": "急流", "desc": "沖得更遠", "add": {"push": 80} } ]
+      "branches": [ { "name": "大淵", "desc": "洪水更寬", "add": {"height": 40} }, { "name": "洪水退去", "desc": "血只剩一成五以下的敵人，被洪水一沖就散", "add": {"push": 40}, "onhit": ["harvest"]} ]
     },
     "decree": {
       "engine": "rescue", "look": "decree",
@@ -263,42 +263,42 @@
       "base": { "melee": 0.15, "leech": 1, "cooldown": 1.4, "range": 63, "angle": 50, "damage": 9, "knock": 60, "pulses": 1 },
       "levels": [ { "range": 74 }, { "damage": 15 }, { "pulses": 2 }, { "angle": 75, "range": 88, "damage": 20 } ],
       "desc": ["擊鼓跳舞：朝前方打出一片扇形的鼓聲，震退敵人；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "打得更遠", "打得更重", "連打兩下", "扇形更寬更遠（出 15:20）"],
-      "branches": [ { "name": "齊唱", "desc": "扇形更寬", "add": {"angle": 25} }, { "name": "急鼓", "desc": "打得更頻繁", "add": {"cooldown": -0.4} } ]
+      "branches": [ { "name": "海邊的歌", "desc": "鼓聲震到的敵人變慢 1.5 秒", "add": {"angle": 10}, "onhit": ["slow"]}, { "name": "急鼓", "desc": "打得更頻繁", "add": {"cooldown": -0.4} } ]
     },
     "lamp": {
       "engine": "beam", "look": "lamp",
       "base": { "cooldown": 2.0, "length": 110, "width": 7, "damage": 3, "range": 120, "beams": 1, "burst": 0, "lies_mult": 2, "expose": 0.3 },
       "levels": [ { "width": 10 }, { "burst": 1 }, { "beams": 2, "lies_mult": 3, "expose": 0.45 }, { "length": 160, "damage": 5 } ],
       "desc": ["夜裡來見耶穌：提燈照出一道光；被照亮的敵人 2 秒內受到的傷害 +30%", "光更寬", "光的末端爆開", "兩道光，被照亮的敵人受到的傷害 +45%", "光照得更遠更強（約 3:2）"],
-      "branches": [ { "name": "長燈", "desc": "光照得更遠", "add": {"length": 50} }, { "name": "雙燈", "desc": "多一道光", "add": {"beams": 1} } ]
+      "branches": [ { "name": "照亮暗處", "desc": "被燈照到的敵人兩成機會愣住 1 秒，光照得更遠", "add": {"length": 30}, "onhit": ["still"] }, { "name": "雙燈", "desc": "多一道光", "add": {"beams": 1} } ]
     },
     "medicine": {
       "engine": "shot", "look": "vial",
       "base": { "cooldown": 0.75, "range": 130, "damage": 4, "speed": 210, "count": 1, "pierce": 1, "spread": 14 },
       "levels": [ { "damage": 6 }, { "count": 2 }, { "pierce": 3, "cooldown": 0.6 }, { "count": 3, "damage": 8, "pierce": 4 } ],
       "desc": ["藥瓶：朝最近的敵人丟出藥瓶，直線飛行、穿透 1 隻", "藥效更強", "一次丟兩瓶", "藥瓶可以穿透 3 隻，丟得更快", "一次三瓶、穿透 4 隻、更重（太 9:12）"],
-      "branches": [ { "name": "重藥", "desc": "每瓶更重、更能穿透", "add": {"damage": 2, "pierce": 2} }, { "name": "多開幾帖", "desc": "一次多丟兩瓶", "add": {"count": 2} } ]
+      "branches": [ { "name": "重藥", "desc": "每瓶更重、更能穿透", "add": {"damage": 2, "pierce": 2} }, { "name": "止痛", "desc": "藥瓶打中時，主角回一點血", "add": {}, "onhit": ["leech"]} ]
     },
     "street": {
       "engine": "beam",
       "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 2, "range": 130, "beams": 1, "burst": 0, "lies_mult": 2 },
       "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 3 } ],
       "desc": ["街頭講道：在醫館門口講耶穌，話語像一道光直直貫穿；對謊言兩倍傷害", "講得更清楚、傳得更遠", "話的末端爆開", "一次兩道", "三道光，對謊言三倍傷害（羅 10:14）"],
-      "branches": [ { "name": "大聲", "desc": "光更寬", "add": {"width": 6} }, { "name": "多講一段", "desc": "多一道光", "add": {"beams": 1} } ]
+      "branches": [ { "name": "大聲", "desc": "光更寬", "add": {"width": 6} }, { "name": "揭穿謊言", "desc": "被話照到的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {}, "onhit": ["mark"]} ]
     },
     "cook": {
       "engine": "gather",
       "base": { "cooldown": 5.0, "radius": 90, "damage": 3, "knock": 80, "heal": 2 },
       "levels": [ { "radius": 120 }, { "cooldown": 4.5 }, { "damage": 3, "knock": 100 }, { "radius": 170, "heal": 8 } ],
       "desc": ["煮飯的：把附近的經驗與餅帶到主角身邊、推開身邊的敵人，順便讓主角吃一點、回一點血", "帶得更遠", "帶得更頻繁", "推得更用力", "整個畫面都帶來，回血更多"],
-      "branches": [ { "name": "遠方", "desc": "帶得更遠", "add": {"radius": 60} }, { "name": "推開", "desc": "推得更遠、傷得更重", "add": {"knock": 60, "damage": 3} } ]
+      "branches": [ { "name": "遠方", "desc": "帶得更遠", "add": {"radius": 60} }, { "name": "飽足", "desc": "推開的敵人變慢 1.5 秒，推得更遠", "add": {"knock": 40}, "onhit": ["slow"]} ]
     },
     "trumpet": {
       "engine": "orbit", "look": "horn",
       "base": { "cooldown": 6.0, "count": 3, "radius": 30, "spin": 2.2, "damage": 2, "hit_every": 0.5, "max_radius": 70, "shout": 6, "knock": 120 },
       "levels": [ { "count": 4 }, { "damage": 3, "radius": 36 }, { "count": 5, "shout": 10 }, { "count": 7, "max_radius": 95, "knock": 160 } ],
       "desc": ["繞城：吹角的祭司繞著隊伍轉，碰到的敵人受傷；每隔一陣子一聲大呼，把身邊的敵人震開", "四位祭司", "繞得更大、更重", "五位祭司，大呼更響", "七位祭司繞城，大呼震得最遠（書 6:15–20）"],
-      "branches": [ { "name": "急行", "desc": "繞得更快", "add": {"spin": 1.0} }, { "name": "大呼", "desc": "大呼範圍更大", "add": {"max_radius": 25} } ]
+      "branches": [ { "name": "急行", "desc": "繞得更快", "add": {"spin": 1.0} }, { "name": "城牆塌陷", "desc": "繞城的祭司碰到的敵人變慢 1.5 秒", "add": {}, "onhit": ["slow"] } ]
     }
   },
   "_fruits說明": "聖靈果子：全隊被動，每種最多 5 級。per_level 是每級加的比例。",
