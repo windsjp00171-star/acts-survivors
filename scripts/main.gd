@@ -2958,7 +2958,7 @@ func _fz(a: String, b: String, at: Vector2) -> void:
 func _atone(n: float) -> void:
 	n = clampf(n, 0.5, 6.0)
 	var low = null
-	var low_k := paul.hp / float(D.paul.hp)
+	var low_k: float = float(paul.hp) / float(D.paul.hp)
 	for c in comps:
 		if c.level > 0 and c.down <= 0.0 and float(c.hp) / _comp_max_hp() < low_k:
 			low = c
