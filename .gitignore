@@ -12,3 +12,4 @@
 *.keystore
 *.jks
 *.idsig
+tools/sim/skillcheck_result.txt
