@@ -131,6 +131,58 @@ def g_rome(x, y):
     return ["#4a4650", "#56525c", "#3e3a44"][int(t * 3)]
 
 
+def g_field(x, y):
+    # 撒瑪利亞：綠色的草地裡一塊塊金黃的麥田，零星的小花
+    n = pnoise(x, y, 32, 40) * 0.75 + pnoise(x, y, 16, 41) * 0.25
+    if n > 0.6:
+        # 麥田：一行行斜斜的麥稈
+        return "#e0b85a" if (x + y // 2) % 4 else "#c89a40"
+    if h(x, y, 42) > 0.992:
+        return "#f4e8f0" if h(x, y, 43) > 0.5 else "#f0c040"
+    g = n + (h(x, y, 44) - 0.5) * 0.12
+    return "#7a9a48" if g > 0.45 else "#6a8a3e" if g > 0.3 else "#5c7a36"
+
+
+def g_desert(x, y):
+    # 往大馬士革的路：白亮的沙地，風吹出的沙紋，小石子
+    n = pnoise(x, y, 32, 45)
+    ripple = math.sin((x * 0.35 + y * 0.9) + n * 9)
+    if h(x, y, 46) > 0.99:
+        return "#8a7a62"
+    if ripple > 0.9:
+        return "#f4e4bc"
+    if ripple < -0.92:
+        return "#c8b07c"
+    return "#e8d4a0" if n > 0.45 else "#dcc690"
+
+
+def g_joppa(x, y):
+    # 約帕的碼頭：大塊淺色石板，石縫裡積著沙，有些石板被海水打濕
+    row = y // 20
+    off = 10 if row % 2 else 0
+    bx, by = (x + off) % 20, y % 20
+    wet = pnoise(x, y, 32, 47) > 0.62
+    if bx == 0 or by == 0:
+        return "#c8b48a"
+    t = h((x + off) // 20, row, 48)
+    base = ["#d8d0c0", "#ccc4b2", "#e0d8c8"][int(t * 3)]
+    if wet:
+        base = ["#c4bcac", "#bab2a2", "#ccc4b4"][int(t * 3)]
+    return "#f0ece0" if h(x, y, 49) > 0.985 else base
+
+
+def g_antioch(x, y):
+    # 安提阿的柱廊大街：灰藍色的石板，縫裡長出綠草
+    row = y // 16
+    off = 8 if row % 2 else 0
+    bx, by = (x + off) % 16, y % 16
+    if bx == 0 or by == 0:
+        return "#5a7a3a" if h(x, y, 50) < 0.45 else "#4a5058"
+    t = h((x + off) // 16, row, 51)
+    base = ["#8a96a0", "#7c8892", "#96a2aa"][int(t * 3)]
+    return "#6a8a4a" if pnoise(x, y, 32, 52) > 0.7 and h(x, y, 53) > 0.5 else base
+
+
 def g_patmos(x, y):
     # 拔摩海島：深灰褐色的火山岩地，岩縫間有一點點苔與海鹽
     n = pnoise(x, y, 16, 20) * 0.6 + pnoise(x, y, 32, 21) * 0.4
@@ -330,6 +382,165 @@ def crag(name, seed, w, h_):
     c.save(name)
 
 
+def house():
+    # 耶路撒冷的平頂屋：白灰牆、木門、小窗、屋頂一圈矮牆，外面一道樓梯（上到樓房去）
+    c = C(32, 28)
+    c.rect(4, 8, 22, 19, "#e8dcc4")
+    c.rect(4, 8, 22, 2, "#f4ecd8")
+    for y in range(10, 27):
+        c.px(25, y, "#c8b898")
+    c.rect(3, 6, 24, 2, "#d8ccb4")
+    c.rect(12, 18, 6, 9, "#6a4a2a")
+    c.rect(13, 19, 4, 8, "#8a643a")
+    c.rect(7, 12, 3, 3, "#3a2a1a")
+    c.rect(19, 12, 3, 3, "#3a2a1a")
+    # 外牆的樓梯：一階一階往上到屋頂
+    for y in range(9, 27):
+        w = min(6, (y - 9) // 3 + 1)
+        c.rect(26, y, w, 1, "#d0c4aa" if (y - 9) % 3 else "#f0e6d0")
+    c.outline("#4a3a24")
+    for x in range(32):
+        c.px(x, 27, (20, 14, 8, 90))
+    c.save("house")
+
+
+def stones():
+    # 一堆拳頭大的石頭
+    c = C(16, 9)
+    for i, (x, y, r) in enumerate([(4, 6, 2.6), (9, 6, 3.0), (13, 7, 2.0), (6.5, 3.5, 2.2), (11, 3.5, 2.0)]):
+        c.oval(x, y, r + 0.6, r, ("#7a7268", "#9a9288", "#c0b8ac"), 60 + i)
+    c.outline("#3a342c")
+    c.save("stones")
+
+
+def well():
+    # 雅各井：圓形石井欄、木架、吊著水桶
+    c = C(20, 24)
+    c.oval(10, 18, 9, 5, ("#7a7060", "#9a9080", "#b8ae9c"), 61)
+    c.oval(10, 17, 6, 3, ("#1a2430", "#24323e", "#2e4050"), 62)
+    c.rect(2, 4, 2, 13, "#6a4a2a")
+    c.rect(16, 4, 2, 13, "#6a4a2a")
+    c.rect(2, 3, 16, 2, "#8a643a")
+    c.rect(9, 5, 1, 6, "#c8b898")
+    c.rect(8, 10, 3, 3, "#7a5430")
+    c.outline("#2a221a")
+    c.save("well")
+
+
+def wheat():
+    # 麥子：一叢金黃的麥穗（田已經發白，可以收割了）
+    c = C(12, 15)
+    for i in range(6):
+        x = 1 + i * 2 + (h(i, 0, 63) - 0.5)
+        top = 2 + int(h(i, 1, 63) * 3)
+        for y in range(top + 3, 15):
+            c.px(x + (y - 15) * 0.05 * (i - 2.5), y, "#b89040")
+        for y in range(top, top + 4):
+            c.px(x, y, "#f0cc6a" if y % 2 else "#d8a848")
+            c.px(x + 1, y, "#d8a848")
+    c.outline("#5a4418")
+    c.save("wheat")
+
+
+def milestone():
+    # 羅馬里程碑：一根矮石柱，刻著字
+    c = C(10, 18)
+    c.rect(2, 3, 6, 14, "#c8c0b0")
+    c.rect(2, 3, 2, 14, "#d8d2c4")
+    c.rect(1, 15, 8, 3, "#a8a090")
+    for y in (6, 8, 10):
+        c.rect(3, y, 4, 1, "#7a7468")
+    c.outline("#3a362e")
+    c.save("milestone")
+
+
+def dry_bush():
+    # 曠野的乾草叢
+    c = C(14, 9)
+    for i in range(9):
+        a = math.pi * (0.1 + 0.8 * i / 8)
+        for r in range(7):
+            c.px(7 + math.cos(a) * r, 8 - math.sin(a) * r * 1.0, "#a08850" if r < 5 else "#c8b070")
+    c.outline("#4a3a20")
+    c.save("dry_bush")
+
+
+def boat():
+    # 拉上岸的漁船
+    c = C(36, 16)
+    for x in range(36):
+        d = abs(x - 18) / 18
+        top = 6 + int(d * d * 4)
+        for y in range(top, 14 - int(d * 3)):
+            c.px(x, y, "#8a5a32" if y > top + 1 else "#b07a46")
+    c.rect(4, 7, 28, 1, "#5a3a20")
+    c.rect(17, 0, 2, 8, "#6a4a2a")
+    c.outline("#2a1a10")
+    for x in range(3, 33):
+        c.px(x, 15, (20, 14, 8, 90))
+    c.save("boat")
+
+
+def nets():
+    # 曬漁網：兩根竿子中間掛著網
+    c = C(26, 18)
+    c.rect(1, 2, 2, 16, "#6a4a2a")
+    c.rect(23, 2, 2, 16, "#6a4a2a")
+    for x in range(3, 23):
+        sag = int(math.sin((x - 3) / 20 * math.pi) * 3)
+        for y in range(3 + sag, 14 + sag):
+            if (x + y) % 3 == 0 or (x - y) % 3 == 0:
+                c.px(x, y, "#c8b890")
+    c.outline("#3a2e1e")
+    c.save("nets")
+
+
+def stall():
+    # 市集的攤子：條紋布篷、木桌、上面擺著水果和陶罐
+    c = C(30, 26)
+    for x in range(30):
+        for y in range(3, 9):
+            c.px(x, y, "#c84a3a" if (x // 3) % 2 else "#f0e0c0")
+    for x in range(0, 30, 3):
+        c.px(x + 1, 9, "#c84a3a")
+    c.rect(2, 9, 2, 16, "#6a4a2a")
+    c.rect(26, 9, 2, 16, "#6a4a2a")
+    c.rect(3, 17, 24, 3, "#8a643a")
+    c.rect(3, 20, 24, 5, "#6a4a2a")
+    for i, col in enumerate(["#e8a030", "#c03a2a", "#7aa040", "#e8a030", "#a05a34"]):
+        c.oval(7 + i * 4, 15.5, 1.8, 1.6, (col, col, "#fff0c0"), 70 + i)
+    c.outline("#2a1a10")
+    for x in range(30):
+        c.px(x, 25, (20, 14, 8, 90))
+    c.save("stall")
+
+
+def dye():
+    # 晾著的紫色布（推雅推喇城賣紫色布的呂底亞）
+    c = C(24, 20)
+    c.rect(1, 2, 2, 18, "#6a4a2a")
+    c.rect(21, 2, 2, 18, "#6a4a2a")
+    c.rect(1, 2, 22, 2, "#8a643a")
+    for x in range(3, 21):
+        L = 10 + int(math.sin(x * 0.7) * 2)
+        for y in range(4, 4 + L):
+            c.px(x, y, "#8a3a9a" if x % 6 < 3 else "#6a2a7a")
+        c.px(x, 4 + L, "#4a1a5a")
+    c.outline("#2a1a24")
+    c.save("dye")
+
+
+def stairs():
+    # 聖殿外院的臺階（保羅站在臺階上對百姓說話）
+    c = C(38, 16)
+    for i in range(4):
+        j = 3 - i     # 上面最窄，下面最寬
+        c.rect(j * 3, 3 + i * 3, 38 - j * 6, 3, "#e8d4a0" if i % 2 else "#dcc690")
+        c.rect(j * 3, 3 + i * 3, 38 - j * 6, 1, "#f4e4bc")
+    c.outline("#6a5634")
+    c.save("stairs")
+
+
 def scroll_stone():
     # 寫著字的石版（啟 1:11 你所看見的當寫在書上）
     c = C(14, 18)
@@ -364,4 +575,17 @@ if __name__ == "__main__":
     crag("crag_1", 50, 26, 20)
     crag("crag_2", 53, 18, 14)
     scroll_stone()
+    for name, fn in [("field", g_field), ("desert", g_desert), ("joppa", g_joppa), ("antioch", g_antioch)]:
+        ground(name, fn)
+    house()
+    stones()
+    well()
+    wheat()
+    milestone()
+    dry_bush()
+    boat()
+    nets()
+    stall()
+    dye()
+    stairs()
     print("done")

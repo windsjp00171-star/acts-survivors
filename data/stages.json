@@ -20,11 +20,11 @@
       "props": [
         {
           "tex": [
-            "wall_1"
+            "house"
           ],
-          "weight": 0.12,
+          "weight": 0.14,
           "solid": [
-            34,
+            24,
             8
           ]
         },
@@ -32,7 +32,7 @@
           "tex": [
             "wall_2"
           ],
-          "weight": 0.08,
+          "weight": 0.06,
           "solid": [
             22,
             8
@@ -43,7 +43,7 @@
             "olive_1",
             "olive_2"
           ],
-          "weight": 0.08
+          "weight": 0.1
         },
         {
           "tex": [
@@ -51,7 +51,7 @@
             "rock_2",
             "rock_3"
           ],
-          "weight": 0.08
+          "weight": 0.06
         }
       ],
       "vision": [
@@ -201,30 +201,26 @@
       "hp_mult": 0.6,
       "dmg_mult": 0.6,
       "tint": [
-        1,
-        1,
-        1
+        1.0,
+        0.9,
+        0.84
       ],
       "weights": {},
       "ground": "ground_jerusalem",
       "props": [
         {
           "tex": [
-            "wall_1"
+            "stones"
           ],
-          "weight": 0.12,
-          "solid": [
-            34,
-            8
-          ]
+          "weight": 0.12
         },
         {
           "tex": [
-            "wall_2"
+            "wall_1"
           ],
-          "weight": 0.08,
+          "weight": 0.1,
           "solid": [
-            22,
+            34,
             8
           ]
         },
@@ -233,7 +229,7 @@
             "olive_1",
             "olive_2"
           ],
-          "weight": 0.08
+          "weight": 0.06
         },
         {
           "tex": [
@@ -241,7 +237,7 @@
             "rock_2",
             "rock_3"
           ],
-          "weight": 0.08
+          "weight": 0.1
         }
       ],
       "vision": [
@@ -394,29 +390,37 @@
         1
       ],
       "weights": {},
-      "ground": "ground",
+      "ground": "ground_field",
       "props": [
+        {
+          "tex": [
+            "well"
+          ],
+          "weight": 0.03,
+          "solid": [
+            14,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "wheat"
+          ],
+          "weight": 0.2
+        },
         {
           "tex": [
             "tree_1",
             "tree_2",
             "tree_3"
           ],
-          "weight": 0.15
-        },
-        {
-          "tex": [
-            "rock_1",
-            "rock_2",
-            "rock_3"
-          ],
-          "weight": 0.12
+          "weight": 0.1
         },
         {
           "tex": [
             "bush"
           ],
-          "weight": 0.16
+          "weight": 0.08
         }
       ],
       "director": {
@@ -555,12 +559,12 @@
       "hp_mult": 0.7,
       "dmg_mult": 0.7,
       "tint": [
+        1.04,
         1.0,
-        1.0,
-        1.0
+        0.92
       ],
       "weights": {},
-      "ground": "ground_jerusalem",
+      "ground": "ground_desert",
       "props": [
         {
           "tex": [
@@ -568,20 +572,30 @@
             "rock_2",
             "rock_3"
           ],
-          "weight": 0.18
+          "weight": 0.14
         },
         {
           "tex": [
-            "bush"
+            "dry_bush"
           ],
           "weight": 0.14
         },
         {
           "tex": [
-            "tree_1",
-            "tree_2"
+            "milestone"
           ],
-          "weight": 0.08
+          "weight": 0.04,
+          "solid": [
+            6,
+            4
+          ]
+        },
+        {
+          "tex": [
+            "palm_1",
+            "palm_2"
+          ],
+          "weight": 0.04
         }
       ],
       "hazard": {
@@ -774,21 +788,47 @@
         1
       ],
       "weights": {},
-      "ground": "ground_malta",
+      "ground": "ground_joppa",
       "props": [
+        {
+          "tex": [
+            "boat"
+          ],
+          "weight": 0.06,
+          "solid": [
+            26,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "nets"
+          ],
+          "weight": 0.06
+        },
+        {
+          "tex": [
+            "house"
+          ],
+          "weight": 0.06,
+          "solid": [
+            24,
+            8
+          ]
+        },
+        {
+          "tex": [
+            "shell"
+          ],
+          "weight": 0.08
+        },
         {
           "tex": [
             "rock_1",
             "rock_2",
             "rock_3"
           ],
-          "weight": 0.14
-        },
-        {
-          "tex": [
-            "bush"
-          ],
-          "weight": 0.12
+          "weight": 0.05
         }
       ],
       "hazard": {
@@ -944,29 +984,41 @@
         1
       ],
       "weights": {},
-      "ground": "ground_athens",
+      "ground": "ground_antioch",
       "props": [
+        {
+          "tex": [
+            "stall"
+          ],
+          "weight": 0.08,
+          "solid": [
+            24,
+            6
+          ]
+        },
+        {
+          "tex": [
+            "column_1"
+          ],
+          "weight": 0.06,
+          "solid": [
+            10,
+            6
+          ]
+        },
         {
           "tex": [
             "tree_1",
             "tree_2",
             "tree_3"
           ],
-          "weight": 0.15
+          "weight": 0.1
         },
         {
           "tex": [
-            "rock_1",
-            "rock_2",
-            "rock_3"
+            "cypress"
           ],
-          "weight": 0.12
-        },
-        {
-          "tex": [
-            "bush"
-          ],
-          "weight": 0.16
+          "weight": 0.06
         }
       ],
       "hazard": {
@@ -1138,11 +1190,17 @@
       "props": [
         {
           "tex": [
+            "dye"
+          ],
+          "weight": 0.06
+        },
+        {
+          "tex": [
             "tree_1",
             "tree_2",
             "tree_3"
           ],
-          "weight": 0.17
+          "weight": 0.14
         },
         {
           "tex": [
@@ -1150,13 +1208,13 @@
             "rock_2",
             "rock_3"
           ],
-          "weight": 0.15
+          "weight": 0.12
         },
         {
           "tex": [
             "bush"
           ],
-          "weight": 0.18
+          "weight": 0.14
         }
       ],
       "story": "保羅在異象中被呼召到馬其頓。在腓立比，賣紫色布的呂底亞信了耶穌；保羅趕出使女身上的鬼，她的主人失去財路，就把保羅和西拉打了關進監獄。半夜他們禱告唱詩，忽然地大震動、監門全開。獄卒問：「我當怎樣行才可以得救？」保羅說：「當信主耶穌，你和你一家都必得救。」",
@@ -1933,9 +1991,9 @@
       "hp_mult": 1.75,
       "dmg_mult": 1.45,
       "tint": [
-        1,
-        1,
-        1
+        1.0,
+        0.96,
+        0.86
       ],
       "weights": {
         "accuser": 3
@@ -1944,9 +2002,19 @@
       "props": [
         {
           "tex": [
+            "stairs"
+          ],
+          "weight": 0.04,
+          "solid": [
+            30,
+            8
+          ]
+        },
+        {
+          "tex": [
             "wall_1"
           ],
-          "weight": 0.12,
+          "weight": 0.1,
           "solid": [
             34,
             8
@@ -1954,11 +2022,11 @@
         },
         {
           "tex": [
-            "wall_2"
+            "house"
           ],
           "weight": 0.08,
           "solid": [
-            22,
+            24,
             8
           ]
         },
@@ -1967,15 +2035,7 @@
             "olive_1",
             "olive_2"
           ],
-          "weight": 0.08
-        },
-        {
-          "tex": [
-            "rock_1",
-            "rock_2",
-            "rock_3"
-          ],
-          "weight": 0.08
+          "weight": 0.06
         }
       ],
       "boss": {

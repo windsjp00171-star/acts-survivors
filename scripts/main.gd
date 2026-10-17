@@ -149,6 +149,7 @@ var gems: Array = []
 var parts: Array = []
 var heals: Array = []
 var pops: Array = []
+var poofs: Array = []    # 被驅散的敵人：壓扁、往上淡出（0.3 秒）
 var chunks := {}
 var solids: Array = []      # 擋路的物件（石柱、石牆）：Rect2
 var wind_t := 8.0           # 馬爾他的暴風：倒數到下一陣風
@@ -1467,6 +1468,8 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 	e.dead = true
 	if by_player and src != null:
 		_fire_links("kill", src, 0)
+	if poofs.size() < 60 and not e.get("boss", false) and not _fx_lite():
+		poofs.append({"tex": e.node.texture, "pos": e.pos.round(), "off": e.node.offset, "t": 0.0, "flip": e.node.flip_h})
 	e.node.queue_free()
 	if by_player:
 		if e.has("born") and not e.get("elite", false):
@@ -1852,6 +1855,8 @@ func _step(dt: float) -> void:
 	var mv := _move_vector()
 	p.pos += mv * _speed() * dt
 	p.moving = mv.length() > 0.05
+	if absf(mv.x) > 0.1:
+		p.face = signf(mv.x)
 	p.inv = maxf(0.0, p.inv - dt)
 	shield_cd = maxf(0.0, shield_cd - dt)
 
@@ -4537,6 +4542,7 @@ func _damage_paul(n: float, pierce := false, src := "") -> void:
 	if smoke:
 		dmg_log[src] = float(dmg_log.get(src, 0.0)) + n   # 測試用：被什麼打傷
 	paul.hp -= n
+	paul.hurt_t = 0.18
 	_esther_save()
 	Sfx.play("hurt")
 	Sfx.buzz(40)
@@ -4577,6 +4583,7 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 		_ring_pop(c.pos + Vector2(0, -6), c.col, 20.0)
 	c.hp -= n
 	c.hurt_cd = 0.4
+	c.hurt_t = 0.18
 	_fire_links("hurt", null, 0)
 	if c.hp <= 0.0:
 		c.hp = 0.0
@@ -5151,31 +5158,55 @@ func _render(dt: float) -> void:
 
 	var walk := int(t * 5.0) % 2
 	p.node.texture = _tex("%s%s_%d" % [pa.key, "_evo" if evolved.has(pa.key) else "", walk if p.moving else 0])
-	p.node.position = p.pos.round()
-	var pk: float = pa.castfx / 0.18
-	p.node.scale = Vector2(1.0 + 0.15 * pk, 1.0 - 0.1 * pk)
-	p.node.modulate.a = 0.4 if p.inv > 0.0 and int(t * 20.0) % 2 == 1 else 1.0
+	p.hurt_t = maxf(0.0, float(p.get("hurt_t", 0.0)) - dt)
+	_animate(p.node, p.pos, p.moving, float(p.get("face", 1.0)), pa.castfx / 0.18, p.hurt_t / 0.18, 0.0, 0.15)
+	p.node.modulate = Color(1, 1, 1, 0.4 if p.inv > 0.0 and int(t * 20.0) % 2 == 1 else 1.0)
+	if p.hp <= 0.0:
+		# 倒下了：躺平、變灰
+		p.node.modulate = Color(0.5, 0.5, 0.5)
+		p.node.rotation = deg_to_rad(80.0) * float(p.get("face", 1.0))
+		p.node.scale = Vector2.ONE
 	for c in comps:
 		if c.level == 0:
 			continue
-		var f: int = (walk + c.i) % 2 if (p.moving or c.vel.length() > 5.0) and c.down <= 0.0 else 0
+		var c_moving: bool = (p.moving or c.vel.length() > 5.0) and c.down <= 0.0
+		var f: int = (walk + c.i) % 2 if c_moving else 0
 		c.node.texture = _tex("%s%s_%d" % [c.key, "_evo" if evolved.has(c.key) else "", f])
-		c.node.position = c.pos.round()
-		c.node.rotation = deg_to_rad(80.0) if c.down > 0.0 else 0.0
+		if absf(c.vel.x) > 4.0:
+			c.face = signf(c.vel.x)
+		c.hurt_t = maxf(0.0, float(c.get("hurt_t", 0.0)) - dt)
 		var k: float = c.castfx / 0.18
-		c.node.scale = Vector2(1.0 + 0.2 * k, 1.0 - 0.12 * k)
 		if c.down > 0.0:
+			# 倒下：躺平（往臉朝的方向倒）
+			c.node.position = c.pos.round()
+			c.node.rotation = deg_to_rad(80.0) * float(c.get("face", 1.0))
+			c.node.scale = Vector2.ONE
 			c.node.modulate = Color(0.55, 0.55, 0.6)
-		elif c.sleep > 0.0:
+			continue
+		_animate(c.node, c.pos, c_moving, float(c.get("face", 1.0)), k, c.hurt_t / 0.18, c.i * 1.7, 0.2)
+		if c.sleep > 0.0:
 			c.node.modulate = Color(0.6, 0.65, 0.85)
+		elif c.hurt_t > 0.0:
+			c.node.modulate = Color(1.9, 0.75, 0.7)
 		else:
 			c.node.modulate = Color.WHITE.lerp(Color(1.8, 1.7, 1.2), k)
+	if p.hurt_t > 0.0 and p.hp > 0.0:
+		p.node.modulate = Color(1.9, 0.75, 0.7, p.node.modulate.a)
 	var ef := int(t * 4.0) % 2
 	for e in enemies:
 		if e.dead:
 			continue
 		if not e.get("boss", false):
 			e.node.texture = _tex("%s_%d" % [e.sprite, (ef + int(e.ph)) % 2])
+			# 剛出現：從地上長出來；被打中：壓扁一下
+			var age: float = t - float(e.get("born", -9.0))
+			if e.flash > 0.0:
+				e.node.scale = Vector2(1.18, 0.86)
+			elif age < 0.22 and age >= 0.0:
+				var g := age / 0.22
+				e.node.scale = Vector2(1.0 + 0.3 * (1.0 - g), g)
+			else:
+				e.node.scale = Vector2.ONE
 		e.node.position = e.pos.round()
 		if e.flash > 0.0:
 			e.node.modulate = Color(4, 4, 3.5)
@@ -5187,6 +5218,10 @@ func _render(dt: float) -> void:
 			e.node.modulate = Color(1.6, 1.15, 0.6)   # 被燈照亮
 		else:
 			e.node.modulate = e.tint
+
+	for pf in poofs:
+		pf.t += dt
+	poofs = poofs.filter(func(pf): return pf.t < 0.3)
 
 	ground_fx.queue_redraw()
 	air.queue_redraw()
@@ -5204,6 +5239,29 @@ func _render(dt: float) -> void:
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
 		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text(), "combo": combo, "combo_t": combo_t, "boss_in": _boss_in()})
+
+
+## 人物的動作（不用另外畫圖，全部用位置、傾斜、伸縮做出來）：
+## 走路時一跳一跳、左右輕晃；站著時慢慢呼吸；出招時往前一壓；被打時往後縮一下；往左走就轉身。
+## 腳底是原點，所以伸縮、傾斜都以腳為中心。
+func _animate(node: Sprite2D, pos: Vector2, moving: bool, face: float, cast_k: float, hurt_k: float, ph: float, cast_amt: float) -> void:
+	var bob := 0.0
+	var tilt := 0.0
+	var sc := Vector2.ONE
+	if moving:
+		var w := t * 10.0 + ph
+		bob = -absf(sin(w)) * 1.5
+		tilt = sin(w) * 0.07
+	else:
+		sc.y = 1.0 + 0.025 * sin(t * 2.4 + ph)
+	sc *= Vector2(1.0 + cast_amt * cast_k, 1.0 - cast_amt * 0.6 * cast_k)
+	if hurt_k > 0.0:
+		sc *= Vector2(1.0 - 0.12 * hurt_k, 1.0 + 0.08 * hurt_k)
+		tilt -= 0.18 * hurt_k * face
+	node.position = pos.round() + Vector2(0, roundf(bob))
+	node.rotation = tilt
+	node.scale = sc
+	node.flip_h = face < 0.0
 
 
 ## 光的身影：沒有臉，只有光的輪廓，站在保羅身邊
@@ -5245,7 +5303,14 @@ func _draw_ground_fx() -> void:
 	for o in [paul] + comps:
 		if o != paul and o.level == 0:
 			continue
-		n.draw_rect(Rect2(round(o.pos.x) - 4, round(o.pos.y) - 1, 9, 2), Color(0.24, 0.13, 0.05, 0.35))
+		n.draw_rect(Rect2(round(o.pos.x) - 5, round(o.pos.y) - 1, 11, 2), Color(0.24, 0.13, 0.05, 0.35))
+		n.draw_rect(Rect2(round(o.pos.x) - 4, round(o.pos.y) - 2, 9, 4), Color(0.24, 0.13, 0.05, 0.18))
+	# 敵人腳下的影子（讓人站在地上，不像貼紙）
+	var vr := _view_rect().grow(16.0)
+	for e in enemies:
+		if e.dead or e.get("boss", false) or not vr.has_point(e.pos):
+			continue
+		n.draw_rect(Rect2(round(e.pos.x) - 6, round(e.pos.y) - 1, 13, 2), Color(0.1, 0.05, 0.08, 0.28))
 	_draw_spots(n)
 	# 先知：預言之地（紫色的圈，中間一隻眼睛）
 	if not prophecy.is_empty():
@@ -5339,6 +5404,13 @@ func _draw_air() -> void:
 			var p0 := base + wind_dir * (ph - 0.5) * 120.0
 			air.draw_line(p0, p0 + wind_dir * 14.0, Color(1, 1, 1, 0.45 * minf(1.0, wind_on)), 1.0)
 	var n := air
+	# 被驅散的敵人：變白、壓扁、往上飄走
+	for pf in poofs:
+		var k: float = pf.t / 0.3
+		var sx: float = (1.0 + 0.5 * k) * (-1.0 if pf.flip else 1.0)
+		n.draw_set_transform(pf.pos + Vector2(0, -6.0 * k), 0.0, Vector2(sx, 1.0 - 0.7 * k))
+		n.draw_texture(pf.tex, pf.off, Color(3.0, 3.0, 2.6, 1.0 - k))
+	n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var on_fire := fever > 0.0
 	for b in _barrier_pieces():
 		var x: float = roundf(b.pos.x)
