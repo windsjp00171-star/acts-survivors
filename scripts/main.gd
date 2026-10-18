@@ -533,6 +533,11 @@ func _ready() -> void:
 			# 測試用：--mods=march:1,heal_smite:3（直接改寫流派規則的數值）
 			for kv in a.substr(7).split(","):
 				school_mods[kv.get_slice(":", 0)] = float(kv.get_slice(":", 1))
+		if a.begins_with("--armor="):
+			# 測試用：--armor=helmet:3,breast:3
+			for kv in a.substr(8).split(","):
+				armor[kv.get_slice(":", 0)] = int(kv.get_slice(":", 1))
+			_update_sets()
 		if a.begins_with("--fruits="):
 			# 測試用：--fruits=joy:5,good:3
 			for kv in a.substr(9).split(","):
@@ -1046,7 +1051,11 @@ func _filler_cards() -> Array:
 	for f in D.fillers:
 		if f.kind == "heal" and paul.hp > float(D.paul.hp) * float(f.hp_below):
 			continue
-		out.append({"kind": f.kind, "key": "", "title": f.title, "tag": f.tag, "desc": f.desc, "amount": f.get("amount", 0)})
+		var fd: String = f.desc
+		if f.kind == "grace_dmg" or f.kind == "grace_spd":
+			var now: float = grace_dmg if f.kind == "grace_dmg" else grace_spd
+			fd += "\n目前 +%d%% → +%d%%" % [roundi(now * 100.0), roundi((now + float(f.amount)) * 100.0)]
+		out.append({"kind": f.kind, "key": "", "title": f.title, "tag": f.tag, "desc": fd, "amount": f.get("amount", 0)})
 	out.shuffle()
 	return out
 
@@ -1103,6 +1112,10 @@ func _apply_card(card: Dictionary) -> void:
 			_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 44.0)
 	elif card.kind == "armor":
 		armor[card.key] = armor.get(card.key, 0) + 1
+		var a3: Dictionary = D.armor[card.key]
+		if armor[card.key] == 3 and a3.has("lv3"):
+			ui.show_banner("%s Lv3：「%s」" % [a3.name, a3.lv3], 3.0)
+			_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 44.0)
 		_update_sets()
 	elif card.kind == "branch":
 		var c: Dictionary = by_key[card.key]
@@ -2279,11 +2292,21 @@ func _step(dt: float) -> void:
 		spawn_timer = wave.y / _endless_mult("spawn")
 
 	var G: Dictionary = D.gems
+	var helm: int = armor.get("helmet", 0)
+	var mr: float = float(G.magnet_radius) * (1.0 + 0.2 * helm + (0.2 if epistles.has("xp_plus") else 0.0))   # 救恩的頭盔：撿經驗的範圍變大
+	if helm >= 3 and not choosing:
+		helmet_t -= dt
+		if helmet_t <= 0.0:
+			helmet_t = 20.0
+			vac_t = 1.2   # 把畫面上的經驗全部吸過來
+			_fxc("救恩臨到")
+			_ring_pop(p.pos + Vector2(0, -6), C_GOLD, 30.0)
+	vac_t = maxf(0.0, vac_t - dt)
 	for g in gems:
 		var to: Vector2 = p.pos + Vector2(0, -6) - g.pos
 		var d: float = to.length()
-		if d < G.magnet_radius or fever > 0.0:
-			g.pos += to.normalized() * (G.magnet_speed * (2.5 if fever > 0.0 else 1.0)) * dt
+		if d < mr or fever > 0.0 or vac_t > 0.0:
+			g.pos += to.normalized() * (G.magnet_speed * (2.5 if fever > 0.0 or vac_t > 0.0 else 1.0)) * dt
 		if d < 4.0:
 			g.got = true
 			xp += 1
@@ -2311,7 +2334,14 @@ func _step(dt: float) -> void:
 	breads = breads.filter(func(b): return not b.get("got", false))
 	var regen: float = Save.up_value("renew") + float(set_bonus.get("regen", 0.0)) + Save.building_bonus("regen")
 	if regen > 0.0 and p.hp > 0.0:
+		var before: float = p.hp
 		p.hp = minf(float(D.paul.hp), p.hp + regen * dt)
+		regen_acc += p.hp - before
+		if regen_acc >= 2.0:
+			# 慢慢回血：每回滿 2 點跳一個綠色的字，看得到套裝與局外加成在作用
+			regen_acc = 0.0
+			if tag_fx.size() < 12:
+				tag_fx.append({"pos": p.pos + Vector2(-2, 2), "text": "+2", "col": C_HEAL, "t": 0.0})
 	if gems.size() > 300:
 		gems = gems.slice(gems.size() - 300)
 
@@ -3500,12 +3530,15 @@ func _update_schools_step(dt: float) -> void:
 			for e in _enemies_near(paul.pos, 50.0):
 				if not e.dead and e.pos.distance_to(paul.pos) < 50.0:
 					e.slow_t = maxf(float(e.get("slow_t", 0.0)), 0.5)
-	# 差派：腳蹤
-	if _school_on("差派"):
+	# 差派：腳蹤（平安的鞋 Lv3 沒有差派流派也會留下）
+	var shoes_only: bool = not _school_on("差派") and armor.get("shoes", 0) >= 3
+	if _school_on("差派") or shoes_only:
 		if paul.moving:
 			trail_t -= dt
 			if trail_t <= 0.0:
-				trail_t = _sv("差派", "trail_every")
+				trail_t = 0.28 if shoes_only else _sv("差派", "trail_every")
+				if shoes_only:
+					_fxc("鞋的腳蹤")
 				var life := 3.0 + _sv("差派", "trail_life")
 				trail.append({"pos": paul.pos + Vector2(0, 1), "life": life, "max": life, "side": trail.size() % 2})
 				if _sv("差派", "trail_heal") > 0.0:
@@ -3513,7 +3546,7 @@ func _update_schools_step(dt: float) -> void:
 		trail_tick -= dt
 		if trail_tick <= 0.0 and not trail.is_empty():
 			trail_tick = 0.35
-			var dmg := _sv("差派", "trail_dmg") * (1.0 + _sv("差派", "trail_mult")) * (1.0 + level * 0.03) * (1.5 if _fused("守護", "差派") and guard > 0 else 1.0)
+			var dmg := (3.0 if shoes_only else _sv("差派", "trail_dmg")) * (1.0 + _sv("差派", "trail_mult")) * (1.0 + level * 0.03) * (1.5 if _fused("守護", "差派") and guard > 0 else 1.0)
 			var box := Rect2(trail[0].pos, Vector2.ZERO)
 			for f in trail:
 				box = box.expand(f.pos)
@@ -5019,6 +5052,7 @@ func _damage_paul(n: float, pierce := false, src := "") -> void:
 		return
 	if fever > 0.0 or won:
 		return
+	var raw := n
 	if epistles.has("burden"):
 		n *= 0.85   # 加拉太書：彼此擔當
 	var sh: int = armor.get("shield", 0)
@@ -5040,6 +5074,10 @@ func _damage_paul(n: float, pierce := false, src := "") -> void:
 	if armor.get("breast", 0) > 0:
 		n *= 1.0 - float(D.armor.breast.per[armor.breast - 1])
 	n *= 1.0 - Save.up_value("aegis")
+	if raw - n >= 1.0 and t >= block_txt_t and tag_fx.size() < 12:
+		# 護心鏡、書信、局外加成擋掉的傷害：頭上跳出「擋 X」
+		block_txt_t = t + 0.6
+		tag_fx.append({"pos": paul.pos + Vector2(-4, 6), "text": "擋 %d" % roundi(raw - n), "col": Color("9fd8ff"), "t": 0.0})
 	if smoke:
 		dmg_log[src] = float(dmg_log.get(src, 0.0)) + n   # 測試用：被什麼打傷
 	paul.hp -= n
@@ -5059,6 +5097,14 @@ func _damage_paul(n: float, pierce := false, src := "") -> void:
 	Sfx.buzz(40)
 	paul.inv = 0.6
 	shake = 0.12
+	if armor.get("breast", 0) >= 3 and paul.hp < float(D.paul.hp) * 0.3 and t >= breast_cd and paul.hp > 0.0:
+		# 護心鏡：危急時發光，2 秒內不受傷
+		breast_cd = t + 30.0
+		paul.inv = 2.0
+		_fxc("護心")
+		_ring_pop(paul.pos + Vector2(0, -8), C_CREAM, 40.0)
+		if tag_fx.size() < 12:
+			tag_fx.append({"pos": paul.pos + Vector2(-8, -6), "text": "護心", "col": C_CREAM, "t": 0.0})
 	_fire_links("hurt", null, 0)
 	if paul.hp <= 0.0:
 		paul.hp = 0.0
@@ -7280,7 +7326,12 @@ var tether := {}            # 捆鎖：把主角綁在一個點上
 var joy_t := 5.0            # 喜樂 Lv3：下一次歡呼
 var joy_waves: Array = []   # 擴散中的歡呼圈 {pos, r, max, hit, dmg, stun}
 var good_heal_t := 10.0     # 良善 Lv5：下一次全隊回血
-var good_cd := 0.0          # 良善 Lv3：被打時放光的冷卻   # 測試用：只讓這幾位上場
+var good_cd := 0.0          # 良善 Lv3：被打時放光的冷卻
+var breast_cd := 0.0        # 護心鏡 Lv3：危急時發光的冷卻
+var helmet_t := 20.0        # 救恩的頭盔 Lv3：下一次把經驗全部吸過來
+var vac_t := 0.0            # 正在把畫面上的經驗吸過來
+var block_txt_t := 0.0      # 「擋」字的間隔
+var regen_acc := 0.0        # 慢慢回血累積到 2 點就跳字   # 測試用：只讓這幾位上場
 var fx_hp := {}
 
 
