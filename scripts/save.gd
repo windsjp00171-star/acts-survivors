@@ -11,6 +11,36 @@ var run_config := {}
 var story: Dictionary      # 劇情模式的章節（data/story.json）
 
 
+## 中途存檔：還沒走完的這一局（離開時自動存，下次可以繼續）
+const RUN_PATH := "user://run_save.txt"
+var resume := {}   # 營地按了「繼續」：main.gd 開局時照這份還原
+
+
+func has_run_save() -> bool:
+	return FileAccess.file_exists(RUN_PATH) and not read_run_save().is_empty()
+
+
+func read_run_save() -> Dictionary:
+	if not FileAccess.file_exists(RUN_PATH):
+		return {}
+	var v = str_to_var(FileAccess.get_file_as_string(RUN_PATH))
+	return v if v is Dictionary and int(v.get("ver", 0)) == 1 else {}
+
+
+func write_run_save(d: Dictionary) -> void:
+	var f := FileAccess.open(RUN_PATH + ".tmp", FileAccess.WRITE)
+	if f == null:
+		return
+	f.store_string(var_to_str(d))
+	f.close()
+	DirAccess.rename_absolute(RUN_PATH + ".tmp", RUN_PATH)   # 先寫暫存檔再換名，寫到一半關掉也不會壞
+
+
+func clear_run_save() -> void:
+	if FileAccess.file_exists(RUN_PATH):
+		DirAccess.remove_absolute(RUN_PATH)
+
+
 func _ready() -> void:
 	meta = JSON.parse_string(FileAccess.get_file_as_string("res://data/meta.json"))
 	story = JSON.parse_string(FileAccess.get_file_as_string("res://data/story.json"))

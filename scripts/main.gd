@@ -284,6 +284,13 @@ var smoke_nofever := false
 
 
 func _ready() -> void:
+	resuming = Save.resume
+	Save.resume = {}
+	if OS.get_cmdline_user_args().has("--resume"):
+		resuming = Save.read_run_save()   # 測試用：照存檔繼續
+	save_test = OS.get_cmdline_user_args().has("--save_test")
+	if not resuming.is_empty():
+		Save.run_config = resuming.run_config.duplicate(true)
 	D = JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
 	EV = JSON.parse_string(FileAccess.get_file_as_string("res://data/events.json"))
 	event_t = float(EV.first)
@@ -373,6 +380,8 @@ func _ready() -> void:
 			leader = a.substr(9)
 	if leader != "paul" and not Save.is_unlocked("leader_" + leader) and not OS.get_cmdline_user_args().has("--smoke"):
 		leader = "paul"
+	if not resuming.is_empty():
+		leader = str(resuming.leader)
 	if story:
 		leader = str(chapter.leader)
 	if stage.has("leader"):
@@ -443,6 +452,8 @@ func _ready() -> void:
 	first_recruit = "" if solo else starter
 	if story:
 		first_recruit = "" if solo or chapter.cast.is_empty() or chapter.get("late", false) else str(chapter.cast[0])
+	if not resuming.is_empty():
+		first_recruit = ""
 	if stage.has("leader_level"):
 		_set_level(pa, int(stage.leader_level))   # 年老的約翰：一開始招式就比較熟練
 	# 流派長在主角的招式上：主角本身的流派、恩賜「規則改寫」的流派，一開始就成形（不佔輔助格）
@@ -455,7 +466,7 @@ func _ready() -> void:
 	rerolls_left = Save.rerolls()
 	# 營地的倉房：開局先多選幾張升級卡（給足剛好升那幾級的經驗）
 	var L0: Dictionary = D.leveling
-	for k in int(Save.building_bonus("picks")):
+	for k in (0 if not resuming.is_empty() else int(Save.building_bonus("picks"))):
 		xp += int(L0.first + k * L0.step + pow(k, 2) * L0.growth)
 	ui.dialogue_done.connect(func():
 		talking = false
@@ -466,7 +477,8 @@ func _ready() -> void:
 		if leader == "paul" and ui.names.has(D.paul.name):
 			ui.names[D.paul.name].text = "掃羅"   # 到徒 13:9 才開始叫保羅
 			ui.hero_label.text = "掃羅"
-	_start_talk("in")
+	if resuming.is_empty():
+		_start_talk("in")
 	var pool: Array = D.tasks.list.duplicate()
 	if story:
 		# 劇情模式不出旅程任務，只有一個目標：從黑暗中贏回人（帶尋找的人信主）
@@ -605,6 +617,8 @@ func _ready() -> void:
 		fruits = {"joy": 2, "faith": 2, "good": 1, "peace": 1}
 		armor = {"shoes": 1, "shield": 2}
 		chests.append({"pos": Vector2(0, 6)})
+	if not resuming.is_empty():
+		_apply_resume(resuming)
 	for i in int(D.waves.initial):
 		var a := randf() * TAU
 		var d := 110.0 + randf() * 80.0
@@ -1352,6 +1366,7 @@ func _on_card(i: int) -> void:
 	_apply_card(card)
 	_refresh_build_text()
 	choosing = false
+	_autosave()
 	if xp >= xp_need:
 		_level_up()
 
@@ -2173,6 +2188,9 @@ func _notification(what: int) -> void:
 	elif what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		if not smoke and not choosing and not chest_open:
 			_set_paused(true)
+		_autosave()
+	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_autosave()
 
 
 func _process(delta: float) -> void:
@@ -2196,6 +2214,10 @@ func _process(delta: float) -> void:
 		_perf_report()
 	if smoke:
 		_smoke_tick()
+	autosave_t -= delta
+	if autosave_t <= 0.0:
+		autosave_t = 20.0
+		_autosave()
 
 
 func _step(dt: float) -> void:
@@ -6753,6 +6775,94 @@ func _stage_list() -> Array:
 
 
 ## 已經符合條件、還沒進化的
+## ---------- 中途存檔 ----------
+## 存的是「構築」：時間、等級、隊伍、果子、軍裝、聖物、流派、連結、任務。不存敵人與子彈，繼續時重新生怪（像 Brotato 在波次之間存）
+const SAVE_VARS := ["t", "kills", "xp", "level", "xp_need", "meter", "run_lights", "run_bread", "xp_acc", "fruits", "armor",
+	"run_elites", "run_fevers", "run_evolutions", "tasks_done", "task_witness", "rerolls_left", "t_start", "journey_step",
+	"chariot_done", "epistles", "killed_types", "link_count", "combo_best", "guard", "grace_dmg", "grace_spd", "mids_done",
+	"boss_spawned", "endless_boss_t", "endless_bosses", "run_resonances", "event_t", "events_done", "enemy_hp_bonus", "move_bonus",
+	"run_chests", "run_midboss", "school_mods", "school_cards", "praise", "anoint", "run_converts", "run_minions", "run_songs",
+	"run_holies", "run_shocks", "bonds_seen", "run_bonds", "loaves_n", "run_relics", "seek_t", "seek_used", "run_saved",
+	"run_seek_spawned", "pressure", "life_avg", "persec_t", "fz_count", "scatter_by", "blind_state", "blind_r", "hz_t",
+	"founded_now", "someone_down", "full_party"]
+var resuming := {}
+var autosave_t := 20.0
+var save_test := false   # 測試用：--save_test 讓機器人模擬也寫存檔
+
+
+func _autosave() -> void:
+	if over or won or choosing or chest_open or relic_pending or (smoke and not save_test) or pa.is_empty() or t - t_start < 5.0:
+		return
+	Save.write_run_save(_snapshot())
+
+
+func _snapshot() -> Dictionary:
+	var d := {"ver": 1, "run_config": Save.run_config.duplicate(true), "leader": leader, "hp": paul.hp,
+		"where": (chapter.get("title", stage.name) if story else stage.name), "date": Time.get_datetime_string_from_system(), "vars": {}}
+	for k in SAVE_VARS:
+		d.vars[k] = get(k)
+	if boss != null and not boss.dead:
+		# Boss 還活著：繼續時重新出現（中途 Boss 也是）
+		if boss.get("mid", false):
+			d.vars.mids_done = maxi(0, mids_done - 1)
+		else:
+			d.vars.boss_spawned = false
+	d.comps = []
+	for c in comps:
+		if c.level > 0:
+			d.comps.append({"key": c.key, "level": int(c.level), "branch": int(c.get("branch", -1)), "anoints": c.get("anoints", []).duplicate(), "hp": float(c.hp)})
+	d.pa = {"level": int(pa.level), "branch": int(pa.get("branch", -1)), "anoints": pa.get("anoints", []).duplicate()}
+	d.evolved = evolved.keys()
+	d.relics = relics.keys()
+	d.links = []
+	for L in links:
+		d.links.append({"src": L.src.key if L.src is Dictionary and not L.src.is_empty() else "", "dst": L.dst.key, "kind": L.kind, "lv": int(L.get("lv", 1))})
+	d.run_tasks = run_tasks.duplicate(true)
+	d.followers = followers.duplicate(true)
+	return d
+
+
+func _apply_resume(r: Dictionary) -> void:
+	for id in r.get("relics", []):
+		_take_relic(id)   # 先拿聖物（亞倫的杖會動到果子，下面再照存檔蓋回去）
+	for k in r.vars:
+		set(k, r.vars[k])
+	for cd in r.comps:
+		var c: Dictionary = by_key.get(cd.key, {})
+		if c.is_empty():
+			continue
+		if int(c.level) == 0:
+			_recruit(c)
+		c.branch = int(cd.branch)
+		c.anoints = Array(cd.anoints)
+		_set_level(c, int(cd.level))
+		c.hp = float(cd.hp)
+	pa.branch = int(r.pa.branch)
+	pa.anoints = Array(r.pa.anoints)
+	_set_level(pa, int(r.pa.level))
+	for k in r.evolved:
+		var ev := _evo_of(str(k))
+		if not ev.is_empty() and not evolved.has(k) and not _who(str(k)).is_empty():
+			_evolve(ev)
+	for L in r.links:
+		var src := _who(str(L.src)) if str(L.src) != "" else {}
+		var dst := _who(str(L.dst))
+		if not dst.is_empty():
+			links.append({"src": src if not src.is_empty() else pa, "dst": dst, "kind": L.kind, "cd": 0.0, "lv": int(L.lv)})
+	run_tasks = r.run_tasks
+	followers = r.followers
+	paul.hp = minf(float(r.hp), _hp_cap())
+	paul.inv = 2.0   # 剛回來：先給 2 秒喘口氣
+	_update_sets()
+	_refresh_all_stats()
+	_update_synergy()
+	_update_schools()
+	_refresh_build_text()
+	ui.show_banner("繼續上一局：%s　%d:%02d" % [str(r.get("where", "")), int(t) / 60, int(t) % 60], 2.5)
+	if smoke:
+		print("RESUME t=%.0f Lv=%d hp=%.0f party=%s fruits=%s armor=%s links=%d schools=%s" % [t, level, paul.hp, comps.filter(func(c): return c.level > 0).map(func(c): return "%s%d" % [c.key, c.level]), fruits, armor, links.size(), school_tier])
+
+
 func _ready_evolutions() -> Array:
 	var out := []
 	for evo in D.evolutions:
@@ -7267,6 +7377,8 @@ func _resolve_tele() -> void:
 
 ## 每局結束寫一筆紀錄到本機，之後拿來看哪個流派太強或太弱
 func _record_run() -> void:
+	if not smoke or save_test:
+		Save.clear_run_save()   # 這一局結束了：不能再「繼續」
 	var path := "user://runs.json"
 	var runs: Array = []
 	if FileAccess.file_exists(path):

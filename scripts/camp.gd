@@ -81,6 +81,8 @@ func _ready() -> void:
 	_build_hud()
 	_pick_bubbles()
 	Sfx.music("camp")
+	if Save.has_run_save():
+		panel.open.call_deferred("home")   # 上一局還沒走完：直接打開出發面板，最上面就是「繼續這一局」
 
 	var shot := ""
 	for a in OS.get_cmdline_user_args():

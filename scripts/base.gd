@@ -244,6 +244,29 @@ func _show_home() -> void:
 		_text(content, "改版通知：" + str(Save.data.refund_note), 12, UIKit.HEAL, true)
 		Save.data.erase("refund_note")
 		Save.save_profile()
+	# 上一局還沒走完（中途離開）：可以繼續
+	var rs := Save.read_run_save()
+	if not rs.is_empty():
+		_text(content, "上一局還沒走完：%s　%d:%02d　Lv%d" % [str(rs.get("where", "")), int(rs.vars.t) / 60, int(rs.vars.t) % 60, int(rs.vars.level)], 14, UIKit.GOLD, true)
+		var rrow := _row(content)
+		var go := UIKit.button("繼續這一局", 15, true)
+		go.custom_minimum_size = Vector2(0 if portrait else 160, 40)
+		go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		go.pressed.connect(func():
+			Save.resume = rs
+			get_tree().change_scene_to_file("res://scenes/main.tscn"))
+		rrow.add_child(go)
+		var drop := UIKit.button("放棄這一局", 13)
+		drop.custom_minimum_size = Vector2(0 if portrait else 140, 40)
+		drop.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		drop.pressed.connect(func():
+			if drop.text == "放棄這一局":
+				drop.text = "再按一次確定放棄"   # 怕按錯：要按兩次
+				return
+			Save.clear_run_save()
+			_show_home())
+		rrow.add_child(drop)
+		_text(content, "中途離開會自動存檔；開始新的一局會蓋掉這份", 11, UIKit.MUTED, true)
 	# 劇情模式（照聖經走一趟）／自由模式（通過的章節自由組隊重玩）
 	var free_ok: bool = not Save.data.churches.is_empty()
 	var mode: String = str(Save.data.get("mode", "story")) if free_ok else "story"
