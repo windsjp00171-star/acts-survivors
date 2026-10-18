@@ -4,6 +4,16 @@
 
 ## [Unreleased]
 
+## [0.37.0] - 2026-10-18
+
+### 新增
+- 九個 Boss 專屬招式（`_boss_special`）：`accuse`（`boss_lines` 依序落下的線）、`stones`（三圈收攏的石頭加中心一顆）、`bait`（場地 `bait` 錢幣，踩到爆開）、`searchlight`（`search_t` 繞 Boss 旋轉的光）、`squeeze`（`boss_walls` 左右夾來、各留一個門）、`stampede`（四周 16 個 riot）、`tether`（`tether` 綁住主角，超出範圍拉回並受傷）、`idols`（四周立起 idol）、`rumor`（2ⁿ 個落點，照主角移動方向往前落）；共用 `_hit_shape`、`_update_boss_extras`；Boss 被打倒時清掉線、牆、捆鎖
+- `star_falls` 可指定 `src`（測試統計分得出是 Boss 還是逼迫）
+
+### 變更
+- 16 隻 Boss 的 `order`／`order2` 重排：除了 sweep／slam／grid／hunt／summon 五個基本招，其他招式每隻 Boss 專屬、不重複（barrage→拔摩、volley→府城、follow→耶路撒冷、pools→羅馬、wave→馬爾他、vortex→以弗所、charge→帖撒羅尼迦）
+- 五條「效果發生時敵人通常已經死了」的分支重做：以利亞「燒盡祭物」（火柱更大＋`release`）、約翰「雷子的脾氣」（`decay` 0.1＋多跳兩隻）、司提反「天開了」（`consecrate`）、約拿「尼尼微悔改」（`repent`：吐出時說服落點附近的敵人 6 秒）、尼哥底母「照亮暗處」（`expose` +0.3）
+
 ## [0.36.0] - 2026-10-18
 
 ### 新增

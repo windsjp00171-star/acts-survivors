@@ -123,7 +123,7 @@
       "base": { "consecrate": 2, "cooldown": 2.4, "range": 150, "count": 1, "radius": 16, "damage": 5, "delay": 0.6 },
       "levels": [ { "count": 2 }, { "radius": 22 }, { "damage": 8 }, { "count": 4, "cooldown": 1.8 } ],
       "desc": ["火從天降：地上先出現預兆，火柱再落進敵群；火落下的地方，旁邊的自己人回一點血（火：打中的敵人會燒起來，燒死的會爆開）", "一次降下 2 道火", "火的範圍變大", "火的威力提升", "一次 4 道，降得更快（王上 18:38）"],
-      "branches": [ { "name": "燒盡祭物", "desc": "火落下的地方留下一片火，燒傷走進去的敵人", "add": {}, "onhit": ["ember"]}, { "name": "火雨", "desc": "多降兩道火", "add": {"count": 2} } ]
+      "branches": [ { "name": "燒盡祭物", "desc": "火柱更大，被火燒死的敵人當場爆開光，傷害身邊的敵人", "add": {"radius": 4}, "onhit": ["release"]}, { "name": "火雨", "desc": "多降兩道火", "add": {"count": 2} } ]
     },
     "net": {
       "engine": "net",
@@ -137,7 +137,7 @@
       "base": { "cooldown": 1.1, "range": 130, "damage": 4, "jumps": 3, "jump_range": 55, "decay": 0.9 },
       "levels": [ { "jumps": 5 }, { "damage": 6 }, { "jumps": 7, "jump_range": 65 }, { "cooldown": 0.7, "damage": 8 } ],
       "desc": ["雷子：閃電打中一隻後，再跳向附近 3 隻敵人（雷：打中的敵人感電，受到的傷害 +25%）", "多跳兩隻（共跳 5 隻）", "閃電更強", "共跳 7 隻、跳得更遠", "打得更快更重（可 3:17）"],
-      "branches": [ { "name": "長鏈", "desc": "多跳三隻", "add": {"jumps": 3} }, { "name": "雷子的脾氣", "desc": "閃電打到的敵人兩成機會麻痺 1 秒", "add": {"damage": 1}, "onhit": ["still"]} ]
+      "branches": [ { "name": "長鏈", "desc": "多跳三隻", "add": {"jumps": 3} }, { "name": "雷子的脾氣", "desc": "閃電不會越跳越弱，而且多跳兩隻", "add": {"decay": 0.1, "jumps": 2} } ]
     },
     "touch": {
       "engine": "thrust",
@@ -165,7 +165,7 @@
       "base": { "cooldown": 2.2, "range": 150, "count": 1, "radius": 18, "damage": 5, "delay": 0.5, "linked_mult": 2 },
       "levels": [ { "count": 2 }, { "radius": 24 }, { "linked_mult": 3, "damage": 7 }, { "count": 3, "cooldown": 1.6 } ],
       "desc": ["滿有恩惠能力：天上降下光柱；被連結觸發時威力兩倍（雷：打中的敵人感電，受到的傷害 +25%）", "一次降下 2 道光", "光柱範圍變大", "被連結觸發時威力三倍", "一次 3 道，降得更快（徒 6:8）"],
-      "branches": [ { "name": "連結者", "desc": "被連結觸發時再多一倍", "add": {"linked_mult": 1} }, { "name": "天開了", "desc": "光柱照到的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {}, "onhit": ["mark"]} ]
+      "branches": [ { "name": "連結者", "desc": "被連結觸發時再多一倍", "add": {"linked_mult": 1} }, { "name": "天開了", "desc": "光柱落下的地方，旁邊的自己人回血", "add": {"consecrate": 3} } ]
     },
     "run": {
       "engine": "thrust", "look": "dash",
@@ -242,7 +242,7 @@
       "base": { "cooldown": 4.0, "length": 70, "width": 16, "count": 4, "damage": 6, "hold": 2.0, "spit_r": 30 },
       "levels": [ { "count": 6 }, { "damage": 9 }, { "length": 90, "width": 22, "spit_r": 38 }, { "count": 9, "damage": 13, "hold": 1.5 } ],
       "desc": ["大魚：大魚冒出來，把一排敵人吞下去；過一會兒吐成一團砸出去，吞得越多砸得越重（水：打中的敵人浸濕、變慢，被雷打到傷害加倍）", "一次吞六隻", "咬得更重", "吞得更大口、吐得更遠", "一次吞九隻、吐得更快（拿 2:10）"],
-      "branches": [ { "name": "大口", "desc": "多吞兩隻", "add": {"count": 2} }, { "name": "大魚肚腹", "desc": "更快吐出來，被砸到的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {"hold": -0.6}, "onhit": ["mark"] } ]
+      "branches": [ { "name": "大口", "desc": "多吞兩隻", "add": {"count": 2} }, { "name": "尼尼微悔改", "desc": "大魚吐出來的時候，落點附近的敵人被說服，變成金色跟你一起打 6 秒（吞得越多，說服越多）", "add": {"hold": -0.3, "repent": 1} } ]
     },
     "flood": {
       "engine": "wave", "look": "flood",
@@ -270,7 +270,7 @@
       "base": { "cooldown": 2.0, "length": 110, "width": 7, "damage": 3, "range": 120, "beams": 1, "burst": 0, "lies_mult": 2, "expose": 0.3 },
       "levels": [ { "width": 10 }, { "burst": 1 }, { "beams": 2, "lies_mult": 3, "expose": 0.45 }, { "length": 160, "damage": 5 } ],
       "desc": ["夜裡來見耶穌：提燈照出一道光；被照亮的敵人 3 秒內受到的傷害 +30%（火：打中的敵人會燒起來，燒死的會爆開）", "光更寬", "光的末端爆開", "兩道光，被照亮的敵人受到的傷害 +45%", "光照得更遠更強（約 3:2）"],
-      "branches": [ { "name": "照亮暗處", "desc": "被燈照到的敵人兩成機會愣住 1 秒，光照得更遠", "add": {"length": 30}, "onhit": ["still"] }, { "name": "雙燈", "desc": "多一道光", "add": {"beams": 1} } ]
+      "branches": [ { "name": "照亮暗處", "desc": "被燈照到的敵人破綻更大（受到的傷害 +60%），光照得更遠", "add": {"length": 30, "expose": 0.3} }, { "name": "雙燈", "desc": "多一道光", "add": {"beams": 1} } ]
     },
     "medicine": {
       "engine": "shot", "look": "vial",

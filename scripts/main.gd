@@ -1653,6 +1653,10 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		if e.d.has("split_into"):
 			for i in int(e.d.split_count):
 				_spawn_one(e.d.split_into, e.pos + Vector2(randf_range(-8, 8), randf_range(-6, 6)))
+		if e.get("boss", false):
+			boss_lines.clear()
+			boss_walls.clear()
+			tether = {}
 		if e.get("boss", false) and e.get("mid", false):
 			# 中途 Boss 打退了：掉寶箱（一定能選聖物），真正的 Boss 之後才來
 			chests.append({"pos": e.pos, "relic": true})
@@ -2578,7 +2582,7 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 						_hurt(e, float(s.damage), from, c)
 				Sfx.play("splash")
 				fishes.append({"pos": from + fdir * flen * 0.5, "dir": fdir, "len": flen, "t": 0.0, "hold": maxf(0.6, float(s.hold)),
-					"eaten": eaten, "owner": c, "dmg": float(s.damage), "r": float(s.spit_r) * _area(), "done": false})
+					"eaten": eaten, "owner": c, "dmg": float(s.damage), "r": float(s.spit_r) * _area(), "done": false, "repent": float(s.get("repent", 0.0)) > 0.0})
 		"wave":
 			# 挪亞：洪水從畫面一側整片推過去
 			var v := _view_rect()
@@ -3902,6 +3906,16 @@ func _update_engines(dt: float) -> void:
 			var tl := _nearest_enemies(f.pos, 140.0, 1)
 			var at: Vector2 = tl[0].pos if not tl.is_empty() else f.pos + f.dir * 60.0
 			fires.append({"pos": at, "t": 0.35, "max": 0.35, "r": f.r, "dmg": f.dmg * (1.0 + 0.6 * f.eaten), "owner": f.owner, "evo": evolved.has(f.owner.key), "look": "spit"})
+			if f.get("repent", false):
+				# 尼尼微悔改：落點附近的敵人被說服（菁英、Boss 除外）
+				var n_conv: int = int(f.eaten) + 2
+				for e in _nearest_enemies(at, f.r * 1.6, 12):
+					if n_conv <= 0:
+						break
+					if not e.get("boss", false) and not e.get("elite", false):
+						_convert(e, 6.0)
+						n_conv -= 1
+						_fxc("悔改")
 	fishes = fishes.filter(func(f): return f.t < f.hold + 0.4)
 	# 洪水
 	for w in floods:
@@ -4244,10 +4258,13 @@ func _anoint_on_hit(e: Dictionary, dmg: float, src: Dictionary) -> void:
 			chaining = false
 	if an.has("still") and not e.get("boss", false) and randf() < 0.2:
 		e.stun = maxf(e.stun, 1.0)   # 平靜：定住
+		_fxc("定住")
 	if an.has("slow"):
 		e.slow_t = maxf(float(e.get("slow_t", 0.0)), 1.5)   # 沉重：變慢
+		_fxc("變慢")
 	if an.has("mark"):
 		e.exposed_t = maxf(float(e.get("exposed_t", 0.0)), 3.0)   # 印記：之後受到的傷害更多
+		_fxc("印記")
 		e.expose = maxf(float(e.get("expose", 0.0)), 0.2)
 	if an.has("leech") and t >= float(src.get("leech_a_cd", 0.0)):
 		src.leech_a_cd = t + 0.3
@@ -5257,6 +5274,16 @@ func _ananias_arrive(hz: Dictionary) -> void:
 
 
 ## 黑暗：一格一格的實心黑色，只留主角身邊一個圓；路上的大光是整片亮白
+## 大馬色城門的探照光（地面層與瞎眼的黑暗層都畫）
+func _draw_searchlight(n: Node2D) -> void:
+	if boss == null or float(boss.get("search_t", 0.0)) <= 0.0:
+		return
+	var tip: Vector2 = boss.pos + Vector2.from_angle(boss.search_ang) * 280.0
+	n.draw_line(boss.pos, tip, Color(Color("fff4c2"), 0.25), 22.0)
+	n.draw_line(boss.pos, tip, Color(Color("fff4c2"), 0.6), 8.0)
+	n.draw_line(boss.pos, tip, Color.WHITE, 2.0)
+
+
 func _draw_dark() -> void:
 	var n := dark
 	var v := _view_rect().grow(4.0)
@@ -5292,6 +5319,7 @@ func _draw_dark() -> void:
 			n.draw_rect(Rect2(c.x - hw, y, hw - hw2, 2), band)
 			n.draw_rect(Rect2(c.x + hw2, y, hw - hw2, 2), band)
 		y += 2.0
+	_draw_searchlight(n)   # 瞎眼的時候也看得到探照的光
 	# 亞拿尼亞在黑暗裡：圓邊上一個金色箭頭指著他的方向
 	if not ananias.is_empty() and blind_state == "blind":
 		var to: Vector2 = ananias.pos - c
@@ -5414,6 +5442,12 @@ func _update_spots(dt: float) -> void:
 						breads.append({"pos": sp.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
 					ui.show_banner("在帳棚裡歇一下腳：護盾 +%d" % int(hz.guard), 1.5)
 					_ring_pop(sp.pos, Color("9fd8ff"), 30.0)
+			"bait":
+				if paul.pos.distance_to(sp.pos) < sp.r + 4.0:
+					sp.life = 0.0
+					blasts.append({"pos": sp.pos, "t": 0.0, "r": 26.0, "col": C_GOLD, "evo": false})
+					if paul.inv <= 0.0:
+						_damage_paul(sp.dmg, false, "boss")
 			"dark":
 				sp.tick -= dt
 				if sp.tick <= 0.0:
@@ -5457,6 +5491,14 @@ func _draw_spots(n: Node2D) -> void:
 		var y: float = roundf(sp.pos.y)
 		var blinking: bool = sp.life < 2.0 and int(t * 8.0) % 2 == 0
 		match sp.kind:
+			"bait":
+				# 亮晶晶的錢幣（其實是陷阱）：金色、會閃，底下一點黑影
+				var glint := int(t * 6.0 + x) % 3 == 0
+				n.draw_circle(Vector2(x, y + 2), 5.0, Color(0.1, 0.0, 0.1, 0.4))
+				n.draw_rect(Rect2(x - 3, y - 3, 7, 6), Color("8a5a10"))
+				n.draw_rect(Rect2(x - 2, y - 2, 5, 4), Color("ffd75e"))
+				if glint:
+					n.draw_rect(Rect2(x - 1, y - 2, 1, 1), Color.WHITE)
 			"dark":
 				# 黑暗的水窪：深紫色的一片，邊緣冒泡
 				var da: float = clampf(sp.life / 1.0, 0.0, 1.0)
@@ -5512,7 +5554,7 @@ func _update_stars(dt: float) -> void:
 			blasts.append({"pos": sf.pos, "t": 0.0, "r": sf.r * 1.4, "col": C_GOLD, "evo": false})
 			shake = maxf(shake, 0.15)
 			if paul.pos.distance_to(sf.pos) < sf.r and paul.inv <= 0.0:
-				_damage_paul(sf.dmg, sf.get("pierce", false), "persecute" if sf.get("pierce", false) else "star")
+				_damage_paul(sf.dmg, sf.get("pierce", false), sf.get("src", "persecute" if sf.get("pierce", false) else "star"))
 			for c in comps:
 				if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(sf.pos) < sf.r and fever <= 0.0:
 					c.hurt_cd = 0.0
@@ -6205,6 +6247,32 @@ func _draw_air() -> void:
 		for i in 4:
 			var va: float = t * 5.0 + i * TAU / 4.0
 			n.draw_arc(boss.pos, 30.0 + i * 14.0, va, va + 1.4, 16, Color(Color("a060ff"), 0.7), 2.0)
+	for ln in boss_lines:
+		# 長老的指控：一道細線慢慢變亮，快落下時閃爍
+		var k: float = clampf(1.0 - ln.t / ln.max, 0.0, 1.0)
+		var on: bool = ln.t > 0.3 or int(t * 10.0) % 2 == 0
+		n.draw_line(ln.a, ln.b, Color(C_RED, 0.15 + 0.25 * k), ln.w * (0.3 + 0.7 * k))
+		if on:
+			n.draw_line(ln.a, ln.b, Color(Color("ff3a2a"), 0.4 + 0.6 * k), 1.0)
+		n.draw_circle(ln.a, 4.0, Color("c8a040"))
+	for w in boss_walls:
+		# 隔斷的牆：灰色的磚牆往中間推，門的地方空著
+		var gy0: float = w.gap_y - w.gap_h / 2.0
+		var gy1: float = w.gap_y + w.gap_h / 2.0
+		n.draw_rect(Rect2(w.x - 5, w.top, 10, gy0 - w.top), Color("4a4448"))
+		n.draw_rect(Rect2(w.x - 5, gy1, 10, w.bot - gy1), Color("4a4448"))
+		n.draw_rect(Rect2(w.x - 3, w.top, 2, gy0 - w.top), Color("8a8088"))
+		n.draw_rect(Rect2(w.x - 3, gy1, 2, w.bot - gy1), Color("8a8088"))
+		n.draw_rect(Rect2(w.x - 6, gy0 - 3, 12, 3), Color("ffd75e"))
+		n.draw_rect(Rect2(w.x - 6, gy1, 12, 3), Color("ffd75e"))
+	if not tether.is_empty():
+		# 捆鎖：從釘住的點拉到主角的一條鎖鏈，和一圈範圍
+		_dot_ring(n, tether.pos, tether.r, 0.8, Color(Color("a8a8b8"), 0.8), 5.0, t, 1)
+		var cl: Vector2 = paul.pos - tether.pos
+		for i in int(cl.length() / 5.0):
+			var cp: Vector2 = tether.pos + cl.normalized() * (i * 5.0)
+			n.draw_rect(Rect2(cp.x - 1, cp.y - 1, 3, 3), Color("c8c8d8") if i % 2 == 0 else Color("6a6a7a"))
+	_draw_searchlight(n)
 	for w in boss_waves:
 		# 衝擊波：一圈紫紅色的牆，缺口的地方空著
 		var a0: float = w.gap + w.gap_w
@@ -6600,6 +6668,7 @@ func _spawn_boss(hp_mult := 1.0, keep_going := false) -> void:
 
 func _update_boss(b: Dictionary, dt: float) -> void:
 	_update_boss_waves(dt)
+	_update_boss_extras(b, dt)
 	var B: Dictionary = D.boss
 	var phase2: bool = b.hp < b.max_hp * B.phase2_at
 	b.flash = maxf(0.0, b.flash - dt)
@@ -6796,7 +6865,7 @@ func _boss_special(b: Dictionary, phase2: bool) -> void:
 			for i in (8 if phase2 else 6):
 				delayed.append({"t": i * 0.28, "fn": func():
 					if not b.get("dead", false):
-						star_falls.append({"pos": paul.pos, "t": 0.6, "max": 0.6, "r": 16.0, "dmg": float(B.hunt.damage), "pierce": true})})
+						star_falls.append({"pos": paul.pos, "t": 0.6, "max": 0.6, "r": 16.0, "dmg": float(B.hunt.damage), "pierce": true, "src": "boss"})})
 		"pools":
 			# 黑暗的水窪：主角附近留下幾片黑暗，踩在裡面會一直受傷，過一陣子才散
 			for i in (5 if phase2 else 4):
@@ -6812,6 +6881,101 @@ func _boss_special(b: Dictionary, phase2: bool) -> void:
 		"vortex":
 			b.vortex_t = 2.4
 			ui.show_banner("被拉過去了！往外走", 1.2)
+		"accuse":
+			# 五旬節・公會的恐嚇：長老從四周一個接一個指著你（一道一道的線依序落下）
+			for i in (5 if phase2 else 4):
+				var a := randf() * TAU
+				var from: Vector2 = paul.pos + Vector2.from_angle(a) * 150.0
+				boss_lines.append({"a": from, "b": from + (paul.pos - from).normalized() * 300.0, "w": 14.0, "t": 0.9 + i * 0.45, "max": 0.9 + i * 0.45, "dmg": bd * 0.8})
+		"stones":
+			# 司提反・硬著頸項的人：一圈一圈的石頭往你身上收過來，要趁早跑出去
+			var center: Vector2 = paul.pos
+			delayed.append({"t": 1.0, "fn": func(): star_falls.append({"pos": center, "t": 0.7, "max": 0.7, "r": 22.0, "dmg": float(B.hunt.damage), "pierce": true, "src": "boss"})})
+			for k in 3:
+				for i in 16:
+					var a := i * TAU / 16.0 + k * 0.2
+					var at: Vector2 = center + Vector2(cos(a), sin(a) * 0.8) * (90.0 - k * 30.0)
+					delayed.append({"t": k * 0.45, "fn": func(): star_falls.append({"pos": at, "t": 0.7, "max": 0.7, "r": 13.0, "dmg": float(B.hunt.damage), "pierce": true, "src": "boss", "look": "stone"})})
+		"bait":
+			# 撒馬利亞・貪財的心：地上冒出亮晶晶的錢幣，撿了會爆開（不要貪）
+			for i in (7 if phase2 else 5):
+				var a := randf() * TAU
+				spots.append({"kind": "bait", "pos": paul.pos + Vector2(cos(a), sin(a) * 0.8) * randf_range(20.0, 75.0), "life": 9.0, "tick": 0.0, "r": 9.0, "dmg": bd * 0.9})
+			ui.show_banner("地上的錢不要撿！", 1.2)
+		"searchlight":
+			# 大馬色・晝夜看守的城門：一道探照的光繞著城門轉，碰到就被抓
+			b.search_t = 3.6 if phase2 else 3.0
+			b.search_ang = (paul.pos - b.pos).angle() - 1.2
+			b.search_dir = 1.0 if randf() < 0.5 else -1.0
+		"squeeze":
+			# 約帕・中間隔斷的牆：兩道牆從左右夾過來，各有一個門可以穿過
+			var v := _view_rect()
+			for sd in [-1.0, 1.0]:
+				boss_walls.append({"x": v.position.x - 10.0 if sd > 0.0 else v.end.x + 10.0, "dir": sd, "gap_y": paul.pos.y + randf_range(-50, 50), "gap_h": 26.0,
+					"stop": paul.pos.x + (40.0 if sd < 0.0 else -40.0), "dmg": bd, "hit": false, "top": v.position.y - 20.0, "bot": v.end.y + 20.0})
+		"stampede":
+			# 安提阿・路司得的群眾：群眾從四面八方一起湧上來
+			for i in 16:
+				var a := i * TAU / 16.0
+				_spawn_one("riot", paul.pos + Vector2(cos(a), sin(a) * 0.8) * 130.0)
+			ui.show_banner("群眾湧上來了！", 1.0)
+		"tether":
+			# 腓立比・捆鎖：主角被鎖在一個點上，走太遠會被拉回來、受傷
+			tether = {"pos": paul.pos, "t": 3.5 if phase2 else 3.0, "r": 46.0, "dmg": bd * 0.35, "tick": 0.0}
+			ui.show_banner("被捆鎖綁住了！", 1.0)
+		"idols":
+			# 雅典・滿城偶像：四周立起會射擊的偶像
+			for i in (5 if phase2 else 4):
+				var a := i * TAU / (5.0 if phase2 else 4.0) + randf()
+				_spawn_one("idol", paul.pos + Vector2(cos(a), sin(a) * 0.8) * 85.0)
+		"rumor":
+			# 府城・謠言：一傳二、二傳四，越傳越多，還會傳到你要去的地方（照你走的方向往前落）
+			var mem := {"p": paul.pos}
+			for k in (4 if phase2 else 3):
+				delayed.append({"t": k * 0.55, "fn": func():
+					var ahead: Vector2 = paul.pos + (paul.pos - mem.p) * 1.2
+					mem.p = paul.pos
+					for i in int(pow(2, k)):
+						var jit := Vector2.ZERO if i == 0 else Vector2.from_angle(randf() * TAU) * randf_range(10.0, 14.0 + k * 16.0)
+						star_falls.append({"pos": ahead + jit, "t": 0.65, "max": 0.65, "r": 15.0, "dmg": float(B.hunt.damage), "pierce": true, "src": "boss"})})
+
+
+func _update_boss_extras(b: Dictionary, dt: float) -> void:
+	for ln in boss_lines:
+		ln.t -= dt
+		if ln.t <= 0.0 and not ln.get("done", false):
+			ln.done = true
+			_hit_shape({"kind": "line", "a": ln.a, "b": ln.b, "w": ln.w, "dmg": ln.dmg})
+			shake = maxf(shake, 0.15)
+	boss_lines = boss_lines.filter(func(ln): return not ln.get("done", false))
+	for w in boss_walls:
+		var prev: float = w.x
+		w.x += w.dir * 75.0 * dt
+		var crossed: bool = (prev - paul.pos.x) * (w.x - paul.pos.x) <= 0.0
+		if crossed and not w.hit and absf(paul.pos.y - w.gap_y) > w.gap_h / 2.0 and paul.inv <= 0.0:
+			w.hit = true
+			_damage_paul(w.dmg, false, "boss")
+			paul.pos.x += w.dir * 14.0   # 被牆推開
+	boss_walls = boss_walls.filter(func(w): return (w.x < w.stop) if w.dir > 0.0 else (w.x > w.stop))
+	if not tether.is_empty():
+		tether.t -= dt
+		var off: Vector2 = paul.pos - tether.pos
+		if off.length() > tether.r:
+			paul.pos = tether.pos + off.normalized() * tether.r   # 鎖鏈拉住
+			tether.tick -= dt
+			if tether.tick <= 0.0 and paul.inv <= 0.0:
+				tether.tick = 0.6
+				_damage_paul(tether.dmg, false, "boss")
+		if tether.t <= 0.0:
+			tether = {}
+	if float(b.get("search_t", 0.0)) > 0.0:
+		b.search_t -= dt
+		b.search_ang += b.search_dir * 1.5 * dt
+		var tip: Vector2 = b.pos + Vector2.from_angle(b.search_ang) * 280.0
+		var q := Geometry2D.get_closest_point_to_segment(paul.pos, b.pos, tip)
+		if paul.pos.distance_to(q) < 12.0 and paul.inv <= 0.0 and t >= float(b.get("search_cd", 0.0)):
+			b.search_cd = t + 0.5
+			_damage_paul(float(D.boss.sweep.damage) * 0.5, false, "boss")
 
 
 func _update_boss_waves(dt: float) -> void:
@@ -6842,6 +7006,16 @@ func _in_shape(sh: Dictionary, pt: Vector2) -> bool:
 		var q := Geometry2D.get_closest_point_to_segment(pt, sh.a, sh.b)
 		return pt.distance_to(q) < sh.w / 2.0 + 3.0
 	return pt.distance_to(sh.c) < sh.r
+
+
+func _hit_shape(sh: Dictionary) -> void:
+	hits.append({"sh": sh, "t": 0.0})
+	if _in_shape(sh, paul.pos + Vector2(0, -6)) and paul.inv <= 0.0:
+		_damage_paul(sh.dmg, false, "boss")
+	for c in comps:
+		if c.level > 0 and c.down <= 0.0 and _in_shape(sh, c.pos + Vector2(0, -6)) and fever <= 0.0:
+			c.hurt_cd = 0.0
+			_damage_companion(c, sh.dmg)
 
 
 func _resolve_tele() -> void:
@@ -7007,7 +7181,11 @@ var fx_stat := {}
 var only_keys: Array = []
 var god_mode := false     # 測試用
 var boss_waves: Array = []  # Boss 的衝擊波圈（留一個缺口可以躲）
-const BOSS_SPECIAL := ["barrage", "volley", "follow", "pools", "wave", "vortex"]   # 不是「地上警示→瞬間打下」的招式   # 測試用：只讓這幾位上場
+const BOSS_SPECIAL := ["barrage", "volley", "follow", "pools", "wave", "vortex",
+	"accuse", "stones", "bait", "searchlight", "squeeze", "stampede", "tether", "idols", "rumor"]   # 不是「地上警示→瞬間打下」的招式
+var boss_lines: Array = []  # 依序落下的線（公會的長老一個一個指著你）
+var boss_walls: Array = []  # 從兩側夾過來的牆（中間隔斷的牆）
+var tether := {}            # 捆鎖：把主角綁在一個點上   # 測試用：只讓這幾位上場
 var fx_hp := {}
 
 

@@ -1,5 +1,5 @@
 {
-  "_說明": "初代教會關卡：照保羅旅程的順序，通關（建立教會）才解鎖下一座。hp_mult／dmg_mult 疊在時間曲線上；weights 改敵人出現比例；boss 覆蓋 game.json 的 boss 欄位；epistle 是建立教會後解鎖的書信卡（局內升級卡，不是永久加成）。 ground 是地面圖；props 是會出現的物件（tex 隨機挑一個、weight 出現比例、solid 是擋路的範圍 [寬, 高]）；hazard 是關卡機制（wind 暴風）；elite_mult 讓菁英出得更頻繁。 director：覆蓋 game.json 難度導演的欄位（例如逼迫晚一點開始）。 leader：這一關固定的主角（拔摩海島是約翰）。 leader_level：固定主角一開始的招式等級。 vision：哪幾段對話（in／out）要畫出光中的耶穌。 church：教會的名字（沒寫就用 name）；win_title：通關標題（沒寫就是「XX 教會建立！」）。 boss.order 是 Boss 的出招順序，order2 是血量剩一半以後的出招順序（更兇）。招式：sweep 橫掃、slam 砸隊伍中心、grid 格狀、hunt 鎖定同伴、summon 召喚、chains 鎖鏈、rush 衝撞、charge 連續衝撞三次、ring 包圍、cross 十字、spiral 螺旋、oath 誓約、tide 海浪、legions 軍團、stars 星辰、barrage 彈幕、volley 扇形連射、follow 追著主角落下、pools 黑暗水窪、wave 留缺口的衝擊波、vortex 漩渦（把主角拉過去再砸）。",
+  "_說明": "初代教會關卡：照保羅旅程的順序，通關（建立教會）才解鎖下一座。hp_mult／dmg_mult 疊在時間曲線上；weights 改敵人出現比例；boss 覆蓋 game.json 的 boss 欄位；epistle 是建立教會後解鎖的書信卡（局內升級卡，不是永久加成）。 ground 是地面圖；props 是會出現的物件（tex 隨機挑一個、weight 出現比例、solid 是擋路的範圍 [寬, 高]）；hazard 是關卡機制（wind 暴風）；elite_mult 讓菁英出得更頻繁。 director：覆蓋 game.json 難度導演的欄位（例如逼迫晚一點開始）。 leader：這一關固定的主角（拔摩海島是約翰）。 leader_level：固定主角一開始的招式等級。 vision：哪幾段對話（in／out）要畫出光中的耶穌。 church：教會的名字（沒寫就用 name）；win_title：通關標題（沒寫就是「XX 教會建立！」）。 boss.order 是 Boss 的出招順序，order2 是血量剩一半以後的出招順序（更兇）。招式：sweep 橫掃、slam 砸隊伍中心、grid 格狀、hunt 鎖定同伴、summon 召喚、chains 鎖鏈、rush 衝撞、charge 連續衝撞三次、ring 包圍、cross 十字、spiral 螺旋、oath 誓約、tide 海浪、legions 軍團、stars 星辰、barrage 彈幕、volley 扇形連射、follow 追著主角落下、pools 黑暗水窪、wave 留缺口的衝擊波、vortex 漩渦（把主角拉過去再砸）、accuse 長老一個接一個指控（依序落下的線）、stones 收攏的石頭圈、bait 地上的錢幣陷阱、searchlight 旋轉的探照光、squeeze 兩側夾來的牆（留門）、stampede 四面湧來的群眾、tether 捆鎖（綁在原地）、idols 立起會射擊的偶像、rumor 一傳十的謠言（落點加倍）。除了 sweep／slam／grid／hunt／summon 這幾招基本招，其他招式每隻 Boss 專屬、不重複。",
   "stages": [
     {
       "id": "pentecost",
@@ -84,21 +84,21 @@
         ],
         "order": [
           "sweep",
-          "volley",
+          "accuse",
           "slam",
-          "follow",
           "hunt",
-          "sweep"
+          "accuse",
+          "grid"
         ],
         "win_text": "聽從你們，不聽從神，這在神面前合理不合理，你們自己酌量吧！",
         "win_ref": "徒 4:19",
         "order2": [
-          "volley",
-          "charge",
+          "accuse",
           "slam",
-          "barrage",
-          "follow",
-          "grid"
+          "accuse",
+          "sweep",
+          "grid",
+          "hunt"
         ]
       },
       "epistle": {
@@ -278,21 +278,21 @@
         ],
         "order": [
           "hunt",
-          "follow",
+          "stones",
           "sweep",
           "grid",
-          "volley",
+          "stones",
           "slam"
         ],
         "win_text": "他說了這話，就睡了。",
         "win_ref": "徒 7:60",
         "order2": [
-          "follow",
-          "barrage",
+          "stones",
           "grid",
-          "follow",
+          "stones",
           "slam",
-          "volley"
+          "hunt",
+          "sweep"
         ]
       },
       "epistle": {
@@ -470,10 +470,10 @@
         ],
         "order": [
           "sweep",
-          "summon",
-          "barrage",
+          "bait",
           "slam",
-          "pools",
+          "summon",
+          "bait",
           "hunt"
         ],
         "summon": {
@@ -483,12 +483,12 @@
         "win_text": "神的恩賜是不能用錢買的。",
         "win_ref": "徒 8:20",
         "order2": [
-          "barrage",
-          "pools",
+          "bait",
           "summon",
           "grid",
-          "barrage",
-          "slam"
+          "bait",
+          "slam",
+          "hunt"
         ]
       },
       "epistle": {
@@ -642,24 +642,24 @@
           1
         ],
         "order": [
-          "sweep",
+          "searchlight",
           "hunt",
-          "volley",
           "grid",
           "slam",
-          "charge"
+          "searchlight",
+          "sweep"
         ],
         "win_text": "他的門徒就在夜間用筐子把他從城牆上縋下去。",
         "win_ref": "徒 9:25",
         "at": 300,
         "mid": [],
         "order2": [
-          "charge",
+          "searchlight",
           "grid",
-          "volley",
-          "wave",
+          "hunt",
+          "searchlight",
           "slam",
-          "hunt"
+          "sweep"
         ]
       },
       "epistle": {
@@ -885,22 +885,22 @@
           1
         ],
         "order": [
+          "squeeze",
           "grid",
-          "wave",
           "sweep",
           "slam",
-          "grid",
+          "squeeze",
           "hunt"
         ],
         "win_text": "這樣看來，神也賜恩給外邦人，叫他們悔改得生命了。",
         "win_ref": "徒 11:18",
         "order2": [
-          "wave",
+          "squeeze",
           "grid",
-          "barrage",
-          "wave",
+          "squeeze",
           "slam",
-          "cross"
+          "hunt",
+          "grid"
         ]
       },
       "epistle": {
@@ -1081,12 +1081,12 @@
           1
         ],
         "order": [
+          "stampede",
           "sweep",
-          "follow",
           "slam",
-          "summon",
+          "stampede",
           "grid",
-          "volley"
+          "hunt"
         ],
         "summon": {
           "type": "riot",
@@ -1096,12 +1096,12 @@
         "win_ref": "徒 14:20",
         "mid": [],
         "order2": [
-          "follow",
-          "summon",
-          "volley",
-          "follow",
+          "stampede",
           "slam",
-          "charge"
+          "stampede",
+          "grid",
+          "hunt",
+          "sweep"
         ]
       },
       "epistle": {
@@ -1224,20 +1224,20 @@
       "boss": {
         "order": [
           "sweep",
+          "chains",
+          "tether",
           "slam",
           "chains",
-          "vortex",
           "grid",
-          "hunt",
-          "chains"
+          "hunt"
         ],
         "order2": [
-          "chains",
-          "vortex",
-          "wave",
+          "tether",
           "chains",
           "grid",
-          "barrage"
+          "tether",
+          "chains",
+          "slam"
         ]
       },
       "epistle": {
@@ -1396,9 +1396,9 @@
           "summon",
           "charge",
           "sweep",
-          "slam",
-          "summon",
           "rush",
+          "slam",
+          "charge",
           "hunt"
         ],
         "summon": {
@@ -1409,11 +1409,11 @@
         "win_ref": "帖前 1:8",
         "order2": [
           "charge",
+          "rush",
           "summon",
-          "volley",
           "charge",
           "slam",
-          "pools"
+          "rush"
         ]
       },
       "epistle": {
@@ -1597,13 +1597,13 @@
           1
         ],
         "order": [
-          "summon",
+          "idols",
           "grid",
           "ring",
-          "barrage",
-          "summon",
+          "slam",
+          "idols",
           "ring",
-          "wave"
+          "sweep"
         ],
         "summon": {
           "type": "idol",
@@ -1613,11 +1613,11 @@
         "win_ref": "徒 17:24",
         "order2": [
           "ring",
-          "barrage",
-          "wave",
-          "summon",
+          "idols",
           "ring",
-          "volley"
+          "grid",
+          "idols",
+          "slam"
         ]
       },
       "epistle": {
@@ -1741,12 +1741,12 @@
         ],
         "order": [
           "grid",
+          "cross",
           "summon",
+          "slam",
           "cross",
-          "volley",
-          "pools",
-          "cross",
-          "slam"
+          "hunt",
+          "sweep"
         ],
         "summon": {
           "type": "pride",
@@ -1756,11 +1756,11 @@
         "win_ref": "徒 18:9–10",
         "order2": [
           "cross",
-          "pools",
-          "barrage",
-          "cross",
           "summon",
-          "charge"
+          "cross",
+          "grid",
+          "slam",
+          "cross"
         ]
       },
       "epistle": {
@@ -1934,13 +1934,12 @@
         ],
         "order": [
           "sweep",
+          "spiral",
           "summon",
-          "spiral",
-          "barrage",
-          "pools",
-          "spiral",
           "vortex",
-          "hunt"
+          "spiral",
+          "hunt",
+          "slam"
         ],
         "summon": {
           "type": "sorcery",
@@ -1951,10 +1950,10 @@
         "order2": [
           "spiral",
           "vortex",
-          "barrage",
-          "pools",
           "spiral",
-          "wave"
+          "summon",
+          "vortex",
+          "grid"
         ]
       },
       "epistle": {
@@ -2161,8 +2160,7 @@
           "summon",
           "hunt",
           "oath",
-          "charge",
-          "summon",
+          "follow",
           "oath",
           "follow",
           "slam"
@@ -2175,11 +2173,11 @@
         "win_ref": "徒 23:11",
         "order2": [
           "oath",
-          "charge",
           "follow",
           "oath",
-          "barrage",
-          "summon"
+          "follow",
+          "summon",
+          "slam"
         ]
       },
       "epistle": {
@@ -2348,8 +2346,7 @@
         "order": [
           "sweep",
           "tide",
-          "vortex",
-          "summon",
+          "wave",
           "slam",
           "tide",
           "wave",
@@ -2363,11 +2360,11 @@
         "win_ref": "徒 28:5",
         "order2": [
           "tide",
-          "vortex",
           "wave",
           "tide",
-          "barrage",
-          "sweep"
+          "wave",
+          "sweep",
+          "slam"
         ]
       },
       "epistle": {
@@ -2523,10 +2520,9 @@
           "grid",
           "summon",
           "legions",
-          "barrage",
-          "slam",
+          "pools",
           "legions",
-          "charge",
+          "slam",
           "pools"
         ],
         "summon": {
@@ -2537,12 +2533,11 @@
         "win_ref": "徒 28:31",
         "order2": [
           "legions",
-          "barrage",
-          "charge",
+          "pools",
           "legions",
           "pools",
-          "wave",
-          "summon"
+          "summon",
+          "grid"
         ]
       },
       "epistle": {
@@ -2725,13 +2720,12 @@
         ],
         "order": [
           "stars",
-          "sweep",
-          "summon",
           "barrage",
+          "sweep",
           "stars",
-          "wave",
-          "vortex",
-          "grid"
+          "barrage",
+          "grid",
+          "summon"
         ],
         "summon": {
           "type": "locust",
@@ -2747,10 +2741,9 @@
         "order2": [
           "stars",
           "barrage",
-          "vortex",
           "stars",
-          "wave",
-          "follow",
+          "barrage",
+          "sweep",
           "summon"
         ]
       },
@@ -2937,12 +2930,11 @@
         ],
         "order": [
           "summon",
+          "rumor",
           "volley",
           "hunt",
-          "pools",
-          "summon",
-          "barrage",
-          "follow",
+          "rumor",
+          "volley",
           "sweep"
         ],
         "summon": {
@@ -2952,12 +2944,12 @@
         "win_text": "我們四面受壓，卻不被困住；心裡作難，卻不至失望。",
         "win_ref": "林後 4:8",
         "order2": [
+          "rumor",
           "volley",
-          "pools",
-          "barrage",
+          "rumor",
+          "volley",
           "summon",
-          "follow",
-          "wave"
+          "slam"
         ]
       },
       "epistle": {
