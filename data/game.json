@@ -85,9 +85,9 @@
       "branches": [ { "name": "多搭幾片", "desc": "屏障 6 → 9 片", "add": {"pieces": 3} }, { "name": "家中的教會", "desc": "撞上帳棚的敵人變慢 1.5 秒", "add": {}, "onhit": ["slow"]} ]
     },
     "beam": {
-      "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 2, "range": 130, "beams": 1, "burst": 0, "lies_mult": 1 },
-      "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 3 } ],
-      "desc": ["朝敵人射出一道貫穿的光束", "寬度 +80%、長度 +25%", "光束末端爆開", "光束 1 → 2 道", "光束 2 → 3 道、對謊言傷害 ×1 → ×3、傷害 +50%"],
+      "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 3, "range": 130, "beams": 1, "burst": 0, "lies_mult": 1 },
+      "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 5 } ],
+      "desc": ["朝敵人射出一道貫穿的光束", "寬度 +80%、長度 +25%", "光束末端爆開", "光束 1 → 2 道", "光束 2 → 3 道、對謊言傷害 ×1 → ×3、傷害 +67%"],
       "branches": [ { "name": "更寬", "desc": "光束寬度 +67%", "add": {"width": 6} }, { "name": "講解更詳細", "desc": "光束照到的地方分出小光箭，射向附近的敵人", "add": {}, "onhit": ["split"]} ]
     },
     "letter": {
@@ -106,9 +106,9 @@
     },
     "jawbone": {
       "engine": "nova",
-      "base": { "melee": 0.15, "leech": 1, "cooldown": 2.2, "radius": 40, "damage": 15, "knock": 80, "slams": 1, "stun": 0.4, "tough": 0.5 },
-      "levels": [ { "radius": 48 }, { "damage": 25 }, { "cooldown": 1.7, "stun": 0.7 }, { "slams": 2, "radius": 56, "knock": 110, "damage": 31 } ],
-      "desc": ["驢腮骨：重擊身邊一圈，震飛並暈眩敵人；參孫自己受到的傷害減半；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "範圍 +20%", "傷害 +67%", "攻擊速度 +29%、定住 0.4 → 0.7 秒", "連砸 1 → 2 次、範圍 +17%、擊退 +38%、傷害 +24%（士 15:16）"],
+      "base": { "melee": 0.15, "leech": 1, "cooldown": 2.2, "radius": 40, "damage": 8, "knock": 80, "slams": 1, "stun": 0.4, "tough": 0.5 },
+      "levels": [ { "radius": 48 }, { "damage": 14 }, { "cooldown": 1.7, "stun": 0.7 }, { "slams": 2, "radius": 56, "knock": 110, "damage": 17 } ],
+      "desc": ["驢腮骨：重擊身邊一圈，震飛並暈眩敵人；參孫自己受到的傷害減半；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "範圍 +20%", "傷害 +75%", "攻擊速度 +29%、定住 0.4 → 0.7 秒", "連砸 1 → 2 次、範圍 +17%、擊退 +38%、傷害 +21%（士 15:16）"],
       "branches": [ { "name": "橫掃", "desc": "重擊範圍 +25%", "add": {"radius": 12} }, { "name": "拆毀房屋", "desc": "被重擊驅散的敵人當場爆開，傷害身邊的敵人", "add": {}, "onhit": ["release"]} ]
     },
     "sea": {
@@ -608,7 +608,7 @@
     { "companion": "tim", "fruit": "faith", "name": "無愧的工人",
       "desc": "一次射 5 支光箭，每支穿透 4 隻；光箭打中時，有機會降下光柱（提後 2:15）", "onhit": ["pillar"], "stats": { "count": 5, "pierce": 4, "cooldown": 0.26 } },
     { "companion": "apollos", "fruit": "faith", "name": "極有能力",
-      "desc": "五道寬光束，末端全部爆開（徒 18:28）", "stats": { "beams": 5, "width": 14, "burst": 1, "damage": 4 } },
+      "desc": "五道寬光束，末端全部爆開（徒 18:28）", "stats": { "beams": 5, "width": 14, "burst": 1, "damage": 6 } },
     { "companion": "luke", "fruit": "good", "name": "親愛的醫生",
       "desc": "回血 +71%、治療速度 +50%，倒下立刻扶起（西 4:14）", "stats": { "amount": 24, "cooldown": 1.6 } },
     { "companion": "pri", "fruit": "good", "name": "家中的教會",
@@ -618,7 +618,7 @@
     { "companion": "david", "fruit": "faith", "name": "戰役是耶和華的",
       "desc": "一次甩 5 顆，對菁英與 Boss 十倍傷害；石子打中時炸開（撒上 17:47）", "onhit": ["blast"], "stats": { "count": 5, "elite_mult": 10 } },
     { "companion": "samson", "fruit": "good", "name": "最後一次的力量",
-      "desc": "連砸三下，範圍極大，暈眩一秒（士 16:28）", "stats": { "slams": 3, "radius": 66, "damage": 24, "stun": 1.0 } },
+      "desc": "連砸三下，範圍極大，暈眩一秒（士 16:28）", "stats": { "slams": 3, "radius": 66, "damage": 13, "stun": 1.0 } },
     { "companion": "moses", "fruit": "peace", "name": "向海伸杖",
       "desc": "一次分開三道巨大的水道（出 14:21）", "stats": { "beams": 3, "width": 34, "length": 260 } },
     { "companion": "elijah", "fruit": "joy", "name": "火車火馬",
