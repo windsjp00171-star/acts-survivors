@@ -991,7 +991,10 @@ func _make_cards() -> Array:
 			continue
 		if c.level == 0:
 			var nm: String = c.name + ("・" + by_key[c.with].name if c.with != "" else "")
-			pool.append({"kind": "recruit", "key": c.key, "title": nm + "　加入", "tag": c.tag, "desc": desc[0] + _bond_hint(c.key)})
+			var rd: String = desc[0] + _bond_hint(c.key)
+			if D.schools.has(c.tag) and not _school_on(c.tag) and not comps.any(func(o): return o.level > 0 and o.tag == c.tag):
+				rd += "\n新流派：%s「%s」（練到 Lv%d 可借給主角）" % [c.tag, D.schools[c.tag].name, int(D.support_rules.lend_level)]
+			pool.append({"kind": "recruit", "key": c.key, "title": nm + "　加入", "tag": c.tag, "desc": rd})
 		elif c.level < 5:
 			var d2: String = desc[c.level]
 			var evo := _evo_of(c.key)
@@ -1000,6 +1003,8 @@ func _make_cards() -> Array:
 				d2 += "\n滿級＋果子「%s」→ 進化「%s」" % [fname, evo.name]
 				if not Save.is_unlocked("fruit_" + evo.fruit):
 					d2 += "（果子要先在補給帳棚解鎖）"
+			if c.level + 1 == int(D.support_rules.lend_level) and D.schools.has(c.tag) and not _school_on(c.tag):
+				d2 += "\n★ 練到 Lv%d 可以把流派「%s」借給主角" % [c.level + 1, D.schools[c.tag].name]
 			pool.append({"kind": "up", "key": c.key, "title": "%s　Lv%d → %d" % [c.name, c.level, c.level + 1], "tag": c.tag, "desc": d2})
 	for st in _stage_list():
 		var ep: Dictionary = st.epistle
@@ -1254,6 +1259,78 @@ func _refresh_build_text() -> void:
 		var lvs := "" if int(L.get("lv", 1)) == 1 else " Lv%d" % int(L.lv)
 		lines.append("連結　%s%s" % [(K.short + "→" + L.dst.name) if _glob(L.kind) else (L.src.name + "→" + L.dst.name + "（" + K.short + "）"), lvs])
 	build_text = "\n".join(lines)
+
+
+## 暫停畫面的「怎麼構築」：每個流派差什麼、進化差什麼、融合與套裝還缺什麼
+func _build_guide() -> String:
+	var L := []
+	var lend := int(D.support_rules.lend_level)
+	var used: Array = pa.get("anoints", []) if not pa.is_empty() else []
+	var free_slots: int = _support_slots() - used.size()
+	var tags := []
+	for o in [pa] + comps:
+		if not o.is_empty() and int(o.get("level", 0)) > 0 and o.get("follows", "") == "" and D.schools.has(str(o.get("tag", ""))) and not tags.has(o.tag):
+			tags.append(o.tag)
+	L.append("【流派】")
+	for tag in tags:
+		var S: Dictionary = D.schools[tag]
+		var tier: int = int(school_tier.get(tag, 0))
+		if tier >= 3:
+			L.append("✓ %s「%s」3 階（滿）" % [tag, S.name])
+		elif tier > 0:
+			L.append("✓ %s「%s」%d 階：再選 %d 張「%s」深化卡就到 3 階" % [tag, S.name, tier, 3 - tier, tag])
+		else:
+			var best = null
+			for c in comps:
+				if c.level > 0 and c.tag == tag and c.follows == "" and (best == null or c.level > best.level):
+					best = c
+			var how := ""
+			if best != null and best.level < lend:
+				how = "把%s練到 Lv%d（現在 Lv%d），升級時會出現借出卡" % [best.name, lend, best.level]
+			elif free_slots <= 0:
+				how = "主角輔助格滿了（主角招式 Lv3、進化各多 1 格）"
+			else:
+				how = "升級時選「%s借出「%s」」的卡" % [best.name if best != null else "同伴", S.name]
+			L.append("・%s「%s」還沒成形：%s" % [tag, S.name, how])
+	if tags.is_empty():
+		L.append("・隊伍裡還沒有流派：招募同伴，練到 Lv%d 就能把他的流派借給主角" % lend)
+	L.append("主角輔助：%d／%d 格" % [used.size(), _support_slots()])
+	var fl := []
+	for f in D.fusions:
+		var on_a := _school_on(f.a)
+		var on_b := _school_on(f.b)
+		if on_a and on_b:
+			fl.append("✓「%s」（%s＋%s）" % [f.name, f.a, f.b])
+		elif on_a != on_b and (tags.has(f.a) and tags.has(f.b)):
+			fl.append("・「%s」：再讓%s成形" % [f.name, f.b if on_a else f.a])
+	if not fl.is_empty():
+		L.append("【融合】")
+		L.append_array(fl)
+	var el := []
+	for c in [pa] + comps:
+		if c.is_empty() or int(c.get("level", 0)) <= 0 or evolved.has(c.key):
+			continue
+		var evo := _evo_of(c.key)
+		if evo.is_empty():
+			continue
+		var has_f: bool = fruits.has(evo.fruit)
+		el.append("%s「%s」：Lv%d／5 %s、果子「%s」%s" % [c.name, evo.name, int(c.level), "✓" if int(c.level) >= 5 else "", D.fruits[evo.fruit].name, "✓" if has_f else "（還沒有）"])
+	for k in evolved:
+		el.append("✓ %s 已進化「%s」" % [by_key[k].name if by_key.has(k) else pa.name, evolved[k].name])
+	if not el.is_empty():
+		L.append("【進化】滿級＋對應的果子")
+		L.append_array(el)
+	var sl := []
+	for st in D.armor_sets:
+		var miss: Array = st.pieces.filter(func(pc): return armor.get(pc, 0) == 0)
+		if miss.is_empty():
+			sl.append("✓「%s」：%s" % [st.name, st.desc])
+		elif miss.size() < st.pieces.size():
+			sl.append("・「%s」：再穿%s → %s" % [st.name, D.armor[miss[0]].name, st.desc])
+	if not sl.is_empty():
+		L.append("【套裝】")
+		L.append_array(sl)
+	return "\n".join(L)
 
 
 func _on_card(i: int) -> void:
@@ -2077,7 +2154,8 @@ func _set_paused(on: bool) -> void:
 	joy.on = false
 	ui.joy.on = false
 	if on:
-		ui.show_pause(build_text)
+		_refresh_build_text()
+		ui.show_pause(build_text, _build_guide())
 	else:
 		ui.hide_pause()
 
@@ -7369,6 +7447,10 @@ func _fx_sample() -> void:
 
 func _smoke_tick() -> void:
 	smoke_frames += 1
+	if smoke_shot != "" and smoke_frames == smoke_max_frames - 20 and not choosing and not paused:
+		_set_paused(true)   # 測試用：最後拍一張暫停畫面
+	if smoke_shot != "" and smoke_frames == smoke_max_frames - 5 and paused:
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_pause.png"))
 	if smoke_frames % 5 == 0:
 		_fx_sample()
 	if smoke_shot != "" and seekers.any(func(sk): return sk.prog > 1.5) and not FileAccess.file_exists(smoke_shot.replace(".png", "_seek.png")):

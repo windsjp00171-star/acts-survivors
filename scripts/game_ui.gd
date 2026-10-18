@@ -666,26 +666,47 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 
 
 ## 暫停選單
-func show_pause(build_text: String) -> void:
+func show_pause(build_text: String, guide := "") -> void:
 	hide_pause()
 	var size := vp()
 	pause_box = Control.new()
 	pause_box.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.add_child(pause_box)
 	var dim := ColorRect.new()
-	dim.color = Color(0.04, 0.02, 0.06, 0.75)
+	dim.color = Color(0.04, 0.02, 0.06, 0.88)
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	pause_box.add_child(dim)
+	var wide := size.x > size.y * 1.2
+	var outer: BoxContainer = HBoxContainer.new() if wide else VBoxContainer.new()
+	outer.add_theme_constant_override("separation", 16 if wide else 8)
+	pause_box.add_child(outer)
+	var info := VBoxContainer.new()
+	info.add_theme_constant_override("separation", 6)
+	outer.add_child(info)
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 10)
-	pause_box.add_child(v)
+	v.add_theme_constant_override("separation", 8)
+	outer.add_child(v)
 	var title := UIKit.label("暫停", 22, C_GOLD)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(title)
-	if build_text != "":
-		var b := UIKit.label(build_text, 11, C_CREAM)
-		b.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		v.add_child(b)
+	(info if not wide else v).add_child(title)
+	if build_text != "" or guide != "":
+		# 目前狀態＋怎麼構築：放在可以捲動的框裡（手機直式也放得下）
+		var sc := ScrollContainer.new()
+		sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		sc.custom_minimum_size = Vector2(size.x * 0.5, size.y - 32.0) if wide else Vector2(size.x - 32.0, size.y * 0.42)
+		info.add_child(sc)
+		var inner := VBoxContainer.new()
+		inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		inner.add_theme_constant_override("separation", 6)
+		sc.add_child(inner)
+		for sec in [["目前狀態", build_text], ["怎麼構築", guide]]:
+			if str(sec[1]) == "":
+				continue
+			inner.add_child(UIKit.label(sec[0], 13, C_GOLD))
+			var b := UIKit.label(sec[1], 12, C_CREAM)
+			b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			inner.add_child(b)
 	var go := UIKit.button("繼續" if DisplayServer.is_touchscreen_available() else "繼續（Esc）", 16, true)
 	go.custom_minimum_size = Vector2(200, 40)
 	go.pressed.connect(func(): resume_pressed.emit())
@@ -732,10 +753,12 @@ func show_pause(build_text: String) -> void:
 		row.add_child(tb2)
 	var note := UIKit.label("放棄會照失敗結算（見證減半）；字大一點在下一個畫面生效", 10, UIKit.MUTED)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.custom_minimum_size = Vector2(200, 0)
 	v.add_child(note)
 	await get_tree().process_frame
-	if is_instance_valid(v):
-		v.position = ((size - v.size) / 2.0).round()
+	if is_instance_valid(outer):
+		outer.position = ((size - outer.size) / 2.0).round()
 		go.grab_focus()
 
 
