@@ -16,6 +16,26 @@ const RUN_PATH := "user://run_save.txt"
 var resume := {}   # 營地按了「繼續」：main.gd 開局時照這份還原
 
 
+## 每日挑戰：用日期當種子，同一天每個人拿到一樣的城市、條件、呼召、聖物與第一位同伴
+func daily_today() -> Dictionary:
+	var date := Time.get_date_string_from_system()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("daily-" + date)
+	var G: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/game.json"))
+	var stages: Array = JSON.parse_string(FileAccess.get_file_as_string("res://data/stages.json")).stages
+	var levels: Array = meta.faith.levels.filter(func(L): return L.id != "simple")
+	var trials := []
+	while trials.size() < 2:
+		var L: Dictionary = levels[rng.randi_range(0, levels.size() - 1)]
+		if not trials.has(L.id):
+			trials.append(L.id)
+	var starters: Array = meta.start_unlocked.filter(func(k): return not str(k).begins_with("fruit_") and not str(k).begins_with("armor_"))
+	return {"date": date, "stage": rng.randi_range(0, stages.size() - 1), "trials": trials,
+		"calling": G.callings[rng.randi_range(0, G.callings.size() - 1)].id,
+		"relic": G.relics[rng.randi_range(0, G.relics.size() - 1)].id,
+		"starter": starters[rng.randi_range(0, starters.size() - 1)]}
+
+
 func has_run_save() -> bool:
 	return FileAccess.file_exists(RUN_PATH) and not read_run_save().is_empty()
 
@@ -592,6 +612,21 @@ func finish_run(r: Dictionary) -> Dictionary:
 	var fm := 1.0 + tp * float(meta.faith.reward_per_level)
 	gain = int(gain * fm)
 	r.bread = int(int(r.get("bread", 0)) * (fm + building_bonus("bread")))
+	var day: String = str(r.get("daily", ""))
+	if day != "":
+		# 每日挑戰：當天第一次通關，見證與餅 ×1.5；記下當天最好的成績
+		if r.won and str(data.get("daily_won", "")) != day:
+			data.daily_won = day
+			gain = int(gain * 1.5)
+			r.bread = int(r.bread * 1.5)
+			r.daily_bonus = true
+		var best: Dictionary = data.get("daily_best", {})
+		if str(best.get("date", "")) != day:
+			best = {"date": day, "kills": 0, "seconds": 0, "won": false}
+		best.kills = maxi(int(best.kills), int(r.kills))
+		best.seconds = maxi(int(best.seconds), int(r.seconds))
+		best.won = bool(best.won) or bool(r.won)
+		data.daily_best = best
 	if r.won:
 		var sid: String = r.get("stage", "")
 		if not data.has("faith_best"):
@@ -661,4 +696,4 @@ func finish_run(r: Dictionary) -> Dictionary:
 	data.witness += gain
 	data.witness_total += gain
 	save_profile()
-	return {"witness": gain, "achievements": new_ach, "affinity_ups": aff_ups, "bread": int(r.bread)}
+	return {"witness": gain, "achievements": new_ach, "affinity_ups": aff_ups, "bread": int(r.bread), "daily_bonus": r.get("daily_bonus", false)}

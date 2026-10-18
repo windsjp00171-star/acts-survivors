@@ -287,6 +287,7 @@ func _show_home() -> void:
 	if mode == "story":
 		_show_story()
 		return
+	_daily_box()
 	# 主角：保羅以外的人要先在解鎖商店買
 	var lead: String = Save.data.get("leader", "paul")
 	var leaders: Array = G.leaders.filter(func(L): return L.key == "paul" or Save.is_unlocked("leader_" + L.key))
@@ -572,6 +573,39 @@ func _stage_by_id(sid: String) -> Dictionary:
 		if st.id == sid:
 			return st
 	return {}
+
+
+## 每日挑戰：今天大家都一樣的城市、條件、呼召、聖物；當天第一次通關見證與餅 ×1.5
+func _daily_box() -> void:
+	var dly := Save.daily_today()
+	var st: Dictionary = stages[int(dly.stage)]
+	var tn := []
+	for id in dly.trials:
+		for L in Save.meta.faith.levels:
+			if L.id == id:
+				tn.append("%s（%s）" % [L.name, L.desc])
+	var cn := ""
+	for CL in G.callings:
+		if CL.id == dly.calling:
+			cn = CL.name
+	var rn := ""
+	for r in G.relics:
+		if r.id == dly.relic:
+			rn = r.name
+	_text(content, "今日挑戰　%s" % dly.date, 16, UIKit.GOLD)
+	_text(content, "城市：%s　主角：保羅　第一位同伴：%s\n呼召：%s　一開始帶著聖物：%s\n條件：%s" % [st.name, _display_name(_comp_def(str(dly.starter))) if not _comp_def(str(dly.starter)).is_empty() else str(dly.starter), cn, rn, "、".join(tn)], 12, UIKit.INK, true)
+	var best: Dictionary = Save.data.get("daily_best", {})
+	if str(best.get("date", "")) == dly.date:
+		_text(content, "今天最好：%s　撐了 %d:%02d　驅散 %d" % ["通關 ✓" if best.won else "還沒通關", int(best.seconds) / 60, int(best.seconds) % 60, int(best.kills)], 12, UIKit.HEAL, true)
+	else:
+		_text(content, "當天第一次通關：見證與餅 ×1.5", 11, UIKit.MUTED, true)
+	var db := UIKit.button("出發：今日挑戰", 15)
+	db.custom_minimum_size = Vector2(0, 40)
+	db.pressed.connect(func():
+		Save.run_config = {"starter": str(dly.starter), "stage": int(dly.stage), "faith": 0, "endless": false,
+			"calling": str(dly.calling), "daily": str(dly.date), "daily_trials": dly.trials, "daily_relic": str(dly.relic)}
+		get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	content.add_child(db)
 
 
 func _start_story(i: int) -> void:

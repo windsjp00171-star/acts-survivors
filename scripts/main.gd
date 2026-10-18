@@ -289,6 +289,11 @@ func _ready() -> void:
 	if OS.get_cmdline_user_args().has("--resume"):
 		resuming = Save.read_run_save()   # 測試用：照存檔繼續
 	save_test = OS.get_cmdline_user_args().has("--save_test")
+	if OS.get_cmdline_user_args().has("--daily"):
+		var dly := Save.daily_today()   # 測試用：今天的每日挑戰
+		Save.run_config = {"starter": str(dly.starter), "stage": int(dly.stage), "faith": 0, "endless": false,
+			"calling": str(dly.calling), "daily": str(dly.date), "daily_trials": dly.trials, "daily_relic": str(dly.relic)}
+		print("DAILY ", dly)
 	if not resuming.is_empty():
 		Save.run_config = resuming.run_config.duplicate(true)
 	D = JSON.parse_string(FileAccess.get_file_as_string(DATA_PATH))
@@ -337,6 +342,8 @@ func _ready() -> void:
 			faith = int(a.substr(8))
 			Save.run_config.faith = faith
 	trials = Save.faith_ids(faith)
+	if Save.run_config.has("daily"):
+		trials = Array(Save.run_config.daily_trials)   # 每日挑戰：今天的兩個條件
 	Save.run_config.trials = trials
 	endless = bool(Save.run_config.get("endless", false)) or OS.get_cmdline_user_args().has("--endless")
 	if endless:
@@ -380,6 +387,8 @@ func _ready() -> void:
 			leader = a.substr(9)
 	if leader != "paul" and not Save.is_unlocked("leader_" + leader) and not OS.get_cmdline_user_args().has("--smoke"):
 		leader = "paul"
+	if Save.run_config.has("daily"):
+		leader = "paul"   # 每日挑戰大家都用保羅
 	if not resuming.is_empty():
 		leader = str(resuming.leader)
 	if story:
@@ -617,6 +626,8 @@ func _ready() -> void:
 		fruits = {"joy": 2, "faith": 2, "good": 1, "peace": 1}
 		armor = {"shoes": 1, "shield": 2}
 		chests.append({"pos": Vector2(0, 6)})
+	if Save.run_config.has("daily") and resuming.is_empty() and D.relics.any(func(r): return r.id == str(Save.run_config.daily_relic)):
+		_take_relic(str(Save.run_config.daily_relic))   # 每日挑戰：今天的聖物一開始就帶著
 	if not resuming.is_empty():
 		_apply_resume(resuming)
 	for i in int(D.waves.initial):
@@ -7407,11 +7418,13 @@ func _finish_run() -> Array:
 		"task_witness": task_witness, "lights": run_lights, "bread": int(run_bread * (1.0 + prov_bread)),
 		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
 		"combo": combo_best, "party_size": _party_count(), "converts": run_converts, "minions": run_minions, "songs": run_songs, "holies": run_holies, "shocks": run_shocks, "bonds": run_bonds, "relics": run_relics, "saved": run_saved, "school": school_tier.values().max() if not school_tier.is_empty() else 0, "endless": endless, "sets": sets_on.size(), "leader": leader,
-		"faith": faith, "stage": stage.id,
+		"faith": faith, "stage": stage.id, "daily": str(Save.run_config.get("daily", "")),
 		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys(), "relics": relics.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	if smoke:
 		print("WITNESS +%d bread +%d saved=%d kills=%d" % [res.witness, res.bread, run_saved, kills])
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
+	if res.get("daily_bonus", false):
+		lines.append(["今日挑戰通關！見證與餅 ×1.5", 13, C_GOLD])
 	if faith > 0:
 		lines.append(["信心等級 %d：見證與餅 +%d%%%s" % [faith, roundi(faith * float(Save.meta.faith.reward_per_level) * 100), ("　下一級已開放" if won and faith < int(Save.meta.faith.max) else "")], 11, C_GOLD])
 	for a in res.achievements:
