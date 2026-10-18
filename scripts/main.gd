@@ -1079,6 +1079,8 @@ func _level_up() -> void:
 		_tip("link")
 	if pending_cards.any(func(cd): return cd.kind == "anoint"):
 		_tip("anoint")
+	if pending_cards.any(func(cd): return cd.kind == "school"):
+		_tip("deepen")
 	Sfx.play("levelup", 0.0)
 	ui.do_flash(0.5)
 	_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 60.0)
@@ -2065,7 +2067,7 @@ func _update_tips() -> void:
 	# 升級卡相關的提示要在選卡時就出現，其他的等選完再說
 	if tip_queue.is_empty() or chest_open or paused:
 		return
-	var card_tip: bool = tip_queue[0] in ["cards", "link"]
+	var card_tip: bool = tip_queue[0] in ["cards", "link", "anoint", "deepen"]
 	if (choosing and not card_tip) or (ui.tip_busy() and not (choosing and card_tip)):
 		return
 	var id: String = tip_queue.pop_front()
@@ -2811,6 +2813,9 @@ func _cast(c: Dictionary, triggered := false, depth := 0) -> bool:
 		c.cd = s.cooldown
 	if fired:
 		c.castfx = 0.18
+		# 出手的動作：轉向最近的敵人、往那邊跨一小步
+		var aim := _nearest_enemies(c.pos, 220.0, 1)
+		c.cast_dir = (aim[0].pos - c.pos).normalized() if not aim.is_empty() else Vector2.ZERO
 		if ult_now:
 			c.ult_cd = float(D.tag_links.ult_cooldown)
 			_tag_effect(c)
@@ -5857,7 +5862,7 @@ func _render(dt: float) -> void:
 	var walk := int(t * 5.0) % 2
 	p.node.texture = _tex("%s%s_%d" % [pa.key, "_evo" if evolved.has(pa.key) else "", walk if p.moving else 0])
 	p.hurt_t = maxf(0.0, float(p.get("hurt_t", 0.0)) - dt)
-	_animate(p.node, p.pos, p.moving, float(p.get("face", 1.0)), pa.castfx / 0.18, p.hurt_t / 0.18, 0.0, 0.15)
+	_animate(p.node, p.pos, p.moving, float(p.get("face", 1.0)), pa.castfx / 0.18, p.hurt_t / 0.18, 0.0, 0.15, pa.get("cast_dir", Vector2.ZERO))
 	p.node.modulate = Color(1, 1, 1, 0.4 if p.inv > 0.0 and int(t * 20.0) % 2 == 1 else 1.0)
 	if p.hp <= 0.0:
 		# 倒下了：躺平、變灰
@@ -5881,15 +5886,15 @@ func _render(dt: float) -> void:
 			c.node.scale = Vector2.ONE
 			c.node.modulate = Color(0.55, 0.55, 0.6)
 			continue
-		_animate(c.node, c.pos, c_moving, float(c.get("face", 1.0)), k, c.hurt_t / 0.18, c.i * 1.7, 0.2)
+		_animate(c.node, c.pos, c_moving, float(c.get("face", 1.0)), k, c.hurt_t / 0.18, c.i * 1.7, 0.2, c.get("cast_dir", Vector2.ZERO))
 		if c.sleep > 0.0:
 			c.node.modulate = Color(0.6, 0.65, 0.85)
 		elif c.hurt_t > 0.0:
-			c.node.modulate = Color(1.9, 0.75, 0.7)
+			c.node.modulate = Color(3, 3, 3) if c.hurt_t > 0.14 else Color(1.9, 0.75, 0.7)
 		else:
 			c.node.modulate = Color.WHITE.lerp(Color(1.8, 1.7, 1.2), k)
 	if p.hurt_t > 0.0 and p.hp > 0.0:
-		p.node.modulate = Color(1.9, 0.75, 0.7, p.node.modulate.a)
+		p.node.modulate = Color(3, 3, 3, 1.0) if p.hurt_t > 0.14 else Color(1.9, 0.75, 0.7, p.node.modulate.a)
 	var ef := int(t * 4.0) % 2
 	for e in enemies:
 		if e.dead:
@@ -5945,8 +5950,16 @@ func _render(dt: float) -> void:
 ## 人物的動作（不用另外畫圖，全部用位置、傾斜、伸縮做出來）：
 ## 走路時一跳一跳、左右輕晃；站著時慢慢呼吸；出招時往前一壓；被打時往後縮一下；往左走就轉身。
 ## 腳底是原點，所以伸縮、傾斜都以腳為中心。
-func _animate(node: Sprite2D, pos: Vector2, moving: bool, face: float, cast_k: float, hurt_k: float, ph: float, cast_amt: float) -> void:
+func _animate(node: Sprite2D, pos: Vector2, moving: bool, face: float, cast_k: float, hurt_k: float, ph: float, cast_amt: float, cast_dir := Vector2.ZERO) -> void:
 	var bob := 0.0
+	var off := Vector2.ZERO
+	if cast_k > 0.0 and cast_dir != Vector2.ZERO:
+		# 出手：面向目標，往前跨一步再收回來
+		off += cast_dir * 3.0 * sin(cast_k * PI)
+		if absf(cast_dir.x) > 0.2:
+			face = signf(cast_dir.x)
+	if hurt_k > 0.0 and not _fx_lite():
+		off.x += roundf(sin(t * 70.0) * 1.2 * hurt_k)   # 被打：抖一下
 	var tilt := 0.0
 	var sc := Vector2.ONE
 	if moving:
@@ -5959,7 +5972,7 @@ func _animate(node: Sprite2D, pos: Vector2, moving: bool, face: float, cast_k: f
 	if hurt_k > 0.0:
 		sc *= Vector2(1.0 - 0.12 * hurt_k, 1.0 + 0.08 * hurt_k)
 		tilt -= 0.18 * hurt_k * face
-	node.position = pos.round() + Vector2(0, roundf(bob))
+	node.position = pos.round() + Vector2(0, roundf(bob)) + off.round()
 	node.rotation = tilt
 	node.scale = sc
 	node.flip_h = face < 0.0
