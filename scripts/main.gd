@@ -533,6 +533,11 @@ func _ready() -> void:
 			# 測試用：--mods=march:1,heal_smite:3（直接改寫流派規則的數值）
 			for kv in a.substr(7).split(","):
 				school_mods[kv.get_slice(":", 0)] = float(kv.get_slice(":", 1))
+		if a.begins_with("--fruits="):
+			# 測試用：--fruits=joy:5,good:3
+			for kv in a.substr(9).split(","):
+				fruits[kv.get_slice(":", 0)] = int(kv.get_slice(":", 1))
+			_refresh_all_stats()
 		if a.begins_with("--relics="):
 			for id in a.substr(9).split(","):
 				_take_relic(id)
@@ -849,6 +854,40 @@ func _party_count() -> int:
 	return n
 
 
+## 果子 Lv3、Lv5 解鎖的效果（讓被動加成看得見）
+func _fruit_lv(k: String) -> int:
+	return int(fruits.get(k, 0))
+
+
+func _update_fruits(dt: float) -> void:
+	if _fruit_lv("joy") >= 3 and not choosing:
+		joy_t -= dt
+		if joy_t <= 0.0:
+			var lv5 := _fruit_lv("joy") >= 5
+			joy_t = 3.0 if lv5 else 5.0
+			joy_waves.append({"pos": paul.pos, "r": 6.0, "max": 60.0 * _area(), "hit": {}, "dmg": 6.0 + level * 0.4, "stun": 0.5 if lv5 else 0.0})
+			_fxc("歡呼")
+	for w in joy_waves:
+		w.r += 220.0 * dt
+		for e in enemies.duplicate():
+			if not e.dead and not w.hit.has(e.node) and e.pos.distance_to(w.pos) < w.r:
+				w.hit[e.node] = true
+				_hurt(e, w.dmg, w.pos)
+				if w.stun > 0.0 and not e.get("boss", false):
+					e.stun = maxf(e.stun, w.stun)
+	joy_waves = joy_waves.filter(func(w): return w.r < w.max)
+	if _fruit_lv("good") >= 5 and not choosing:
+		good_heal_t -= dt
+		if good_heal_t <= 0.0:
+			good_heal_t = 10.0
+			_heal_paul(float(D.paul.hp) * 0.06)
+			for c in comps:
+				if c.level > 0 and c.down <= 0.0:
+					_heal_comp(c, _comp_max_hp() * 0.08)
+			_ring_pop(paul.pos + Vector2(0, -6), Color("8fe08a"), 40.0)
+			_fxc("良善回血")
+
+
 ## 果子與軍裝帶來的倍率
 func _area() -> float:
 	return 1.0 + fruits.get("joy", 0) * D.fruits.joy.per_level.area
@@ -864,7 +903,7 @@ func _accord() -> float:
 
 
 func _fever_dur() -> float:
-	return float(D.fever.duration) + (3.0 if epistles.has("fever_plus") else 0.0) - (3.0 if trials.has("night") else 0.0)
+	return float(D.fever.duration) + (3.0 if epistles.has("fever_plus") else 0.0) + (3.0 if _fruit_lv("peace") >= 5 else 0.0) - (3.0 if trials.has("night") else 0.0)
 
 func _scatter_mult() -> float:
 	return maxf(0.3, 1.0 - fruits.get("peace", 0) * 0.1) * (0.3 if calling == "shepherd" else 1.0)
@@ -881,6 +920,22 @@ func _sys_open(sys: String) -> bool:
 	return not story or story_idx >= int(STORY_GATE.get(sys, 0))
 
 
+## 果子卡的說明：累積多少、下一個解鎖的效果
+func _fruit_desc(k: String, lv: int) -> String:
+	var f: Dictionary = D.fruits[k]
+	var d: String = f.desc
+	var per: float = float(f.per_level.values()[0])
+	if f.has("total") and lv > 0:
+		d += "\n累積：" + (f.total % roundi(per * lv * 100.0)) + " → " + (f.total % roundi(per * (lv + 1) * 100.0))
+	for need in [3, 5]:
+		if lv < need:
+			var ms: Dictionary = f.get("milestones", {}).get(str(need), {})
+			if not ms.is_empty():
+				d += "\n%sLv%d 解鎖「%s」：%s" % ["★ " if lv + 1 == need else "", need, ms.name, ms.desc]
+			break
+	return d
+
+
 func _make_cards() -> Array:
 	var pool := []
 	for k in D.fruits:
@@ -895,9 +950,9 @@ func _make_cards() -> Array:
 					fdesc += "\n可讓%s進化（滿級時）" % by_key[evo.companion].name
 					break
 		if lv == 0 and fruits.size() < 6:
-			pool.append({"kind": "fruit", "key": k, "title": f.name + "　新果子", "tag": f.tag, "desc": fdesc})
+			pool.append({"kind": "fruit", "key": k, "title": f.name + "　新果子", "tag": f.tag, "desc": fdesc + _fruit_desc(k, 0).substr(f.desc.length())})
 		elif lv > 0 and lv < 5:
-			pool.append({"kind": "fruit", "key": k, "title": "%s　Lv%d → %d" % [f.name, lv, lv + 1], "tag": f.tag, "desc": f.desc})
+			pool.append({"kind": "fruit", "key": k, "title": "%s　Lv%d → %d" % [f.name, lv, lv + 1], "tag": f.tag, "desc": _fruit_desc(k, lv)})
 	for k in D.armor:
 		var a: Dictionary = D.armor[k]
 		var lv: int = armor.get(k, 0)
@@ -1042,6 +1097,10 @@ func _apply_card(card: Dictionary) -> void:
 		_ring_pop(c.pos + Vector2(0, -6), C_GOLD, 30.0)
 	elif card.kind == "fruit":
 		fruits[card.key] = fruits.get(card.key, 0) + 1
+		var ms: Dictionary = D.fruits[card.key].get("milestones", {}).get(str(fruits[card.key]), {})
+		if not ms.is_empty():
+			ui.show_banner("%s Lv%d：「%s」　%s" % [D.fruits[card.key].name, fruits[card.key], ms.name, ms.desc], 3.0)
+			_ring_pop(paul.pos + Vector2(0, -6), C_GOLD, 44.0)
 	elif card.kind == "armor":
 		armor[card.key] = armor.get(card.key, 0) + 1
 		_update_sets()
@@ -1542,6 +1601,11 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		dmg *= 1.6   # 輔助「磐石」
 	if int(e.get("msg", 0)) > 0 and _sv("講道", "msg_expose") > 0.0:
 		dmg *= 1.0 + _sv("講道", "msg_expose")   # 兩刃的劍：已經累積信息的敵人更痛
+	if src is Dictionary and _fruit_lv("faith") >= 3 and randf() < (0.2 if _fruit_lv("faith") >= 5 else 0.12):
+		dmg *= 2.5 if _fruit_lv("faith") >= 5 else 2.0   # 信實：阿們
+		_fxc("阿們")
+		if tag_fx.size() < 12:
+			tag_fx.append({"pos": e.pos + Vector2(4, 8), "text": "阿們", "col": C_GOLD, "t": 0.0})
 	if not e.has("hp0"):
 		e.hp0 = e.hp   # 第一次被打時的血量（「收割」用）
 	e.hp -= dmg
@@ -1930,6 +1994,18 @@ func _start_fever() -> void:
 		return
 	fever = _fever_dur()
 	fever_kills = 0
+	if _fruit_lv("peace") >= 3:
+		# 和平：平安歸你們（全隊回血）；Lv5 再把身邊的敵人推開
+		_heal_paul(float(D.paul.hp) * 0.3)
+		for c in comps:
+			if c.level > 0 and c.down <= 0.0:
+				_heal_comp(c, _comp_max_hp() * 0.3)
+		_fxc("平安")
+		if _fruit_lv("peace") >= 5:
+			_ring_pop(paul.pos + Vector2(0, -6), Color("ffe9a0"), 90.0)
+			for e in enemies:
+				if not e.dead and e.pos.distance_to(paul.pos) < 90.0:
+					e.knock += (e.pos - paul.pos).normalized() * (40.0 if e.get("boss", false) else 120.0)
 	run_fevers += 1
 	_fire_links("fever", null, 0)
 	Sfx.play("fever", 0.0)
@@ -2265,6 +2341,7 @@ func _step(dt: float) -> void:
 		chunk_timer = 0.4
 	_update_wind(dt)
 	_update_stars(dt)
+	_update_fruits(dt)
 	_update_hazard(dt)
 	_update_lamps(dt)
 	_collide_solids()
@@ -4967,6 +5044,16 @@ func _damage_paul(n: float, pierce := false, src := "") -> void:
 		dmg_log[src] = float(dmg_log.get(src, 0.0)) + n   # 測試用：被什麼打傷
 	paul.hp -= n
 	paul.hurt_t = 0.18
+	if _fruit_lv("good") >= 3 and t >= good_cd:
+		# 良善：被打的時候放出一圈光，推開並定住身邊的敵人
+		good_cd = t + 6.0
+		_fxc("照在人前")
+		_ring_pop(paul.pos + Vector2(0, -6), Color("9fd8ff"), 56.0)
+		for e in enemies:
+			if not e.dead and e.pos.distance_to(paul.pos) < 56.0:
+				e.knock += (e.pos - paul.pos).normalized() * (30.0 if e.get("boss", false) else 90.0)
+				if not e.get("boss", false):
+					e.stun = maxf(e.stun, 1.0)
 	_esther_save()
 	Sfx.play("hurt")
 	Sfx.buzz(40)
@@ -6247,6 +6334,10 @@ func _draw_air() -> void:
 		for i in 4:
 			var va: float = t * 5.0 + i * TAU / 4.0
 			n.draw_arc(boss.pos, 30.0 + i * 14.0, va, va + 1.4, 16, Color(Color("a060ff"), 0.7), 2.0)
+	for w in joy_waves:
+		# 歡呼：金色的圈往外擴散，越外面越淡
+		var ka: float = 1.0 - w.r / w.max
+		_dot_ring(n, w.pos, w.r, 0.8, Color(C_GOLD, 0.3 + 0.6 * ka), 4.0, t * 2.0, 2)
 	for ln in boss_lines:
 		# 長老的指控：一道細線慢慢變亮，快落下時閃爍
 		var k: float = clampf(1.0 - ln.t / ln.max, 0.0, 1.0)
@@ -7185,7 +7276,11 @@ const BOSS_SPECIAL := ["barrage", "volley", "follow", "pools", "wave", "vortex",
 	"accuse", "stones", "bait", "searchlight", "squeeze", "stampede", "tether", "idols", "rumor"]   # 不是「地上警示→瞬間打下」的招式
 var boss_lines: Array = []  # 依序落下的線（公會的長老一個一個指著你）
 var boss_walls: Array = []  # 從兩側夾過來的牆（中間隔斷的牆）
-var tether := {}            # 捆鎖：把主角綁在一個點上   # 測試用：只讓這幾位上場
+var tether := {}            # 捆鎖：把主角綁在一個點上
+var joy_t := 5.0            # 喜樂 Lv3：下一次歡呼
+var joy_waves: Array = []   # 擴散中的歡呼圈 {pos, r, max, hit, dmg, stun}
+var good_heal_t := 10.0     # 良善 Lv5：下一次全隊回血
+var good_cd := 0.0          # 良善 Lv3：被打時放光的冷卻   # 測試用：只讓這幾位上場
 var fx_hp := {}
 
 

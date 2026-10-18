@@ -301,12 +301,12 @@
       "branches": [ { "name": "急行", "desc": "繞得更快", "add": {"spin": 1.0} }, { "name": "城牆塌陷", "desc": "繞城的祭司碰到的敵人變慢 1.5 秒", "add": {}, "onhit": ["slow"] } ]
     }
   },
-  "_fruits說明": "聖靈果子：全隊被動，每種最多 5 級。per_level 是每級加的比例。",
+  "_fruits說明": "聖靈果子：全隊被動，每種最多 5 級。per_level 是每級加的比例；total 是卡片上的累積（%d 填百分比）；milestones 是 Lv3、Lv5 解鎖的看得見的效果（main.gd 的 _update_fruits、_hurt、_damage_paul、_start_fever）。",
   "fruits": {
-    "joy":   { "name": "喜樂", "tag": "詩歌", "per_level": { "area": 0.15 },   "desc": "所有範圍攻擊變大 15%" },
-    "faith": { "name": "信實", "tag": "講道", "per_level": { "damage": 0.15 }, "desc": "所有攻擊傷害 +15%" },
-    "good":  { "name": "良善", "tag": "守護", "per_level": { "guard": 0.25 },  "desc": "帳棚屏障傷害與彈開力道 +25%，同伴血量 +10%" },
-    "peace": { "name": "和平", "tag": "門徒", "per_level": { "accord": 0.15 }, "desc": "同心合意累積加快 15%，被打散的力道減輕 10%" }
+    "joy":   { "name": "喜樂", "tag": "詩歌", "per_level": { "area": 0.15 },   "desc": "所有範圍攻擊變大 15%", "total": "範圍 +%d%%", "milestones": {"3": {"name": "歡呼", "desc": "每 5 秒從腳下擴散一圈歡呼，傷害並推開身邊的敵人（範圍跟著喜樂變大）"}, "5": {"name": "滿心喜樂", "desc": "歡呼改成每 3 秒一次，碰到的敵人愣住 0.5 秒"}} },
+    "faith": { "name": "信實", "tag": "講道", "per_level": { "damage": 0.15 }, "desc": "所有攻擊傷害 +15%", "total": "傷害 +%d%%", "milestones": {"3": {"name": "阿們", "desc": "每一擊有 12% 機會「阿們」：傷害 ×2，跳出金色的字"}, "5": {"name": "堅固不搖動", "desc": "「阿們」機會提高到 20%，傷害 ×2.5"}} },
+    "good":  { "name": "良善", "tag": "守護", "per_level": { "guard": 0.25 },  "desc": "帳棚屏障傷害與彈開力道 +25%，同伴血量 +10%", "total": "屏障 +%d%%", "milestones": {"3": {"name": "照在人前", "desc": "主角被打時放出一圈光，推開並定住身邊的敵人（每 6 秒一次）"}, "5": {"name": "良善的手", "desc": "每 10 秒全隊回血（主角 6%、同伴 8%）"}} },
+    "peace": { "name": "和平", "tag": "門徒", "per_level": { "accord": 0.15 }, "desc": "同心合意累積加快 15%，被打散的力道減輕 10%", "total": "同心合意 +%d%%", "milestones": {"3": {"name": "平安歸你們", "desc": "五旬節開始時，全隊回 30% 血"}, "5": {"name": "出人意外的平安", "desc": "五旬節多 3 秒，開始時把身邊的敵人全部推開"}} }
   },
   "_armor說明": "全副軍裝：保羅自己的裝備，最多 3 件，每件 3 級。",
   "armor_slots": 3,
