@@ -1810,9 +1810,13 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			for i in int(e.d.split_count):
 				_spawn_one(e.d.split_into, e.pos + Vector2(randf_range(-8, 8), randf_range(-6, 6)))
 		if e.get("boss", false):
+			# Boss 倒下：還沒打下來的預警、衝擊波、線、牆、捆鎖全部收掉（不然會一直留在畫面上）
+			tele = []
+			boss_waves.clear()
 			boss_lines.clear()
 			boss_walls.clear()
 			tether = {}
+			star_falls = star_falls.filter(func(sf): return sf.get("src", "") != "boss")
 		if e.get("boss", false) and e.get("mid", false):
 			# 中途 Boss 打退了：掉寶箱（一定能選聖物），真正的 Boss 之後才來
 			chests.append({"pos": e.pos, "relic": true})
@@ -7536,7 +7540,7 @@ func _smoke_tick() -> void:
 		print("director pressure=%.2f life_avg=%.1f" % [pressure, life_avg])
 		print("bonds=%d " % run_bonds, "schools tier=%s converts=%d minions=%d(%d) songs=%d praise=%.0f holies=%d anoint=%.0f shocks=%d guard=%d trail=%d" % [school_tier, run_converts, run_minions, minions.size(), run_songs, praise, run_holies, anoint, run_shocks, guard, trail.size()])
 		print("t=%.1f hp=%.0f Lv=%d enemies=%d kills=%d fever=%.1f boss=%s party=%s fruits=%s armor=%s evo=%s" % [t, paul.hp, level, enemies.size(), kills, fever,
-			("%.0f/%s" % [boss.hp, boss.state]) if boss != null else "-", party, fruits, armor, evolved.keys()])
+			("%.0f/%s" % [boss.hp, boss.state]) if boss != null else "-(tele %d)" % tele.size(), party, fruits, armor, evolved.keys()])
 	if smoke_shot != "" and fever > 0.0 and fever < D.fever.duration - 1.5 and not FileAccess.file_exists(smoke_shot.replace(".png", "_fever.png")):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_fever.png"))
 	if smoke_shot != "" and smoke_frames == 1500 and not FileAccess.file_exists(smoke_shot.replace(".png", "_pause.png")):
