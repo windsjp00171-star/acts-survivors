@@ -19,6 +19,7 @@ G = os.environ.get("GODOT", "godot")
 PAR = int(os.environ.get("SIM_PAR", "2"))
 U = os.path.expanduser("~/.local/share/godot/app_userdata/宣教之路")
 FRAMES = int(os.environ.get("FRAMES", "1500"))
+T0 = os.environ.get("T0", "")   # 從第幾秒開始（敵人比較硬，效果比較不會被一擊打散而看不到）
 
 game = json.load(open(os.path.join(ROOT, "data/game.json"), encoding="utf-8"))
 comps = [c for c in game["companions"] if c.get("skill")]
@@ -27,7 +28,7 @@ keys = sys.argv[1:] or [c["key"] for c in comps]
 
 def run(key, branch):
     args = [G, "--headless", "--path", ROOT, "res://scenes/main.tscn", "--", "--smoke", "--bot", "--stage=7",
-            "--preset=team:%s" % key, "--frames=%d" % FRAMES]
+            "--preset=team:%s" % key, "--frames=%d" % FRAMES] + (["--t0=%s" % T0] if T0 else [])
     if branch is not None:
         args.append("--branch=%s:%d" % (key, branch))
     args.append("--only=%s" % key)

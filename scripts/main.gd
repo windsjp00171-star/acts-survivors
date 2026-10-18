@@ -313,6 +313,13 @@ func _ready() -> void:
 	for k in stage.weights:
 		D.enemies[k].weight = stage.weights[k]
 	D.boss.merge(stage.boss, true)
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--boss_order="):
+			# 測試用：--boss_order=barrage,wave（Boss 只出這幾招，兩個階段都一樣）
+			D.boss.order = Array(a.substr(13).split(","))
+			D.boss.order2 = D.boss.order
+		if a == "--god":
+			god_mode = true   # 測試用：主角不會倒下
 	D.director.merge(stage.get("director", {}), true)
 	if story:
 		D.boss.hp = float(D.boss.hp) * float(Save.story.get("boss_mult", 1.0)) * float(chapter.get("boss_mult", 1.0))
@@ -4912,6 +4919,10 @@ func _separate() -> void:
 
 
 func _damage_paul(n: float, pierce := false, src := "") -> void:
+	if god_mode:
+		if smoke:
+			fx_stat["主角被打:" + src] = float(fx_stat.get("主角被打:" + src, 0.0)) + n
+		return
 	if fever > 0.0 or won:
 		return
 	if epistles.has("burden"):
@@ -5403,6 +5414,12 @@ func _update_spots(dt: float) -> void:
 						breads.append({"pos": sp.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
 					ui.show_banner("在帳棚裡歇一下腳：護盾 +%d" % int(hz.guard), 1.5)
 					_ring_pop(sp.pos, Color("9fd8ff"), 30.0)
+			"dark":
+				sp.tick -= dt
+				if sp.tick <= 0.0:
+					sp.tick = 0.5
+					if paul.pos.distance_to(sp.pos) < sp.r and paul.inv <= 0.0:
+						_damage_paul(sp.dmg, false, "boss")
 			"water":
 				sp.tick -= dt
 				if sp.tick <= 0.0:
@@ -5440,6 +5457,14 @@ func _draw_spots(n: Node2D) -> void:
 		var y: float = roundf(sp.pos.y)
 		var blinking: bool = sp.life < 2.0 and int(t * 8.0) % 2 == 0
 		match sp.kind:
+			"dark":
+				# 黑暗的水窪：深紫色的一片，邊緣冒泡
+				var da: float = clampf(sp.life / 1.0, 0.0, 1.0)
+				n.draw_set_transform(Vector2(x, y), 0.0, Vector2(1.0, 0.7))
+				n.draw_circle(Vector2.ZERO, sp.r, Color(0.16, 0.06, 0.22, 0.55 * da))
+				n.draw_circle(Vector2.ZERO, sp.r * 0.7, Color(0.28, 0.08, 0.36, 0.45 * da))
+				n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				_dot_ring(n, Vector2(x, y), sp.r, 0.7, Color(Color("a060ff"), da), 4.0, -t * 1.2, 1)
 			"water":
 				# 活水：淡藍的一片，邊緣有慢慢轉的點
 				var wa: float = clampf(sp.life / 1.0, 0.0, 1.0)
@@ -6175,7 +6200,28 @@ func _draw_air() -> void:
 			n.draw_rect(Rect2(x - r, y - 1, r * 2 + 1, 3), col)
 			n.draw_rect(Rect2(x - 1, y - r, 3, r * 2 + 1), col)
 			n.draw_rect(Rect2(x - 1, y - 1, 3, 3), Color.WHITE)
+	if boss != null and float(boss.get("vortex_t", 0.0)) > 0.0:
+		# 漩渦：繞著 Boss 轉的弧線，越來越快
+		for i in 4:
+			var va: float = t * 5.0 + i * TAU / 4.0
+			n.draw_arc(boss.pos, 30.0 + i * 14.0, va, va + 1.4, 16, Color(Color("a060ff"), 0.7), 2.0)
+	for w in boss_waves:
+		# 衝擊波：一圈紫紅色的牆，缺口的地方空著
+		var a0: float = w.gap + w.gap_w
+		var span: float = TAU - w.gap_w * 2.0
+		n.draw_arc(w.pos, w.r, a0, a0 + span, 72, Color("14060c"), 11.0)
+		n.draw_arc(w.pos, w.r, a0, a0 + span, 72, Color("8a1020"), 7.0)
+		n.draw_arc(w.pos, w.r + 2.0, a0, a0 + span, 72, Color("ff5a40"), 2.0)
+		# 缺口兩端畫亮一點，看得出從哪裡穿過去
+		for ea in [w.gap - w.gap_w, w.gap + w.gap_w]:
+			n.draw_circle(w.pos + Vector2.from_angle(ea) * w.r, 4.0, Color("ffd75e"))
 	for s in shots:
+		if s.get("boss", false):
+			var sp2: Vector2 = s.pos.round()
+			n.draw_circle(sp2, 4.0, Color("2a0a30"))
+			n.draw_circle(sp2, 3.0, Color("c040e0"))
+			n.draw_circle(sp2 + Vector2(-1, -1), 1.2, Color("ffd0ff"))
+			continue
 		n.draw_rect(Rect2(roundf(s.pos.x) - 1, roundf(s.pos.y) - 1, 3, 3), Color("c8e070"))
 		n.draw_rect(Rect2(roundf(s.pos.x), roundf(s.pos.y), 1, 1), Color("2a2638"))
 	for h in heals:
@@ -6553,6 +6599,7 @@ func _spawn_boss(hp_mult := 1.0, keep_going := false) -> void:
 
 
 func _update_boss(b: Dictionary, dt: float) -> void:
+	_update_boss_waves(dt)
 	var B: Dictionary = D.boss
 	var phase2: bool = b.hp < b.max_hp * B.phase2_at
 	b.flash = maxf(0.0, b.flash - dt)
@@ -6561,12 +6608,33 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 		"move":
 			b.pos += (paul.pos - b.pos).normalized() * B.speed * (1.6 if phase2 else 1.0) * dt
 			b.timer -= dt
+			if phase2 and not b.get("p2", false):
+				b.p2 = true
+				b.pattern_i = 0
+				ui.show_banner("%s更猛烈了！" % B.name, 1.6)
+				_ring_pop(b.pos, C_RED, 60.0)
+				shake = 0.4
+				Sfx.play("roar", 0.0)
+			if float(b.get("vortex_t", 0.0)) > 0.0:
+				# 漩渦：把主角往 Boss 拉過去，結束時在 Boss 身邊重重砸下
+				b.vortex_t -= dt
+				var pullv: Vector2 = (b.pos - paul.pos)
+				if pullv.length() > 20.0:
+					paul.pos += pullv.normalized() * 34.0 * dt
+				if b.vortex_t <= 0.0:
+					tele = [{"kind": "circle", "c": b.pos, "r": 46.0, "dmg": float(B.slam.damage)}]
+					_resolve_tele()
+					tele = []
+					_ring_pop(b.pos, C_VL, 46.0)
+				return
 			if b.timer <= 0.0:
-				var order: Array = B.get("order", ["sweep", "slam", "grid", "hunt"])
+				var order: Array = B.get("order2", B.get("order", ["sweep", "slam", "grid", "hunt"])) if phase2 else B.get("order", ["sweep", "slam", "grid", "hunt"])
 				b.pattern = order[b.pattern_i % order.size()]
 				b.pattern_i += 1
 				tele = _make_tele(b)
 				Sfx.play("warn", 0.0)
+				if BOSS_SPECIAL.has(b.pattern):
+					_ring_pop(b.pos, C_RED, 34.0)   # 特殊招式：Boss 身上先亮一圈，提醒要出招了
 				b.state = "warn"
 				b.timer = B.warn * (0.7 if phase2 else 1.0) * (1.4 if calling == "prophet" else 1.0)
 		"warn":
@@ -6578,6 +6646,16 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 						_ring_pop(b.pos, C_RED, 30.0)
 				_resolve_tele()
 				tele = []
+				if b.pattern == "charge" and int(b.get("charges", 0)) < 2:
+					# 連續衝撞：衝完馬上再瞄準一次（共三次）
+					b.charges = int(b.get("charges", 0)) + 1
+					var dr2: Vector2 = (paul.pos - b.pos).normalized()
+					tele = [{"kind": "line", "a": b.pos, "b": b.pos + dr2 * 220.0, "w": 22.0, "dmg": float(B.sweep.damage), "rush": true}]
+					b.timer = 0.5 if phase2 else 0.6
+					return
+				b.charges = 0
+				if BOSS_SPECIAL.has(b.pattern):
+					_boss_special(b, phase2)
 				if b.pattern == "summon":
 					_boss_summon(b)
 				if b.pattern == "slam" or b.pattern == "grid":
@@ -6626,6 +6704,10 @@ func _make_tele(b: Dictionary) -> Array:
 			for i in 6:
 				var dd := Vector2.RIGHT.rotated(i * TAU / 6.0 + randf() * 0.5)
 				out.append({"kind": "line", "a": b.pos, "b": b.pos + dd * 260.0, "w": 10.0, "dmg": float(B.sweep.damage)})
+		"charge":
+			# 連續衝撞：朝主角衝三次，每次重新瞄準
+			var dc: Vector2 = (paul.pos - b.pos).normalized()
+			out.append({"kind": "line", "a": b.pos, "b": b.pos + dc * 220.0, "w": 22.0, "dmg": float(B.sweep.damage), "rush": true})
 		"rush":
 			# 帖撒羅尼迦：騷亂朝主角直衝過去
 			var dr: Vector2 = (paul.pos - b.pos).normalized()
@@ -6682,6 +6764,67 @@ func _make_tele(b: Dictionary) -> Array:
 			if out.is_empty():
 				out.append({"kind": "circle", "c": paul.pos, "r": float(B.hunt.radius), "dmg": float(B.hunt.damage)})
 	return out
+
+
+## 不是地上警示的招式：彈幕、扇形連射、追著主角落下、黑暗的水窪、留缺口的衝擊波、漩渦
+func _boss_special(b: Dictionary, phase2: bool) -> void:
+	var B: Dictionary = D.boss
+	var bd: float = float(B.sweep.damage)
+	match b.pattern:
+		"barrage":
+			# 彈幕：從 Boss 往四面八方射出一圈一圈的黑暗，每一圈錯開一點角度
+			for w in (4 if phase2 else 3):
+				delayed.append({"t": w * 0.45, "fn": func():
+					if b.get("dead", false):
+						return
+					var n := 14
+					for i in n:
+						var a := i * TAU / n + w * 0.22
+						shots.append({"pos": b.pos + Vector2(0, -8), "vel": Vector2.from_angle(a) * 62.0, "life": 5.0, "dmg": bd * 0.45, "boss": true})
+					Sfx.play("warn", 0.1)})
+		"volley":
+			# 扇形連射：朝主角射三輪，每輪五發
+			for w in (4 if phase2 else 3):
+				delayed.append({"t": w * 0.35, "fn": func():
+					if b.get("dead", false):
+						return
+					var base_a: float = (paul.pos - b.pos).angle()
+					for i in 5:
+						shots.append({"pos": b.pos + Vector2(0, -8), "vel": Vector2.from_angle(base_a + (i - 2) * 0.22) * 105.0, "life": 4.0, "dmg": bd * 0.4, "boss": true})})
+		"follow":
+			# 追著主角落下：一個接一個落在主角剛剛站的地方，要一直走
+			for i in (8 if phase2 else 6):
+				delayed.append({"t": i * 0.28, "fn": func():
+					if not b.get("dead", false):
+						star_falls.append({"pos": paul.pos, "t": 0.6, "max": 0.6, "r": 16.0, "dmg": float(B.hunt.damage), "pierce": true})})
+		"pools":
+			# 黑暗的水窪：主角附近留下幾片黑暗，踩在裡面會一直受傷，過一陣子才散
+			for i in (5 if phase2 else 4):
+				var a := randf() * TAU
+				spots.append({"kind": "dark", "pos": paul.pos + (Vector2.ZERO if i == 0 else Vector2(cos(a), sin(a) * 0.8) * randf_range(35.0, 80.0)), "life": 6.0, "tick": 0.0, "r": 22.0, "dmg": bd * 0.25})
+		"wave":
+			# 衝擊波：從 Boss 擴散出去的一圈，只有一個缺口可以穿過
+			var gap: float = (paul.pos - b.pos).angle() + randf_range(-1.6, 1.6)
+			boss_waves.append({"pos": b.pos, "r": 12.0, "gap": gap, "gap_w": 0.55, "dmg": bd, "hit": false})
+			if phase2:
+				var gap2 := gap + PI + randf_range(-0.8, 0.8)
+				delayed.append({"t": 0.8, "fn": func(): boss_waves.append({"pos": b.pos, "r": 12.0, "gap": gap2, "gap_w": 0.55, "dmg": bd, "hit": false})})
+		"vortex":
+			b.vortex_t = 2.4
+			ui.show_banner("被拉過去了！往外走", 1.2)
+
+
+func _update_boss_waves(dt: float) -> void:
+	for w in boss_waves:
+		var prev: float = w.r
+		w.r += 95.0 * dt
+		var d: float = paul.pos.distance_to(w.pos)
+		if not w.hit and d >= prev - 4.0 and d <= w.r + 4.0 and paul.inv <= 0.0:
+			var ang: float = absf(angle_difference((paul.pos - w.pos).angle(), w.gap))
+			if ang > w.gap_w:
+				w.hit = true
+				_damage_paul(w.dmg, false, "boss")
+	boss_waves = boss_waves.filter(func(w): return w.r < 320.0)
 
 
 ## 城市 Boss 的招式：召喚一圈那座城的敵人
@@ -6861,7 +7004,10 @@ func _game_over() -> void:
 # ---------- 自動測試 ----------
 ## 測試用：每 5 格看一次場上的狀態，結束時印出「效果有沒有真的發生」
 var fx_stat := {}
-var only_keys: Array = []   # 測試用：只讓這幾位上場
+var only_keys: Array = []
+var god_mode := false     # 測試用
+var boss_waves: Array = []  # Boss 的衝擊波圈（留一個缺口可以躲）
+const BOSS_SPECIAL := ["barrage", "volley", "follow", "pools", "wave", "vortex"]   # 不是「地上警示→瞬間打下」的招式   # 測試用：只讓這幾位上場
 var fx_hp := {}
 
 

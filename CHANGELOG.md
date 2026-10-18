@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-10-18
+
+### 新增
+- Boss 招式：`charge`（連續衝撞三次）、`barrage`、`volley`（Boss 子彈 `shots` 的 `boss`）、`follow`（沿用 `star_falls`）、`pools`（場地 `dark`）、`wave`（`boss_waves`，留缺口）、`vortex`（拉主角再砸）；`_boss_special`、`_update_boss_waves`
+- Boss 第二階段：`order2`（血量低於 `phase2_at` 換招式表），進入時橫幅「更猛烈了」；16 隻 Boss 都重排了 `order`／`order2`
+- 測試：`tools/sim/skillcheck.py`（每位同伴與分支單獨上場，印出出手、傷害與效果統計）、`--branch=`、`--only=`、`--boss_order=`、`--god`、`FX` 統計、`T0`
+
+### 修正
+- 技能說明補上屬性（`elements`：火、水、雷）
+- 尼哥底母的燈：照亮 3 秒（0.32 誤改成 2 秒，實際一直是 3 秒）
+
 ## [0.35.1] - 2026-10-17
 
 ### 修正
