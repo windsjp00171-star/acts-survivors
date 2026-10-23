@@ -1,5 +1,5 @@
 {
-  "_說明": "初代教會關卡：照保羅旅程的順序，通關（建立教會）才解鎖下一座。hp_mult／dmg_mult 疊在時間曲線上；weights 改敵人出現比例；boss 覆蓋 game.json 的 boss 欄位；epistle 是建立教會後解鎖的書信卡（局內升級卡，不是永久加成）。 ground 是地面圖；props 是會出現的物件（tex 隨機挑一個、weight 出現比例、solid 是擋路的範圍 [寬, 高]）；hazard 是關卡機制（wind 暴風）；elite_mult 讓菁英出得更頻繁。 director：覆蓋 game.json 難度導演的欄位（例如逼迫晚一點開始）。 leader：這一關固定的主角（拔摩海島是約翰）。 leader_level：固定主角一開始的招式等級。 vision：哪幾段對話（in／out）要畫出光中的耶穌。 church：教會的名字（沒寫就用 name）；win_title：通關標題（沒寫就是「XX 教會建立！」）。 boss.order 是 Boss 的出招順序，order2 是血量剩一半以後的出招順序（更兇）。招式：sweep 橫掃、slam 砸隊伍中心、grid 格狀、hunt 鎖定同伴、summon 召喚、chains 鎖鏈、rush 衝撞、charge 連續衝撞三次、ring 包圍、cross 十字、spiral 螺旋、oath 誓約、tide 海浪、legions 軍團、stars 星辰、barrage 彈幕、volley 扇形連射、follow 追著主角落下、pools 黑暗水窪、wave 留缺口的衝擊波、vortex 漩渦（把主角拉過去再砸）、accuse 長老一個接一個指控（依序落下的線）、stones 收攏的石頭圈、bait 地上的錢幣陷阱、searchlight 旋轉的探照光、squeeze 兩側夾來的牆（留門）、stampede 四面湧來的群眾、tether 捆鎖（綁在原地）、idols 立起會射擊的偶像、rumor 一傳十的謠言（落點加倍）。除了 sweep／slam／grid／hunt／summon 這幾招基本招，其他招式每隻 Boss 專屬、不重複。",
+  "_說明": "初代教會關卡：照保羅旅程的順序，通關（建立教會）才解鎖下一座。hp_mult／dmg_mult 疊在時間曲線上；weights 改敵人出現比例；boss 覆蓋 game.json 的 boss 欄位；epistle 是建立教會後解鎖的書信卡（局內升級卡，不是永久加成）。 ground 是地面圖；decals 是撒在地上的小細節（不擋路，make_decals.py 產生）；landmarks 是這座城的地標（偶爾遇到一座、擋路，make_landmarks.py 產生；solid [寬, 高] 是擋路的範圍，[0, 0] 就是可以走上去）；props 是會出現的物件（tex 隨機挑一個、weight 出現比例、solid 是擋路的範圍 [寬, 高]）；hazard 是關卡機制（wind 暴風）；elite_mult 讓菁英出得更頻繁。 director：覆蓋 game.json 難度導演的欄位（例如逼迫晚一點開始）。 leader：這一關固定的主角（拔摩海島是約翰）。 leader_level：固定主角一開始的招式等級。 vision：哪幾段對話（in／out）要畫出光中的耶穌。 church：教會的名字（沒寫就用 name）；win_title：通關標題（沒寫就是「XX 教會建立！」）。 boss.order 是 Boss 的出招順序，order2 是血量剩一半以後的出招順序（更兇）。招式：sweep 橫掃、slam 砸隊伍中心、grid 格狀、hunt 鎖定同伴、summon 召喚、chains 鎖鏈、rush 衝撞、charge 連續衝撞三次、ring 包圍、cross 十字、spiral 螺旋、oath 誓約、tide 海浪、legions 軍團、stars 星辰、barrage 彈幕、volley 扇形連射、follow 追著主角落下、pools 黑暗水窪、wave 留缺口的衝擊波、vortex 漩渦（把主角拉過去再砸）、accuse 長老一個接一個指控（依序落下的線）、stones 收攏的石頭圈、bait 地上的錢幣陷阱、searchlight 旋轉的探照光、squeeze 兩側夾來的牆（留門）、stampede 四面湧來的群眾、tether 捆鎖（綁在原地）、idols 立起會射擊的偶像、rumor 一傳十的謠言（落點加倍）。除了 sweep／slam／grid／hunt／summon 這幾招基本招，其他招式每隻 Boss 專屬、不重複。",
   "stages": [
     {
       "id": "pentecost",
@@ -17,6 +17,8 @@
       ],
       "weights": {},
       "ground": "ground_jerusalem",
+      "decals": ["decal_crack_1", "decal_crack_2", "decal_potsherd", "decal_pebbles", "decal_tuft_dry"],
+      "landmarks": [{"tex": "lm_upperroom", "solid": [48, 16]}],
       "props": [
         {
           "tex": [
@@ -216,6 +218,8 @@
       ],
       "weights": {},
       "ground": "ground_jerusalem",
+      "decals": ["decal_crack_1", "decal_crack_2", "decal_pebbles", "decal_potsherd", "decal_tuft_dry"],
+      "landmarks": [{"tex": "lm_gate_jerusalem", "solid": [60, 16]}],
       "props": [
         {
           "tex": [
@@ -409,6 +413,8 @@
       ],
       "weights": {},
       "ground": "ground_field",
+      "decals": ["decal_flowers_w", "decal_flowers_y", "decal_tuft", "decal_straw", "decal_flowers_p"],
+      "landmarks": [{"tex": "lm_threshing", "solid": [0, 0]}],
       "props": [
         {
           "tex": [
@@ -591,6 +597,8 @@
       ],
       "weights": {},
       "ground": "ground_desert",
+      "decals": ["decal_ripple", "decal_pebbles", "decal_footprints", "decal_tuft_dry"],
+      "landmarks": [{"tex": "lm_gate_damascus", "solid": [60, 16]}],
       "props": [
         {
           "tex": [
@@ -823,6 +831,8 @@
       ],
       "weights": {},
       "ground": "ground_joppa",
+      "decals": ["decal_puddle", "decal_seaweed", "decal_potsherd", "decal_crack_1"],
+      "landmarks": [{"tex": "lm_rooftop", "solid": [48, 16]}],
       "props": [
         {
           "tex": [
@@ -1027,6 +1037,8 @@
       ],
       "weights": {},
       "ground": "ground_antioch",
+      "decals": ["decal_moss", "decal_tuft", "decal_crack_2", "decal_leaves"],
+      "landmarks": [{"tex": "lm_colonnade", "solid": [66, 8]}],
       "props": [
         {
           "tex": [
@@ -1246,6 +1258,8 @@
         "desc": "五旬節持續時間 +3 秒（腓 4:4）"
       },
       "ground": "ground",
+      "decals": ["decal_tuft", "decal_flowers_w", "decal_leaves", "decal_puddle", "decal_flowers_p"],
+      "landmarks": [{"tex": "lm_riverside", "solid": [66, 20]}],
       "props": [
         {
           "tex": [
@@ -1422,6 +1436,8 @@
         "desc": "同心合意累積加快 30%（帖前 5:17）"
       },
       "ground": "ground_thessalonica",
+      "decals": ["decal_pebbles_red", "decal_tuft", "decal_leaves", "decal_tuft_dry"],
+      "landmarks": [{"tex": "lm_synagogue", "solid": [52, 14]}],
       "props": [
         {
           "tex": [
@@ -1549,6 +1565,8 @@
         "curious": 2
       },
       "ground": "ground_athens",
+      "decals": ["decal_crack_1", "decal_moss", "decal_leaves_olive", "decal_crack_2"],
+      "landmarks": [{"tex": "lm_areopagus", "solid": [60, 18]}],
       "props": [
         {
           "tex": [
@@ -1769,6 +1787,8 @@
         "desc": "倒下的同伴站起來的速度加倍（林前 13:4）"
       },
       "ground": "ground_corinth",
+      "decals": ["decal_ripple", "decal_potsherd", "decal_pebbles", "decal_seaweed"],
+      "landmarks": [{"tex": "lm_bema", "solid": [50, 16]}],
       "props": [
         {
           "tex": [
@@ -1962,6 +1982,8 @@
         "desc": "軍裝可以多穿一件（弗 6:11）"
       },
       "ground": "ground_ephesus",
+      "decals": ["decal_moss", "decal_crack_2", "decal_tuft", "decal_leaves"],
+      "landmarks": [{"tex": "lm_theater", "solid": [68, 18]}],
       "props": [
         {
           "tex": [
@@ -2109,6 +2131,8 @@
         "accuser": 3
       },
       "ground": "ground_jerusalem",
+      "decals": ["decal_crack_1", "decal_potsherd", "decal_pebbles", "decal_tuft_dry"],
+      "landmarks": [{"tex": "lm_portico", "solid": [68, 12]}],
       "props": [
         {
           "tex": [
@@ -2300,6 +2324,8 @@
         "force": 60,
         "text": "暴風吹來了！"
       },
+      "decals": ["decal_ripple", "decal_seaweed", "decal_tidepool", "decal_footprints"],
+      "landmarks": [{"tex": "lm_wreck", "solid": [60, 14]}],
       "props": [
         {
           "tex": [
@@ -2474,6 +2500,8 @@
       },
       "ground": "ground_rome",
       "elite_mult": 0.8,
+      "decals": ["decal_crack_1", "decal_moss", "decal_puddle", "decal_crack_2"],
+      "landmarks": [{"tex": "lm_aqueduct", "solid": [76, 10]}],
       "props": [
         {
           "tex": [
@@ -2676,6 +2704,8 @@
         "warn": 1.3,
         "text": "星辰從天墜落！（啟 8:10）"
       },
+      "decals": ["decal_moss", "decal_pebbles_dark", "decal_tidepool", "decal_crack_2"],
+      "landmarks": [{"tex": "lm_cave", "solid": [56, 16]}],
       "props": [
         {
           "tex": [
@@ -2858,6 +2888,8 @@
         "fear": 1
       },
       "ground": "ground_fucheng",
+      "decals": ["decal_leaves", "decal_tuft", "decal_puddle", "decal_moss", "decal_leaves_red"],
+      "landmarks": [{"tex": "lm_clinic", "solid": [54, 16]}],
       "props": [
         {
           "tex": [

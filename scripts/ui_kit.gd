@@ -92,5 +92,5 @@ static func sprite_icon(key: String, scale := 3) -> TextureRect:
 	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	tr.custom_minimum_size = Vector2(14, 17) * scale
+	tr.custom_minimum_size = Vector2(26, 24) * scale * 0.75
 	return tr

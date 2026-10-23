@@ -121,6 +121,18 @@
       "pitch": 1.45,
       "speed": 32
     },
+    "asaph": {
+      "pitch": 1.0,
+      "speed": 28
+    },
+    "heman": {
+      "pitch": 0.9,
+      "speed": 26
+    },
+    "jeduthun": {
+      "pitch": 1.1,
+      "speed": 26
+    },
     "maxwell": {
       "pitch": 0.92
     },

@@ -15,9 +15,9 @@ PCT={"radius":"範圍","max_radius":"範圍","spit_r":"範圍","save_r":"範圍"
      "width":"寬度","thick":"粗細","size":"大小","knock":"擊退","knockback":"擊退","push":"推力","pull":"拉力","angle":"角度"}
 CNT={"count":("數量",""),"pierce":("穿透","隻"),"jumps":("連跳","隻"),"split":("分裂","發"),"beams":("光束","道"),"rings":("圈數","圈"),"slams":("連砸","次"),
      "waves":("浪","波"),"pulses":("鼓聲","波"),"lions":("獅子","隻"),"pieces":("屏障","片"),"max":("最多","件"),"returns":("來回","次")}
-SEC={"cooldown":"出手間隔","fire_every":"出手間隔","stun":"定住","confuse":"混亂","hold":"含在肚裡","life":"持續","save_cd":"救援間隔"}
+SEC={"cooldown":"出手間隔","fire_every":"出手間隔","stun":"定住","confuse":"混亂","hold":"含在肚裡","life":"持續","save_cd":"救援間隔","fear":"驚慌","duration":"琴聲持續"}
 MUL={"lies_mult":"對謊言傷害","elite_mult":"對菁英傷害","crit_mult":"會心傷害","linked_mult":"被連結觸發的威力","revive_speed":"扶起速度","attack_speed":"攻擊加快"}
-PCTV={"crit":"會心機率","expose":"破綻（受到的傷害）","save_heal":"救援回血"}
+PCTV={"chance":"再出手機率","crit":"會心機率","expose":"破綻（受到的傷害）","save_heal":"救援回血"}
 ABS={"damage":"傷害","heal":"回血","amount":"回血","heal_comp":"同伴回血","shout":"喊聲傷害","combo_keep":"連鎖保留"}
 NOUN={"bolt":("光箭","支"),"letter":("書信","封"),"sling":("石子","顆"),"fire":("火","道"),"coin":("錢幣","枚"),"glory":("光柱","道"),"pilum":("標槍","支"),
       "sew":("衣服","件"),"errand":("一次差遣","個"),"fig":("果子","顆"),"jars":("瓶子","個"),"fish":("一次吞","隻"),"medicine":("藥瓶","瓶"),"trumpet":("祭司","位")}

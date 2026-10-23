@@ -4,6 +4,24 @@
 
 ## [Unreleased]
 
+### 新增
+- 恩賜盤（`meta.json` 的 `gifts.board`，`tools/make_board.py` 從六棵恩賜樹排出來）：110 個節點、中央安提阿＋六個流派區＋六座橋；小節點、經文節點、基石（每區兩個，第二個有代價：`preach`、`midnight`、`overcome`、`stand`、`pairs`、`cast`）；卡片節點（`cards`）
+- 每位主角一套配置（`data.board_on[主角]`），從起點（`starts`）連出去；學會（`data.board_learned`）全部主角共用；`Save.board_recommend` 一鍵推薦；卸下時接不回起點的一起卸下
+- 局內流派傾向：`Save.board_tilt` 讓點得多的流派升級卡更常出現；主角起點的流派第一次升級一定有招募卡
+- 卡片放逐（`_banish`、`ui.toggle_banish`）：每局 2 次（`leveling.banishes`），放逐的卡這局不再出現；鍵盤 B
+- 暫停畫面「這一局的傷害」：每位同伴打出的傷害與占比
+- 招牌機制（`_signature_pre`／`_signature_post`，參考魔獸世界）：吳文水引導、雅各引導禱告、大衛蓄力、多馬斬殺、提摩太熱心齊射、高長大餐增益、米利暗嗜血、路加戰場復活、參孫嘲諷（`taunt_t`）、亞波羅折射、尼哥底母掃射、以利亞燒地（spot `blaze`）、馬雅各藥水（spot `potion`）、哥尼流破甲（`sunder`）、腓利兩次衝刺
+- 新同伴：亞薩（`cymbal`，每第 4 下重拍，也是新主角，`leader_asaph`）、希幔（`horn`，驚慌 `fear_t`）、耶杜頓（`harp`，琴聲裡同伴出手有機會再出手一次）；生平、見證錄解鎖、進化
+- 人物重畫成 18×22 身體（圖 26×24）：`tools/make_people.py` 從 `tools/people_src/` 的 14×17 設定圖畫出來；`make_people_src.py` 產生設定圖
+- 技能特效改成像素圖：`tools/make_vfx.py`（`fx_spark`、`fx_boom`、`fx_firecol`、`fx_glorycol`、`fx_watercol`、`fx_shield`、`fx_note`、`fx_heal`、`fx_zapend`、`fx_beam` 等）；`_fx`、`_pline`、`_pring`、`_bolt_pts`、`_pnet`、`_pcloth`
+- 營地重畫：`tools/make_camp.py`（建設、帳棚、營火、油燈、草地 `ground_camp`）；泥土地與小路依建設位置在 `_build_floor` 產生；直式畫面另排位置（`pos_v`）
+- 16 座城的地標（`tools/make_landmarks.py`，`stages.json` 的 `landmarks`）與地面細節（`tools/make_decals.py`，`decals`）
+- 測試：`--fxtest`（特效擺一排截圖）、`_start.png`、`_banish.png` 截圖
+
+### 變更
+- 恩賜樹改成恩賜盤：舊存檔花在恩賜樹上的餅全部退回（`_migrate_board`，先備份到 `profile_backup.json`），見證錄「恩賜」兩項改成學會的節點數
+- 隊形（`SLOTS`）拉開，頭上的血條、標記跟著新的人物高度往上移
+
 ## [0.44.0] - 2026-10-23
 
 ### 新增

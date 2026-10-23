@@ -81,6 +81,11 @@ var hint_label: Label
 var resize_t := 0.0         # 視窗大小改變後，等一下再重新排版（拖動視窗時不要一直排）
 
 
+## 人物圖的大小與腳底位置（24×26 的新人物；PK 讓畫面上的大小跟以前差不多，稍大一點）
+const PSZ := Vector2(26, 24)
+const PFOOT := Vector2(12, 25)
+const PK := 0.75
+
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	get_tree().set_quit_on_go_back(true)
@@ -548,12 +553,12 @@ func _draw_intro(vs: Vector2) -> void:
 			_hills(vs, floor_y, 0.4, Color("1c1226"), 26.0, 0.018)
 			draw_rect(Rect2(0, floor_y, vs.x, vs.y - floor_y), Color("1a1220"))
 			var up := intro_t * 10.0 if intro_i == 1 else 0.0
-			var jp := Vector2(cx, floor_y - 30.0 - up) - Vector2(7, 17) * s
-			draw_texture_rect(_tx("jesus"), Rect2(jp, Vector2(14, 17) * s), false, Color(1, 1, 1, fade))
+			var jp := Vector2(cx, floor_y - 30.0 - up) - PFOOT * PK * s
+			draw_texture_rect(_tx("jesus"), Rect2(jp, PSZ * PK * s), false, Color(1, 1, 1, fade))
 			for i in 4:
 				var k: String = ROOM[i]
 				var px := cx + (i - 1.5) * 26.0 * s * 0.5
-				draw_texture_rect(_tx(k), Rect2(Vector2(px, floor_y + 18.0) - Vector2(7, 17) * s * 0.8, Vector2(14, 17) * s * 0.8), false, Color(0.6, 0.6, 0.7, fade))
+				draw_texture_rect(_tx(k), Rect2(Vector2(px, floor_y + 18.0) - PFOOT * PK * s * 0.8, PSZ * PK * s * 0.8), false, Color(0.6, 0.6, 0.7, fade))
 		"room", "wind", "fire":
 			# 樓房：牆、窗、門徒圍坐
 			draw_rect(Rect2(0, 0, vs.x, floor_y), Color("2a1c24"))
@@ -570,8 +575,8 @@ func _draw_intro(vs: Vector2) -> void:
 			for i in ROOM.size():
 				var k: String = ROOM[i]
 				var px := cx + (i - 2) * 30.0 * s * 0.5
-				var at := Vector2(px, floor_y + 30.0) + shake - Vector2(7, 17) * s
-				draw_texture_rect(_tx(k), Rect2(at, Vector2(14, 17) * s), false, Color(1, 1, 1, fade))
+				var at := Vector2(px, floor_y + 30.0) + shake - PFOOT * PK * s
+				draw_texture_rect(_tx(k), Rect2(at, PSZ * PK * s), false, Color(1, 1, 1, fade))
 				if sc == "fire" and intro_t > 0.8:
 					var hp := at + Vector2(7, -4) * s
 					var fl := int(t * 8.0) % 2
@@ -622,8 +627,8 @@ func _draw_cut(it: Dictionary, vs: Vector2, cx: float, floor_y: float, s: float,
 				# 天開了：光從上面照下來
 				_pillar(cx if sc == "sky" else cx, floor_y + 20.0, fade * (0.9 if sc == "kneel" else 0.7))
 				if sc == "sky":
-					var jp := Vector2(cx, floor_y * 0.32) - Vector2(7, 17) * s * 0.8
-					draw_texture_rect(_tx("jesus"), Rect2(jp, Vector2(14, 17) * s * 0.8), false, Color(1, 1, 1, fade * clampf(intro_t / 1.5, 0.0, 1.0)))
+					var jp := Vector2(cx, floor_y * 0.32) - PFOOT * PK * s * 0.8
+					draw_texture_rect(_tx("jesus"), Rect2(jp, PSZ * PK * s * 0.8), false, Color(1, 1, 1, fade * clampf(intro_t / 1.5, 0.0, 1.0)))
 			if sc == "stones":
 				for i in 4:
 					var sx := cx + (-1 if i < 2 else 1) * (70.0 + (i % 2) * 34.0) * s * 0.4
@@ -970,8 +975,8 @@ func _hashf(a: int, b: int) -> float:
 
 ## 一個人：腳底中心在 foot
 func _who(k: String, foot: Vector2, s: float, col: Color) -> void:
-	var at := foot - Vector2(7, 17) * s
-	draw_texture_rect(_tx(k), Rect2(at, Vector2(14, 17) * s), false, col)
+	var at := foot - PFOOT * PK * s
+	draw_texture_rect(_tx(k), Rect2(at, PSZ * PK * s), false, col)
 
 
 func _tx(k: String) -> Texture2D:
@@ -1051,9 +1056,9 @@ func _draw() -> void:
 		var k: String = walkers[i]
 		var f: int = (int(t * 4.0) + i) % 2
 		var off: Vector2 = Vector2((i - mid) * 15.0 * scale * 0.55, -absf(i - mid) * 6.0 * scale * 0.4)
-		var at := Vector2(cx, base_y) + off - Vector2(7, 17) * scale
-		draw_rect(Rect2(at + Vector2(2, 15.5) * scale, Vector2(10, 2) * scale), Color(0, 0, 0, 0.35))
-		draw_texture_rect(tex["%s_%d" % [k, f]], Rect2(at, Vector2(14, 17) * scale), false)
+		var at := Vector2(cx, base_y) + off - PFOOT * PK * scale
+		draw_rect(Rect2(at + Vector2(5, 22.5) * PK * scale, Vector2(14, 2) * PK * scale), Color(0, 0, 0, 0.35))
+		draw_texture_rect(tex["%s_%d" % [k, f]], Rect2(at, PSZ * PK * scale), false)
 
 
 func _hills(vs: Vector2, horizon: float, ph: float, col: Color, amp: float, freq: float) -> void:

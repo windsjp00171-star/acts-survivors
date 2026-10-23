@@ -12,8 +12,9 @@ var witness_label: Label
 var nav_buttons := {}
 var portrait := false
 var tabs_enabled := {"home": true, "roster": true, "shop": true, "gifts": true, "ach": true, "codex": true}
-var gift_tag := "講道"
-var gift_sel := 0
+var board_sel := ""      # 恩賜盤上選到的節點
+var board_zoom := 1.0
+const C_RED_UI := Color("ff7a6a")
 var cur_tab := ""
 var devlog: Dictionary
 var codex: Dictionary
@@ -849,7 +850,7 @@ func _show_companion(key: String) -> void:
 func _show_shop() -> void:
 	_clear("shop")
 	_text(content, "營地建設　用「見證」蓋", 16, UIKit.GOLD)
-	_text(content, "蓋好就一直有效，每一項都有上限。（餅留著學「恩賜」那一頁的恩賜樹）", 11, UIKit.MUTED, true)
+	_text(content, "蓋好就一直有效，每一項都有上限。（餅留著學「恩賜」那一頁的恩賜盤）", 11, UIKit.MUTED, true)
 	for u in Save.meta.bread.upgrades:
 		var rank := Save.up_rank(u.id)
 		var full: bool = rank >= int(u.max)
@@ -970,7 +971,7 @@ func _codex_entry(known: bool, name: String, lines: Array) -> void:
 			_text(v, ln[0], 11, ln[1], true)
 
 
-# ---------- 恩賜樹 ----------
+# ---------- 恩賜盤 ----------
 ## 內容重建、版面算好之後，把捲動放回原來的位置
 func _keep_scroll(v: int) -> void:
 	await get_tree().process_frame
@@ -981,154 +982,196 @@ func _keep_scroll(v: int) -> void:
 
 func _show_gifts() -> void:
 	_clear("gifts")
-	var GF: Dictionary = Save.meta.gifts
-	_text(content, "恩賜樹　用「餅」學習，出發前「配置」", 16, UIKit.GOLD)
-	var used := Save.gift_used()
-	var cap := Save.gift_cap()
-	_text(content, "配置點數 %d／%d　學過的節點永遠保留，但每次出發只有裝上的才生效（打勾的）。建立教會、通過更高的信心等級，配置點數會增加。" % [used, cap], 12, UIKit.GOLD if used <= cap else UIKit.CREAM, true)
-	var flow := HFlowContainer.new()
-	flow.add_theme_constant_override("h_separation", 6)
-	flow.add_theme_constant_override("v_separation", 6)
-	content.add_child(flow)
-	for tag in GF.trees:
-		var tg: String = tag
-		var on_n := 0
-		for id in Save.data.get("gift_on", {}).get(tg, []):
-			on_n += Save.gift_rank(tg, id)
-		var b := UIKit.button("%s %d／%d" % [tg, on_n, Save.gift_points(tg)], 13 if portrait else 12, tg == gift_tag)
-		b.custom_minimum_size = Vector2(72, 32) if portrait else Vector2(62, 28)
-		b.pressed.connect(func():
-			gift_tag = tg
-			gift_sel = 0
-			_show_gifts())
-		flow.add_child(b)
-	var tree: Dictionary = GF.trees[gift_tag]
-	var members: Array = G.companions.filter(func(c): return c.tag == gift_tag and c.skill != "").map(func(c): return c.name)
-
-	# 樹：3 欄 × 4 層的格子，節點之間畫連線（像暗黑破壞神 2 的技能樹）
-	# 說明與學習鈕放在樹旁邊：橫式在右邊、直式在上面（都不用往下拉）
+	var leaders: Array = G.leaders.filter(func(L): return L.key == "paul" or Save.is_unlocked("leader_" + L.key))
+	var lead := Save.cur_leader()
+	if not leaders.any(func(L): return L.key == lead):
+		lead = "paul"
+	var lname: String = G.paul.name if lead == "paul" else _comp_def(lead).name
+	var start := Save.board_start(lead)
+	var start_tag: String = str(Save.board_node(start).get("tag", "中央"))
+	_text(content, "恩賜盤　用餅「學會」，出發前替主角「點上」（點數 %d／%d）" % [Save.gift_used(lead), Save.gift_cap()], 15, UIKit.GOLD)
 	var area: BoxContainer = VBoxContainer.new() if portrait else HBoxContainer.new()
 	area.add_theme_constant_override("separation", 10)
 	content.add_child(area)
 	var side := VBoxContainer.new()
 	side.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	side.add_theme_constant_override("separation", 6)
-	var cw := 96.0 if portrait else 100.0   # 直式：三欄要塞進手機寬度
-	var ch := 84.0
+	var vs := get_viewport().get_visible_rect().size
+	var cw: float = minf(vs.x - 60.0, 520.0) if portrait else minf(vs.x * 0.42, vs.y - 150.0)
 	var canvas := Control.new()
-	canvas.custom_minimum_size = Vector2(cw * 3, ch * GF.tiers.size())
+	canvas.custom_minimum_size = Vector2(cw, cw)
+	canvas.clip_contents = true
 	canvas.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	if portrait:
-		area.add_child(side)
-		area.add_child(canvas)
-	else:
-		area.add_child(canvas)
-		area.add_child(side)
-	var nodes: Array = tree.nodes
-	var center := func(nd: Dictionary) -> Vector2: return Vector2((int(nd.col) + 0.5) * cw, (int(nd.row) + 0.5) * ch + 7.0)
-	canvas.draw.connect(func():
-		for r in GF.tiers.size():
-			# 每一層上方寫這一層要先累積幾點（點夠了變金色）
-			var need := int(GF.tiers[r])
-			if need > 0:
-				canvas.draw_string(UIKit.font(), Vector2(4, r * ch + 11), "第 %d 層：需 %d 點" % [r + 1, need], HORIZONTAL_ALIGNMENT_LEFT, -1, 10, UIKit.GOLD if Save.gift_points(gift_tag) >= need else UIKit.MUTED)
-		for nd in nodes:
-			for rq in nd.req:
-				var from: Dictionary = nodes.filter(func(x): return x.id == rq)[0]
-				var lit: bool = Save.gift_rank(gift_tag, rq) > 0
-				canvas.draw_line(center.call(from), center.call(nd), UIKit.GOLD if lit else Color("4a3a50"), 3.0 if lit else 2.0))
-	for i in nodes.size():
-		var nd: Dictionary = nodes[i]
-		var rank := Save.gift_rank(gift_tag, nd.id)
-		var open := Save.gift_open(i, gift_tag)
-		var full: bool = rank >= int(nd.max)
-		var nb := Button.new()
-		var eq := Save.gift_on(gift_tag, nd.id)
-		nb.text = "%s%s\n%s" % ["✓" if eq else "", tree.names[i], "●".repeat(rank) + "○".repeat(int(nd.max) - rank)]
-		nb.add_theme_font_override("font", UIKit.font())
-		nb.add_theme_font_size_override("font_size", 11 if portrait else 12)
-		nb.add_theme_color_override("font_color", UIKit.GOLD if eq else (UIKit.CREAM if rank > 0 or open else UIKit.MUTED))
-		var border: Color = UIKit.GOLD if eq or i == gift_sel else (UIKit.BRONZE if open or rank > 0 else Color("3a2e44"))
-		nb.add_theme_stylebox_override("normal", UIKit.box(Color(0.24, 0.18, 0.08) if eq else (Color(0.14, 0.12, 0.16) if rank > 0 else (Color(0.16, 0.12, 0.18) if open else Color(0.08, 0.06, 0.1))), border, 6))
-		nb.add_theme_stylebox_override("hover", UIKit.box(Color(0.28, 0.2, 0.14), UIKit.GOLD, 6))
-		nb.size = Vector2(cw - 12, ch - 26)
-		nb.position = center.call(nd) - nb.size / 2.0
-		var idx: int = i
-		nb.pressed.connect(func():
-			gift_sel = idx
+	area.add_child(canvas)
+	area.add_child(side)
+	var top := HFlowContainer.new()
+	top.add_theme_constant_override("h_separation", 6)
+	top.add_theme_constant_override("v_separation", 6)
+	side.add_child(top)
+	for L in leaders:
+		var key: String = L.key
+		var nm: String = G.paul.name if key == "paul" else _comp_def(key).name
+		var b := UIKit.button("%s %d" % [nm, Save.gift_used(key)], 12, key == lead)
+		b.pressed.connect(func():
+			Save.data.leader = key   # 跟出發頁選的主角是同一個
+			board_sel = ""
+			Save.save_profile()
 			_show_gifts())
-		canvas.add_child(nb)
+		top.add_child(b)
+	var tools := HFlowContainer.new()
+	tools.add_theme_constant_override("h_separation", 6)
+	side.add_child(tools)
+	var rec := UIKit.button("一鍵推薦", 12)
+	rec.pressed.connect(func():
+		Save.board_recommend(lead, start_tag if start_tag != "中央" else _best_tag())
+		Save.save_profile()
+		Sfx.play("holy", 0.0)
+		_show_gifts())
+	tools.add_child(rec)
+	var clr := UIKit.button("全部卸下", 12)
+	clr.pressed.connect(func():
+		if clr.text == "全部卸下":
+			clr.text = "再按一次確定"
+			return
+		Save.board_clear(lead)
+		Save.save_profile()
+		_show_gifts())
+	tools.add_child(clr)
+	var zb := UIKit.button("縮小看全部" if board_zoom > 1.0 else "放大", 12)
+	zb.pressed.connect(func():
+		board_zoom = 1.0 if board_zoom > 1.0 else 2.0
+		_show_gifts())
+	tools.add_child(zb)
+
+	# 盤面：整張縮到放得下；放大時以選到的節點為中心
+	var span := 345.0
+	var sc: float = cw / (span * 2.0) * board_zoom
+	var focus := Vector2.ZERO
+	if board_zoom > 1.0:
+		var fn := Save.board_node(board_sel if board_sel != "" else start)
+		focus = Vector2(float(fn.get("x", 0)), float(fn.get("y", 0)))
+	var to_px := func(nd: Dictionary) -> Vector2: return Vector2(cw / 2.0, cw / 2.0) + (Vector2(float(nd.x), float(nd.y)) - focus) * sc
+	var COL := {"講道": UIKit.SKY, "詩歌": UIKit.GOLD, "醫治": UIKit.HEAL, "守護": Color("6ab0f0"), "差派": Color("ff9a4a"), "門徒": Color("c08ae0"),
+		"中央": UIKit.CREAM, "橋": Color("e0e0e0")}
+	canvas.draw.connect(func():
+		canvas.draw_rect(Rect2(Vector2.ZERO, Vector2(cw, cw)), Color(0.07, 0.05, 0.09))
+		for tg in Save.meta.gifts.board.order:
+			# 流派的名字寫在那一區
+			var i: int = Save.meta.gifts.board.order.find(tg)
+			var a := deg_to_rad(-90.0 + i * 60.0)
+			var lp: Vector2 = Vector2(cw / 2.0, cw / 2.0) + (Vector2(cos(a), sin(a)) * 46.0 * 3.4 - focus) * sc
+			canvas.draw_string(UIKit.font(), lp + Vector2(-14, 4), tg, HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color(COL[tg], 0.45))
+		for l in Save.meta.gifts.board.links:
+			var na := Save.board_node(l[0])
+			var nb := Save.board_node(l[1])
+			var on: bool = Save.board_is_on(l[0], lead) and Save.board_is_on(l[1], lead)
+			var lr: bool = Save.board_learned(l[0]) and Save.board_learned(l[1])
+			canvas.draw_line(to_px.call(na), to_px.call(nb), UIKit.GOLD if on else (UIKit.BRONZE if lr else Color("3a2e44")), 3.0 if on else 1.5)
+		for nd in Save.board_nodes():
+			var p: Vector2 = to_px.call(nd)
+			var r: float = [0.0, 2.5, 4.0, 5.5][int(nd.size)] * board_zoom * clampf(cw / 400.0, 0.8, 1.4)
+			var col: Color = COL.get(nd.tag, UIKit.CREAM)
+			var on: bool = Save.board_is_on(nd.id, lead)
+			var lr: bool = Save.board_learned(nd.id)
+			var can: bool = Save.board_can_learn(nd.id)
+			if nd.id == board_sel:
+				canvas.draw_circle(p, r + 4.0, Color(1, 1, 1, 0.35))
+			if on:
+				canvas.draw_circle(p, r + 1.5, UIKit.GOLD)
+				canvas.draw_circle(p, r, col)
+			elif lr:
+				canvas.draw_circle(p, r, col.darkened(0.55))
+				canvas.draw_arc(p, r, 0.0, TAU, 20, col, 1.5)
+			elif can:
+				canvas.draw_circle(p, r, Color(0.12, 0.1, 0.14))
+				canvas.draw_arc(p, r, 0.0, TAU, 20, Color(col, 0.8), 1.5)
+			else:
+				canvas.draw_circle(p, r * 0.8, Color("2a2230"))
+			if nd.kind == "keystone":
+				canvas.draw_arc(p, r + 3.0, 0.0, TAU, 20, Color(C_RED_UI, 0.8), 1.0)
+			if Save.board_is_start(nd.id):
+				canvas.draw_string(UIKit.font(), p + Vector2(-5, 5), "★", HORIZONTAL_ALIGNMENT_LEFT, -1, 11, UIKit.CREAM if nd.id == start else UIKit.MUTED))
+	canvas.gui_input.connect(func(ev):
+		if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_LEFT:
+			var best := ""
+			var bd := 18.0
+			for nd in Save.board_nodes():
+				var d: float = (to_px.call(nd) as Vector2).distance_to(ev.position)
+				if d < bd:
+					bd = d
+					best = nd.id
+			if best != "":
+				board_sel = best
+				Sfx.play("ui", 0.0)
+				_show_gifts())
 	canvas.queue_redraw()
 
-	# 選到的節點：說明與學習鈕
-	if gift_sel >= 0:
-		var nd: Dictionary = nodes[gift_sel]
-		var rank := Save.gift_rank(gift_tag, nd.id)
-		var full: bool = rank >= int(nd.max)
-		var open := Save.gift_open(gift_sel, gift_tag)
-		var box := PanelContainer.new()
-		box.add_theme_stylebox_override("panel", UIKit.box(Color(0.14, 0.1, 0.16), UIKit.GOLD, 6))
-		side.add_child(box)
-		# 說明在上、按鈕排在下面一列（手機上放同一列會把畫面撐寬）
-		var hv := VBoxContainer.new()
-		hv.add_theme_constant_override("separation", 8)
-		box.add_child(hv)
-		var v := VBoxContainer.new()
-		v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hv.add_child(v)
-		var h := HFlowContainer.new()
-		h.add_theme_constant_override("h_separation", 8)
-		h.add_theme_constant_override("v_separation", 6)
-		hv.add_child(h)
-		_text(v, "%s　Lv%d／%d" % [tree.names[gift_sel], rank, int(nd.max)], 15, UIKit.CREAM)
-		if tree.has("refs"):
-			_text(v, "（%s）" % tree.refs[gift_sel], 11, UIKit.SKY)
-		_text(v, (nd.desc % gift_tag) if "%s" in str(nd.desc) else str(nd.desc), 12, UIKit.INK, true)
-		if nd.id == "link" or nd.id == "ult":
-			var TL: Dictionary = G.tag_links.get(gift_tag, {})
-			if not TL.is_empty():
-				_text(v, "%s的專屬連結：%s" % [gift_tag, TL.name], 11, UIKit.SKY, true)
-		if not open:
-			var why := []
-			if Save.gift_points(gift_tag) < int(GF.tiers[int(nd.row)]):
-				why.append("這棵樹先累積 %d 點" % int(GF.tiers[int(nd.row)]))
-			for rq in nd.req:
-				if Save.gift_rank(gift_tag, rq) <= 0:
-					why.append("先學「%s」" % tree.names[nodes.find(nodes.filter(func(x): return x.id == rq)[0])])
-			_text(v, "還不能學：" + "、".join(why), 11, UIKit.CREAM, true)
-		var cost := Save.gift_cost(gift_sel, gift_tag)
-		var bb := UIKit.button("已學滿" if full else ("學習　餅 %d" % cost), 13, open and not full)
-		bb.custom_minimum_size = Vector2(110, 34)
-		bb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		bb.disabled = full or not open or int(Save.data.get("bread", 0)) < cost
-		bb.pressed.connect(func():
-			if Save.buy_gift(gift_sel, gift_tag):
-				Sfx.play("pick", 0.0)
+	# 選到的節點：說明、學會、點上／卸下
+	var sel := board_sel if board_sel != "" else start
+	var nd := Save.board_node(sel)
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UIKit.box(Color(0.14, 0.1, 0.16), UIKit.GOLD, 6))
+	side.add_child(box)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 6)
+	box.add_child(v)
+	var kind_name: String = ["", "小節點", "經文節點", "基石"][int(nd.size)]
+	_text(v, "%s　%s・%s" % [nd.name, nd.tag, kind_name], 15, UIKit.CREAM)
+	if str(nd.get("ref", "")) != "":
+		_text(v, "（%s）" % nd.ref, 11, UIKit.SKY)
+	_text(v, str(nd.desc), 12, UIKit.INK, true)
+	if nd.kind == "keystone":
+		_text(v, "基石：很強，但有代價", 11, C_RED_UI, true)
+	var h := HFlowContainer.new()
+	h.add_theme_constant_override("h_separation", 8)
+	v.add_child(h)
+	if sel == start:
+		_text(v, "★ %s的起點：一定點上、不佔點數" % lname, 11, UIKit.GOLD, true)
+	elif not Save.board_learned(sel):
+		var can := Save.board_can_learn(sel)
+		var cost := int(nd.cost)
+		var lb := UIKit.button("學會（%d 餅）" % cost, 13)
+		lb.disabled = not can or int(Save.data.get("bread", 0)) < cost
+		lb.pressed.connect(func():
+			if Save.board_learn(sel):
+				Sfx.play("holy", 0.0)
 				_show_gifts())
-		h.add_child(bb)
-		if rank > 0:
-			# 裝上／卸下（不花餅，隨時可換）
-			var on := Save.gift_on(gift_tag, nd.id)
-			var fits: bool = on or Save.gift_used() + rank <= Save.gift_cap()
-			var tb := UIKit.button(("✓ 已裝上（%d 點）　卸下" % rank) if on else ("裝上（用 %d 點）" % rank), 13, not on and fits)
-			tb.custom_minimum_size = Vector2(110, 34)
-			tb.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			tb.disabled = not fits
-			tb.pressed.connect(func():
-				if Save.toggle_gift(gift_tag, nd.id):
-					Save.save_profile()
-					Sfx.play("ui", 0.0)
-					_show_gifts())
-			h.add_child(tb)
-			if not fits:
-				_text(v, "配置點數不夠：先卸下別的節點", 11, UIKit.CREAM, true)
-	var SR: Dictionary = G.get("schools", {}).get(gift_tag, {})
+		h.add_child(lb)
+		if not can:
+			_text(v, "要先學會旁邊相連的節點", 11, UIKit.MUTED, true)
+		elif int(Save.data.get("bread", 0)) < cost:
+			_text(v, "餅不夠（有 %d 個）" % int(Save.data.get("bread", 0)), 11, UIKit.MUTED, true)
+	else:
+		var on := Save.board_is_on(sel, lead)
+		var tb := UIKit.button("卸下" if on else "替%s點上" % lname, 13, not on)
+		var msg := Label.new()
+		tb.pressed.connect(func():
+			var err := Save.board_toggle(sel, lead)
+			if err == "":
+				Save.save_profile()
+				Sfx.play("ui", 0.0)
+				_show_gifts()
+			else:
+				_text(v, err, 11, UIKit.CREAM, true))
+		h.add_child(tb)
+	_text(side, "藍＝講道、金＝詩歌、綠＝醫治、淡藍＝守護、橘＝差派、紫＝門徒。金框是點上的，亮邊是學會的，暗的是還沒學。紅圈是基石。", 10, UIKit.MUTED, true)
+	var SR: Dictionary = G.get("schools", {}).get(str(nd.tag), {})
 	if not SR.is_empty():
-		# 流派規則：同伴練到 Lv3 借給主角裝上就成形；深化卡升階；第 5 層的節點會改寫規則
-		_text(side, "流派規則「%s」（%s）" % [SR.name, SR.ref], 13, UIKit.GOLD)
-		_text(side, SR.desc + "。這個流派的同伴練到 Lv3，會把它借給主角裝上，流派就成形；之後的深化卡讓它升到 2、3 階。第 5 層的節點會改寫這條規則。", 11, UIKit.INK, true)
-	_text(side, "這個流派：" + "、".join(members), 11, UIKit.MUTED, true)
-	_text(side, "（%s）" % tree.ref, 11, UIKit.MUTED)
+		_text(side, "流派規則「%s」（%s）" % [SR.name, SR.ref], 12, UIKit.GOLD)
+		_text(side, str(SR.desc), 11, UIKit.INK, true)
+
+
+## 保羅一鍵推薦：點在隊伍裡最多人的那個流派
+func _best_tag() -> String:
+	var cnt := {}
+	for c in G.companions:
+		if Save.is_unlocked(c.key) and c.skill != "":
+			cnt[c.tag] = int(cnt.get(c.tag, 0)) + Save.affinity_xp(c.key) + 1
+	var best := "講道"
+	for k in cnt:
+		if int(cnt[k]) > int(cnt.get(best, 0)):
+			best = k
+	return best
 
 
 # ---------- 製作日誌 ----------

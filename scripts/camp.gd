@@ -54,13 +54,15 @@ func _ready() -> void:
 	squash = Vector2(0.6, 2.0) if portrait else Vector2.ONE
 
 	var ground := Sprite2D.new()
-	ground.texture = load("res://assets/sprites/ground.png")
+	ground.texture = load("res://assets/sprites/ground_camp.png")
 	ground.region_enabled = true
 	ground.region_rect = Rect2(0, 0, 1024, 1024)
 	ground.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 	ground.z_index = -2
-	ground.modulate = Color(0.82, 0.8, 0.78)
 	add_child(ground)
+	floor_node = Sprite2D.new()   # 營地中間踩出來的泥土地與小路（_build_floor）
+	floor_node.z_index = -2
+	add_child(floor_node)
 	props = Node2D.new()
 	props.z_index = -1
 	props.draw.connect(_draw_props)
@@ -76,6 +78,8 @@ func _ready() -> void:
 	cam.zoom = Vector2.ONE * (vs.x / 205.0 if portrait else 2.0)
 	add_child(cam)
 	cam.make_current()
+	if not portrait:
+		cam.position.y = -8.0   # 上排的建設比較高，畫面往上一點
 
 	_build_camp()
 	_build_hud()
@@ -112,11 +116,27 @@ func _p(x: float, y: float) -> Vector2:
 	return (Vector2(x, y) * squash).round()
 
 
+## 設施的位置：直式畫面有自己排的 pos_v（建設有高有寬，直接壓窄會擠在一起）
+func _at(item: Dictionary) -> Vector2:
+	if portrait and item.has("pos_v"):
+		return Vector2(item.pos_v[0], item.pos_v[1])
+	return _p(item.pos[0], item.pos[1])
+
+
+const LAMPS := [[-46, -36], [56, -34], [112, -8], [30, 46], [-40, 42], [-84, -2]]
+const LAMPS_V := [[-30, -36], [36, -40], [50, 40], [-40, 86], [20, 92], [-40, -30]]
+
+
+func _lamp_pos(i: int) -> Vector2:
+	var l: Array = LAMPS_V[i] if portrait else LAMPS[i]
+	return Vector2(l[0], l[1])
+
+
 func _sprite(key: String) -> Sprite2D:
 	var s := Sprite2D.new()
 	s.texture = load("res://assets/sprites/%s_0.png" % key)
 	s.centered = false
-	s.offset = Vector2(-7, -17)
+	s.offset = Vector2(-12, -25)
 	actors.add_child(s)
 	return s
 
@@ -131,13 +151,29 @@ func _build_camp() -> void:
 			Save.data.camp_seen.append(item.id)
 			if item.has("news") and Save.data.stats.runs > 0:
 				news.append(item.news)
-		var pos := _p(item.pos[0], item.pos[1])
+		var pos := _at(item)
 		if item.kind in ["depart", "shop", "ach", "log", "supper"]:
 			spots.append({"kind": item.kind, "key": "", "name": item.name, "pos": pos, "r": 20.0})
 	for bd in Save.meta.buildings:
 		if Save.built(bd.id):
-			spots.append({"kind": "bld", "key": bd.id, "name": bd.name, "pos": _p(bd.pos[0], bd.pos[1]), "r": 18.0})
+			spots.append({"kind": "bld", "key": bd.id, "name": bd.name, "pos": _at(bd), "r": 18.0})
 	Save.save_profile()
+	for b in built:
+		var bp := _at(b)
+		if PROP_TEX.has(b.kind):
+			_place(PROP_TEX[b.kind], bp, {"ach": "notes", "log": "log", "banner": "flag", "depart": "road"}.get(b.kind, ""))
+		elif b.kind == "lamps":
+			for i in LAMPS.size():
+				_place("lamp", _lamp_pos(i), "lamp")
+	for bd in Save.meta.buildings:
+		if Save.built(bd.id):
+			var bp := _at(bd)
+			if bd.id == "garden":
+				garden_node = _place("garden_%d" % _garden_stage(), bp)
+			else:
+				_place(bd.id, bp, bd.id if bd.id in ["altar", "forge"] else "")
+	_place("fire", Vector2(0, 7), "fire")
+	_build_floor()
 
 	# 營火旁只隨機出現幾位（有話要說的一定在），人再多也不會塞滿（百基拉・亞居拉站一起）
 	# 主角：選了誰，營地裡走動的就是他；保羅改坐在營火旁
@@ -172,7 +208,7 @@ func _build_camp() -> void:
 		spots.append({"kind": "comp", "key": c.key, "name": nm, "pos": pos + (Vector2(6, 0) if c.get("with", "") != "" else Vector2.ZERO), "r": 12.0})
 
 	# 營地四周固定的樹和石頭
-	for d in [["tree_1", -150, -70], ["tree_2", 150, -78], ["tree_3", -160, 70], ["tree_2", 165, 80], ["tree_1", 40, -88],
+	for d in [["tree_1", -150, -70], ["tree_2", 176, -62], ["tree_3", -160, 70], ["tree_2", 165, 80], ["tree_1", 58, -100],
 			["rock_1", -60, -70], ["rock_2", 70, 70], ["rock_3", -150, -5], ["bush", 30, 82], ["bush", -100, 84]]:
 		var tr := Sprite2D.new()
 		tr.texture = load("res://assets/sprites/%s.png" % d[0])
@@ -194,6 +230,83 @@ func _build_camp() -> void:
 
 
 var news_label_text := ""
+var floor_node: Sprite2D
+var fx_nodes: Array = []   # 建設上會動的東西（火、旗子、見證牆的紙）
+var garden_node: Sprite2D
+
+const PROP_TEX := {"shop": "tent_big", "tent_small": "tent_small", "ach": "board", "log": "log", "depart": "sign",
+	"banner": "banner", "supper": "supper"}
+
+
+## 一個貼地的物件（圖的底邊中間對準 pos），放進 actors 跟人一起依 y 排序；fx 是畫在它上面會動的東西
+func _place(tex: String, pos: Vector2, fx := "") -> Sprite2D:
+	var s := Sprite2D.new()
+	s.texture = load("res://assets/sprites/camp_%s.png" % tex)
+	s.centered = false
+	s.offset = Vector2(-floorf(s.texture.get_width() / 2.0), -s.texture.get_height())
+	s.position = pos
+	actors.add_child(s)
+	if fx != "":
+		var n := Node2D.new()
+		n.draw.connect(_draw_fx.bind(n, fx))
+		s.add_child(n)
+		fx_nodes.append(n)
+	return s
+
+
+func _garden_stage() -> int:
+	var g: Dictionary = Save.data.get("garden", {})
+	if g.is_empty():
+		return 0
+	return 2 if int(Save.data.stats.runs) - int(g.at) >= 3 else 1
+
+
+## 泥土地：營火四周一大片，加上通往每一座建設的小路（依實際位置算，直式畫面也對得上）
+func _build_floor() -> void:
+	var lim := _p(190, 110)
+	var w := int(lim.x * 2.0)
+	var hh := int(lim.y * 2.0)
+	var dirt := PackedFloat32Array()
+	dirt.resize(w * hh)
+	var org := -lim
+	var stamp := func(c: Vector2, rx: float, ry: float) -> void:
+		for y in range(maxi(0, int(c.y - ry - org.y)), mini(hh, int(c.y + ry - org.y) + 1)):
+			for x in range(maxi(0, int(c.x - rx - org.x)), mini(w, int(c.x + rx - org.x) + 1)):
+				var d := Vector2((x + org.x - c.x) / rx, (y + org.y - c.y) / ry).length_squared()
+				var i := y * w + x
+				dirt[i] = maxf(dirt[i], 1.0 - d)
+	stamp.call(_p(0, 6), 74.0 * squash.x, 40.0 * squash.y)
+	var ends := []
+	for sp in spots:
+		if sp.kind != "comp":
+			ends.append(sp.pos)
+	ends.append(_p(190, 40))   # 往外的路
+	for e in ends:
+		stamp.call(e + Vector2(0, 4), 16.0, 7.0)
+		var a := Vector2(0, 6)
+		var steps := int(a.distance_to(e) / 3.0)
+		for k in steps + 1:
+			var q := a.lerp(e, float(k) / maxf(steps, 1))
+			q += Vector2(0, sin(k * 0.35) * 2.0)
+			stamp.call(q, 5.0, 4.0)
+	var img := Image.create(w, hh, false, Image.FORMAT_RGBA8)
+	var cols := [Color("a48662"), Color("b49470"), Color("c4a47a")]
+	for y in hh:
+		for x in w:
+			var v := dirt[y * w + x]
+			var r := float(hash(Vector2i(x, y)) % 1000) / 1000.0
+			if v + (r - 0.5) * 0.12 <= 0.05:
+				continue
+			var lo := float(hash(Vector2i(x / 6, y / 4)) % 1000) / 1000.0   # 一塊一塊的深淺，不要每一點都跳
+			var c: Color = cols[2] if v > 0.5 and lo > 0.6 else cols[1]
+			if v < 0.16:
+				c = cols[0]
+			if r > 0.985:
+				c = Color("e0d0b0")
+			img.set_pixel(x, y, c)
+	floor_node.texture = ImageTexture.create_from_image(img)
+	floor_node.centered = false
+	floor_node.position = org
 
 
 func _name_of(key: String) -> String:
@@ -360,6 +473,8 @@ func _use_building(id: String) -> void:
 				Save.data.witness = int(Save.data.witness) + 20
 				Save.save_profile()
 				_say([["paul", "園子收成了！餅 +40、見證 +20。又撒下了新的種子。"]])
+			if garden_node != null:
+				garden_node.texture = load("res://assets/sprites/camp_garden_%d.png" % _garden_stage())
 			else:
 				_say([["paul", "種子正在長。（再出發 %d 趟就能收成）" % (3 - (runs - int(g.at)))]])
 		"table":
@@ -487,6 +602,8 @@ func _process(dt: float) -> void:
 			typing = false
 	_update_hud()
 	props.queue_redraw()
+	for n in fx_nodes:
+		n.queue_redraw()
 	tags.queue_redraw()
 
 
@@ -583,146 +700,53 @@ func _verb(s: Dictionary) -> String:
 
 # ---------- 畫營地 ----------
 func _draw_props() -> void:
+	# 地上的光（畫在人和建設後面）；營地的東西本身是 _place 放的圖
 	var n := props
-	var lit := _has("lamps")
-	for b in built:
-		var p := _p(b.pos[0], b.pos[1])
-		match b.kind:
-			"shop": _tent(n, p, 1.0, Color("c9a46b"), Color("a65a8e"))
-			"tent_small": _tent(n, p, 0.7, Color("b89870"), Color("6f6a5a"))
-			"ach": _board(n, p)
-			"log": _log_post(n, p)
-			"depart": _sign(n, p)
-			"banner": _banner(n, p)
-			"supper": _supper_table(n, p)
-	# 用見證蓋的營地建設（每一座都能走過去互動，見 _use_building）
-	for bd in Save.meta.buildings:
-		if Save.built(bd.id):
-			_building(n, _p(bd.pos[0], bd.pos[1]), bd.id)
-	# 營火
 	var fl := 0.5 + 0.5 * sin(t * 9.0) * sin(t * 5.3)
-	n.draw_circle(Vector2(0, 2), 30.0 + fl * 3.0, Color(1.0, 0.6, 0.2, 0.08))
-	n.draw_circle(Vector2(0, 2), 16.0 + fl * 2.0, Color(1.0, 0.7, 0.3, 0.12))
-	for i in 5:
-		var a := i * TAU / 5.0
-		n.draw_rect(Rect2(Vector2(cos(a) * 7.0, 3.0 + sin(a) * 3.0).round() - Vector2(2, 1), Vector2(4, 2)), Color("8a8478"))
-	n.draw_rect(Rect2(-5, 1, 10, 2), Color("5a3f28"))
-	n.draw_rect(Rect2(-3, -1, 6, 2), Color("6b4a2a"))
-	var h := 4.0 + fl * 3.0
-	n.draw_rect(Rect2(-3, 1 - h, 6, h), Color("e8481c"))
-	n.draw_rect(Rect2(-2, 1 - h * 0.8, 4, h * 0.8), Color("ff8a2a"))
-	n.draw_rect(Rect2(-1, 1 - h * 0.5, 2, h * 0.5), Color("ffd75e"))
-	if lit:
-		for i in 6:
-			var a := i * TAU / 6.0 + 0.3
-			var lp := _p(cos(a) * 92.0, sin(a) * 52.0)
-			n.draw_circle(lp + Vector2(0, -9), 6.0, Color(1.0, 0.8, 0.4, 0.15))
-			n.draw_rect(Rect2(lp.x, lp.y - 8, 1, 8), Color("5a3f28"))
-			n.draw_rect(Rect2(lp.x - 1, lp.y - 10, 3, 2), Color("ffd75e"))
+	n.draw_circle(Vector2(0, 4), 34.0 + fl * 3.0, Color(1.0, 0.6, 0.2, 0.07))
+	n.draw_circle(Vector2(0, 4), 18.0 + fl * 2.0, Color(1.0, 0.7, 0.3, 0.1))
+	if _has("lamps"):
+		for i in LAMPS.size():
+			n.draw_circle(_lamp_pos(i) + Vector2(0, -2), 9.0, Color(1.0, 0.8, 0.4, 0.08))
 
 
-func _supper_table(n: Node2D, p: Vector2) -> void:
-	# 矮木桌，上面一個餅、一個杯
-	n.draw_rect(Rect2(p.x - 12, p.y - 6, 24, 3), Color("8a643a"))
-	n.draw_rect(Rect2(p.x - 12, p.y - 6, 24, 1), Color("f4ead2"))
-	n.draw_rect(Rect2(p.x - 10, p.y - 3, 2, 4), Color("5a3f28"))
-	n.draw_rect(Rect2(p.x + 8, p.y - 3, 2, 4), Color("5a3f28"))
-	n.draw_rect(Rect2(p.x - 7, p.y - 9, 6, 3), Color("d8a860"))
-	n.draw_rect(Rect2(p.x - 6, p.y - 10, 4, 1), Color("e8c080"))
-	n.draw_rect(Rect2(p.x + 2, p.y - 11, 4, 3), Color("8a2a3a"))
-	n.draw_rect(Rect2(p.x + 3, p.y - 8, 2, 2), Color("c8a040"))
-
-
-func _tent(n: Node2D, p: Vector2, s: float, cloth: Color, stripe: Color) -> void:
-	var w := 26.0 * s
-	var h := 20.0 * s
-	n.draw_colored_polygon(PackedVector2Array([p + Vector2(-w, 0), p + Vector2(0, -h), p + Vector2(w, 0)]), cloth)
-	n.draw_colored_polygon(PackedVector2Array([p + Vector2(-w * 0.35, 0), p + Vector2(0, -h * 0.75), p + Vector2(w * 0.35, 0)]), Color("2a1e22"))
-	n.draw_line(p + Vector2(-w, 0), p + Vector2(0, -h), stripe, 2.0)
-	n.draw_line(p + Vector2(w, 0), p + Vector2(0, -h), stripe, 2.0)
-	n.draw_rect(Rect2(p.x - 1, p.y - h - 4, 1, 5), Color("5a3f28"))
-
-
-func _board(n: Node2D, p: Vector2) -> void:
-	n.draw_rect(Rect2(p.x - 14, p.y - 18, 2, 18), Color("5a3f28"))
-	n.draw_rect(Rect2(p.x + 12, p.y - 18, 2, 18), Color("5a3f28"))
-	n.draw_rect(Rect2(p.x - 15, p.y - 22, 30, 14), Color("8a6438"))
-	n.draw_rect(Rect2(p.x - 13, p.y - 20, 26, 10), Color("c9a46b"))
-	var done: int = Save.data.achievements.size()
-	for i in mini(done, 9):
-		n.draw_rect(Rect2(p.x - 11 + (i % 5) * 5, p.y - 19 + (i / 5) * 5, 3, 3), Color("fff4c2"))
-
-
-func _log_post(n: Node2D, p: Vector2) -> void:
-	n.draw_rect(Rect2(p.x - 1, p.y - 18, 2, 18), Color("5a3f28"))
-	n.draw_rect(Rect2(p.x - 8, p.y - 22, 16, 12), Color("efe2c0"))
-	n.draw_rect(Rect2(p.x - 8, p.y - 22, 16, 1), Color("c9a46b"))
-	for i in 3:
-		n.draw_rect(Rect2(p.x - 6, p.y - 19 + i * 3, 12 - (i % 2) * 4, 1), Color("8a7a5a"))
-	if panel != null and panel.has_new_log() and int(t * 3.0) % 2 == 0:
-		n.draw_rect(Rect2(p.x - 1, p.y - 33, 3, 7), Color("ffd75e"))
-		n.draw_rect(Rect2(p.x - 1, p.y - 25, 3, 2), Color("ffd75e"))
-
-
-func _building(n: Node2D, p: Vector2, id: String) -> void:
-	var W := Color("5a3f28")
-	match id:
-		"well":
-			n.draw_circle(p + Vector2(0, -3), 7.0, Color("8a8478"))
-			n.draw_circle(p + Vector2(0, -3), 4.5, Color("2a4a6a"))
-			n.draw_rect(Rect2(p.x - 8, p.y - 16, 2, 13), W)
-			n.draw_rect(Rect2(p.x + 6, p.y - 16, 2, 13), W)
-			n.draw_rect(Rect2(p.x - 9, p.y - 18, 18, 2), Color("8a6438"))
-		"tower":
-			n.draw_rect(Rect2(p.x - 6, p.y - 30, 2, 30), W)
-			n.draw_rect(Rect2(p.x + 4, p.y - 30, 2, 30), W)
-			n.draw_rect(Rect2(p.x - 8, p.y - 34, 16, 5), Color("8a6438"))
-			n.draw_colored_polygon(PackedVector2Array([p + Vector2(-9, -34), p + Vector2(9, -34), p + Vector2(0, -42)]), Color("a65a3a"))
+## 建設上會動的部分（座標以建設的底邊中間為原點）
+func _draw_fx(n: Node2D, kind: String) -> void:
+	var fl := 0.5 + 0.5 * sin(t * 9.0 + n.get_instance_id() % 7) * sin(t * 5.3)
+	match kind:
+		"fire":
+			var h := 4.0 + fl * 4.0
+			n.draw_rect(Rect2(-3, -2 - h, 6, h), Color("e8481c"))
+			n.draw_rect(Rect2(-2, -2 - h * 0.8, 4, h * 0.8), Color("ff8a2a"))
+			n.draw_rect(Rect2(-1, -2 - h * 0.5, 2, h * 0.5), Color("ffd75e"))
+			if int(t * 5.0) % 3 == 0:
+				n.draw_rect(Rect2(roundf(sin(t * 7.0) * 2.0), -6 - h - fmod(t * 20.0, 6.0), 1, 1), Color("ffd75e"))
 		"altar":
-			n.draw_rect(Rect2(p.x - 9, p.y - 8, 18, 8), Color("9a958a"))
-			n.draw_rect(Rect2(p.x - 9, p.y - 8, 18, 2), Color("c8c2b2"))
-			var fl := 3.0 + sin(t * 8.0) * 1.0
-			n.draw_rect(Rect2(p.x - 2, p.y - 8 - fl, 4, fl), Color("ff8a2a"))
-		"library":
-			n.draw_rect(Rect2(p.x - 12, p.y - 16, 24, 16), Color("c8b898"))
-			n.draw_colored_polygon(PackedVector2Array([p + Vector2(-14, -16), p + Vector2(14, -16), p + Vector2(0, -24)]), Color("8a5a3a"))
-			n.draw_rect(Rect2(p.x - 3, p.y - 8, 6, 8), W)
-		"table":
-			n.draw_rect(Rect2(p.x - 16, p.y - 6, 32, 4), Color("8a6438"))
-			n.draw_rect(Rect2(p.x - 14, p.y - 2, 2, 4), W)
-			n.draw_rect(Rect2(p.x + 12, p.y - 2, 2, 4), W)
-			for i in 4:
-				n.draw_rect(Rect2(p.x - 12 + i * 7, p.y - 8, 3, 2), Color("e0b060"))
-		"garden":
-			for i in 5:
-				var q := p + Vector2(-12 + i * 6, -2 + (i % 2) * 3)
-				n.draw_circle(q, 3.0, Color("5b6b2f"))
-				n.draw_rect(Rect2(q.x, q.y - 2, 1, 1), [Color("ff7aa8"), Color("ffd75e"), Color("c8a0ff")][i % 3])
+			var h2 := 3.0 + fl * 3.0
+			n.draw_rect(Rect2(-3, -16 - h2, 6, h2), Color("e8481c"))
+			n.draw_rect(Rect2(-2, -16 - h2 * 0.75, 4, h2 * 0.75), Color("ffb040"))
+			n.draw_rect(Rect2(-1, -16 - h2 - 3.0 - fmod(t * 6.0, 6.0), 1, 2), Color(0.8, 0.8, 0.8, 0.4))
 		"forge":
-			n.draw_rect(Rect2(p.x - 10, p.y - 12, 20, 12), Color("6a665e"))
-			n.draw_rect(Rect2(p.x - 4, p.y - 8, 8, 6), Color("ff8a2a") if int(t * 4.0) % 2 == 0 else Color("e8481c"))
-			n.draw_rect(Rect2(p.x + 4, p.y - 20, 4, 8), Color("4a4640"))
-		"granary":
-			# 倉房：圓頂的穀倉，門口一袋麥子
-			n.draw_rect(Rect2(p.x - 10, p.y - 14, 20, 14), Color("b89a6a"))
-			n.draw_colored_polygon(PackedVector2Array([p + Vector2(-12, -14), p + Vector2(12, -14), p + Vector2(0, -24)]), Color("8a6438"))
-			n.draw_rect(Rect2(p.x - 3, p.y - 8, 6, 8), W)
-			n.draw_rect(Rect2(p.x + 6, p.y - 5, 6, 5), Color("e0c080"))
-
-
-func _sign(n: Node2D, p: Vector2) -> void:
-	n.draw_rect(Rect2(p.x, p.y - 16, 2, 16), Color("5a3f28"))
-	n.draw_colored_polygon(PackedVector2Array([p + Vector2(-8, -16), p + Vector2(12, -16), p + Vector2(16, -12), p + Vector2(12, -8), p + Vector2(-8, -8)]), Color("c9a46b"))
-	n.draw_line(p + Vector2(-6, -12), p + Vector2(10, -12), Color("5a3f28"), 1.0)
-	# 往外的小路
-	for i in 8:
-		n.draw_rect(Rect2(p.x + 6 + i * 6, p.y + 3 + sin(i) * 2.0, 4, 2), Color(0.85, 0.75, 0.55, 0.5))
-
-
-func _banner(n: Node2D, p: Vector2) -> void:
-	n.draw_rect(Rect2(p.x, p.y - 26, 1, 26), Color("5a3f28"))
-	var wave := sin(t * 3.0)
-	n.draw_colored_polygon(PackedVector2Array([p + Vector2(1, -26), p + Vector2(15, -23 + wave), p + Vector2(1, -18)]), Color("ffd75e"))
+			var c := Color("ff8a2a") if int(t * 4.0) % 2 == 0 else Color("e8481c")
+			n.draw_rect(Rect2(-7, -14, 8, 5), c)
+			n.draw_rect(Rect2(-5, -13, 4, 3), Color("ffd75e"))
+			n.draw_circle(Vector2(-3, -12), 9.0, Color(1.0, 0.5, 0.2, 0.1))
+			var sm := fmod(t * 5.0, 10.0)
+			n.draw_rect(Rect2(1 + sm * 0.3, -36 - sm, 2, 2), Color(0.7, 0.7, 0.7, 0.4 - sm * 0.04))
+		"lamp":
+			n.draw_rect(Rect2(-1, -15 - roundf(fl), 2, 2 + roundf(fl)), Color("ffd75e"))
+		"flag":
+			var wave := roundf(sin(t * 3.0))
+			n.draw_colored_polygon(PackedVector2Array([Vector2(1, -30), Vector2(15, -27 + wave), Vector2(1, -22)]), Color("ffd75e"))
+			n.draw_line(Vector2(2, -26), Vector2(12, -26 + wave), Color("e0a820"), 1.0)
+		"notes":
+			var done: int = Save.data.achievements.size()
+			for i in mini(done, 12):
+				n.draw_texture(preload("res://assets/sprites/camp_note.png"), Vector2(-13 + (i % 6) * 4 + (i / 6) * 2, -23 + (i / 6) * 6))
+		"log":
+			if panel != null and panel.has_new_log() and int(t * 3.0) % 2 == 0:
+				n.draw_rect(Rect2(-1, -36, 3, 7), Color("ffd75e"))
+				n.draw_rect(Rect2(-1, -28, 3, 2), Color("ffd75e"))
 
 
 func _draw_tags() -> void:
@@ -743,13 +767,13 @@ func _draw_tags() -> void:
 			continue
 		var txt: String = s.name
 		var w := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 8).x
-		var y: float = s.pos.y - (22.0 if s.kind == "comp" else 26.0)
+		var y: float = s.pos.y - 22.0 if s.kind == "comp" else s.pos.y + 10.0   # 建設的名字寫在底下（建設有高有矮）
 		var pos := Vector2(roundf(s.pos.x - w / 2.0), y)
 		var col := C_GOLD if s == near else C_INK
 		n.draw_string_outline(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, 3, Color("140c10"))
 		n.draw_string(font, pos, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, col)
 		if s == near:
-			var by := y - 9.0 + roundf(sin(t * 5.0))
+			var by: float = (y - 9.0 if s.kind == "comp" else s.pos.y - 48.0) + roundf(sin(t * 5.0))
 			n.draw_rect(Rect2(s.pos.x - 1, by, 3, 3), C_GOLD)
 
 

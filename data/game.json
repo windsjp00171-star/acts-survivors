@@ -10,7 +10,8 @@
     { "key": "tim",   "hp": 80,  "speed": 48, "desc": "血少、跑得快，追蹤光箭又密又準" },
     { "key": "philip", "hp": 90, "speed": 50, "desc": "跑得最快，長距離衝刺" },
     { "key": "lydia", "hp": 110, "speed": 40, "desc": "鋪紫布定住敵人，適合打連結" },
-    { "key": "maxwell", "hp": 110, "speed": 42, "desc": "府城的洋醫生：丟出藥瓶直線穿透，帶著醫治的流派" }
+    { "key": "maxwell", "hp": 110, "speed": 42, "desc": "府城的洋醫生：丟出藥瓶直線穿透，帶著醫治的流派" },
+    { "key": "asaph", "hp": 100, "speed": 42, "desc": "大衛指派的伶長：一圈圈鈸聲，每第 4 下是重拍；帶著詩歌的流派" }
   ],
   "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
   "_companions說明": "color 是這位同伴招式的顏色（畫面上用顏色分辨誰在出招）；skill 對應下面的 skills；tag 是流派；era 顯示在名冊上。站位依加入順序自動排。",
@@ -48,16 +49,22 @@
     { "key": "noah", "name": "挪亞", "skill": "flood", "tag": "守護", "era": "舊約", "color": "#3a7ad0" },
     { "key": "esther", "name": "以斯帖", "skill": "decree", "tag": "醫治", "era": "舊約", "color": "#c060c0" },
     { "key": "miriam", "name": "米利暗", "skill": "timbrel", "tag": "詩歌", "era": "舊約", "color": "#ff6a8a" },
+    { "key": "asaph", "name": "亞薩", "skill": "cymbal", "tag": "詩歌", "era": "舊約", "color": "#ffd75e" },
+    { "key": "heman", "name": "希幔", "skill": "horn", "tag": "詩歌", "era": "舊約", "color": "#e0a040" },
+    { "key": "jeduthun", "name": "耶杜頓", "skill": "harp", "tag": "詩歌", "era": "舊約", "color": "#a0c8ff" },
     { "key": "maxwell", "name": "馬雅各", "skill": "medicine", "tag": "醫治", "era": "台灣", "color": "#8ae0d0" },
     { "key": "bunsui", "name": "吳文水", "skill": "street", "tag": "講道", "era": "台灣", "color": "#ffb05e" },
     { "key": "kauchang", "name": "高長", "skill": "cook", "tag": "門徒", "era": "台灣", "color": "#c8e070" }
   ],
   "_skills說明": "branches 是升到 Lv3 時的二選一（add 會加在數值上，之後的升級也保留）。base 是 Lv1；levels 依序是 Lv2 到 Lv5，每一級只寫有變的欄位，會一路疊上去。desc 是升級卡上的說明。engine 是借用哪一種招式的運作方式（bolt 追蹤、ring 擴散圈、beam 直線、nova 身邊重擊、strike 預兆後落下、shot 直線飛行、net 撒網、chain 連鎖閃電、thrust 近身刺擊、gather 收聚），look 是外觀。",
   "skills": {
+    "cymbal": {"engine": "ring", "look": "cymbal", "base": {"cooldown": 1.4, "max_radius": 60, "damage": 3, "speed": 90, "rings": 1, "returns": 0, "stun": 0, "thick": 1, "knock": 6}, "levels": [{"damage": 4, "max_radius": 70}, {"rings": 2}, {"cooldown": 1.1, "knock": 10}, {"damage": 6, "thick": 2, "max_radius": 84}], "desc": ["敲銅鈸：一圈鈸聲往外擴散；每第 4 下是重拍，傷害三倍（代上 16:5）", "傷害 +33%、範圍 +17%", "圈數 1 → 2 圈", "攻擊速度 +27%、擊退 +67%", "傷害 +50%、粗細 +100%、範圍 +20%"], "branches": [{"name": "大發響聲", "desc": "鈸聲範圍 +20%（代上 15:19）", "add": {"max_radius": 12}}, {"name": "兩面鈸", "desc": "鈸聲 1 → 2 圈", "add": {"rings": 1}}]},
+    "horn": {"engine": "nova", "look": "horn", "base": {"cooldown": 4.0, "radius": 56, "damage": 3, "knock": 40, "slams": 1, "stun": 0, "fear": 1.5}, "levels": [{"radius": 64}, {"fear": 2.0}, {"cooldown": 3.2, "damage": 5}, {"radius": 76, "fear": 2.5, "damage": 7}], "desc": ["吹角頌讚：一聲號角，身邊的敵人驚慌、四散逃開 1.5 秒（菁英與 Boss 不受影響；代上 25:5）", "範圍 +14%", "驚慌 1.5 → 2 秒", "攻擊速度 +25%、傷害 +67%", "範圍 +19%、驚慌 2 → 2.5 秒、傷害 +40%"], "branches": [{"name": "號聲響亮", "desc": "號角範圍 +20%", "add": {"radius": 12}}, {"name": "連吹兩聲", "desc": "號角連吹 1 → 2 聲", "add": {"slams": 1}}]},
+    "harp": {"engine": "ring", "look": "harp", "base": {"cooldown": 6.0, "max_radius": 40, "damage": 1, "speed": 50, "rings": 1, "returns": 0, "stun": 0, "thick": 1, "knock": 2, "duration": 3.0, "chance": 0.2}, "levels": [{"chance": 0.25}, {"duration": 4.0}, {"cooldown": 5.0, "chance": 0.3}, {"duration": 5.0, "chance": 0.35, "max_radius": 56}], "desc": ["彈琴稱謝：琴聲響起的 3 秒裡，同伴每次出手有 20% 機會立刻再出手一次（代上 25:3）", "再出手機率 20% → 25%", "琴聲持續 3 → 4 秒", "攻擊速度 +20%、再出手機率 25% → 30%", "琴聲持續 4 → 5 秒、再出手機率 30% → 35%、範圍 +40%"], "branches": [{"name": "稱謝不停", "desc": "琴聲持續 +1 秒", "add": {"duration": 1.0}}, {"name": "慈愛永遠長存", "desc": "再出手機率 +5%（代上 16:41）", "add": {"chance": 0.05}}]},
     "bolt": {
       "base": { "cooldown": 0.4, "range": 120, "damage": 1, "speed": 200, "count": 1, "split": 0, "pierce": 0, "size": 1 },
       "levels": [ { "count": 2 }, { "split": 2 }, { "count": 3, "cooldown": 0.32 }, { "pierce": 2, "size": 2, "damage": 2 } ],
-      "desc": ["追蹤光箭，自動射向最近的敵人", "光箭 1 → 2 支", "命中後分裂成 2 支小箭", "光箭 2 → 3 支、攻擊速度 +25%", "可以穿透 2 隻敵人；大小 +100%、傷害 +100%"],
+      "desc": ["追蹤光箭，自動射向最近的敵人；每射滿 6 支，放一次熱心齊射", "光箭 1 → 2 支", "命中後分裂成 2 支小箭", "光箭 2 → 3 支、攻擊速度 +25%", "可以穿透 2 隻敵人；大小 +100%、傷害 +100%"],
       "branches": [ { "name": "追根究柢", "desc": "光箭不再找最近的，改追射程內血最多的敵人；傷害 +100%", "add": {"prio": 1, "damage": 1} }, { "name": "到處傳揚", "desc": "光箭打中後，分出 2 支小光箭射向附近的敵人", "add": {}, "onhit": ["split"]} ]
     },
     "ring": {
@@ -75,7 +82,7 @@
     "heal": {
       "base": { "renew": 0.15, "cleanse": 1, "cooldown": 3.2, "amount": 6, "revive_speed": 1, "instant_revive": 0 },
       "levels": [ { "amount": 10 }, { "cooldown": 2.4 }, { "revive_speed": 2 }, { "instant_revive": 1, "amount": 14 } ],
-      "desc": ["定期幫全隊回血；被醫治的同伴醒過來、被嚇散的回到隊伍，3 秒內出手加快 15%", "回血 +67%", "治療速度 +33%", "扶起速度 ×1 → ×2", "每次治療直接扶起倒下的同伴；回血 +40%"],
+      "desc": ["定期幫全隊回血；被醫治的同伴醒過來、被嚇散的回到隊伍，3 秒內出手加快 15%；每 30 秒，把一位倒下的同伴立刻扶起來", "回血 +67%", "治療速度 +33%", "扶起速度 ×1 → ×2", "每次治療直接扶起倒下的同伴；回血 +40%"],
       "branches": [ { "name": "急救", "desc": "治療速度 +50%", "add": {"cooldown": -0.8} }, { "name": "醫生的手", "desc": "每次治療，一道光打向附近 2 隻敵人（治療量的 1.5 倍）", "add": {"smite": 2} } ]
     },
     "tent": {
@@ -87,7 +94,7 @@
     "beam": {
       "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 3, "range": 130, "beams": 1, "burst": 0, "lies_mult": 1 },
       "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 5 } ],
-      "desc": ["朝敵人射出一道貫穿的光束", "寬度 +80%、長度 +25%", "光束末端爆開", "光束 1 → 2 道", "光束 2 → 3 道、對謊言傷害 ×1 → ×3、傷害 +67%"],
+      "desc": ["朝敵人射出一道貫穿的光束；光束打到底會折射到附近另一隻敵人（六成傷害）", "寬度 +80%、長度 +25%", "光束末端爆開", "光束 1 → 2 道", "光束 2 → 3 道、對謊言傷害 ×1 → ×3、傷害 +67%"],
       "branches": [ { "name": "更寬", "desc": "光束寬度 +67%", "add": {"width": 6} }, { "name": "講解更詳細", "desc": "光束照到的地方分出小光箭，射向附近的敵人", "add": {}, "onhit": ["split"]} ]
     },
     "letter": {
@@ -101,14 +108,14 @@
       "engine": "bolt", "look": "stone",
       "base": { "cooldown": 1.1, "range": 140, "damage": 3, "speed": 240, "count": 1, "split": 0, "pierce": 0, "size": 1, "elite_mult": 3 },
       "levels": [ { "damage": 4 }, { "count": 2 }, { "pierce": 2 }, { "elite_mult": 6, "size": 2, "cooldown": 0.8 } ],
-      "desc": ["甩石機弦：慢但重的石子，對菁英與 Boss 三倍傷害", "傷害 +33%", "石子 1 → 2 顆", "石子可以穿透 2 隻敵人", "對菁英傷害 ×3 → ×6、大小 +100%、攻擊速度 +38%（撒上 17:49）"],
+      "desc": ["甩石機弦：慢但重的石子，對菁英與 Boss 三倍傷害；越久沒甩，石子越重（蓄力最多 3 倍）", "傷害 +33%", "石子 1 → 2 顆", "石子可以穿透 2 隻敵人", "對菁英傷害 ×3 → ×6、大小 +100%、攻擊速度 +38%（撒上 17:49）"],
       "branches": [ { "name": "巨石", "desc": "傷害 +75%、石子大小 +100%，對菁英與 Boss 再 +60%", "add": {"damage": 3, "size": 1}, "onhit": ["heavy"]}, { "name": "打倒巨人", "desc": "甩中的敵人兩成機會被打暈 1 秒；石子 2 → 3 顆", "add": {"count": 1}, "onhit": ["still"]} ]
     },
     "jawbone": {
       "engine": "nova",
       "base": { "melee": 0.15, "leech": 1, "cooldown": 2.2, "radius": 40, "damage": 8, "knock": 80, "slams": 1, "stun": 0.4, "tough": 0.5 },
       "levels": [ { "radius": 48 }, { "damage": 14 }, { "cooldown": 1.7, "stun": 0.7 }, { "slams": 2, "radius": 56, "knock": 110, "damage": 17 } ],
-      "desc": ["驢腮骨：重擊身邊一圈，震飛並暈眩敵人；參孫自己受到的傷害減半；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "範圍 +20%", "傷害 +75%", "攻擊速度 +29%、定住 0.4 → 0.7 秒", "連砸 1 → 2 次、範圍 +17%、擊退 +38%、傷害 +21%（士 15:16）"],
+      "desc": ["驢腮骨：重擊身邊一圈，震飛並暈眩敵人；參孫自己受到的傷害減半；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血；身邊的敵人 2 秒內只追參孫（嘲諷）", "範圍 +20%", "傷害 +75%", "攻擊速度 +29%、定住 0.4 → 0.7 秒", "連砸 1 → 2 次、範圍 +17%、擊退 +38%、傷害 +21%（士 15:16）"],
       "branches": [ { "name": "橫掃", "desc": "重擊範圍 +25%", "add": {"radius": 12} }, { "name": "拆毀房屋", "desc": "被重擊驅散的敵人當場爆開，傷害身邊的敵人", "add": {}, "onhit": ["release"]} ]
     },
     "sea": {
@@ -122,7 +129,7 @@
       "engine": "strike",
       "base": { "consecrate": 2, "cooldown": 2.4, "range": 150, "count": 1, "radius": 16, "damage": 5, "delay": 0.6 },
       "levels": [ { "count": 2 }, { "radius": 22 }, { "damage": 8 }, { "count": 4, "cooldown": 1.8 } ],
-      "desc": ["火從天降：地上先出現預兆，火柱再落進敵群；火落下的地方，旁邊的自己人回一點血（火：打中的敵人會燒起來，燒死的會爆開）", "火 1 → 2 道", "範圍 +38%", "傷害 +60%", "火 2 → 4 道、攻擊速度 +33%（王上 18:38）"],
+      "desc": ["火從天降：地上先出現預兆，火柱再落進敵群；火落下的地方，旁邊的自己人回一點血（火：打中的敵人會燒起來，燒死的會爆開）；火落下的地方地上燒 3 秒", "火 1 → 2 道", "範圍 +38%", "傷害 +60%", "火 2 → 4 道、攻擊速度 +33%（王上 18:38）"],
       "branches": [ { "name": "燒盡祭物", "desc": "被火燒死的敵人當場爆開光，傷害身邊的敵人；範圍 +18%", "add": {"radius": 4}, "onhit": ["release"]}, { "name": "火雨", "desc": "火 2 → 4 道", "add": {"count": 2} } ]
     },
     "net": {
@@ -143,7 +150,7 @@
       "engine": "thrust",
       "base": { "melee": 0.15, "leech": 1, "cooldown": 0.9, "range": 56, "width": 18, "damage": 15, "crit": 0.15, "crit_mult": 3 },
       "levels": [ { "damage": 21 }, { "crit": 0.3 }, { "range": 72, "width": 22 }, { "cooldown": 0.6, "crit_mult": 4 } ],
-      "desc": ["伸過手來：朝前方近身一刺，有機會打出三倍會心；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "傷害 +40%", "會心機率 15% → 30%", "射程 +29%、寬度 +22%", "攻擊速度 +50%、會心傷害 ×3 → ×4（約 20:27）"],
+      "desc": ["伸過手來：朝前方近身一刺，有機會打出三倍會心；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血；打血少於 30% 的敵人，會心機率加倍", "傷害 +40%", "會心機率 15% → 30%", "射程 +29%、寬度 +22%", "攻擊速度 +50%、會心傷害 ×3 → ×4（約 20:27）"],
       "branches": [ { "name": "探入", "desc": "刺中的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {}, "onhit": ["mark"]}, { "name": "篤信", "desc": "會心機率 30% → 55%", "add": {"crit": 0.25} } ]
     },
     "coin": {
@@ -171,7 +178,7 @@
       "engine": "thrust", "look": "dash",
       "base": { "melee": 0.15, "leech": 1, "cooldown": 1.0, "range": 90, "width": 8, "damage": 9, "crit": 0.1, "crit_mult": 2 },
       "levels": [ { "range": 120 }, { "damage": 15 }, { "width": 12, "cooldown": 0.8 }, { "range": 160, "crit": 0.25 } ],
-      "desc": ["跑過去：腓利親自衝向敵人，沿路一直線都打到，再跑回隊伍；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "射程 +33%", "傷害 +67%", "寬度 +50%、攻擊速度 +25%", "射程 +33%、會心機率 10% → 25%（徒 8:30）"],
+      "desc": ["跑過去：腓利親自衝向敵人，沿路一直線都打到，再跑回隊伍；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血；可以連衝兩次", "射程 +33%", "傷害 +67%", "寬度 +50%、攻擊速度 +25%", "射程 +33%、會心機率 10% → 25%（徒 8:30）"],
       "branches": [ { "name": "遠行", "desc": "衝刺距離 +33%", "add": {"range": 40} }, { "name": "被提去", "desc": "衝過去驅散的敵人，當場爆開光", "add": {}, "onhit": ["release"]} ]
     },
     "purple": {
@@ -185,7 +192,7 @@
       "engine": "shot", "look": "pilum",
       "base": { "cooldown": 1.3, "range": 140, "damage": 5, "speed": 220, "count": 1, "pierce": 3, "spread": 10, "pin": 0.5 },
       "levels": [ { "damage": 7 }, { "count": 2 }, { "pierce": 6 }, { "count": 3, "damage": 9, "cooldown": 1.0 } ],
-      "desc": ["百夫長：擲出羅馬標槍，直線穿透 3 隻，把敵人釘住 0.5 秒", "傷害 +40%", "標槍 1 → 2 支", "穿透 3 → 6 隻", "標槍 2 → 3 支、傷害 +29%、攻擊速度 +30%（徒 10:1）"],
+      "desc": ["百夫長：擲出羅馬標槍，直線穿透 3 隻，把敵人釘住 0.5 秒；每中一槍敵人破甲：受到的傷害 +10%，最多 3 層", "傷害 +40%", "標槍 1 → 2 支", "穿透 3 → 6 隻", "標槍 2 → 3 支、傷害 +29%、攻擊速度 +30%（徒 10:1）"],
       "branches": [ { "name": "釘住", "desc": "釘住的時間加倍，對菁英與 Boss 再 +60%", "add": {"pin": 0.5}, "onhit": ["heavy"]}, { "name": "列隊", "desc": "標槍 2 → 3 支", "add": {"count": 1} } ]
     },
     "sew": {
@@ -206,7 +213,7 @@
       "engine": "nova",
       "base": { "heal_team": 2, "melee": 0.15, "leech": 1, "cooldown": 3.0, "radius": 40, "damage": 9, "knock": 50, "slams": 1, "heal": 2 },
       "levels": [ { "radius": 48 }, { "damage": 15 }, { "cooldown": 2.3, "heal": 3 }, { "slams": 2, "radius": 56 } ],
-      "desc": ["跪下禱告：身邊一圈震開敵人，主角和身邊的同伴都回血、醒過來；打中的敵人露出破綻（2 秒內全隊打他更痛 15%）", "範圍 +20%", "傷害 +67%", "攻擊速度 +30%、回血 +50%", "連禱 1 → 2 次、範圍 +17%（雅 5:16）"],
+      "desc": ["跪下禱告：身邊一圈震開敵人，主角和身邊的同伴都回血、醒過來；打中的敵人露出破綻（2 秒內全隊打他更痛 15%）；隊伍要停下來才跪得下去，停得越久補得越多（最多 2 倍）", "範圍 +20%", "傷害 +67%", "攻擊速度 +30%、回血 +50%", "連禱 1 → 2 次、範圍 +17%（雅 5:16）"],
       "branches": [ { "name": "迫切", "desc": "禱告速度 +30%", "add": {"cooldown": -0.7} }, { "name": "醫治", "desc": "回血 +150%", "add": {"heal": 3} } ]
     },
     "dawn": {
@@ -262,35 +269,35 @@
       "engine": "cone", "look": "timbrel",
       "base": { "melee": 0.15, "leech": 1, "cooldown": 1.4, "range": 63, "angle": 50, "damage": 9, "knock": 60, "pulses": 1 },
       "levels": [ { "range": 74 }, { "damage": 15 }, { "pulses": 2 }, { "angle": 75, "range": 88, "damage": 20 } ],
-      "desc": ["擊鼓跳舞：朝前方打出一片扇形的鼓聲，震退敵人；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血", "射程 +17%", "傷害 +67%", "鼓聲 1 → 2 波", "角度 +50%、射程 +19%、傷害 +33%（出 15:20）"],
+      "desc": ["擊鼓跳舞：朝前方打出一片扇形的鼓聲，震退敵人；打中的敵人露出破綻（2 秒內全隊打他更痛 15%），自己也吸回一點血；每 25 秒擊鼓跳舞：全隊出手加快 30%、6 秒", "射程 +17%", "傷害 +67%", "鼓聲 1 → 2 波", "角度 +50%、射程 +19%、傷害 +33%（出 15:20）"],
       "branches": [ { "name": "海邊的歌", "desc": "鼓聲震到的敵人變慢 1.5 秒；角度 +20%", "add": {"angle": 10}, "onhit": ["slow"]}, { "name": "急鼓", "desc": "攻擊速度 +40%", "add": {"cooldown": -0.4} } ]
     },
     "lamp": {
       "engine": "beam", "look": "lamp",
       "base": { "cooldown": 2.0, "length": 110, "width": 7, "damage": 3, "range": 120, "beams": 1, "burst": 0, "lies_mult": 2, "expose": 0.3 },
       "levels": [ { "width": 10 }, { "burst": 1 }, { "beams": 2, "lies_mult": 3, "expose": 0.45 }, { "length": 160, "damage": 5 } ],
-      "desc": ["夜裡來見耶穌：提燈照出一道光；被照亮的敵人 3 秒內受到的傷害 +30%（火：打中的敵人會燒起來，燒死的會爆開）", "寬度 +43%", "光的末端爆開", "光 1 → 2 道、對謊言傷害 ×2 → ×3、被照到的敵人受到的傷害 +30% → +45%", "長度 +45%、傷害 +67%（約 3:2）"],
+      "desc": ["夜裡來見耶穌：提燈照出一道光；被照亮的敵人 3 秒內受到的傷害 +30%（火：打中的敵人會燒起來，燒死的會爆開）；提燈從一邊慢慢掃到另一邊，掃過一片扇形", "寬度 +43%", "光的末端爆開", "光 1 → 2 道、對謊言傷害 ×2 → ×3、被照到的敵人受到的傷害 +30% → +45%", "長度 +45%、傷害 +67%（約 3:2）"],
       "branches": [ { "name": "照亮暗處", "desc": "被燈照到的敵人受到的傷害 +30% → +60%；光的長度 +27%", "add": {"length": 30, "expose": 0.3} }, { "name": "雙燈", "desc": "光 1 → 2 道", "add": {"beams": 1} } ]
     },
     "medicine": {
       "engine": "shot", "look": "vial",
       "base": { "atone": 1, "cooldown": 0.75, "range": 130, "damage": 4, "speed": 210, "count": 1, "pierce": 1, "spread": 14 },
       "levels": [ { "damage": 6 }, { "count": 2 }, { "pierce": 3, "cooldown": 0.6 }, { "count": 3, "damage": 8, "pierce": 4 } ],
-      "desc": ["藥瓶：朝最近的敵人丟出藥瓶，直線飛行、穿透 1 隻；打出去的傷害有一成化成醫治，給隊伍裡血最少的人", "傷害 +50%", "藥瓶 1 → 2 瓶", "穿透 1 → 3 隻、攻擊速度 +25%", "藥瓶 2 → 3 瓶、傷害 +33%、穿透 3 → 4 隻（太 9:12）"],
+      "desc": ["藥瓶：朝最近的敵人丟出藥瓶，直線飛行、穿透 1 隻；打出去的傷害有一成化成醫治，給隊伍裡血最少的人；藥瓶打中會摔破，留下一灘藥水 3 秒：敵人變慢、一直受傷", "傷害 +50%", "藥瓶 1 → 2 瓶", "穿透 1 → 3 隻、攻擊速度 +25%", "藥瓶 2 → 3 瓶、傷害 +33%、穿透 3 → 4 隻（太 9:12）"],
       "branches": [ { "name": "重藥", "desc": "傷害 +33%、穿透 1 → 3 隻", "add": {"damage": 2, "pierce": 2} }, { "name": "止痛", "desc": "藥瓶打中時，主角回一點血", "add": {}, "onhit": ["leech"]} ]
     },
     "street": {
       "engine": "beam",
       "base": { "cooldown": 1.6, "length": 120, "width": 5, "damage": 2, "range": 130, "beams": 1, "burst": 0, "lies_mult": 2 },
       "levels": [ { "width": 9, "length": 150 }, { "burst": 1 }, { "beams": 2 }, { "beams": 3, "lies_mult": 3, "damage": 3 } ],
-      "desc": ["街頭講道：在醫館門口講耶穌，話語像一道光直直貫穿；對謊言兩倍傷害", "寬度 +80%、長度 +25%", "話的末端爆開", "光 1 → 2 道", "光 2 → 3 道、對謊言傷害 ×2 → ×3、傷害 +50%（羅 10:14）"],
+      "desc": ["街頭講道：在醫館門口講耶穌，話語像一道光直直貫穿；對謊言兩倍傷害；隊伍停下來越久講得越大聲：光束越粗越痛，最多 3 倍", "寬度 +80%、長度 +25%", "話的末端爆開", "光 1 → 2 道", "光 2 → 3 道、對謊言傷害 ×2 → ×3、傷害 +50%（羅 10:14）"],
       "branches": [ { "name": "大聲", "desc": "光的寬度 +67%", "add": {"width": 6} }, { "name": "揭穿謊言", "desc": "被話照到的敵人露出破綻：3 秒內受到的傷害 +20%", "add": {}, "onhit": ["mark"]} ]
     },
     "cook": {
       "engine": "gather",
       "base": { "cooldown": 5.0, "radius": 90, "damage": 3, "knock": 80, "heal": 2 },
       "levels": [ { "radius": 120 }, { "cooldown": 4.5 }, { "damage": 3, "knock": 100 }, { "radius": 170, "heal": 8 } ],
-      "desc": ["煮飯的：把附近的經驗與餅帶到主角身邊、推開身邊的敵人，順便讓主角吃一點、回一點血", "範圍 +33%", "攻擊速度 +11%", "擊退 +25%", "範圍 +42%、回血 +300%"],
+      "desc": ["煮飯的：把附近的經驗與餅帶到主角身邊、推開身邊的敵人，順便讓主角吃一點、回一點血；吃過飯的同伴 8 秒內出手加快 20%", "範圍 +33%", "攻擊速度 +11%", "擊退 +25%", "範圍 +42%、回血 +300%"],
       "branches": [ { "name": "遠方", "desc": "範圍 +50%", "add": {"radius": 60} }, { "name": "飽足", "desc": "推開的敵人變慢 1.5 秒；擊退 +50%", "add": {"knock": 40}, "onhit": ["slow"]} ]
     },
     "trumpet": {
@@ -666,7 +673,13 @@
     { "companion": "esther", "fruit": "good", "name": "為這個時候",
       "desc": "救援更常發動：每 25 → 18 秒一次、救援回血 50% → 60%、傷害 +33%（斯 4:14）", "stats": {"save_cd": 18.0, "save_heal": 0.6, "damage": 12} },
     { "companion": "miriam", "fruit": "joy", "name": "海邊的歌",
-      "desc": "連打三下，扇形幾乎是半圓（出 15:21）", "stats": {"pulses": 3, "angle": 90, "range": 90} }
+      "desc": "連打三下，扇形幾乎是半圓（出 15:21）", "stats": {"pulses": 3, "angle": 90, "range": 90} },
+    { "companion": "asaph", "fruit": "joy", "name": "大發響聲",
+      "desc": "鈸聲 1 → 3 圈、傷害 +50%、範圍 +14%（代上 15:19）", "stats": {"rings": 3, "damage": 9, "max_radius": 96} },
+    { "companion": "heman", "fruit": "peace", "name": "王的先見",
+      "desc": "號聲範圍 +26%、驚慌 2.5 → 3 秒、傷害 +29%（代上 25:5）", "stats": {"radius": 96, "fear": 3.0, "damage": 9} },
+    { "companion": "jeduthun", "fruit": "good", "name": "慈愛永遠長存",
+      "desc": "琴聲 5 → 6 秒、再出手機率 35% → 45%（代上 16:41）", "stats": {"duration": 6.0, "chance": 0.45} }
   ],
   "elites": {
     "terror": { "name": "恐嚇", "sprite": "terror", "scale": 2.2, "tint": [1.0, 1.0, 1.0], "hp": 70, "speed": 18, "damage": 8,
@@ -702,8 +715,8 @@
   },
   "chest": { "rolls_min": 1, "rolls_max": 1 },
   "easter_egg": { "first_time": true, "chance": 0.1 },
-  "_leveling說明": "升到下一級需要的經驗 = first + step ×(等級-1) + growth ×(等級-1)²，越後面越慢。card_delay 是升級卡跳出後幾秒才能選；觸控用 touch_card_delay，避免滑動時誤觸。",
-  "leveling": { "first": 8, "step": 8, "growth": 1.0, "card_delay": 0.4, "touch_card_delay": 1.0, "heal_card": 30 },
+  "_leveling說明": "升到下一級需要的經驗 = first + step ×(等級-1) + growth ×(等級-1)²，越後面越慢。card_delay 是升級卡跳出後幾秒才能選；觸控用 touch_card_delay，避免滑動時誤觸。banishes 是每局可以放逐幾次（放逐的卡這一局不再出現）。",
+  "leveling": { "first": 8, "step": 8, "growth": 1.0, "card_delay": 0.4, "touch_card_delay": 1.0, "heal_card": 30, "banishes": 2 },
   "fever": {
     "_說明": "同心合意：隊伍越完整累積越快；滿了按空白鍵（觸控按按鈕）開五旬節。",
     "fill_seconds": 22,

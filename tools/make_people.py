@@ -1,19 +1,50 @@
-"""產生同伴的像素圖（14×17，兩格走路動畫＋進化版）。
+"""產生人物的像素圖（24×24：身體 18×22，兩格走路動畫＋進化版）。
 
 用法：python tools/make_people.py
+輸入：tools/people_src/<key>_0.png、_1.png（原本 14×17 的人物，當作「設定圖」：髮色、膚色、袍子、腰帶、鬍子、長髮、手上的東西都從這裡讀）
 輸出：assets/sprites/<key>_0.png、_1.png、_evo_0.png、_evo_1.png
 
-造型照原本同伴的樣子：深色外框、頭髮、臉、袍子中間一條腰帶，手上拿著他的東西。
-進化版頭上多一圈光環、腰帶變金色。
+要改一個人的樣子：改他的設定圖（14×17，好畫），再跑一次這支程式；或在 OVERRIDES 裡指定。
+新增人物：在 people_src 放一張 14×17 的設定圖（可以用 make_people_src 的 person() 產生）。
+進化版：頭上一圈光環、腰帶變金色。
 """
 import os
 
 from PIL import Image
 
-OUT = os.path.join(os.path.dirname(__file__), "..", "assets", "sprites")
+HERE = os.path.dirname(__file__)
+SRC = os.path.join(HERE, "people_src")
+OUT = os.path.join(HERE, "..", "assets", "sprites")
+W, H = 26, 24
+OX, OY = 3, 2          # 身體模板放在畫布的位置
 
-# 基本身形（取自原本的同伴）：a 外框、b 頭髮、c 皮膚、d 眼睛、e 袍子、f 腰帶、i 袍子暗面、j 腳
-BODY = [
+# 身體模板（18×22）：a 外框、b 頭髮、B 頭髮暗面、c 皮膚、C 皮膚暗面、d 眼睛、e 袍子、E 袍子亮面、i 袍子暗面、f 腰帶、h 手、j 鞋
+T = [
+    "..................",
+    "......aaaaaa......",
+    "....aabbbbbbaa....",
+    "...abbbbbbbbbba...",
+    "...abbbbbbbbbBa...",
+    "..abbcccccccbBba..",
+    "..abccccccccccba..",
+    "..acccdccccdccca..",
+    "..acccdccccdccCa..",
+    "..aCcccccccccCCa..",
+    "...aCccccccccCa...",
+    "....aaccccccaa....",
+    "...aEeeeEeeeeia...",
+    "..aEEeeeEeeeeeia..",
+    ".ahEeeeeEeeeeiiha.",
+    ".ahffffffffffffha.",
+    "..aEeeeeEeeeeiia..",
+    "..aEeeeeeeeeeiia..",
+    "..aEeeeeeeeeeiia..",
+    "...aiiiiiiiiiia...",
+    "....ajja..ajja....",
+    "....aaaa..aaaa....",
+]
+# 舊的 14×17 模板（用來分出「身體」和「手上的東西」）
+OLD = [
     "..............",
     "..............",
     "..............",
@@ -32,173 +63,156 @@ BODY = [
     "....jj.jj.....",
     "..............",
 ]
-FEET_1 = "...jj...jj...."   # 第二格：腳張開
+
+# 個別調整：手上的東西想放別的位置、或模板讀錯時
+OVERRIDES = {
+    "paul": {"bald": True},
+}
 
 
-def hx(c):
-    c = c.lstrip("#")
-    return tuple(int(c[i:i + 2], 16) for i in (0, 2, 4)) + (255,)
+def hexc(c):
+    return "#%02x%02x%02x" % c[:3]
 
 
-def person(key, hair, robe, robe_dark, sash, skin="#e3a878", beard=None, long_hair=False, item=None, crown=False):
+def shade(c, k):
+    r, g, b = int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16)
+    return "#%02x%02x%02x" % (min(255, int(r * k)), min(255, int(g * k)), min(255, int(b * k)))
+
+
+def rgba(c):
+    return (int(c[1:3], 16), int(c[3:5], 16), int(c[5:7], 16), 255)
+
+
+def read_spec(key):
+    im = Image.open(os.path.join(SRC, key + "_0.png")).convert("RGBA")
+    g = lambda x, y: im.getpixel((x, y))
+    skin = hexc(g(5, 6))
+    hair = hexc(g(3, 5))
+    spec = {
+        "skin": skin, "hair": hair, "robe": hexc(g(4, 11)), "sash": hexc(g(6, 11)), "dark": hexc(g(3, 13)),
+        "feet": hexc(g(4, 15)),
+        "bald": hexc(g(5, 4)) == skin,
+        "beard": hexc(g(5, 8)) if g(5, 8)[3] and hexc(g(5, 8)) != skin else None,
+        "long": g(2, 8)[3] > 0 and hexc(g(2, 8)) == hair,
+    }
+    spec.update(OVERRIDES.get(key, {}))
+    return spec
+
+
+def items(key, f):
+    """舊圖上不屬於身體的像素（手上的東西、頭上的冠冕……）→ [(x, y, rgba)]"""
+    im = Image.open(os.path.join(SRC, "%s_%d.png" % (key, f))).convert("RGBA")
+    mask = [list(r) for r in OLD]
+    if f == 1:
+        mask = mask[1:] + [list("..............")]
+        mask[14] = list("..............")
+        mask[15] = list("...jj...jj....")
+    out = []
+    for y in range(17):
+        for x in range(14):
+            p = im.getpixel((x, y))
+            if p[3] and mask[y][x] == ".":
+                out.append((x, y, p))
+    return out
+
+
+def place_items(px, its, f):
+    """手上的東西放大 1.5 倍、對準新的手（右手、左手、頭頂各一個對齊點）"""
+    sh = 1 if f == 1 else 0          # 走路那一格整個人往上一格，舊圖的座標先放回原位
+    for x, y, p in its:
+        y0 = y + sh
+        if y0 <= 2 and 3 <= x <= 10:
+            ax, ay, nx0, ny0 = 6.5, 3, 11.5, 3        # 頭頂
+        elif x >= 10:
+            ax, ay, nx0, ny0 = 11, 11, 21, 17         # 右手
+        elif x <= 2:
+            ax, ay, nx0, ny0 = 1, 11, 2, 17           # 左手
+        else:
+            ax, ay, nx0, ny0 = 6.5, 11, 11.5, 17
+        x0 = nx0 + (x - ax) * 1.5
+        yy0 = ny0 + (y0 - ay) * 1.5
+        for xx in range(int(x0), int(x0 + 1.5) if int(x0 + 1.5) > int(x0) else int(x0) + 1):
+            for yy in range(int(yy0), int(yy0 + 1.5) if int(yy0 + 1.5) > int(yy0) else int(yy0) + 1):
+                px(xx, yy - sh, p)
+
+
+def person(key):
+    s = read_spec(key)
     for evo in (False, True):
+        if evo and not os.path.exists(os.path.join(SRC, key + "_evo_0.png")):
+            continue
         for f in (0, 1):
-            im = Image.new("RGBA", (14, 17), (0, 0, 0, 0))
-            rows = [list(r) for r in BODY]
+            im = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+            rows = [list(r) for r in T]
             if f == 1:
-                # 走路：整個人往上一格、腳張開
-                rows = rows[1:] + [list("..............")]
-                rows[14] = list("..............")
-                rows[15] = list(FEET_1)
-            pal = {"a": "#2a1a14", "b": hair, "c": skin, "d": "#1b1420", "e": robe, "f": "#ffd75e" if evo else sash,
-                   "i": robe_dark, "j": "#6b4a2a"}
+                rows = rows[1:] + [list("..................")]
+                rows[19] = list("....ajja....ajja..")
+                rows[20] = list("....aaaa....aaaa..")
+                rows[21] = list("..................")
+            pal = {"a": "#2a1a14", "b": s["hair"], "B": shade(s["hair"], 0.72), "c": s["skin"], "C": shade(s["skin"], 0.86),
+                   "d": "#1b1420", "e": s["robe"], "E": shade(s["robe"], 1.16), "i": s["dark"],
+                   "f": "#ffd75e" if evo else s["sash"], "j": s["feet"], "h": s["skin"]}
+            if s["bald"]:
+                for y in (2, 3, 4):
+                    for x in range(18):
+                        if rows[y][x] in "bB":
+                            rows[y][x] = "c"
             for y, row in enumerate(rows):
                 for x, ch in enumerate(row):
                     if ch in pal:
-                        im.putpixel((x, y), hx(pal[ch]))
+                        im.putpixel((x + OX, y + OY), rgba(pal[ch]))
             dy = -1 if f == 1 else 0
-            px = lambda x, y, col: im.putpixel((x, y + dy), hx(col)) if 0 <= x < 14 and 0 <= y + dy < 17 else None
-            if beard:
-                for x in range(4, 9):
-                    px(x, 8, beard)
-                px(5, 9, beard)
-                px(7, 9, beard)
-            if long_hair:
-                for y in (7, 8, 9, 10):
-                    px(2, y, hair)
-                    px(10, y, hair)
-            if crown:
-                for x in (4, 6, 8):
-                    px(x, 2, "#ffd75e")
-                for x in range(4, 9):
-                    px(x, 3, "#ffd75e")
-            if item:
-                item(px, f)
+
+            def px(x, y, col):
+                y += dy if False else 0
+                if 0 <= x < W and 0 <= y < H:
+                    im.putpixel((int(x), int(y)), col if isinstance(col, tuple) else rgba(col))
+
+            def bp(x, y, col):    # 身體座標（模板）→ 畫布
+                px(x + OX, y + OY + dy, col)
+
+            if s["bald"]:
+                bp(6, 2, shade(s["skin"], 1.12))
+                bp(7, 2, shade(s["skin"], 1.12))
+            bp(6, 7, "#5a4a6a")   # 眼睛的亮點
+            bp(11, 7, "#5a4a6a")
+            if s["long"]:
+                for y in range(5, 14):
+                    bp(2, y, s["hair"])
+                    bp(15, y, shade(s["hair"], 0.8))
+                bp(1, 8, "#2a1a14")
+                bp(16, 8, "#2a1a14")
+                for y in range(9, 14):
+                    bp(1, y, "#2a1a14")
+                    bp(16, y, "#2a1a14")
+            if s["beard"]:
+                b, bd = s["beard"], shade(s["beard"], 0.8)
+                for x in range(4, 14):
+                    bp(x, 10, b)
+                for x in range(5, 13):
+                    bp(x, 11, b)
+                for x in range(6, 12):
+                    bp(x, 12, bd if x in (6, 11) else b)
+                bp(4, 9, b)
+                bp(13, 9, bd)
+                bp(3, 9, b)
+                bp(8, 9, "#8a4a3a")   # 嘴
+                bp(9, 9, "#8a4a3a")
+            else:
+                bp(8, 9, shade(s["skin"], 0.7))
+                bp(9, 9, shade(s["skin"], 0.7))
+            place_items(lambda x, y, c: px(x, y + dy, c), items(key, f), f)
             if evo:
-                for x in range(4, 9):
-                    px(x, 0 if f == 0 else 1, "#ffd75e")
-                px(3, 1 if f == 0 else 2, "#fff4c2")
-                px(9, 1 if f == 0 else 2, "#fff4c2")
+                for x in range(7, 13):
+                    bp(x, -1, "#ffd75e")
+                bp(6, 0, "#fff4c2")
+                bp(13, 0, "#fff4c2")
+            # 外框：身體以外的東西也補一圈深色（手上的東西才不會糊在背景裡）
             im.save(os.path.join(OUT, "%s%s_%d.png" % (key, "_evo" if evo else "", f)))
 
 
-# 手上的東西（畫在右手邊 9–13 欄）
-def torch_jar(px, f):
-    for y in (10, 11, 12):
-        px(10, y, "#2a1408")
-        px(11, y, "#b8703a")
-        px(12, y, "#2a1408")
-    px(11, 9, "#2a1408")
-    px(11, 8 - f, "#ff8a2a")
-    px(11, 7 - f, "#ffd75e")
-
-
-def scroll(px, f):
-    for y in (10, 11, 12):
-        px(10, y, "#2a1a14")
-        px(11, y, "#f4ead2")
-        px(12, y, "#2a1a14")
-    px(11, 11, "#c0392b")
-
-
-def staff_branch(px, f):
-    for y in range(3, 15):
-        px(11, y, "#8a6438")
-    px(12, 3, "#5a8a2a")
-    px(12, 4, "#7aaa3a")
-    px(10, 4, "#5a8a2a")
-
-
-def shell_rope(px, f):
-    # 約拿：背著一個水袋
-    for y in (10, 11, 12):
-        px(10, y, "#2a3a4a")
-        px(11, y, "#6a9ac0")
-        px(12, y, "#2a3a4a")
-    px(11, 10, "#a8d8f0")
-
-
-def scepter(px, f):
-    for y in range(6, 13):
-        px(11, y, "#ffd75e")
-    px(10, 5, "#ffd75e")
-    px(11, 5, "#fff4c2")
-    px(12, 5, "#ffd75e")
-
-
-def timbrel(px, f):
-    # 米利暗：一面圓鼓，邊上有小鈴
-    for x, y in [(10, 9), (11, 9), (12, 9), (9, 10), (13, 10), (9, 11), (13, 11), (9, 12), (13, 12), (10, 13), (11, 13), (12, 13)]:
-        px(x, y, "#2a1408")
-    for x in (10, 11, 12):
-        for y in (10, 11, 12):
-            px(x, y, "#f0d8a0")
-    px(9 + 4 * f, 10, "#ffd75e")
-
-
-def glory(px, f):
-    # 耶穌：頭上一圈光（不是進化，是祂本來的榮耀）；手上有釘痕
-    for x in range(4, 9):
-        px(x, 1, "#ffd75e")
-    px(3, 2, "#fff4c2")
-    px(9, 2, "#fff4c2")
-    px(2, 11, "#c0392b")
-
-
-def walking_staff(px, f):
-    for y in range(6, 15):
-        px(11, y, "#6b4a2a")
-    px(11, 5, "#8a6438")
-
-
-def doctor_bag(px, f):
-    # 馬雅各：黑色的醫生提包
-    for x in (10, 11, 12):
-        for y in (11, 12):
-            px(x, y, "#1e1a1e")
-    px(11, 10, "#8a6438")
-    px(12, 11, "#c8a040")
-
-
-def queue(px, f):
-    # 清朝的髮辮：從後腦垂下來（畫在左邊）
-    for y in (6, 7, 8, 9, 10, 11):
-        px(2, y + (1 if f and y > 8 else 0), "#1a1420")
-
-
-def bowl_queue(px, f):
-    # 高長：髮辮＋手上一碗飯
-    queue(px, f)
-    for x in (10, 11, 12):
-        px(x, 12, "#e8e4dc")
-    px(10, 11, "#f4f0e8")
-    px(11, 11, "#ffffff")
-    px(12, 11, "#f4f0e8")
-
-
-def book_queue(px, f):
-    # 吳文水：髮辮＋手上的聖經
-    queue(px, f)
-    for y in (10, 11, 12):
-        px(10, y, "#2a1a14")
-        px(11, y, "#3a2a5a")
-        px(12, y, "#2a1a14")
-    px(11, 11, "#ffd75e")
-
-
 if __name__ == "__main__":
-    os.makedirs(OUT, exist_ok=True)
-    person("gideon", "#3a2414", "#8a5a30", "#5e3b22", "#c8302a", beard="#3a2414", item=torch_jar)
-    person("daniel", "#1a1420", "#6a3a8a", "#4a2a64", "#ffd75e", item=scroll)
-    person("jonah", "#4a3020", "#5a7a90", "#3a5a70", "#e0d4b8", beard="#4a3020", item=shell_rope)
-    person("noah", "#e8e4dc", "#c8c0a8", "#9a9280", "#3a7ad0", beard="#f4f0e8", item=staff_branch)
-    person("esther", "#2a1420", "#c060c0", "#8a3a8a", "#ffd75e", long_hair=True, crown=True, item=scepter)
-    person("miriam", "#5a2a14", "#ff8aa0", "#c85a70", "#fff4c2", long_hair=True, item=timbrel)
-    person("jesus", "#4a2c18", "#f4f0e6", "#cfc6b4", "#b0302a", beard="#4a2c18", long_hair=True, item=glory)
-    person("ananias", "#9a9288", "#6a7a4a", "#4a5a32", "#e0d4b8", beard="#c8c0b4", item=walking_staff)
-    person("disciple", "#2a1a10", "#7a6a8a", "#5a4a6a", "#d8c8a0")
-    # 台灣（1865）：蘇格蘭醫生穿深色外套、白領；吳文水、高長是清朝的打扮（剃前額、髮辮、長衫／短衫）
-    person("maxwell", "#8a5a34", "#2a2a3a", "#1a1a26", "#f4f0e8", skin="#f0c8a8", beard="#8a5a34", item=doctor_bag)
-    person("bunsui", "#3a3440", "#3a5a8a", "#2a4064", "#2a2030", item=book_queue)
-    person("kauchang", "#3a3440", "#6a5a44", "#4a3e2e", "#c8b890", item=bowl_queue)
-    print("done")
+    keys = sorted({n.rsplit("_", 1)[0] for n in os.listdir(SRC) if n.endswith("_0.png") and "_evo" not in n})
+    for k in keys:
+        person(k)
+    print(len(keys), "people")

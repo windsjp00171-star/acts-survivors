@@ -7,6 +7,7 @@ signal fever_pressed
 signal restart_pressed
 signal home_pressed
 signal reroll_pressed
+signal card_banished(index: int)
 signal pause_pressed
 signal resume_pressed
 signal chest_closed
@@ -575,8 +576,9 @@ func _card_body(b: Button, c: Dictionary, i: int, portrait: bool, narrow := fals
 			l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 
-func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text := "升級！選一個", sub_text := "") -> void:
+func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text := "升級！選一個", sub_text := "", banishes := 0) -> void:
 	hide_cards()
+	banish_mode = false
 	var size := vp()
 	var portrait := size.y > size.x
 	var dim := ColorRect.new()
@@ -653,16 +655,62 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 				b.get_parent().modulate = Color.WHITE
 		if not card_buttons.is_empty() and is_instance_valid(card_buttons[0]):
 			card_buttons[0].grab_focus())
+	var row := HBoxContainer.new()   # 卡片下面：重抽、放逐
+	row.name = "CardReroll"
+	row.add_theme_constant_override("separation", 10)
 	if rerolls > 0:
 		var rb := UIKit.button("重抽（R）　剩 %d 次" % rerolls, 13)
-		rb.name = "CardReroll"
 		rb.focus_mode = Control.FOCUS_NONE
 		rb.custom_minimum_size = Vector2(160, 32)
 		rb.pressed.connect(func():
 			if Time.get_ticks_msec() / 1000.0 >= card_ready_at:
 				reroll_pressed.emit())
-		root.add_child(rb)
-		rb.position = Vector2(roundf((size.x - 160) / 2.0), cards_box.position.y + cards_box.size.y + 10)
+		row.add_child(rb)
+	if banishes > 0:
+		var bb := UIKit.button("放逐（B）　剩 %d 次" % banishes, 13)
+		bb.name = "Banish"
+		bb.focus_mode = Control.FOCUS_NONE
+		bb.custom_minimum_size = Vector2(160, 32)
+		bb.pressed.connect(func():
+			if Time.get_ticks_msec() / 1000.0 >= card_ready_at:
+				toggle_banish())
+		row.add_child(bb)
+	if row.get_child_count() == 0:
+		row.free()
+		return
+	root.add_child(row)
+	await get_tree().process_frame
+	if not is_instance_valid(row) or cards_box == null:
+		return
+	row.position = Vector2(roundf((size.x - row.size.x) / 2.0), cards_box.position.y + cards_box.size.y + 8)
+	var over := row.position.y + row.size.y + 6 - size.y   # 卡片太高時，卡片和按鈕一起往上移，按鈕才不會跑出畫面
+	if over > 0.0:
+		cards_box.position.y -= over
+		row.position.y -= over
+
+
+## 放逐模式：再點一張卡，就把它從這一局拿掉（再按一次放逐按鈕取消）
+var banish_mode := false
+
+
+func toggle_banish() -> void:
+	var row := root.get_node_or_null("CardReroll")
+	var bb: Button = row.get_node_or_null("Banish") if row != null else null
+	if bb == null or cards_box == null:
+		return
+	banish_mode = not banish_mode
+	if not bb.has_meta("txt"):
+		bb.set_meta("txt", bb.text)
+	bb.text = "取消放逐" if banish_mode else str(bb.get_meta("txt"))
+	var title := root.get_node_or_null("CardTitle") as Label
+	if title != null:
+		if not title.has_meta("txt"):
+			title.set_meta("txt", title.text)
+		title.text = "放逐哪一張？（這一局不會再出現）" if banish_mode else str(title.get_meta("txt"))
+		title.label_settings.font_color = Color("ff8a7a") if banish_mode else C_GOLD
+	for b in card_buttons:
+		if is_instance_valid(b):
+			b.get_parent().modulate = Color(1.0, 0.72, 0.72) if banish_mode else Color.WHITE
 
 
 ## 暫停選單
@@ -771,6 +819,10 @@ func hide_pause() -> void:
 
 func pick(i: int) -> void:
 	if i >= card_buttons.size() or Time.get_ticks_msec() / 1000.0 < card_ready_at:
+		return
+	if banish_mode:
+		banish_mode = false
+		card_banished.emit(i)
 		return
 	hide_cards()
 	card_chosen.emit(i)

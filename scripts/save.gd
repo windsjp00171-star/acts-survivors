@@ -121,9 +121,8 @@ func load_profile() -> void:
 	if not bag.is_empty():
 		data.witness = int(data.witness) + 60 * bag.size()
 		data.provisions = []
-	_refund_old_gifts()
 	_refund_capped_ups()
-	_init_gift_on()
+	_migrate_board()
 
 
 ## 永久恩典有了上限：超過上限的等級把花掉的餅退回來
@@ -141,24 +140,6 @@ func _refund_capped_ups() -> void:
 		save_profile()
 
 
-## 恩賜樹改版後，舊存檔裡已經不存在的節點：把花掉的餅退回來
-func _refund_old_gifts() -> void:
-	var refund := 0
-	for tag in data.get("gifts", {}).keys():
-		if not meta.gifts.trees.has(tag):
-			continue
-		var ids := gift_nodes(tag).map(func(n): return n.id)
-		for id in data.gifts[tag].keys():
-			if not ids.has(id):
-				var r := int(data.gifts[tag][id])
-				for i in r:
-					refund += 30 + i * 15
-				data.gifts[tag].erase(id)
-	if refund > 0:
-		data.bread = int(data.get("bread", 0)) + refund
-		save_profile()
-
-
 ## 從頭開始旅程：舊進度先存一份備份，然後全部歸零（設定保留）
 func reset_profile() -> void:
 	if FileAccess.file_exists(PATH):
@@ -171,7 +152,7 @@ func reset_profile() -> void:
 	data = _defaults()
 	data.map_ver = 3
 	data.merge(keep, true)
-	_init_gift_on()
+	data.board_ver = 1
 	save_profile()
 
 
@@ -423,129 +404,236 @@ func buy_building(b: Dictionary) -> bool:
 	return true
 
 
-# ---------- 恩賜樹 ----------
-func gift_rank(tag: String, kind: String) -> int:
-	return int(data.get("gifts", {}).get(tag, {}).get(kind, 0))
+# ---------- 恩賜盤（meta.json 的 gifts.board）----------
+# 學會（用餅，永久）：data.board_learned；裝上（每位主角一套）：data.board_on[主角]
+# 學會要跟已學會的節點或任何一位主角的起點相連；裝上要從這位主角的起點一路連過去，總數不超過 gift_cap()
+var _bn := {}    # id → 節點
+var _adj := {}   # id → 相連的 id
 
 
-func gift_points(tag: String) -> int:
-	var n := 0
-	for k in data.get("gifts", {}).get(tag, {}):
-		n += int(data.gifts[tag][k])
-	return n
+func _board() -> Dictionary:
+	if _bn.is_empty():
+		for nd in meta.gifts.board.nodes:
+			_bn[nd.id] = nd
+			_adj[nd.id] = []
+		for l in meta.gifts.board.links:
+			_adj[l[0]].append(l[1])
+			_adj[l[1]].append(l[0])
+	return _bn
 
 
-func gift_nodes(tag: String) -> Array:
-	return meta.gifts.trees[tag].nodes
+func board_nodes() -> Array:
+	return meta.gifts.board.nodes
 
 
-## 全隊效果（move、xp、guardcap、revive）：所有樹加起來
-func gift_global(kind: String) -> float:
-	var v := 0.0
-	for tag in meta.gifts.trees:
-		for nd in gift_nodes(tag):
-			if nd.kind == kind:
-				v += gift_eff(tag, nd.id) * float(nd.per)
-	return v
+func board_node(id: String) -> Dictionary:
+	return _board().get(id, {})
 
 
-func gift_cost(i: int, tag: String) -> int:
-	var nd: Dictionary = gift_nodes(tag)[i]
-	return int(nd.cost) + gift_rank(tag, nd.id) * int(nd.cost_step)
+func board_adj(id: String) -> Array:
+	_board()
+	return _adj.get(id, [])
 
 
-## 第 i 個節點能不能學：這棵樹先點到 tiers[row] 點，而且前置節點都至少學過 1 級
-func gift_open(i: int, tag: String) -> bool:
-	var nd: Dictionary = gift_nodes(tag)[i]
-	if gift_points(tag) < int(meta.gifts.tiers[int(nd.row)]):
+func cur_leader() -> String:
+	return str(data.get("leader", "paul"))
+
+
+func board_start(leader: String) -> String:
+	return str(meta.gifts.board.starts.get(leader, "中央:hub"))
+
+
+func board_is_start(id: String) -> bool:
+	return meta.gifts.board.starts.values().has(id)
+
+
+func board_learned(id: String) -> bool:
+	return board_is_start(id) or data.get("board_learned", []).has(id)
+
+
+func board_on_list(leader: String) -> Array:
+	return data.get("board_on", {}).get(leader, [])
+
+
+func board_is_on(id: String, leader: String) -> bool:
+	return id == board_start(leader) or board_on_list(leader).has(id)
+
+
+## 可以學：還沒學、而且旁邊有學會的節點
+func board_can_learn(id: String) -> bool:
+	if board_learned(id):
 		return false
-	for r in nd.req:
-		if gift_rank(tag, r) <= 0:
-			return false
-	return true
+	for o in board_adj(id):
+		if board_learned(o):
+			return true
+	return false
 
 
-func buy_gift(i: int, tag: String) -> bool:
-	var nd: Dictionary = gift_nodes(tag)[i]
-	var c := gift_cost(i, tag)
-	if not gift_open(i, tag) or gift_rank(tag, nd.id) >= int(nd.max) or int(data.bread) < c:
+func board_learn(id: String) -> bool:
+	var nd := board_node(id)
+	if nd.is_empty() or not board_can_learn(id) or int(data.get("bread", 0)) < int(nd.cost):
 		return false
-	data.bread = int(data.bread) - c
-	if not data.has("gifts"):
-		data.gifts = {}
-	if not data.gifts.has(tag):
-		data.gifts[tag] = {}
-	data.gifts[tag][nd.id] = gift_rank(tag, nd.id) + 1
-	# 學會的節點：配置點數夠就自動裝上；裝著的節點升級後超過上限就先卸下
-	if gift_on(tag, nd.id):
-		if gift_used() > gift_cap():
-			toggle_gift(tag, nd.id)
-	elif gift_used() + gift_rank(tag, nd.id) <= gift_cap():
-		toggle_gift(tag, nd.id)
+	data.bread = int(data.bread) - int(nd.cost)
+	var L: Array = data.get("board_learned", [])
+	L.append(id)
+	data.board_learned = L
+	# 學會了而且接得上、點數也夠：直接幫現在的主角裝上
+	if board_toggle(id, cur_leader()) != "":
+		pass
 	save_profile()
 	return true
 
 
-# ---------- 恩賜配置：學會的節點永久保留，但每次出發只能裝上有限的點數 ----------
+func gift_used(leader := "") -> int:
+	return board_on_list(leader if leader != "" else cur_leader()).size()
+
+
+## 裝上／卸下（卸下時，接不回起點的節點也一起卸下）。回傳空字串＝成功，不然是原因
+func board_toggle(id: String, leader: String) -> String:
+	if id == board_start(leader):
+		return "起點一定點上"
+	if not board_learned(id):
+		return "還沒學會"
+	var on: Array = board_on_list(leader).duplicate()
+	if on.has(id):
+		on.erase(id)
+		on = _connected(on, leader)
+	else:
+		if on.size() >= gift_cap():
+			return "點數用完了（%d／%d）" % [on.size(), gift_cap()]
+		var touch := false
+		for o in board_adj(id):
+			if o == board_start(leader) or on.has(o):
+				touch = true
+		if not touch:
+			return "要跟已經點上的節點相連"
+		on.append(id)
+	var B: Dictionary = data.get("board_on", {})
+	B[leader] = on
+	data.board_on = B
+	return ""
+
+
+## 只留下從起點接得到的節點
+func _connected(on: Array, leader: String) -> Array:
+	var seen := {board_start(leader): true}
+	var q := [board_start(leader)]
+	while not q.is_empty():
+		var cur: String = q.pop_back()
+		for o in board_adj(cur):
+			if on.has(o) and not seen.has(o):
+				seen[o] = true
+				q.append(o)
+	return on.filter(func(x): return seen.has(x))
+
+
+func board_clear(leader: String) -> void:
+	var B: Dictionary = data.get("board_on", {})
+	B[leader] = []
+	data.board_on = B
+
+
+## 一鍵推薦：從起點往外，先點自己流派的經文節點與基石，再補小節點（只用學會的）
+func board_recommend(leader: String, tag: String) -> void:
+	board_clear(leader)
+	var on := []
+	var cap := gift_cap()
+	while on.size() < cap:
+		var best := ""
+		var best_score := -1.0
+		for id in _board():
+			if on.has(id) or id == board_start(leader) or not board_learned(id):
+				continue
+			var touch := false
+			for o in board_adj(id):
+				if o == board_start(leader) or on.has(o):
+					touch = true
+			if not touch:
+				continue
+			var nd: Dictionary = _bn[id]
+			var sc := 1.0 + int(nd.size)
+			if nd.tag == tag or (nd.tag == "橋" and nd.get("tags", []).has(tag)):
+				sc += 4.0
+			elif nd.tag == "中央":
+				sc += 1.5
+			if nd.kind == "keystone":
+				sc -= 3.0   # 有代價的基石不幫忙點，讓玩家自己決定
+			if sc > best_score:
+				best_score = sc
+				best = id
+		if best == "":
+			break
+		on.append(best)
+	var B: Dictionary = data.get("board_on", {})
+	B[leader] = on
+	data.board_on = B
+
+
+## 遊戲裡用：這個節點對現在的主角有沒有生效（1／0）
+func gift_eff(_tag: String, id: String) -> int:
+	return 1 if board_is_on(id, cur_leader()) else 0
+
+
+func gift_nodes(tag: String) -> Array:
+	return board_nodes().filter(func(n): return n.tag == tag)
+
+
+## 全隊效果（move、xp、guardcap、revive、hp）：裝上的節點加起來
+func gift_global(kind: String) -> float:
+	var v := 0.0
+	for nd in board_nodes():
+		if nd.kind == kind and board_is_on(nd.id, cur_leader()):
+			v += float(nd.get("per", 0.0))
+	return v
+
+
+## 裝上的基石（有代價的那種）
+func board_keystones() -> Dictionary:
+	var out := {}
+	for nd in board_nodes():
+		if nd.kind == "keystone" and board_is_on(nd.id, cur_leader()):
+			out[nd.ks] = true
+	return out
+
+
+## 流派傾向：這個流派區每裝 1 點，升級卡出現這個流派的機會 +3%；卡片節點再加
+func board_tilt(tag: String) -> float:
+	var v := 0.0
+	for nd in board_nodes():
+		if board_is_on(nd.id, cur_leader()):
+			if nd.tag == tag:
+				v += 0.03
+			if nd.kind == "cards" and nd.tag == tag:
+				v += float(nd.per)
+	return minf(v, 0.6)
+
+
 func gift_cap() -> int:
 	var G: Dictionary = meta.gifts.get("loadout", {"base": 10, "per_church": 2, "per_faith": 1})
 	return int(G.base) + data.churches.size() * int(G.per_church) + faith_max() * int(G.per_faith)
 
 
-func gift_on(tag: String, id: String) -> bool:
-	return data.get("gift_on", {}).get(tag, []).has(id)
-
-
-func gift_used() -> int:
-	var n := 0
-	for tag in data.get("gift_on", {}):
-		for id in data.gift_on[tag]:
-			n += gift_rank(tag, id)
-	return n
-
-
-## 遊戲裡實際生效的等級：有裝上才算
-func gift_eff(tag: String, id: String) -> int:
-	return gift_rank(tag, id) if gift_on(tag, id) else 0
-
-
-## 裝上／卸下；點數不夠時回傳 false
-func toggle_gift(tag: String, id: String) -> bool:
-	if not data.has("gift_on"):
-		data.gift_on = {}
-	if not data.gift_on.has(tag):
-		data.gift_on[tag] = []
-	if data.gift_on[tag].has(id):
-		data.gift_on[tag].erase(id)
-		return true
-	if gift_used() + gift_rank(tag, id) > gift_cap():
-		return false
-	data.gift_on[tag].append(id)
-	return true
-
-
-## 舊存檔：還沒有配置時，照樹的順序把學過的節點裝上，裝到上限為止
-func _init_gift_on() -> void:
-	if data.has("gift_on"):
+## 舊的六棵恩賜樹 → 恩賜盤：花在樹上的餅全部退回，讓玩家在新盤上重新點（先備份）
+func _migrate_board() -> void:
+	if int(data.get("board_ver", 0)) >= 1:
 		return
-	data.gift_on = {}
-	var trees: Array = data.get("gifts", {}).keys()
-	trees.sort_custom(func(a, b): return gift_points(a) > gift_points(b))
-	for tag in trees:
+	var refund := 0
+	for tag in data.get("gifts", {}):
 		if not meta.gifts.trees.has(tag):
 			continue
-		for nd in gift_nodes(tag):
-			if gift_rank(tag, nd.id) > 0:
-				toggle_gift(tag, nd.id)
-	if gift_used() < gift_points_all():
-		data.refund_note = str(data.get("refund_note", "")) + ("\n" if data.has("refund_note") else "") + "恩賜樹改成「配置」：學過的都還在，但每次出發只能裝上 %d 點，到恩賜頁可以自由換" % gift_cap()
-
-
-func gift_points_all() -> int:
-	var n := 0
-	for tag in data.get("gifts", {}):
-		n += gift_points(tag)
-	return n
+		for nd in meta.gifts.trees[tag].nodes:
+			for i in int(data.gifts[tag].get(nd.id, 0)):
+				refund += int(nd.cost) + i * int(nd.cost_step)
+	if refund > 0:
+		var b := FileAccess.open("user://profile_backup.json", FileAccess.WRITE)
+		if b != null:
+			b.store_string(JSON.stringify(data, "  "))
+		data.bread = int(data.get("bread", 0)) + refund
+		data.refund_note = str(data.get("refund_note", "")) + ("\n" if data.has("refund_note") else "") + "恩賜樹改成「恩賜盤」：花在舊恩賜樹上的 %d 個餅全部退回了，到倉房（恩賜）重新點；也可以按「一鍵推薦」" % refund
+	data.gifts = {}
+	data.erase("gift_on")
+	data.board_ver = 1
+	save_profile()
 
 
 func up_cost(u: Dictionary) -> int:
@@ -582,11 +670,7 @@ func stat_value(id: String) -> int:
 	match id:
 		"churches": return data.churches.size()
 		"companions": return data.unlocked.filter(func(k): return not (k.begins_with("fruit_") or k.begins_with("armor_") or k.begins_with("leader_"))).size()
-		"gift_points":
-			var n := 0
-			for tag in data.get("gifts", {}):
-				n += gift_points(tag)
-			return n
+		"gift_points": return data.get("board_learned", []).size()
 		"bread_total": return int(data.get("bread_total", 0))
 		"codex_enemies": return data.get("codex", {}).get("enemies", []).size()
 		"faith_max": return faith_max()
