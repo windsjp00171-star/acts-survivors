@@ -294,6 +294,7 @@ var kit_lv := {}
 var kit_cd := {}
 var kit_flash := {}
 var kit_gcd := 0.0
+var kit_pick_at := -1      # 上一次給職業技能選擇的等級
 var hurt_recent := 0.0     # 主角剛被打到（「抖在火裡」）
 var hots: Array = []       # 「勸勉」：全隊持續回血
 var blind_fx: Array = []   # 「手要加在你身上」：黑霧
@@ -1077,8 +1078,6 @@ func _make_cards() -> Array:
 		var ep: Dictionary = st.epistle
 		if Save.data.churches.has(st.id) and not epistles.has(ep.effect):
 			pool.append({"kind": "epistle", "key": ep.effect, "title": ep.name, "tag": "書信", "desc": ep.desc})
-	for kc in _kit_cards():
-		pool.append(kc)
 	var lc := _link_card() if _sys_open("link") else {}
 	if not lc.is_empty():
 		pool.append(lc)
@@ -1468,9 +1467,20 @@ func _on_card(i: int) -> void:
 				pending_cards.append({"kind": "branch", "key": c.key, "idx": bi, "title": "%s：%s" % [who, br.name], "tag": "Lv3 分支", "desc": br.desc + "\n（之後的升級都會保留）"})
 			ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, 0.3, 0)
 			return
+	var was_kit: bool = card.kind == "kit"
 	_apply_card(card)
 	_refresh_build_text()
 	choosing = false
+	# 職業技能走自己的路：每升 3 級，多一次「職業技能」選擇（不佔一般升級，同伴照樣能練到進化）
+	if not was_kit and level % 3 == 0 and kit_pick_at != level:
+		var kc := _kit_cards()
+		kc.shuffle()
+		if not kc.is_empty():
+			kit_pick_at = level
+			choosing = true
+			pending_cards = kc.slice(0, 3)
+			ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, _card_delay(), 0, "職業技能：選一個", "每升 3 級一次，不佔一般的升級")
+			return
 	_autosave()
 	if xp >= xp_need:
 		_level_up()
