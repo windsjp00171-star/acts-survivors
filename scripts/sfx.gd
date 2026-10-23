@@ -21,7 +21,7 @@ var duck := 0.0             # 音樂被壓低的量（dB，慢慢回來）
 var music_bus := -1
 var lowpass: AudioEffectLowPassFilter
 const LAYERS := ["perc", "harm", "top"]
-const MIX := {"calm": [-9.0, 0.0, -20.0], "normal": [0.0, 0.0, 0.0], "peak": [1.5, 0.0, 1.0], "danger": [-40.0, 0.0, -9.0]}
+const MIX := {"calm": [-9.0, 0.0, -20.0], "normal": [0.0, 0.0, 0.0], "peak": [1.5, 0.0, 1.0], "danger": [-40.0, 0.0, -9.0], "fever": [3.0, 1.0, 3.0]}
 const DUCK := {"burst": 7.0, "evolve": 6.0, "levelup": 3.0, "fever": 6.0, "win": 9.0, "lose": 9.0, "roar": 4.0, "holy": 3.0, "chest": 3.0, "warn": 4.0}
 const MAX_SAME := 3         # 同一個音效同時最多幾個
 

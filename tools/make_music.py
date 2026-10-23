@@ -220,6 +220,102 @@ def kithara(f, sec, vel=1.0):
     return y * np.clip(t / 0.002, 0, 1) * vel * 0.3
 
 
+def ney(f, sec, vel=1.0):
+    """奈伊笛（中東的蘆葦笛）：氣聲很多、音色空，滑音進來"""
+    t = ta(sec)
+    glide = 1 - 0.03 * np.exp(-t * 18)
+    vib = 1 + 0.006 * np.sin(2 * np.pi * 5.0 * t) * np.clip((t - 0.15) / 0.3, 0, 1)
+    ph = 2 * np.pi * np.cumsum(f * glide * vib) / SR
+    y = np.sin(ph) + 0.25 * np.sin(2 * ph) + 0.12 * np.sin(3 * ph)
+    breath = lowpass(_noise(NOISE_HP, len(t)), 0.3) * 0.5
+    env = np.clip(t / 0.08, 0, 1) * np.clip((sec - t) / 0.12, 0, 1)
+    return (y + breath) * env * vel * 0.2
+
+
+def oud(f, sec, vel=1.0):
+    """烏德琴（中東的短頸琵琶）：低沉、溫暖、撥得重，雙弦微微走音"""
+    t = ta(min(sec, 1.6))
+    y = np.zeros_like(t)
+    for det in (1.0, 1.003):
+        for k, a in [(1, 1.0), (2, 0.8), (3, 0.45), (4, 0.3), (5, 0.15), (6, 0.08)]:
+            y += a * np.sin(2 * np.pi * f * det * k * t) * np.exp(-t * (3 + k * 2.0))
+    pick = lowpass(_noise(NOISE_HP, len(t)), 0.4) * np.exp(-t * 200) * 0.5
+    return lowpass(y + pick, 0.3) * np.clip(t / 0.002, 0, 1) * vel * 0.2
+
+
+def harp(f, sec, vel=1.0):
+    """琴（大衛彈的 kinnor）：柔和的撥弦，餘音長"""
+    t = ta(min(sec, 2.5))
+    y = sum(a * np.sin(2 * np.pi * f * k * t) * np.exp(-t * (1.2 + k * 1.1)) for k, a in [(1, 1.0), (2, 0.35), (3, 0.15), (4, 0.06)])
+    return y * np.clip(t / 0.003, 0, 1) * vel * 0.24
+
+
+def shofar(f, sec, vel=1.0):
+    """羊角號：粗、往上滑一點，五度與八度的呼喊"""
+    t = ta(sec)
+    glide = 1 - 0.06 * np.exp(-t * 8)
+    ph = 2 * np.pi * np.cumsum(f * glide) / SR
+    y = sum(np.sin(k * ph) / k ** 0.8 for k in range(1, 9) if f * k < 7000)
+    env = np.clip(t / 0.06, 0, 1) * np.clip((sec - t) / 0.15, 0, 1)
+    return lowpass(y, 0.18) * env * vel * 0.12
+
+
+def piano(f, sec, vel=1.0):
+    """鋼琴：每個泛音各自衰減（高的衰得快），弦有一點不和諧（inharmonic），加一點敲槌的聲音"""
+    sec = min(sec, 6.0)
+    t = ta(sec)
+    y = np.zeros_like(t)
+    B = 0.0004
+    for k in range(1, 14):
+        fk = f * k * np.sqrt(1 + B * k * k)
+        if fk > SR * 0.45:
+            break
+        amp = (1.0 / k) * (0.55 if k == 1 else 1.0) * (1.0 + 0.4 * vel * (k > 3))
+        y += amp * np.sin(2 * np.pi * fk * t + k * 0.7) * np.exp(-t * (0.6 + 0.35 * k) * (f / 400) ** 0.3)
+    y += 0.25 * _noise(NOISE_HP, len(t)) * np.exp(-t * 60)          # 敲槌
+    env = np.clip(t / 0.004, 0, 1) * np.clip((sec - t) / 0.25, 0, 1)
+    return lowpass(y, 0.35 + 0.25 * vel) * env * vel * 0.16
+
+
+def pad(f, sec, vel=1.0):
+    """溫暖的鋪底：幾條微微走音的鋸齒波，濾得很柔，慢慢進來慢慢走"""
+    t = ta(sec)
+    y = sum(_saw(f * d, t, 10) for d in (0.993, 0.998, 1.0, 1.003, 1.008))
+    y = lowpass(lowpass(y, 0.05), 0.08)
+    env = np.clip(t / 1.4, 0, 1) * np.clip((sec - t) / 1.6, 0, 1)
+    return y * env * vel * 0.05
+
+
+def cello(f, sec, vel=1.0):
+    """大提琴：有揉弦的鋸齒波，聲音比 strings 集中"""
+    t = ta(sec)
+    vib = 1 + 0.005 * np.sin(2 * np.pi * 5.2 * t) * np.clip(t / 0.6, 0, 1)
+    ph = 2 * np.pi * np.cumsum(f * vib) / SR
+    y = sum(np.sin(k * ph) / k ** 1.1 for k in range(1, 12) if f * k < 6000)
+    y = lowpass(y, 0.09)
+    env = np.clip(t / 0.25, 0, 1) * np.clip((sec - t) / 0.4, 0, 1)
+    return y * env * vel * 0.09
+
+
+def bell(f, sec, vel=1.0):
+    """鐘琴：幾個不和諧的泛音，亮、衰得慢"""
+    t = ta(min(sec, 4.0))
+    y = sum(a * np.sin(2 * np.pi * f * r * t) * np.exp(-t * d) for r, a, d in ((1, 1, 1.2), (2.76, 0.4, 2.5), (5.4, 0.2, 4.0), (8.9, 0.1, 6.0)))
+    return y * np.clip(t / 0.002, 0, 1) * vel * 0.07
+
+
+def timp(vel=1.0):
+    """定音鼓的輕滾：一陣慢慢變大的低鼓"""
+    t = ta(3.0)
+    roll = np.zeros_like(t)
+    for i in range(36):
+        s = int(i * 0.07 * SR)
+        n = len(t) - s
+        hit = np.sin(2 * np.pi * 73 * t[:n]) * np.exp(-t[:n] * 5) * (i / 36) ** 1.6
+        roll[s:] += hit[:n]
+    return lowpass(roll, 0.2) * vel * 0.18
+
+
 def taiko(vel=1.0):
     """大鼓：很低、很長的轟"""
     t = ta(0.7)
@@ -349,6 +445,8 @@ PAN = {doum: 0.0, tek: 0.35, ka: 0.35, daf: -0.35, clap: 0.2, taiko: 0.0, snare:
        kexian: 0.1, yueqin: -0.3, suona: 0.0,
        bass: 0.0, spic: 0.35, strings: 0.0, brass: -0.15, aulos: 0.05, kithara: -0.3, choir: 0.0, drone: 0.0}
 WIDTH = {choir: 14, strings: 11, drone: 9, brass: 4, daluo: 6, kexian: 3}
+PAN.update({piano: -0.2, pad: 0.0, cello: 0.25, bell: 0.35, ney: 0.1, oud: -0.3, harp: -0.35, shofar: -0.1})
+WIDTH.update({pad: 13, piano: 6, cello: 5, bell: 4})
 
 
 # ---------- 殘響 ----------
@@ -484,8 +582,24 @@ def save(name, layers, stems=True, target_db=-19.0):
 
 # ---------- 曲目 ----------
 def battle(root, mode, bpm, prog, motif, answer, lead=aulos, taiko_a="B.......B..B....", taiko_b="B..B..B.B..B.B..",
-           frame="F...k.k.F...k...", extra=None, quote="theme"):
-    """戰鬥曲：前奏 2 小節 → A 8 小節 → B 8 小節 → C 段（聖詩或主題，鼓變少）→ A' 8 小節。可循環。"""
+           frame="F...k.k.F...k...", extra=None, quote="theme", region="greek"):
+    """戰鬥曲：前奏 2 小節 → A 8 小節 → B 8 小節 → C 段（聖詩或主題，鼓變少）→ A' 8 小節。可循環。
+    region 決定配器（每一關聽起來要不一樣）：
+      judea  猶太地：羊角號、琴（kinnor）、框鼓，沒有軍鼓和沙鈴
+      levant 敘利亞（大馬色、安提阿）：烏德琴、奈伊笛、中東手鼓
+      greek  希臘：基薩拉琴、阿洛斯、弦樂斷奏（原本的配器）
+      rome   羅馬：銅管、軍鼓、大鼓
+      sea    海上（約帕、馬爾他）：弦樂顫音、琴、大鼓
+      vision 異象（拔摩）：合唱、鐘琴、持續音"""
+    R = {"judea": dict(arp=harp, acc=harp, snare=False, shaker=False, brass=shofar),
+         "levant": dict(arp=oud, acc=oud, snare=False, shaker=False, brass=ney),
+         "greek": dict(arp=kithara, acc=spic, snare=True, shaker=True, brass=brass),
+         "rome": dict(arp=kithara, acc=spic, snare=True, shaker=False, brass=brass),
+         "sea": dict(arp=harp, acc=strings, snare=False, shaker=True, brass=brass),
+         "vision": dict(arp=bell, acc=strings, snare=False, shaker=False, brass=brass)}[region]
+    if lead is aulos and region in ("levant", "judea"):
+        lead = ney           # 中東與猶太地：蘆葦笛主奏
+    big = "D" if region == "levant" else "B"   # 敘利亞用中東低鼓，不用大鼓
     q = HYMNS.get(quote, THEME)
     minor_q = quote in MINOR_HYMNS
     c_bars = int(np.ceil(beats(q) / 4)) + 1
@@ -508,11 +622,11 @@ def battle(root, mode, bpm, prog, motif, answer, lead=aulos, taiko_a="B.......B.
             pat = taiko_a if bar < B or bar >= A2 and bar < A2 + 4 else taiko_b
         for i, ch in enumerate(pat):
             if ch != ".":
-                tr.hit(bar * 4 + i / 4, "B", 0.85 + 0.15 * RNG.random())
+                tr.hit(bar * 4 + i / 4, big, 0.85 + 0.15 * RNG.random())
         for i in range(16):
-            if not in_c(bar) or i % 4 == 0:
+            if R["shaker"] and (not in_c(bar) or i % 4 == 0):
                 tr.hit(bar * 4 + i / 4, "h", 1.0 if i % 4 == 0 else 0.6)
-        if bar >= A and not in_c(bar):
+        if bar >= A and not in_c(bar) and R["snare"]:
             fill = bar in (B - 1, C - 1, total - 1)
             snare_pat = "....S...S.S.SSSS" if fill else "....S.......S..."
             for i, ch in enumerate(snare_pat):
@@ -522,9 +636,10 @@ def battle(root, mode, bpm, prog, motif, answer, lead=aulos, taiko_a="B.......B.
             for i, ch in enumerate(frame):
                 if ch != ".":
                     tr.hit(bar * 4 + i / 4, ch, 0.8, 0.5)
-    for i in range(8):                       # 前奏、C 段結束前：鼓滾
-        tr.hit(7 + i / 8, "S", 0.4 + i * 0.08)
-        tr.hit((A2 - 1) * 4 + 2 + i / 4, "S", 0.3 + i * 0.09)
+    roll = "S" if R["snare"] else "T"
+    for i in range(8):                       # 前奏、C 段結束前：鼓滾（沒有軍鼓的地區用手鼓）
+        tr.hit(7 + i / 8, roll, 0.4 + i * 0.08)
+        tr.hit((A2 - 1) * 4 + 2 + i / 4, roll, 0.3 + i * 0.09)
 
     # ---- 低音與伴奏 ----
     tr.layer = "harm"
@@ -547,21 +662,27 @@ def battle(root, mode, bpm, prog, motif, answer, lead=aulos, taiko_a="B.......B.
             if in_c(bar) and i % 2:
                 continue
             d = c + [0, 2, 4, 7, 4, 2, 0, 2][i % 8]
-            tr.note(spic, bar * 4 + i / 4, hz(deg(root - 12, mode, d)), 0.15, soft, 0.9 if i % 4 == 0 else 0.6)
+            if R["acc"] is strings:
+                if i % 8 == 0:   # 海與異象：弦樂長音代替斷奏
+                    tr.note(strings, bar * 4 + i / 4, hz(deg(root - 12, mode, d)), tr.beat * 2.1, soft * 0.9)
+                continue
+            if R["acc"] is not spic and i % 2:
+                continue     # 撥弦樂器：八分音符就好，不要像弦樂那麼密
+            tr.note(R["acc"], bar * 4 + i / 4, hz(deg(root - 12, mode, d)), 0.15 if R["acc"] is spic else 0.5, soft, 0.9 if i % 4 == 0 else 0.6)
         for i, d in enumerate([0, 4, 2, 4, 7, 4, 2, 4]):
-            tr.note(kithara, bar * 4 + i * 0.5, hz(deg(root, mode, c + d)), 0.6, 1.0, 0.55)
+            tr.note(R["arp"], bar * 4 + i * 0.5, hz(deg(root, mode, c + d)), 0.6, 1.0, 0.55)
 
     # ---- 旋律、銅管、合唱 ----
     tr.layer = "top"
     for bar in list(range(B, C)) + list(range(A2, total)):
         c = chord(bar)
-        for d in (c, c + 2, c + 4):
-            tr.note(brass, bar * 4, hz(deg(root - 12, mode, d)), tr.beat * (1.5 if bar % 2 else 3.5))
+        for d in ((c, c + 4) if R["brass"] is shofar else (c, c + 2, c + 4)):
+            tr.note(R["brass"], bar * 4, hz(deg(root - 12, mode, d)), tr.beat * (1.5 if bar % 2 else 3.5), 0.8 if R["brass"] is not brass else 1.0)
     pos = tr.melody(lead, root, mode, motif, A * 4)
     tr.melody(lead, root, mode, answer, pos)
     pos = tr.melody(lead, root, mode, motif, B * 4, octave=1)
-    tr.melody(kithara, root, mode, motif, B * 4, 0.7)
-    tr.melody(brass, root - 12, mode, answer, pos, 0.8)
+    tr.melody(R["arp"], root, mode, motif, B * 4, 0.7)
+    tr.melody(R["brass"], root - 12, mode, answer, pos, 0.8)
     # C 段：聖詩（大調級數放在同一組音的大調上）或主題，阿洛斯主奏、合唱跟著長音
     if minor_q or quote not in HYMNS:
         q_root, q_mode = root, mode
@@ -572,7 +693,7 @@ def battle(root, mode, bpm, prog, motif, answer, lead=aulos, taiko_a="B.......B.
     tr.melody(choir, q_root - 12, q_mode, [(d, dur) for d, dur in q], C * 4 + 2, 0.45, legato=1.0)
     # A'：主題回來，高八度＋銅管齊奏
     pos = tr.melody(lead, root, mode, motif, A2 * 4, octave=1)
-    tr.melody(brass, root - 12, mode, motif, A2 * 4, 0.6)
+    tr.melody(R["brass"], root - 12, mode, motif, A2 * 4, 0.6)
     tr.melody(lead, root, mode, answer, pos)
     if extra:
         extra(tr, total, in_c)
@@ -584,7 +705,7 @@ def pentecost():
     motif = [(0, 0.5), (2, 0.5), (4, 1), (5, 0.5), (4, 0.5), (2, 1), (4, 1), (7, 2), (6, 0.5), (5, 0.5), (4, 1), (2, 1), (0, 2)]
     answer = [(7, 1), (9, 0.5), (7, 0.5), (5, 1), (4, 1), (5, 1), (4, 0.5), (2, 0.5), (4, 2), (2, 1), (1, 1), (0, 4)]
     return battle(67, "rast", 138, [0, 3, 4, 0], motif, answer, lead=kithara,
-                  taiko_a="B.......B..B....", taiko_b="B..B..B.B..B.BB.", frame="F.kk.k.kF.kk.k.k", quote="joy")
+                  taiko_a="B.......B..B....", taiko_b="B..B..B.B..B.BB.", frame="F.kk.k.kF.kk.k.k", quote="joy", region="judea")
 
 
 def _pads(chords_root, mode, degs, every, gain):
@@ -604,7 +725,7 @@ def stephen():
     answer = [(4, 1), (5, 1), (7, 2), (6, 1), (5, 1), (4, 2), (3, 1), (2, 1), (0, 4)]
     return battle(62, "aeolian", 108, [0, 3, 5, 4], motif, answer,
                   taiko_a="B...............", taiko_b="B.......B..B....", frame="F.......F...k...",
-                  extra=_pads(50, "aeolian", [0, 3, 5, 4], 2, 0.7), quote="emmanuel")
+                  extra=_pads(50, "aeolian", [0, 3, 5, 4], 2, 0.7), quote="emmanuel", region="judea")
 
 
 def samaria():
@@ -612,7 +733,7 @@ def samaria():
     motif = [(0, 0.5), (1, 0.5), (2, 1), (4, 1), (3, 0.5), (2, 0.5), (1, 1), (2, 2), (4, 0.5), (5, 0.5), (4, 1), (2, 1), (0, 2)]
     answer = [(2, 1), (3, 0.5), (4, 0.5), (5, 1), (4, 1), (2, 1), (1, 1), (0, 2), (1, 1), (-1, 1), (0, 4)]
     return battle(64, "dorian", 124, [0, 3, 0, 4], motif, answer,
-                  taiko_a="B.......B.......", taiko_b="B..B....B..B..B.", frame="F..k.kk.F..k.k..", quote="jesusloves")
+                  taiko_a="B.......B.......", taiko_b="B..B....B..B..B.", frame="F..k.kk.F..k.k..", quote="jesusloves", region="judea")
 
 
 def joppa():
@@ -620,7 +741,7 @@ def joppa():
     motif = [(0, 1), (2, 0.5), (4, 0.5), (5, 1), (4, 1), (2, 1), (4, 1), (6, 2), (5, 1), (4, 0.5), (2, 0.5), (0, 2)]
     answer = [(4, 1), (6, 1), (7, 1), (6, 0.5), (4, 0.5), (5, 2), (4, 1), (2, 1), (1, 1), (0, 3)]
     return battle(60, "mixolydian", 120, [0, 6, 3, 0], motif, answer, lead=kithara,
-                  taiko_a="B.......B..B....", taiko_b="B...B...B..B.B..", frame="F...k.k.F...k.k.")
+                  taiko_a="B.......B..B....", taiko_b="B...B...B..B.B..", frame="F...k.k.F...k.k.", region="sea")
 
 
 def antioch():
@@ -628,7 +749,7 @@ def antioch():
     motif = [(0, 1), (0, 0.5), (2, 0.5), (3, 1), (4, 1), (3, 0.5), (2, 0.5), (1, 1), (2, 2), (4, 1), (5, 1), (4, 1), (2, 1), (0, 2)]
     answer = [(5, 1), (4, 1), (3, 1), (4, 1), (2, 2), (3, 1), (1, 1), (2, 1), (-1, 1), (0, 4)]
     return battle(57, "dorian", 130, [0, 6, 3, 4], motif, answer,
-                  taiko_a="B.......B..B....", taiko_b="B..B..B.B..B.B..", frame="F...k.k.F...k...")
+                  taiko_a="B.......B..B....", taiko_b="B..B..B.B..B.B..", frame="F...k.k.F...k...", region="levant")
 
 
 def damascus():
@@ -637,14 +758,14 @@ def damascus():
     answer = [(4, 1), (5, 1), (6, 1), (7, 1), (6, 0.5), (5, 0.5), (4, 1), (2, 2), (3, 1), (2, 0.5), (1, 0.5), (0, 4)]
     return battle(57, "aeolian", 112, [0, 5, 3, 4], motif, answer,
                   taiko_a="B.......B.......", taiko_b="B..B....B..B.B..", frame="F...k...F...k.k.",
-                  extra=_pads(57, "aeolian", [0, 5, 3, 4], 4, 0.6), quote="grace")
+                  extra=_pads(57, "aeolian", [0, 5, 3, 4], 4, 0.6), quote="grace", region="levant")
 
 
 def philippi():
     # 腓立比：D 多利安，i - IV - i - VII；C 段是〈讚美真神〉——半夜在監裡唱詩讚美神
     motif = [(0, 1), (1, 0.5), (2, 0.5), (3, 1), (2, 0.5), (1, 0.5), (0, 2), (None, 2), (4, 1), (3, 1), (2, 1), (1, 1), (0, 4)]
     answer = [(4, 1), (5, 0.5), (4, 0.5), (3, 1), (2, 1), (3, 1.5), (2, 0.5), (1, 2), (2, 1), (1, 1), (0, 2), (-1, 2), (0, 2)]
-    return battle(62, "dorian", 132, [0, 3, 0, 6], motif, answer, quote="doxology")
+    return battle(62, "dorian", 132, [0, 3, 0, 6], motif, answer, quote="doxology", region="greek")
 
 
 def thessalonica():
@@ -652,14 +773,14 @@ def thessalonica():
     motif = [(0, 0.5), (0, 0.5), (1, 0.5), (2, 0.5), (3, 1), (4, 1), (3, 0.5), (2, 0.5), (1, 1), (0, 2), (4, 0.5), (4, 0.5), (5, 1), (4, 1), (3, 1), (2, 1), (1, 1), (0, 2)]
     answer = [(7, 1), (6, 0.5), (5, 0.5), (4, 1), (3, 1), (4, 0.5), (3, 0.5), (2, 1), (1, 2), (2, 0.5), (3, 0.5), (2, 1), (1, 1), (0, 1), (-1, 1), (0, 2)]
     return battle(64, "aeolian", 144, [0, 5, 6, 0], motif, answer, taiko_a="B..B....B..B....", taiko_b="B.BB..B.B.BB.BB.",
-                  frame="F.k.k.k.F.k.k.kk")
+                  frame="F.k.k.k.F.k.k.kk", region="greek")
 
 
 def corinth():
     # 哥林多：A 自然小調，i - VI - III - VII
     motif = [(4, 2), (3, 1), (2, 1), (3, 1.5), (2, 0.5), (1, 1), (2, 1), (0, 4), (None, 1), (2, 1), (3, 1), (4, 1), (5, 2), (4, 2)]
     answer = [(6, 1.5), (5, 0.5), (4, 1), (3, 1), (2, 2), (3, 1), (2, 1), (1, 1), (0, 1), (-1, 2), (0, 4)]
-    return battle(57, "aeolian", 136, [0, 5, 2, 6], motif, answer, frame="F..kF...k..k....")
+    return battle(57, "aeolian", 136, [0, 5, 2, 6], motif, answer, frame="F..kF...k..k....", region="greek")
 
 
 def ephesus():
@@ -667,7 +788,7 @@ def ephesus():
     motif = [(0, 2), (1, 1), (0, 1), (-1, 2), (0, 2), (3, 2), (2, 1), (1, 1), (0, 4)]
     answer = [(4, 1), (3, 1), (4, 1), (5, 1), (4, 2), (3, 1), (1, 1), (2, 2), (1, 1), (0, 1), (0, 4)]
     return battle(60, "phrygian", 128, [0, 1, -1, 0], motif, answer, frame="F..kF.k.F..kF.k.",
-                  extra=_pads(48, "phrygian", [0, 1, -1, 0], 2, 0.7))
+                  extra=_pads(48, "phrygian", [0, 1, -1, 0], 2, 0.7), region="greek")
 
 
 def boss():
@@ -706,7 +827,7 @@ def athens():
     motif = [(4, 1), (5, 0.5), (4, 0.5), (2, 1), (4, 1), (7, 2), (6, 1), (4, 1), (5, 1), (4, 0.5), (2, 0.5), (1, 1), (0, 2)]
     answer = [(2, 0.5), (3, 0.5), (4, 1), (2, 1), (0, 1), (1, 1), (2, 2), (4, 1), (3, 1), (2, 1), (1, 1), (0, 4)]
     return battle(67, "mixolydian", 126, [0, 6, 3, 0], motif, answer, lead=kithara,
-                  taiko_a="B.......B.......", taiko_b="B...B...B..B.B..", frame="F..kk.k.F..k.k..")
+                  taiko_a="B.......B.......", taiko_b="B...B...B..B.B..", frame="F..kk.k.F..k.k..", region="greek")
 
 
 def jerusalem():
@@ -720,7 +841,7 @@ def jerusalem():
         for bar in range(0, total, 2):
             tr.put(bar * 4, drone(hz(40), tr.beat * 8), 0.5, drone)
     return battle(64, "phrygian", 116, [0, 1, 6, 0], motif, answer,
-                  taiko_a="B..B....B..B..B.", taiko_b="BB.B..B.BB.B..BB", frame="F...F.k.F...F.kk", extra=chant)
+                  taiko_a="B..B....B..B..B.", taiko_b="BB.B..B.BB.B..BB", frame="F...F.k.F...F.kk", extra=chant, region="judea")
 
 
 def malta():
@@ -736,7 +857,7 @@ def malta():
             for d in (0, 2, 4):
                 tr.melody(choir, 50, "dorian", [(d, 16)], bar * 4, 0.35)
     return battle(62, "dorian", 140, [0, 6, 5, 6], motif, answer,
-                  taiko_a="B.....B.B.....B.", taiko_b="B..B..B.B..B..BB", frame="F.kkF.kkF.kkF.kk", extra=sea)
+                  taiko_a="B.....B.B.....B.", taiko_b="B..B..B.B..B..BB", frame="F.kkF.kkF.kkF.kk", extra=sea, region="sea")
 
 
 def rome():
@@ -752,7 +873,7 @@ def rome():
             for beat in range(4):
                 tr.note(brass, bar * 4 + beat, hz(deg(48, "aeolian", [0, 5, 3, 4][bar % 4])), tr.beat * 0.5, 0.6)
     return battle(60, "aeolian", 120, [0, 5, 3, 4], motif, answer, lead=brass,
-                  taiko_a="B.......B.......", taiko_b="B...B...B...B.B.", frame="F.kkF.kkF.kkF.k.", extra=march)
+                  taiko_a="B.......B.......", taiko_b="B...B...B...B.B.", frame="F.kkF.kkF.kkF.k.", extra=march, region="rome")
 
 
 def patmos():
@@ -773,7 +894,7 @@ def patmos():
             for i in range(3):
                 tr.note(brass, bar * 4 + i * 0.5, hz(deg(59, "phrygian", 4)), tr.beat * 0.4, 0.7)
     return battle(59, "phrygian", 112, [0, 1, 5, 0], motif, answer, lead=brass,
-                  taiko_a="B.......B...B...", taiko_b="B..B....B.BB..B.", frame="F...k...F...k.kk", extra=vision)
+                  taiko_a="B.......B...B...", taiko_b="B..B....B.BB..B.", frame="F...k...F...k.kk", extra=vision, region="vision")
 
 
 def fucheng():
@@ -909,7 +1030,85 @@ def story():
     return tr.render({"perc": 0.8, "harm": 1.6, "top": 2.0})
 
 
-SONGS = [("camp", camp, False), ("title", title, False), ("story", story, False),
+def ending():
+    """結局（拔摩海島之後、通過府城以後的過場）：奇異恩典（NEW BRITAIN，1835，公版旋律）三段，越唱越滿，最後轉調。
+    3/4 拍、66 拍／分。一、鋼琴獨奏＋鋪底（馬雅各上岸，溫柔）；二、大提琴與弦樂唱旋律，鋼琴琶音，合唱鋪底；
+    三、升一個全音，合唱與弦樂齊唱、鐘琴點綴、定音鼓推上去（今天的你）；最後鋼琴收在主和弦。"""
+    root, mode = 62, "rast"            # D 大調
+    mel = HYMNS["grace"]
+    chords = [0, 0, 3, 0, 0, 0, 4, 4, 0, 0, 3, 0, 0, 4, 0, 0]      # 每小節的和弦（級數）
+    verse = 16
+    intro, outro = 4, 4
+    bars = intro + verse * 3 + 2 + outro
+    tr = Track(bpm=66, bars=bars, beats_per_bar=3)
+    tr.layer = "harm"
+
+    def harmony(start_bar, rt, fill, arps=True, strings_on=False, choir_on=False, gain=1.0):
+        for i, c in enumerate(chords):
+            b0 = (start_bar + i) * 3
+            tr.note(cello if strings_on else bass, b0, hz(deg(rt - 24, mode, c)), tr.beat * 3.1, 0.9 * gain)
+            tr.note(pad, b0, hz(deg(rt - 12, mode, c)), tr.beat * 3.4, 0.9 * gain)
+            tr.note(pad, b0, hz(deg(rt - 12, mode, c + 2)), tr.beat * 3.4, 0.7 * gain)
+            tr.note(pad, b0, hz(deg(rt - 12, mode, c + 4)), tr.beat * 3.4, 0.7 * gain)
+            if arps:
+                for j, d in enumerate(fill):
+                    tr.note(piano, b0 + j * 0.5, hz(deg(rt - 12, mode, c + d)), 2.0, 0.55 * gain, 0.45)
+            if strings_on:
+                for d in (c + 2, c + 4, c + 7):
+                    tr.note(strings, b0, hz(deg(rt - 12, mode, d)), tr.beat * 3.2, 0.6 * gain)
+            if choir_on:
+                for d in (c, c + 2, c + 4):
+                    tr.note(choir, b0, hz(deg(rt - 12, mode, d)), tr.beat * 3.2, 0.5 * gain)
+
+    # 前奏：鋼琴輕輕的琶音
+    for i in range(intro):
+        c = [0, 3, 0, 4][i]
+        tr.note(pad, i * 3, hz(deg(root - 12, mode, c)), tr.beat * 3.4, 0.8)
+        for j, d in enumerate([0, 4, 7, 9, 7, 4]):
+            tr.note(piano, i * 3 + j * 0.5, hz(deg(root - 12, mode, c + d)), 2.0, 0.5, 0.4)
+    # 第一段：鋼琴唱旋律
+    v1 = intro
+    harmony(v1, root, [0, 4, 7, 4, 2, 4], gain=0.8)
+    tr.layer = "top"
+    tr.melody(piano, root, mode, mel, v1 * 3 - 1, 1.0, octave=0)
+    # 第二段：大提琴唱，弦樂與合唱鋪底
+    v2 = v1 + verse
+    tr.layer = "harm"
+    harmony(v2, root, [0, 4, 7, 9, 7, 4], strings_on=True, gain=0.9)
+    tr.layer = "top"
+    tr.melody(cello, root - 12, mode, mel, v2 * 3 - 1, 1.2, legato=1.0)
+    tr.melody(choir, root, mode, mel, v2 * 3 - 1 + 24, 0.25, legato=1.0)   # 後半合唱輕輕跟進來
+    # 過門兩小節：定音鼓滾奏，升一個全音
+    br = v2 + verse
+    tr.layer = "perc"
+    tr.put(br * 3, timp(1.0), 1.0, taiko, "perc")
+    tr.layer = "harm"
+    for i, c in enumerate([4, 4]):
+        for d in (c, c + 2, c + 4, c + 6):
+            tr.note(strings, (br + i) * 3, hz(deg(root - 12, mode, d)), tr.beat * 3.2, 0.7 + 0.3 * i)
+    # 第三段：E 大調，合唱與弦樂齊唱，鐘琴點綴
+    r3 = root + 2
+    v3 = br + 2
+    harmony(v3, r3, [0, 4, 7, 9, 11, 9], strings_on=True, choir_on=True, gain=1.0)
+    tr.layer = "top"
+    tr.melody(choir, r3, mode, mel, v3 * 3 - 1, 0.75, legato=1.0)
+    tr.melody(strings, r3, mode, mel, v3 * 3 - 1, 1.0, octave=1, legato=1.0)
+    tr.melody(bell, r3, mode, mel[::2], v3 * 3 - 1 + 24, 0.6, octave=1)
+    tr.layer = "perc"
+    for i in range(0, verse, 4):
+        tr.put((v3 + i) * 3, timp(0.5), 0.7, taiko, "perc")
+    # 尾聲：鋼琴最後一句，停在主和弦
+    oo = v3 + verse
+    tr.layer = "top"
+    tr.melody(piano, r3, mode, mel[-8:], oo * 3, 0.9)
+    tr.layer = "harm"
+    for d in (0, 2, 4, 7):
+        tr.note(pad, oo * 3, hz(deg(r3 - 12, mode, d)), tr.beat * 12, 0.9)
+        tr.note(strings, oo * 3, hz(deg(r3 - 12, mode, d)), tr.beat * 12, 0.6)
+    return tr.render({"perc": 1.0, "harm": 1.8, "top": 2.0})
+
+
+SONGS = [("camp", camp, False), ("title", title, False), ("story", story, False), ("ending", ending, False),
          ("pentecost", pentecost, True), ("stephen", stephen, True), ("samaria", samaria, True),
          ("damascus", damascus, True), ("joppa", joppa, True), ("antioch", antioch, True), ("philippi", philippi, True),
          ("thessalonica", thessalonica, True), ("corinth", corinth, True), ("ephesus", ephesus, True), ("athens", athens, True),

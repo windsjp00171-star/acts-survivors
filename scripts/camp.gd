@@ -134,6 +134,9 @@ func _build_camp() -> void:
 		var pos := _p(item.pos[0], item.pos[1])
 		if item.kind in ["depart", "shop", "ach", "log", "supper"]:
 			spots.append({"kind": item.kind, "key": "", "name": item.name, "pos": pos, "r": 20.0})
+	for bd in Save.meta.buildings:
+		if Save.built(bd.id):
+			spots.append({"kind": "bld", "key": bd.id, "name": bd.name, "pos": _p(bd.pos[0], bd.pos[1]), "r": 18.0})
 	Save.save_profile()
 
 	# 營火旁只隨機出現幾位（有話要說的一定在），人再多也不會塞滿（百基拉・亞居拉站一起）
@@ -307,6 +310,73 @@ func _start_supper() -> void:
 	_show_line()
 
 
+## 營地建設的互動：水井每天的活水、祭壇的祝福、書房的書卷、園子收成……
+const WELL_VERSES := [["約 4:14", "人若喝我所賜的水，就永遠不渴。"], ["詩 23:2", "祂使我躺臥在青草地上，領我在可安歇的水邊。"],
+	["賽 40:31", "但那等候耶和華的，必從新得力。他們必如鷹展翅上騰。"], ["太 11:28", "凡勞苦擔重擔的人可以到我這裡來，我就使你們得安息。"],
+	["腓 4:13", "我靠著那加給我力量的，凡事都能做。"], ["詩 46:1", "神是我們的避難所，是我們的力量，是我們在患難中隨時的幫助。"],
+	["羅 8:28", "我們曉得萬事都互相效力，叫愛神的人得益處。"], ["哀 3:22-23", "我們不至消滅，是出於耶和華諸般的慈愛……每早晨，這都是新的。"]]
+
+
+func _say(lines: Array) -> void:
+	# 用對話框說幾句話（who 用 paul 就是主角在想）
+	talk = lines
+	talk_key = ""
+	talk_i = 0
+	_show_line()
+
+
+func _use_building(id: String) -> void:
+	var today := Time.get_date_string_from_system()
+	match id:
+		"well":
+			var v: Array = WELL_VERSES[hash(today) % WELL_VERSES.size()]
+			if str(Save.data.get("well_day", "")) != today:
+				Save.data.well_day = today
+				Save.data.bread = int(Save.data.get("bread", 0)) + 5
+				Save.save_profile()
+				_say([["paul", "（打了一桶水。）今天的話：「%s」（%s）\n餅 +5" % [v[1], v[0]]]])
+			else:
+				_say([["paul", "「%s」（%s）\n今天已經打過水了，明天再來。" % [v[1], v[0]]]])
+		"altar":
+			panel.open("altar")
+		"library":
+			panel.open("library")
+		"tower":
+			panel.open("home")
+		"forge":
+			panel.open("shop")
+		"granary":
+			panel.open("gifts")
+		"garden":
+			var g: Dictionary = Save.data.get("garden", {})
+			var runs := int(Save.data.stats.runs)
+			if g.is_empty():
+				Save.data.garden = {"at": runs}
+				Save.save_profile()
+				_say([["paul", "在園子裡撒下種子。（再出發 3 趟就能收成）「我栽種了，亞波羅澆灌了，惟有神叫他生長。」（林前 3:6）"]])
+			elif runs - int(g.at) >= 3:
+				Save.data.garden = {"at": runs}
+				Save.data.bread = int(Save.data.get("bread", 0)) + 40
+				Save.data.witness = int(Save.data.witness) + 20
+				Save.save_profile()
+				_say([["paul", "園子收成了！餅 +40、見證 +20。又撒下了新的種子。"]])
+			else:
+				_say([["paul", "種子正在長。（再出發 %d 趟就能收成）" % (3 - (runs - int(g.at)))]])
+		"table":
+			var last := int(Save.data.get("feast_run", -1))
+			if last == int(Save.data.stats.runs):
+				_say([["paul", "剛剛才一起吃過飯。下次出發回來再聚吧。"]])
+			else:
+				Save.data.feast_run = int(Save.data.stats.runs)
+				var names := []
+				for p in people:
+					if p.key != "paul":
+						Save.data.affinity[p.key] = Save.affinity_xp(p.key) + 2
+						names.append(_name_of(p.key))
+				Save.save_profile()
+				_say([["paul", "大家坐下來一起吃飯。（%s的默契 +2）「他們天天同心合意……存著歡喜誠實的心用飯。」（徒 2:46）" % "、".join(names.slice(0, 4))]])
+
+
 func _start_talk(key: String) -> void:
 	talk = bubbles[key]
 	talk_key = key
@@ -472,6 +542,7 @@ func _interact(s: Dictionary) -> void:
 		"ach": panel.open("ach")
 		"log": panel.open("log")
 		"supper": _start_supper()
+		"bld": _use_building(str(s.key))
 		_: panel.open("home")
 
 
@@ -505,6 +576,8 @@ func _verb(s: Dictionary) -> String:
 		"ach": return "見證牆"
 		"log": return "製作日誌（看看改了什麼）"
 		"supper": return "一起擘餅，記念主"
+		"bld": return {"well": "打水（每天一次）", "altar": "禱告：為下一趟求祝福", "library": "讀找到的書卷", "tower": "眺望：今日挑戰",
+			"garden": "看看園子", "forge": "工坊：軍裝與解鎖", "granary": "倉房：恩賜", "table": "在愛筵長桌一起吃飯"}.get(s.key, s.name)
 	return "看旅程地圖、出發"
 
 
@@ -522,7 +595,7 @@ func _draw_props() -> void:
 			"depart": _sign(n, p)
 			"banner": _banner(n, p)
 			"supper": _supper_table(n, p)
-	# 用見證蓋的營地建設
+	# 用見證蓋的營地建設（每一座都能走過去互動，見 _use_building）
 	for bd in Save.meta.buildings:
 		if Save.built(bd.id):
 			_building(n, _p(bd.pos[0], bd.pos[1]), bd.id)

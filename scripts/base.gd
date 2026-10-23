@@ -55,6 +55,8 @@ func open(tab: String, key := "") -> void:
 		"ach": _show_achievements()
 		"codex": _show_codex()
 		"log": _show_log()
+		"altar": _show_altar()
+		"library": _show_library()
 		_: _show_home()
 
 
@@ -685,6 +687,57 @@ func _lock_hint(key: String) -> String:
 		if a.get("unlock", "") == key:
 			return "見證錄：%s（%s）" % [a.name, a.desc]
 	return ""
+
+
+## 祭壇：為下一趟求一個祝福（三選一，用掉就要再回來禱告）
+const BLESSINGS := [
+	{"id": "lv", "name": "得力", "ref": "賽 40:31", "desc": "下一趟一開始，主角的招式直接是 Lv2"},
+	{"id": "meter", "name": "同心", "ref": "徒 2:1", "desc": "下一趟一開始，同心合意就有一半"},
+	{"id": "grapes", "name": "葡萄", "ref": "民 13:23", "desc": "下一趟身上帶著一串葡萄：血少於三成時自動吃下，全隊回四成血"},
+	{"id": "xp", "name": "智慧", "ref": "雅 1:5", "desc": "下一趟經驗 +15%"},
+	{"id": "relic", "name": "看顧", "ref": "詩 121:8", "desc": "下一趟第一個寶箱，一定可以選聖物（劇情模式改成多一張升級卡）"},
+	{"id": "guard", "name": "盾牌", "ref": "詩 3:3", "desc": "下一趟一開始有 2 層護盾"}]
+
+
+func _show_altar() -> void:
+	_clear("home")
+	_text(content, "祭壇（創 12:7）", 18, UIKit.GOLD)
+	var cur: String = str(Save.data.get("blessing", ""))
+	if cur != "":
+		for b in BLESSINGS:
+			if b.id == cur:
+				_text(content, "下一趟已經有的祝福：「%s」（%s）%s" % [b.name, b.ref, b.desc], 13, UIKit.HEAL, true)
+		_text(content, "出發用掉以後，再回來禱告。", 11, UIKit.MUTED, true)
+		return
+	_text(content, "安靜下來禱告。為下一趟求一個祝福：", 13, UIKit.INK, true)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash("altar-%d" % int(Save.data.stats.runs))   # 同一趟回來，選項固定（不能一直重開）
+	var pool := BLESSINGS.duplicate()
+	for i in 3:
+		var b: Dictionary = pool.pop_at(rng.randi_range(0, pool.size() - 1))
+		var btn := UIKit.button("「%s」（%s）\n%s" % [b.name, b.ref, b.desc], 13)
+		btn.custom_minimum_size = Vector2(0, 54)
+		btn.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var bid: String = b.id
+		btn.pressed.connect(func():
+			Save.data.blessing = bid
+			Save.save_profile()
+			_show_altar())
+		content.add_child(btn)
+
+
+## 書房：每座城找到的失落書卷
+func _show_library() -> void:
+	_clear("home")
+	var got: Array = Save.data.get("scrolls", [])
+	_text(content, "書房：失落的書卷（%d／%d）" % [got.size(), stages.size()], 18, UIKit.GOLD)
+	_text(content, "每座城的地圖上都藏著一卷。離它不遠時，主角身邊會有一個小金點指著方向。", 11, UIKit.MUTED, true)
+	for st in stages:
+		if got.has(st.id):
+			_text(content, "✦ %s（%s）" % [st.name, st.get("ref", "")], 14, UIKit.GOLD)
+			_text(content, str(st.get("intro", "")), 12, UIKit.INK, true)
+		else:
+			_text(content, "？ %s：還沒找到" % st.name, 13, UIKit.MUTED)
 
 
 func _show_roster() -> void:

@@ -630,6 +630,8 @@ func _ready() -> void:
 		_take_relic(str(Save.run_config.daily_relic))   # 每日挑戰：今天的聖物一開始就帶著
 	if not resuming.is_empty():
 		_apply_resume(resuming)
+	else:
+		_apply_blessing()
 	for i in int(D.waves.initial):
 		var a := randf() * TAU
 		var d := 110.0 + randf() * 80.0
@@ -1170,6 +1172,8 @@ func _apply_card(card: Dictionary) -> void:
 		ui.show_banner("肢體連結！", 1.2)
 	elif card.kind == "event":
 		_event_effects(card.effects)
+	elif card.kind.begins_with("shop_"):
+		_buy(card)
 	elif card.kind == "relic":
 		_take_relic(card.key)
 	elif card.kind == "anoint":
@@ -1473,7 +1477,10 @@ func _bot_move() -> Vector2:
 	for sk in seekers:
 		pull = (sk.pos - p).normalized() * 1.4 if p.distance_to(sk.pos) > 10.0 else Vector2.ZERO
 		best = 0.0
-	for ch in chests:
+	var targets: Array = chests.duplicate() + items
+	if not merchant.is_empty():
+		targets.append(merchant)
+	for ch in targets:
 		var dc: float = p.distance_to(ch.pos)
 		if dc < best and seekers.is_empty():
 			best = dc
@@ -1785,6 +1792,10 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			nb = 1
 		for i in nb:
 			breads.append({"pos": e.pos + Vector2(randf_range(-10, 10), randf_range(-8, 8))})
+		var item_chance := 0.2 if e.get("elite", false) else (0.0 if e.get("boss", false) else 0.001)
+		if randf() < item_chance and items.size() < 4:
+			var r := randf()
+			items.append({"kind": "horn" if r < 0.3 else ("calm" if r < 0.6 else "grapes"), "pos": e.pos})
 		if src is Dictionary and _fx_of(src).has("release") and not blasting:
 			# 得釋放：驅散的地方爆開光
 			blasting = true
@@ -2130,8 +2141,7 @@ func _start_fever() -> void:
 					e.knock += (e.pos - paul.pos).normalized() * (40.0 if e.get("boss", false) else 120.0)
 	run_fevers += 1
 	_fire_links("fever", null, 0)
-	Sfx.play("fever", 0.0)
-	Sfx.music("fever")
+	Sfx.play("fever", 0.0)   # 五旬節：不換歌（換掉會出戲），關卡曲的鼓和旋律整個推上來
 	Sfx.buzz(90)
 	var L: Dictionary = D.fever.light
 	if force_light or randf() < float(L.chance):
@@ -2352,7 +2362,9 @@ func _step(dt: float) -> void:
 	var peak: bool = t >= ew.peak_from and t < ew.peak_to
 	# 音樂的層次跟著戰況：血很少 → 只剩伴奏、聲音變悶；菁英潮或 Boss → 鼓和旋律往前；開局 → 只有伴奏和輕輕的鼓
 	var mood := "normal"
-	if paul.hp < float(D.paul.hp) * 0.3:
+	if fever > 0.0:
+		mood = "fever"
+	elif paul.hp < float(D.paul.hp) * 0.3:
 		mood = "danger"
 	elif peak or (boss != null and not boss.dead):
 		mood = "peak"
@@ -2389,9 +2401,13 @@ func _step(dt: float) -> void:
 	elif t >= D.boss.at and not boss_spawned and (boss == null or boss.get("mid", false)):
 		_spawn_boss()
 
+	_update_finds(dt)
 	for ch in chests:
 		if p.pos.distance_to(ch.pos) < 10.0 and not chest_open:
 			ch.got = true
+			if bless == "relic" and not story:
+				ch.relic = true
+				bless = ""
 			if ch.get("relic", false):
 				relic_pending = true
 			_open_chest()
@@ -2427,7 +2443,7 @@ func _step(dt: float) -> void:
 		if d < 4.0:
 			g.got = true
 			xp += 1
-			xp_acc += followers.size() * float(D.seek.xp_each) + Save.up_value("growth") + Save.building_bonus("xp") + Save.gift_global("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0)
+			xp_acc += followers.size() * float(D.seek.xp_each) + Save.up_value("growth") + Save.building_bonus("xp") + Save.gift_global("xp") + (0.2 if epistles.has("xp_plus") else 0.0) + (float(D.armor.helmet.per[armor.helmet - 1]) if armor.get("helmet", 0) > 0 else 0.0) + (0.15 if bless == "xp" else 0.0)
 			if xp_acc >= 1.0:
 				xp_acc -= 1.0
 				xp += 1
@@ -5202,6 +5218,9 @@ func _damage_paul(n: float, pierce := false, src := "") -> void:
 		dmg_log[src] = float(dmg_log.get(src, 0.0)) + n   # 測試用：被什麼打傷
 	paul.hp -= n
 	paul.hurt_t = 0.18
+	if bless_grapes and paul.hp > 0.0 and paul.hp < float(D.paul.hp) * 0.3:
+		bless_grapes = false
+		_use_item("grapes")
 	if _fruit_lv("good") >= 3 and t >= good_cd:
 		# 良善：被打的時候放出一圈光，推開並定住身邊的敵人
 		good_cd = t + 6.0
@@ -6132,6 +6151,7 @@ func _draw_ground_fx() -> void:
 		var col := C_GOLD if fever > 0.0 or evolved.has("barn") else Color("bfe3ff")
 		_dot_ring(n, bc, _aura_r(barn), 0.62, Color(col, 0.9), 3.0, t * 0.8)
 		_dot_ring(n, bc, _aura_r(barn) * pulse, 0.62, Color(col.lightened(0.4), 0.8), 4.0, -t)
+	_draw_finds(n)
 	for ch in chests:
 		var cx: float = roundf(ch.pos.x)
 		var cy: float = roundf(ch.pos.y) - roundf(absf(sin(t * 3.0)) * 2.0)
@@ -6751,6 +6771,198 @@ func _draw_schools(n: Node2D) -> void:
 
 
 # ---------- 寶箱與進化 ----------
+func _draw_finds(n: Node2D) -> void:
+	for it in items:
+		var col: Color = ITEM_INFO[it.kind][2]
+		var ix: float = roundf(it.pos.x)
+		var iy: float = roundf(it.pos.y) - roundf(absf(sin(t * 3.0 + ix)) * 2.0)
+		n.draw_circle(Vector2(ix, iy - 3), 8.0 + sin(t * 4.0) * 1.0, Color(col, 0.18))
+		match it.kind:
+			"horn":   # 羊角號：彎彎的金色號角
+				n.draw_rect(Rect2(ix - 5, iy - 3, 8, 3), Color("2a1a10"))
+				n.draw_rect(Rect2(ix - 4, iy - 2, 6, 1), C_GOLD)
+				n.draw_rect(Rect2(ix + 2, iy - 6, 3, 4), Color("2a1a10"))
+				n.draw_rect(Rect2(ix + 3, iy - 5, 1, 3), C_GOLD)
+			"calm":   # 平靜的水面：藍色的波紋
+				n.draw_rect(Rect2(ix - 5, iy - 4, 11, 7), Color("1a2a4a"))
+				n.draw_rect(Rect2(ix - 4, iy - 3, 9, 5), Color("6ab0e8"))
+				n.draw_rect(Rect2(ix - 3, iy - 1, 7, 1), Color("e8f4ff"))
+			"grapes": # 一串葡萄
+				for k in 6:
+					var gp := Vector2(ix - 3 + (k % 3) * 2 + (k / 3), iy - 4 + (k / 3) * 2 + (k / 5) * 2)
+					n.draw_rect(Rect2(gp, Vector2(2, 2)), Color("8a3ac8") if k % 2 else Color("b06ad8"))
+				n.draw_rect(Rect2(ix, iy - 6, 1, 2), Color("5a8a3a"))
+	for hr in horn_rings:
+		_dot_ring(n, hr.pos, hr.r, 0.8, Color(C_GOLD, 1.0 - hr.r / 420.0), 3.0, t, 2)
+	if not merchant.is_empty():
+		var mx: float = roundf(merchant.pos.x)
+		var my: float = roundf(merchant.pos.y)
+		n.draw_rect(Rect2(mx - 12, my - 16, 24, 4), Color("6a2a8a"))     # 紫色的布棚
+		n.draw_rect(Rect2(mx - 12, my - 12, 2, 12), Color("4a3020"))
+		n.draw_rect(Rect2(mx + 10, my - 12, 2, 12), Color("4a3020"))
+		n.draw_rect(Rect2(mx - 10, my - 4, 20, 4), Color("8a6a3a"))       # 攤子的桌面
+		n.draw_rect(Rect2(mx - 8, my - 6, 6, 2), Color("9a4ac8"))
+		n.draw_rect(Rect2(mx + 1, my - 6, 6, 2), Color("c8a0e8"))
+		if int(t * 3.0) % 2 == 0:
+			n.draw_rect(Rect2(mx - 1, my - 24, 3, 5), C_GOLD)              # 頭上的記號
+	if scroll.has("pos") and not scroll.has("got"):
+		var sx: float = roundf(scroll.pos.x)
+		var sy: float = roundf(scroll.pos.y) - roundf(absf(sin(t * 2.0)) * 2.0)
+		n.draw_circle(Vector2(sx, sy - 3), 10.0, Color(1, 0.95, 0.7, 0.15 + 0.08 * sin(t * 3.0)))
+		n.draw_rect(Rect2(sx - 5, sy - 5, 11, 6), Color("4a3020"))
+		n.draw_rect(Rect2(sx - 4, sy - 4, 9, 4), Color("e8dcc0"))
+		n.draw_rect(Rect2(sx - 6, sy - 5, 2, 6), Color("8a6a3a"))
+		n.draw_rect(Rect2(sx + 5, sy - 5, 2, 6), Color("8a6a3a"))
+		# 離得不遠時，畫面邊上有一個小金點指著它的方向
+		var d: Vector2 = scroll.pos - paul.pos
+		if d.length() < 260.0 and d.length() > 90.0:
+			var tip: Vector2 = paul.pos + d.normalized() * 34.0 + Vector2(0, -8)
+			n.draw_rect(Rect2(tip.round() - Vector2(1, 1), Vector2(3, 3)), Color(C_GOLD, 0.7 + 0.3 * sin(t * 5.0)))
+
+
+## ---------- 局內撿到的東西：稀有道具、路過的商人、失落的書卷 ----------
+const ITEM_INFO := {"horn": ["耶利哥的號角", "書 6:20", Color("ffd75e")], "calm": ["平靜風浪", "可 4:39", Color("9fd8ff")], "grapes": ["以實各的葡萄", "民 13:23", Color("b06ad8")]}
+
+
+func _update_finds(dt: float) -> void:
+	for it in items:
+		if paul.pos.distance_to(it.pos) < 11.0:
+			it.got = true
+			_use_item(str(it.kind))
+	items = items.filter(func(it): return not it.get("got", false))
+	for hr in horn_rings:
+		hr.r += 420.0 * dt
+	horn_rings = horn_rings.filter(func(hr): return hr.r < 420.0)
+	if calm_t > 0.0:
+		calm_t -= dt
+		for e in enemies:
+			if not e.dead:
+				e.stun = maxf(e.stun, 0.1 if e.get("boss", false) else 0.2)
+	# 路過的商人：每局一次，開局 2 分半左右出現在附近
+	if not merchant_done and merchant.is_empty() and t - t_start > 150.0 and (boss == null or boss.get("mid", false)):
+		var a := randf() * TAU
+		merchant = {"pos": paul.pos + Vector2(cos(a), sin(a) * 0.7) * 110.0, "t": 40.0}
+		ui.show_banner("路邊有人擺了賣紫色布的攤子（徒 16:14）：帶著這局撿到的餅去看看", 2.5)
+	if not merchant.is_empty():
+		merchant.t -= dt
+		if paul.pos.distance_to(merchant.pos) < 16.0 and not choosing and not chest_open:
+			merchant_done = true
+			_open_merchant()
+			merchant = {}
+		elif merchant.t <= 0.0:
+			merchant_done = true
+			merchant = {}
+	# 失落的書卷：每座城藏一卷（撿過的城就不再出現）
+	if scroll.is_empty() and not Save.data.get("scrolls", []).has(stage.id) and t - t_start > 20.0 and not scroll.has("got"):
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash("scroll-" + stage.id)
+		var a2 := rng.randf() * TAU
+		scroll = {"pos": Vector2(cos(a2), sin(a2) * 0.8) * rng.randf_range(420.0, 560.0)}
+	if scroll.has("pos") and not scroll.has("got") and paul.pos.distance_to(scroll.pos) < 12.0:
+		scroll.got = true
+		var got: Array = Save.data.get("scrolls", [])
+		got.append(stage.id)
+		Save.data.scrolls = got
+		Save.data.witness = int(Save.data.witness) + 30
+		Save.save_profile()
+		_ring_pop(scroll.pos + Vector2(0, -6), C_GOLD, 40.0)
+		Sfx.play("holy", 0.0)
+		ui.show_banner("找到失落的書卷！（%d／%d）見證 +30\n營地的書房可以讀" % [got.size(), _stage_list().size()], 3.0)
+
+
+## 營地祭壇求來的祝福：出發時套用，然後用掉
+func _apply_blessing() -> void:
+	bless = "" if smoke else str(Save.data.get("blessing", ""))
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--bless="):
+			bless = a.substr(8)   # 測試用：--bless=xp
+	if bless == "":
+		return
+	if not smoke:
+		Save.data.blessing = ""
+		Save.save_profile()
+	match bless:
+		"lv":
+			_set_level(pa, maxi(2, int(pa.level)))
+		"meter":
+			meter = maxf(meter, 0.5)
+		"grapes":
+			bless_grapes = true
+		"guard":
+			guard = maxi(guard, 2)
+	ui.show_banner("祭壇的祝福：" + {"lv": "得力", "meter": "同心", "grapes": "葡萄", "xp": "智慧", "relic": "看顧", "guard": "盾牌"}.get(bless, bless), 2.0)
+
+
+func _use_item(kind: String) -> void:
+	var info: Array = ITEM_INFO[kind]
+	ui.show_banner("%s（%s）" % [info[0], info[1]], 1.8)
+	if smoke:
+		print("ITEM ", kind)
+	_fxc("道具:" + kind)
+	match kind:
+		"horn":
+			# 耶利哥的號角：一圈金色的衝擊波，畫面上的小怪全部倒下，菁英和 Boss 掉一大截血
+			horn_rings.append({"pos": paul.pos, "r": 0.0})
+			shake = 0.5
+			Sfx.play("burst", 0.0)
+			for e in enemies.duplicate():
+				if e.dead or float(e.get("ally", 0.0)) > 0.0:
+					continue
+				if e.get("boss", false) or e.get("elite", false):
+					_hurt(e, float(e.get("max_hp", e.hp)) * (0.08 if e.get("boss", false) else 0.4), paul.pos)
+				elif e.pos.distance_to(paul.pos) < 420.0:
+					_hurt(e, 99999.0, paul.pos)
+		"calm":
+			# 平靜風浪：所有敵人停住 4 秒
+			calm_t = 4.0
+			ui.do_flash(0.3)
+			Sfx.play("holy", 0.0)
+		"grapes":
+			# 以實各的葡萄：全隊回 40% 血
+			_heal_paul(float(D.paul.hp) * 0.4)
+			for c in comps:
+				if c.level > 0 and c.down <= 0.0:
+					_heal_comp(c, _comp_max_hp() * 0.4)
+			_ring_pop(paul.pos + Vector2(0, -6), C_HEAL, 40.0)
+
+
+## 商人：用這局撿到的餅買東西（買了就從帶回營地的餅裡扣）
+func _open_merchant() -> void:
+	if smoke:
+		print("MERCHANT bread=%d" % run_bread)
+	choosing = true
+	joy.on = false
+	ui.joy.on = false
+	pending_cards = []
+	for o in [["shop_heal", "醫治", "全隊回滿血", 15], ["shop_pick", "多選一張升級卡", "馬上再選一次升級", 25],
+			["shop_reroll", "重抽 +2", "這一局多兩次重抽", 10], ["shop_leave", "看看就好", "不買，繼續趕路", 0]]:
+		var ok: bool = run_bread >= int(o[3])
+		pending_cards.append({"kind": o[0], "key": "", "title": o[1] + ("　餅 %d" % o[3] if o[3] > 0 else ""), "tag": "商人",
+			"desc": o[2] + ("" if ok else "\n（這局的餅不夠：現在 %d）" % run_bread), "cost": int(o[3])})
+	Sfx.play("chest", 0.0)
+	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, _card_delay(), 0, "賣紫色布的攤子（徒 16:14）", "這局撿到的餅：%d 個" % run_bread)
+
+
+func _buy(card: Dictionary) -> void:
+	var cost := int(card.get("cost", 0))
+	if run_bread < cost:
+		ui.show_banner("餅不夠，下次再來", 1.4)
+		return
+	run_bread -= cost
+	match card.kind:
+		"shop_heal":
+			paul.hp = _hp_cap()
+			for c in comps:
+				if c.level > 0:
+					c.down = 0.0
+					c.hp = _comp_max_hp()
+			_ring_pop(paul.pos + Vector2(0, -6), C_HEAL, 40.0)
+		"shop_pick":
+			xp += xp_need   # 下一格就升級：多選一張
+		"shop_reroll":
+			rerolls_left += 2
+
+
 func _open_chest() -> void:
 	chest_open = true
 	run_chests += 1
@@ -6765,6 +6977,9 @@ func _open_chest() -> void:
 		var n := randi_range(int(D.chest.rolls_min), int(D.chest.rolls_max)) + (1 if randf() < Save.up_value("lucky") else 0)
 		if trials.has("poor"):
 			n = maxi(1, n - 1)   # 信心等級：貧窮
+		if bless == "relic" and story:
+			n += 1   # 祭壇的「看顧」：劇情模式沒有聖物，改成多一項
+			bless = ""
 		for i in n:
 			var pool := _make_cards().filter(func(card): return not card.kind in ["heal", "grace_dmg", "grace_spd", "manna"])
 			if pool.is_empty():
@@ -6795,7 +7010,7 @@ const SAVE_VARS := ["t", "kills", "xp", "level", "xp_need", "meter", "run_lights
 	"run_chests", "run_midboss", "school_mods", "school_cards", "praise", "anoint", "run_converts", "run_minions", "run_songs",
 	"run_holies", "run_shocks", "bonds_seen", "run_bonds", "loaves_n", "run_relics", "seek_t", "seek_used", "run_saved",
 	"run_seek_spawned", "pressure", "life_avg", "persec_t", "fz_count", "scatter_by", "blind_state", "blind_r", "hz_t",
-	"founded_now", "someone_down", "full_party"]
+	"founded_now", "someone_down", "full_party", "merchant_done"]
 var resuming := {}
 var autosave_t := 20.0
 var save_test := false   # 測試用：--save_test 讓機器人模擬也寫存檔
@@ -7551,7 +7766,15 @@ var breast_cd := 0.0        # 護心鏡 Lv3：危急時發光的冷卻
 var helmet_t := 20.0        # 救恩的頭盔 Lv3：下一次把經驗全部吸過來
 var vac_t := 0.0            # 正在把畫面上的經驗吸過來
 var block_txt_t := 0.0      # 「擋」字的間隔
-var regen_acc := 0.0        # 慢慢回血累積到 2 點就跳字   # 測試用：只讓這幾位上場
+var regen_acc := 0.0        # 慢慢回血累積到 2 點就跳字
+var items: Array = []       # 地上的稀有道具 {kind, pos}：horn 耶利哥的號角、calm 平靜風浪、grapes 葡萄
+var horn_rings: Array = []  # 號角的金色衝擊波（畫面）
+var calm_t := 0.0           # 平靜風浪：敵人停住剩下的秒數
+var merchant := {}          # 路過的商人 {pos, used}
+var merchant_done := false
+var scroll := {}            # 這座城藏著的書卷 {pos}
+var bless := ""             # 營地祭壇求的祝福（這一趟用）
+var bless_grapes := false   # 祝福「葡萄」：血少於三成時自動吃下   # 測試用：只讓這幾位上場
 var fx_hp := {}
 
 

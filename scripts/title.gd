@@ -306,7 +306,7 @@ func _process(dt: float) -> void:
 func _start_intro(id := "intro") -> void:
 	cut_id = id
 	cut = INTRO if id == "intro" else CUTS[id]
-	Sfx.music("story")
+	Sfx.music("ending" if id in ["patmos", "fucheng"] else "story")
 	if intro_box != null:
 		intro_box.queue_free()   # 上一段還沒收掉（只有測試拍照會連播）
 	intro_i = 0
@@ -380,11 +380,162 @@ func _end_intro() -> void:
 			c.visible = true
 
 
+## 過場的像素背景圖（assets/cuts/*.png，256×144）：場景 → 背景
+const CUT_BG := {"rise": "rise", "room": "room", "wind": "room", "fire": "room", "road": "road",
+	"sky": "stones", "stones": "stones", "coats": "stones", "kneel": "stones", "scatter": "scatter", "alone": "scatter",
+	"wall": "wall", "meet": "house", "rome": "rome", "letters": "rome", "years": "years", "sea": "sea",
+	"newheaven": "newheaven", "sinkang": "sinkang", "ship": "ship", "tainan": "tainan", "tamsui": "tamsui",
+	"print": "print", "skin": "skin", "mountain": "mountain", "today": "today"}
+
+
+func _cut_bg(it: Dictionary) -> Texture2D:
+	var key: String = CUT_BG.get(str(it.scene), "")
+	if it.get("supper", false):
+		key = "supper"
+	elif it.get("you", false):
+		key = "you"
+	var path := "res://assets/cuts/%s.png" % key
+	if key == "" or not ResourceLoader.exists(path):
+		return null
+	if not tex.has("bg_" + key):
+		tex["bg_" + key] = load(path)
+	return tex["bg_" + key]
+
+
+## 有背景圖時：背景慢慢推近（6 秒放大 6%），上面再疊遊戲裡的人物與光、風、火這些會動的東西
+func _draw_bg_cut(it: Dictionary, bg: Texture2D, vs: Vector2, fade: float) -> void:
+	var sc: String = it.scene
+	var z := 1.0 + 0.06 * clampf(intro_t / 6.0, 0.0, 1.0) if not OS.get_cmdline_user_args().has("--still") else 1.0
+	var r := maxf(vs.x / bg.get_width(), vs.y / bg.get_height()) * z
+	var sz := Vector2(bg.get_width(), bg.get_height()) * r
+	draw_texture_rect(bg, Rect2((vs - sz) / 2.0, sz), false, Color(1, 1, 1, fade))
+	# 下方加暗，讓字讀得清楚
+	for i in 8:
+		draw_rect(Rect2(0, vs.y * (0.62 + i * 0.05), vs.x, vs.y * 0.05 + 1), Color(0.03, 0.02, 0.06, 0.07 * (i + 1)))
+	var cx := vs.x * 0.5
+	var fy := vs.y * (0.66 if portrait else 0.7)
+	var s := 4.0 if portrait else 3.5
+	var W := Color(1, 1, 1, fade)
+	var shade := Color(0.32, 0.26, 0.34, fade)
+	match sc:
+		"rise":
+			var up := intro_t * 10.0 if intro_i == 1 else 0.0
+			_who("jesus", Vector2(cx, fy - 60.0 - up), s, W)
+			for i in 4:
+				_who(ROOM[i], Vector2(cx + (i - 1.5) * 26.0 * s * 0.5, fy + 10.0), s * 0.8, Color(0.6, 0.6, 0.7, fade))
+		"room", "wind", "fire":
+			var shake := Vector2(randf_range(-2, 2), 0) if sc == "wind" else Vector2.ZERO
+			for i in ROOM.size():
+				var at := Vector2(cx + (i - 2) * 30.0 * s * 0.5, fy) + shake
+				_who(ROOM[i], at, s, W)
+				if sc == "fire" and intro_t > 0.8:
+					var hp := at - Vector2(0, 21) * s
+					var fl := int(t * 8.0) % 2
+					draw_rect(Rect2(hp.x - 1.5 * s, hp.y - fl * 2, 3 * s, 2.4 * s), Color("c8301a"))
+					draw_rect(Rect2(hp.x - 1.0 * s, hp.y - 2 * s - fl * 2, 2 * s, 2.4 * s), Color("ff8a2a"))
+					draw_rect(Rect2(hp.x - 0.5 * s, hp.y - 3.5 * s - fl * 2, s, 2 * s), Color("ffd75e"))
+			if sc == "wind":
+				for i in 18:
+					var ph := fmod(t * 1.6 + i * 0.29, 1.0)
+					draw_rect(Rect2(-80 + ph * (vs.x + 160), fmod(i * 37.0, vs.y * 0.8), 50 + (i % 3) * 20, 2), Color(1, 1, 1, 0.55))
+		"sky", "kneel":
+			_pillar(cx, fy, fade * (0.9 if sc == "kneel" else 0.7))
+			if sc == "sky":
+				_who("jesus", Vector2(cx, vs.y * 0.3), s * 0.8, Color(1, 1, 1, fade * clampf(intro_t / 1.5, 0.0, 1.0)))
+				_who("stephen", Vector2(cx, fy), s, W)
+			else:
+				var top := Vector2(cx, fy) - Vector2(7, 12) * s
+				draw_texture_rect_region(_tx("stephen"), Rect2(top, Vector2(14, 12) * s), Rect2(0, 0, 14, 12), W)
+		"stones":
+			for i in 4:
+				_who("disciple", Vector2(cx + (-1 if i < 2 else 1) * (70.0 + (i % 2) * 34.0) * s * 0.4, fy), s * 0.9, shade)
+			for i in 9:
+				var ph := fmod(t * 0.9 + i * 0.37, 1.0)
+				var from := Vector2(cx + (-1 if i % 2 == 0 else 1) * 90.0 * s * 0.4, fy - 40.0)
+				var sp: Vector2 = from.lerp(Vector2(cx + (i % 3 - 1) * 8.0, fy - 20.0), ph) - Vector2(0, sin(ph * PI) * 40.0)
+				draw_rect(Rect2(sp.round(), Vector2(2, 2) * s * 0.6), Color(0.6, 0.58, 0.55, fade))
+			_who("stephen", Vector2(cx, fy), s, W)
+		"coats":
+			_who("paul", Vector2(cx, fy), s, W)
+			for i in 4:
+				draw_rect(Rect2(cx - 14.0 * s * 0.5 + i * 3.0, fy - i * 5.0, 28.0 * s * 0.5 - i * 6.0, 5), [Color("6a4a3a"), Color("8a6a4a"), Color("5a5a7a"), Color("a08060")][i] * Color(1, 1, 1, fade))
+			for i in 2:
+				_who("disciple", Vector2(cx + (i * 2 - 1) * 60.0 * s * 0.5, fy - 14.0), s * 0.8, shade)
+		"scatter":
+			var who: Array = it.get("who", ["disciple"])
+			for i in who.size():
+				_who(who[i], Vector2(cx + (i - (who.size() - 1) / 2.0) * 22.0 * s * 0.5, fy - absf(i - (who.size() - 1) / 2.0) * 10.0), s, W)
+		"alone":
+			var k := clampf(intro_t / 5.5, 0.0, 1.0)
+			_who("paul", Vector2(cx, lerpf(fy + 20.0, vs.y * 0.52, k)), s * lerpf(1.0, 0.45, k), W)
+		"wall":
+			var wall_top := vs.y * 0.3
+			var drop := clampf(intro_t / 4.5, 0.0, 1.0) * (fy - wall_top) if it.get("lower", false) else 0.0
+			var bx := cx + 20.0
+			var by := wall_top + drop
+			draw_rect(Rect2(bx - 1, wall_top - 6.0, 2, by - wall_top + 6.0), Color("a08060"))
+			var head := Vector2(bx, by) - Vector2(7, 8) * s
+			draw_texture_rect_region(_tx("paul"), Rect2(head, Vector2(14, 8) * s), Rect2(0, 0, 14, 8), W)
+			draw_rect(Rect2(bx - 4.5 * s, by - 2.0, 9.0 * s, 4.2 * s), Color("8a6a3a") * Color(1, 1, 1, fade))
+		"meet":
+			_who("peter", Vector2(cx + 34.0 * s * 0.5, fy), s, W)
+			_who("barn", Vector2(cx - 4.0 * s * 0.5, fy), s, W)
+			_who("paul", Vector2(cx - 40.0 * s * 0.5, fy), s, W)
+		"rome", "letters":
+			_who("paul", Vector2(cx - 10.0 * s * 0.5, fy), s, W)
+			if sc == "rome":
+				_who("luke", Vector2(cx - 34.0 * s * 0.5, fy - 8.0), s * 0.9, W)
+				var come := clampf(intro_t / 3.0, 0.0, 1.0)
+				_who("disciple", Vector2(lerpf(vs.x + 30.0, cx + 34.0 * s * 0.5, come), fy), s, W)
+			else:
+				_who("luke", Vector2(cx + 30.0 * s * 0.5, fy), s, W)
+		"sea":
+			if intro_t > 2.0:
+				_pillar(cx, fy, fade * clampf((intro_t - 2.0) / 1.5, 0.0, 1.0))
+			_who("john", Vector2(cx, fy), s, W)
+		"newheaven":
+			_who("john", Vector2(cx - 60.0, fy), s, W)
+		"sinkang":
+			_who("disciple", Vector2(cx, fy), s, Color(0.45, 0.42, 0.5, fade))
+			for i in 4:
+				_who("disciple", Vector2(cx + (i - 1.5) * 52.0 + (36.0 if i >= 2 else -36.0), fy + 6.0 - (i % 2) * 8.0), s * 0.9, Color(0.85, 0.65, 0.5, fade))
+		"tainan":
+			if it.get("back", false):
+				_who("maxwell", Vector2(lerpf(-20.0, cx, clampf(intro_t / 5.0, 0.0, 1.0)), fy), s, W)
+		"tamsui":
+			_who("disciple", Vector2(lerpf(vs.x * 0.2, vs.x * 0.45, clampf(intro_t / 5.0, 0.0, 1.0)), fy), s, W)
+		"print":
+			_who("disciple", Vector2(cx + 80.0, fy), s, Color(0.9, 0.88, 0.85, fade))
+		"skin":
+			_who("disciple", Vector2(cx + 50.0, fy), s, Color(0.95, 0.95, 0.95, fade))
+			_who("disciple", Vector2(cx + 90.0, fy + 2.0), s * 0.95, Color(1.0, 0.85, 0.9, fade))
+		"mountain":
+			for i in 4:
+				_who("disciple", Vector2(cx + (i - 1.5) * 30.0, fy - (i % 2) * 4.0), s * 0.8, Color(0.7, 0.5, 0.4, fade))
+		"today":
+			if it.get("supper", false):
+				for i in 4:
+					var side := -1.0 if i < 2 else 1.0
+					_who("disciple", Vector2(cx + side * (44.0 + (i % 2) * 20.0) * s, fy + (i % 2) * 4.0), s * 0.9, W)
+			elif it.get("you", false):
+				_who("disciple", Vector2(cx, fy), s * 1.1, W)
+				for i in 3:
+					var a := t * 2.0 + i * TAU / 3.0
+					draw_rect(Rect2(cx + cos(a) * 26.0, fy - 30.0 + sin(a) * 8.0, 2, 2), Color("fff4c2"))
+			else:
+				for i in 5:
+					_who("disciple", Vector2(fmod(i * 140.0 + t * (14.0 + i * 3.0), vs.x + 40.0) - 20.0, fy - (i % 2) * 10.0), s * 0.85, shade)
+
+
 func _draw_intro(vs: Vector2) -> void:
 	var it: Dictionary = cut[intro_i]
 	var sc: String = it.scene
 	var fade := clampf(intro_t / 0.6, 0.0, 1.0)
 	draw_rect(Rect2(Vector2.ZERO, vs), Color("0b0716"))
+	var bgt := _cut_bg(it)
+	if bgt != null:
+		_draw_bg_cut(it, bgt, vs, fade)
+		return
 	var cx := vs.x * 0.5
 	var floor_y := vs.y * (0.6 if portrait else 0.62)
 	var s := 4.0 if portrait else 3.5
