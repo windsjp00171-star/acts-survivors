@@ -289,6 +289,9 @@ var smoke_over := 0
 var smoke_nofever := false
 var fxtest := false
 var keystones := {}
+var waited := false   # 同心合意滿了：已經提醒過「等候父所應許的」
+## 五旬節：門徒說的「鄉談」（徒 2:9–11 的地方）
+const TONGUES := ["帕提亞的話", "米所波大米的話", "加帕多家的話", "埃及的話", "羅馬的話", "克里特的話", "阿拉伯的話", "本都的話"]
 var overcome_cd := 0.0   # 恩賜盤上裝了哪些有代價的基石（preach、midnight、overcome、stand、pairs、cast）   # 測試：把各種技能特效擺在畫面上截圖（--fxtest，搭配 --shot）
 
 
@@ -956,7 +959,7 @@ func _guard() -> float:
 	return 1.0 + fruits.get("good", 0) * D.fruits.good.per_level.guard
 
 func _accord() -> float:
-	return (1.0 + fruits.get("peace", 0) * D.fruits.peace.per_level.accord) * (1.3 if epistles.has("accord_plus") else 1.0) * (1.0 + Save.up_value("accord"))
+	return (1.0 + fruits.get("peace", 0) * D.fruits.peace.per_level.accord) * (1.3 if epistles.has("accord_plus") else 1.0) * (1.0 + Save.up_value("accord")) * (1.0 + Save.gift_global("accord"))
 
 
 func _fever_dur() -> float:
@@ -1732,6 +1735,13 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		return
 	if fever > 0.0:
 		dmg *= 1.5
+		if src is Dictionary and not e.get("elite", false) and not e.get("boss", false) and randf() < 0.02:
+			# 五旬節：各人聽見用自己的鄉談說神的大作為（徒 2:6、11），有人就被說服過來
+			_convert(e, 5.0)
+			_fxc("鄉談")
+			if tag_fx.size() < 8:
+				tag_fx.append({"pos": e.pos + Vector2(4, 8), "text": TONGUES.pick_random(), "col": C_CREAM, "t": 0.0})
+			return
 	dmg *= _dmg_mult()
 	if float(e.get("exposed_t", 0.0)) > 0.0:
 		dmg *= 1.0 + float(e.expose)   # 被尼哥底母的燈照到：受到更多傷害
@@ -1946,10 +1956,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		for i in (6 if e.get("vet", false) or e.get("elite", false) else 3):
 			_mote(e.pos + Vector2(0, -4), C_GOLD)
 		if fever > 0.0:
-			fever_kills += 1
-			if fever_kills % int(D.fever.extend_every_kills) == 0 and fever_ext < float(D.fever.get("extend_max", 4.0)):
-				fever += D.fever.extend_seconds   # 驅散延長五旬節，但一次最多延長 extend_max 秒
-				fever_ext += float(D.fever.extend_seconds)
+			fever_kills += 1   # 五旬節的長短是固定的（聖靈的澆灌是恩典，不是驅散多少換來的）
 	else:
 		_burst(e.pos, 6, C_VL, Color("3b1e52"))
 
@@ -2202,6 +2209,7 @@ func _start_fever() -> void:
 		return
 	fever = _fever_dur()
 	fever_kills = 0
+	waited = false
 	if _fruit_lv("peace") >= 3:
 		# 和平：平安歸你們（全隊回血）；Lv5 再把身邊的敵人推開
 		_heal_paul(float(D.paul.hp) * 0.3)
@@ -2389,6 +2397,9 @@ func _step(dt: float) -> void:
 		_tip("tasks")
 	if meter >= 1.0 and fever <= 0.0:
 		_tip("fever")
+		if not waited:
+			waited = true
+			ui.show_banner("同心合意，等候父所應許的（徒 1:4）", 1.8)
 	var bi := _boss_in()
 	if bi >= 0.0 and bi < 12.0:
 		_tip("boss")
@@ -6297,11 +6308,8 @@ func _signature_pre(c: Dictionary, s: Dictionary) -> Dictionary:
 					_fxc("越講越大聲")
 					_tag_fx(c, "越講越大聲", C_GOLD)
 		"prayer":
-			# 雅各「引導禱告」：隊伍走著時跪不下來；停得越久補得越多
-			if still_t < 0.4 and c != pa:
-				c.cd = 0.3
-				return {}
-			var k2 := 1.0 + minf(1.0, still_t * 0.4)
+			# 雅各「引導禱告」：照常禱告；隊伍停下來越久，補得越多（最多 2 倍）
+			var k2 := 1.0 + minf(1.0, still_t * 0.5)
 			s = s.duplicate()
 			for key in ["heal", "heal_team"]:
 				if s.has(key):
