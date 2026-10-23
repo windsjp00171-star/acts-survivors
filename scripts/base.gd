@@ -989,7 +989,7 @@ func _show_gifts() -> void:
 	var lname: String = G.paul.name if lead == "paul" else _comp_def(lead).name
 	var start := Save.board_start(lead)
 	var start_tag: String = str(Save.board_node(start).get("tag", "中央"))
-	_text(content, "恩賜盤　用餅「學會」，出發前替主角「點上」（點數 %d／%d）" % [Save.gift_used(lead), Save.gift_cap()], 15, UIKit.GOLD)
+	_text(content, "恩賜盤　用餅「學會」，出發前替主角「點上」（點數 %d／%d）" % [Save.gift_used(lead), Save.gift_cap()], 15, UIKit.GOLD, true)
 	var area: BoxContainer = VBoxContainer.new() if portrait else HBoxContainer.new()
 	area.add_theme_constant_override("separation", 10)
 	content.add_child(area)

@@ -4,6 +4,8 @@
 
 ## [Unreleased]
 
+## [0.45.0] - 2026-10-24
+
 ### 新增
 - 恩賜盤（`meta.json` 的 `gifts.board`，`tools/make_board.py` 從六棵恩賜樹排出來）：110 個節點、中央安提阿＋六個流派區＋六座橋；小節點、經文節點、基石（每區兩個，第二個有代價：`preach`、`midnight`、`overcome`、`stand`、`pairs`、`cast`）；卡片節點（`cards`）
 - 每位主角一套配置（`data.board_on[主角]`），從起點（`starts`）連出去；學會（`data.board_learned`）全部主角共用；`Save.board_recommend` 一鍵推薦；卸下時接不回起點的一起卸下
@@ -18,7 +20,11 @@
 - 16 座城的地標（`tools/make_landmarks.py`，`stages.json` 的 `landmarks`）與地面細節（`tools/make_decals.py`，`decals`）
 - 測試：`--fxtest`（特效擺一排截圖）、`_start.png`、`_banish.png` 截圖
 
+- 聖靈是白白賜下的：恩賜盤中央改名「一位聖靈」（林前 12:4）；同心合意滿了顯示「等候父所應許的」（徒 1:4）；五旬節裡偶爾有敵人「聽見自己的鄉談」被說服（`TONGUES`，徒 2:6）；事件「聖靈的引導」（徒 16:6–10）
+
 ### 變更
+- 五旬節的長短固定（拿掉 `extend_every_kills`：聖靈的澆灌不是驅散多少換來的）；詩歌區「同心讚美」改成同心合意累積 +10%（kind `accord`），不再靠驅散
+- 雅各的禱告照常出手，隊伍停下來越久補得越多（劇情第 1 章模擬：勝率回到 3／4）
 - 恩賜樹改成恩賜盤：舊存檔花在恩賜樹上的餅全部退回（`_migrate_board`，先備份到 `profile_backup.json`），見證錄「恩賜」兩項改成學會的節點數
 - 隊形（`SLOTS`）拉開，頭上的血條、標記跟著新的人物高度往上移
 
