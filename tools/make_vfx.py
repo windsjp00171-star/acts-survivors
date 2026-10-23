@@ -322,7 +322,36 @@ def beam_tile():
     s.save("beam")   # 灰階：遊戲裡用 modulate 上色，所以同一張圖給每位同伴自己的顏色
 
 
+# ---------- 主角技能的小圖示（12×12，技能列用）----------
+ICONS = {
+    # 每個圖示用字元畫：. 透明、a 外框，其他字母查 PAL
+    "letter": ["............", "..aaaaaaaa..", ".abbbbbbbba.", ".abccccccba.", ".abbbbbbbba.", ".abccccccba.", ".abbbbbbbba.", ".abccccrcba.", ".abbbbrrbba.", ".abbbbbbbba.", "..aaaaaaaa..", "............"],
+    "rebuke": ["............", ".....aa.....", "....arra....", "....arra....", "...arrrra...", "...arooora..", "..aroooora..", "..aroyyoora.", "..aroyyyora.", "...arooora..", "....aaaaa...", "............"],
+    "exhort": ["............", "...a....a...", "..aga..aga..", ".aggga.aggga", "..aga..aga..", "...a....a...", "......a.....", ".....aga....", "....aggga...", ".....aga....", "......a.....", "............"],
+    "strengthen": ["............", "..aaaaaaaa..", ".abbbbbbbba.", ".abccyycbba.", ".abcyyyycba.", ".abccyycbba.", ".abccyycbba.", "..abccccba..", "...abccba...", "....abba....", ".....aa.....", "............"],
+    "grace": ["............", ".....aa.....", "....agga....", "...agwwga...", "..agwwwwga..", "..agwwwwga..", "..aggwwgga..", "...agggga...", "....agga....", ".....aa.....", "............", "............"],
+    "fight": ["............", ".a...a...a..", "..a.aya.a...", "...ayyya....", ".aayyyyyaa..", "...ayyya....", "..a.aya.a...", ".a...a...a..", "............", "............", "............", "............"],
+    "blind": ["............", "..aaaaaaa...", ".appppppppa.", "apppkkkpppa.", "appkkkkkppa.", "apppkkkpppa.", ".appppppppa.", "..aaaaaaa...", "....a..a....", "...a....a...", "............", "............"],
+    "viper": ["............", "......aaa...", ".....agg.a..", "....agga....", "...agga.....", "...agga.....", "....agga....", ".....agga...", "......agga..", "..rr...agga.", ".rooro..aa..", "..rr........"],
+    "quake": ["............", "............", "............", "aaaaaaaaaaaa", "abbbbabbbbba", "abbbaabbbbba", "abbaababbbba", "abaabbbaabba", "aabbbbbbaaba", "abbbbbbbbbaa", "aaaaaaaaaaaa", "............"],
+    "cloth": ["............", "..aaaaaaa...", ".awwwwwwwa..", ".awcwwwcwa..", ".awwwwwwwa..", ".awwwcwwwa..", ".awwwwwwwa..", ".awcwwwcwa..", ".awwwwwwwa..", "..aaaaaaa...", "............", "............"],
+}
+IPAL = {"a": "#2a1a14", "b": "#c8a46b", "c": "#8a6438", "r": "#c0392b", "o": "#ff8a2a", "y": "#ffd75e", "g": "#7af0a0",
+        "w": "#fff4c2", "p": "#5a3a6a", "k": "#1a1020"}
+
+
+def icons():
+    for name, rows in ICONS.items():
+        st = Strip(12, 12, 1)
+        for y, row in enumerate(rows):
+            for x, ch in enumerate(row):
+                if ch in IPAL:
+                    st.px(x, y, IPAL[ch])
+        st.im.save(os.path.join(OUT, "icon_%s.png" % name))
+
+
 if __name__ == "__main__":
+    icons()
     spark()
     boom()
     fire_col()

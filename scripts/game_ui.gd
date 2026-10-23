@@ -112,6 +112,11 @@ func setup(name_list: Array, touch: bool) -> void:
 
 	hint_label = label("按住畫面下方拖曳來移動" if touch else "WASD／方向鍵移動　同心合意滿了按空白鍵", 12, C_CREAM)
 
+	kit_bar = Control.new()   # 主角的技能列（左下角）
+	kit_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	kit_bar.draw.connect(_draw_kit)
+	root.add_child(kit_bar)
+
 	joy_pad = Control.new()
 	joy_pad.set_anchors_preset(Control.PRESET_FULL_RECT)
 	joy_pad.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -265,8 +270,40 @@ var pause_box: Control
 var task_label: Label
 
 
+var kit_bar: Control
+var kit_data: Array = []
+var kit_tex := {}
+
+
+func _draw_kit() -> void:
+	# 每格：圖示（放大兩倍）、冷卻中蓋一層暗色（由下往上退）、剛放出去亮金框、下面小點是等級
+	var cell := 30.0
+	for i in kit_data.size():
+		var k: Dictionary = kit_data[i]
+		var x := i * (cell + 4.0)
+		kit_bar.draw_rect(Rect2(x, 0, cell, cell), Color("140c10"))
+		var key: String = k.icon
+		if key != "":
+			if not kit_tex.has(key):
+				kit_tex[key] = load("res://assets/sprites/%s.png" % key) if ResourceLoader.exists("res://assets/sprites/%s.png" % key) else null
+			if kit_tex[key] != null:
+				kit_bar.draw_texture_rect(kit_tex[key], Rect2(x + 3, 3, 24, 24), false)
+		var fr: float = k.frac
+		if fr > 0.0:
+			kit_bar.draw_rect(Rect2(x + 1, 1 + (cell - 2) * (1.0 - fr), cell - 2, (cell - 2) * fr), Color(0, 0, 0, 0.6))
+		var fl: float = k.flash
+		kit_bar.draw_rect(Rect2(x, 0, cell, cell), C_GOLD if fl > 0.0 else Color("5a4a3a"), false, 2.0 if fl > 0.0 else 1.0)
+		for j in mini(int(k.lv), 5):
+			kit_bar.draw_rect(Rect2(x + 3 + j * 5, cell + 2, 3, 3), C_GOLD)
+
+
 func update_hud(st: Dictionary) -> void:
 	var size := vp()
+	kit_data = st.get("kit", [])
+	kit_bar.visible = not kit_data.is_empty() and not st.over
+	kit_bar.position = Vector2(12, size.y - 44.0 - (60.0 if size.y > size.x else 0.0))
+	kit_bar.size = Vector2(kit_data.size() * 34.0, 36.0)
+	kit_bar.queue_redraw()
 	hp_fill.size.x = roundf(120.0 * st.hp_frac)
 	hp_fill.color = C_HEAL if st.hp_frac > 0.35 else C_RED
 	lv_label.text = "Lv.%d" % st.level
@@ -528,9 +565,9 @@ func _draw_joy() -> void:
 
 
 # ---------- 升級卡 ----------
-const KIND_NAME := {"recruit": "新同伴", "up": "升級", "branch": "分支", "evolve": "進化", "fruit": "聖靈果子", "armor": "軍裝",
+const KIND_NAME := {"kit": "主角技能", "recruit": "新同伴", "up": "升級", "branch": "分支", "evolve": "進化", "fruit": "聖靈果子", "armor": "軍裝",
 	"epistle": "書信", "event": "事件", "school": "深化卡", "relic": "聖物", "anoint": "主角輔助", "link": "肢體連結", "link_up": "強化連結", "heal": "恩典", "grace_dmg": "恩典", "grace_spd": "恩典", "manna": "恩典"}
-const KIND_COL := {"recruit": Color("7be08a"), "up": Color("4fd8ff"), "branch": Color("4fd8ff"), "evolve": Color("ffd75e"),
+const KIND_COL := {"kit": Color("ff6a8a"), "recruit": Color("7be08a"), "up": Color("4fd8ff"), "branch": Color("4fd8ff"), "evolve": Color("ffd75e"),
 	"fruit": Color("ff9ae0"), "armor": Color("c9a46b"), "epistle": Color("fff4c2"), "event": Color("c8a0ff"), "school": Color("ffd75e"), "relic": Color("ff8a2a"), "anoint": Color("c8a0ff"), "link": Color("ff8a2a"), "link_up": Color("ff8a2a")}
 
 
@@ -553,6 +590,17 @@ func _card_body(b: Button, c: Dictionary, i: int, portrait: bool, narrow := fals
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		row.add_child(ic)
+	elif str(c.get("icon", "")) != "" and ResourceLoader.exists("res://assets/sprites/%s.png" % c.icon):
+		# 主角的職業技能：技能圖示放大四倍
+		var ti := TextureRect.new()
+		ti.texture = load("res://assets/sprites/%s.png" % c.icon)
+		ti.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+		ti.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		ti.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		ti.custom_minimum_size = Vector2(48, 48)
+		ti.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		ti.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		row.add_child(ti)
 	var col := VBoxContainer.new()
 	col.add_theme_constant_override("separation", 2)
 	col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -683,7 +731,7 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 	if not is_instance_valid(row) or cards_box == null:
 		return
 	row.position = Vector2(roundf((size.x - row.size.x) / 2.0), cards_box.position.y + cards_box.size.y + 8)
-	var over := row.position.y + row.size.y + 6 - size.y   # 卡片太高時，卡片和按鈕一起往上移，按鈕才不會跑出畫面
+	var over := minf(row.position.y + row.size.y + 6 - size.y, cards_box.position.y - 64.0)   # 卡片太高時，卡片和按鈕一起往上移（標題留著），按鈕才不會跑出畫面
 	if over > 0.0:
 		cards_box.position.y -= over
 		row.position.y -= over

@@ -289,6 +289,14 @@ var smoke_over := 0
 var smoke_nofever := false
 var fxtest := false
 var keystones := {}
+# 主角的職業技能（game.json 的 kits）：kit_lv 是學會的技能與等級，kit_cd 是冷卻
+var kit_lv := {}
+var kit_cd := {}
+var kit_flash := {}
+var kit_gcd := 0.0
+var hurt_recent := 0.0     # 主角剛被打到（「抖在火裡」）
+var hots: Array = []       # 「勸勉」：全隊持續回血
+var blind_fx: Array = []   # 「手要加在你身上」：黑霧
 var waited := false   # 同心合意滿了：已經提醒過「等候父所應許的」
 ## 五旬節：門徒說的「鄉談」（徒 2:9–11 的地方）
 const TONGUES := ["帕提亞的話", "米所波大米的話", "加帕多家的話", "埃及的話", "羅馬的話", "克里特的話", "阿拉伯的話", "本都的話"]
@@ -451,6 +459,10 @@ func _ready() -> void:
 			force_light = true
 		elif a == "--fxtest":
 			fxtest = true
+		elif a.begins_with("--kit="):
+			for k in a.substr(6).split(","):   # 測試：主角一開始就學會這些技能（k 或 k:等級）
+				var kp := k.split(":")
+				kit_lv[kp[0]] = int(kp[1]) if kp.size() > 1 else 1
 		elif a == "--perf":
 			perf = true
 		elif a == "--film":
@@ -1065,6 +1077,8 @@ func _make_cards() -> Array:
 		var ep: Dictionary = st.epistle
 		if Save.data.churches.has(st.id) and not epistles.has(ep.effect):
 			pool.append({"kind": "epistle", "key": ep.effect, "title": ep.name, "tag": "書信", "desc": ep.desc})
+	for kc in _kit_cards():
+		pool.append(kc)
 	var lc := _link_card() if _sys_open("link") else {}
 	if not lc.is_empty():
 		pool.append(lc)
@@ -1193,6 +1207,11 @@ func _banish(i: int) -> void:
 
 
 func _apply_card(card: Dictionary) -> void:
+	if card.kind == "kit":
+		kit_lv[card.key] = int(kit_lv.get(card.key, 0)) + 1
+		kit_cd[card.key] = minf(float(kit_cd.get(card.key, 1.0)), 1.0)
+		_refresh_build_text()
+		return
 	if card.kind == "recruit":
 		_recruit(by_key[card.key])
 	elif card.kind == "up":
@@ -1590,6 +1609,7 @@ func _bot_pick(cards: Array) -> int:
 			"heal": sc = 50.0 if paul.hp < float(D.paul.hp) * 0.5 else 5.0
 			"event": sc = 20.0
 			"school": sc = 45.0
+			"kit": sc = 48.0 if not kit_lv.has(cd.key) else 36.0
 			"relic": sc = 50.0
 			"anoint": sc = 52.0 if str(cd.get("aid", "")).begins_with("s_") else 38.0
 			_: sc = 10.0
@@ -1846,6 +1866,11 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 
 
 func _kill(e: Dictionary, by_player: bool, src = null) -> void:
+	if float(e.get("rebuke_t", 0.0)) > 0.0 and _kit("rebuke") >= 3:
+		# 責備傳給旁邊 2 隻
+		for o in _nearest_enemies(e.pos, 70.0, 3, {e.node: true}).slice(0, 2):
+			_rebuke(o, float(e.rebuke_dps))
+			zaps.append({"pts": [e.pos + Vector2(0, -6), o.pos + Vector2(0, -6)], "t": 0.1, "evo": false, "col": Color("c0392b")})
 	e.dead = true
 	if by_player and src != null:
 		_fire_links("kill", src, 0)
@@ -2618,6 +2643,7 @@ func _companion_skills(dt: float) -> void:
 	if pa.cd <= 0.0 and _beat_ready(pa):
 		_cast(pa)
 		_on_beat_cast(pa)
+	_update_kit(dt, speed_mult)
 	for c in comps:
 		if c.skill == "" or not _active(c):
 			continue
@@ -4470,6 +4496,24 @@ func _draw_engines(n: Node2D) -> void:
 			n.draw_rect(Rect2(cx - 3, cy + 1, 7, 2), C_GOLD)
 			for i in 3:
 				n.draw_rect(Rect2(cx - 3 + i * 3, cy - 2, 1, 2), C_GOLD)
+	# 保羅的黑霧（手要加在你身上）
+	for b in blind_fx:
+		var bk: float = b.t / 0.8
+		for j in 14:
+			var ja := j * 2.39996
+			var jr: float = b.r * sqrt(fmod(j * 0.618, 1.0))
+			var bp: Vector2 = (b.pos + Vector2(cos(ja) * jr, sin(ja) * jr * 0.7)).round()
+			var sz := 6 - int(bk * 4.0)
+			n.draw_rect(Rect2(bp - Vector2(sz, sz) * 0.5, Vector2(sz, sz)), Color(Color("3a2a4a"), 0.8 * (1.0 - bk)))
+		_pring(n, b.pos.round(), b.r * (0.6 + bk * 0.4), Color(Color("8a6aaa"), 1.0 - bk), 1, 0.7, 2)
+	# 被責備的敵人：頭上一團紅色的火（跳動）
+	for e in enemies:
+		if not e.dead and float(e.get("rebuke_t", 0.0)) > 0.0:
+			var rx: float = roundf(e.pos.x)
+			var ry: float = roundf(e.pos.y) - 26.0 - (int(t * 6.0) % 2)
+			n.draw_rect(Rect2(rx - 2, ry, 5, 4), Color("5a1010"))
+			n.draw_rect(Rect2(rx - 1, ry - 2, 3, 5), Color("e04a3a"))
+			n.draw_rect(Rect2(rx, ry - 3, 1, 3), C_FLAME)
 	# 被嘲諷（紅色驚嘆號）、驚慌（藍色波浪）、破甲（灰色裂痕）
 	for e in enemies:
 		if e.dead:
@@ -4700,6 +4744,15 @@ func _update_ailments(dt: float) -> void:
 	for e in enemies:
 		if e.dead:
 			continue
+		if float(e.get("rebuke_t", 0.0)) > 0.0:
+			# 保羅「責備」：持續受傷
+			e.rebuke_t = float(e.rebuke_t) - dt
+			e.rebuke_tick = float(e.get("rebuke_tick", 0.0)) - dt
+			if e.rebuke_tick <= 0.0:
+				e.rebuke_tick = 0.5
+				_hurt(e, float(e.rebuke_dps) * 0.5, Vector2.INF, pa)
+				if e.dead:
+					continue
 		if e.has("wet_t"):
 			e.wet_t = maxf(0.0, float(e.wet_t) - dt)
 		if e.has("shock_t"):
@@ -4712,6 +4765,21 @@ func _update_ailments(dt: float) -> void:
 				e.burning_hit = true
 				_hurt(e, float(e.burn_dps) * 0.5 / maxf(0.01, _dmg_mult()), Vector2.INF)
 				e.burning_hit = false
+	for h in hots:
+		h.t -= dt
+		h.tick -= dt
+		if h.tick <= 0.0:
+			h.tick = 1.0
+			_heal_paul(float(h.amt))
+			for o in comps:
+				if o.level > 0 and o.down <= 0.0:
+					o.hp = minf(_comp_max_hp(), float(o.hp) + float(h.amt))
+					if randf() < 0.4:
+						heals.append({"who": o, "t": 0.3})
+	hots = hots.filter(func(h): return h.t > 0.0)
+	for b in blind_fx:
+		b.t += dt
+	blind_fx = blind_fx.filter(func(b): return b.t < 0.8)
 	# 聖物：彼得的影子、挪亞的鴿子
 	if relics.has("shadow"):
 		shadow_t -= dt
@@ -5358,6 +5426,7 @@ func _separate() -> void:
 
 
 func _damage_paul(n: float, pierce := false, src := "") -> void:
+	hurt_recent = 1.0
 	if god_mode:
 		if smoke:
 			fx_stat["主角被打:" + src] = float(fx_stat.get("主角被打:" + src, 0.0)) + n
@@ -5914,6 +5983,20 @@ func _update_spots(dt: float) -> void:
 					for e in _enemies_near(sp.pos, sp.r + 8.0):
 						if not e.dead and e.pos.distance_to(sp.pos) < sp.r:
 							e.slow_t = maxf(float(e.get("slow_t", 0.0)), 0.8)
+			"cloth":
+				sp.tick -= dt
+				if sp.tick <= 0.0:
+					sp.tick = 0.5
+					for e in _enemies_near(sp.pos, sp.r + 8.0):
+						if not e.dead and e.pos.distance_to(sp.pos) < sp.r and float(e.get("ally", 0.0)) <= 0.0:
+							_hurt(e, float(sp.dmg), sp.pos, pa)
+							if not e.get("boss", false):
+								e.knock += (e.pos - sp.pos).normalized() * 120.0
+					if paul.pos.distance_to(sp.pos) < sp.r + 16.0:
+						_heal_paul(0.6)
+					for o in comps:
+						if o.level > 0 and o.down <= 0.0 and o.pos.distance_to(sp.pos) < sp.r + 16.0:
+							o.hp = minf(_comp_max_hp(), float(o.hp) + 0.6)
 			"blaze", "potion":
 				sp.tick -= dt
 				if sp.tick <= 0.0:
@@ -5969,6 +6052,15 @@ func _draw_spots(n: Node2D) -> void:
 				var wa: float = clampf(sp.life / 1.0, 0.0, 1.0)
 				n.draw_circle(Vector2(x, y), sp.r, Color(0.45, 0.75, 0.95, 0.12 * wa))
 				_dot_ring(n, Vector2(x, y), sp.r, 0.8, Color(Color("9fd8ff"), wa), 5.0, t * 0.8, 1)
+			"cloth":
+				# 手巾圍裙：地上一塊白布，一閃一閃的光
+				var ca: float = clampf(sp.life / 0.6, 0.0, 1.0)
+				n.draw_rect(Rect2(x - 5, y - 4, 11, 7), Color(Color("2a1a14"), ca))
+				n.draw_rect(Rect2(x - 4, y - 3, 9, 5), Color(Color("fff4c2"), ca))
+				n.draw_rect(Rect2(x - 4, y - 3, 9, 1), Color(Color("e0d4b8"), ca))
+				if int(t * 4.0 + x) % 3 == 0:
+					n.draw_rect(Rect2(x + 3, y - 7, 1, 1), Color(Color.WHITE, ca))
+				_pring(n, Vector2(x, y), sp.r, Color(C_CREAM, 0.5 * ca), 1, 0.6, 2)
 			"blaze":
 				# 燒著的地：一圈火苗在地上跳
 				var bk: float = clampf(sp.life / 0.6, 0.0, 1.0)
@@ -6238,7 +6330,7 @@ func _render(dt: float) -> void:
 			ui.place_name(c.name, ct * c.pos, nm_on)
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
-		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text(), "combo": combo, "combo_t": combo_t, "boss_in": _boss_in()})
+		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text(), "combo": combo, "combo_t": combo_t, "boss_in": _boss_in(), "kit": _kit_hud()})
 
 
 ## 人物的動作（不用另外畫圖，全部用位置、傾斜、伸縮做出來）：
@@ -6291,6 +6383,218 @@ func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, 
 	for k in count:
 		var a := k / float(count) * TAU + ph
 		n.draw_rect(Rect2(round(center.x + cos(a) * r), round(center.y + sin(a) * r * squash), thick, thick), col)
+
+
+## ---------- 主角的職業技能（kits）----------
+## 技能列：主角本來的招式＋學會的技能（圖示、冷卻、剛放出去時亮一下）
+func _kit_hud() -> Array:
+	var K := _kit_def()
+	if K.is_empty():
+		return []
+	var out := [{"icon": "icon_letter" if leader == "paul" else "", "frac": clampf(float(pa.cd) / maxf(0.1, float(pa.st.get("cooldown", 1.0))), 0.0, 1.0), "flash": pa.castfx, "lv": pa.level}]
+	for d in K.pool:
+		if kit_lv.has(d.id):
+			out.append({"icon": "icon_" + d.id, "frac": clampf(float(kit_cd.get(d.id, 0.0)) / maxf(0.1, _kv(d, "cooldown")), 0.0, 1.0),
+				"flash": float(kit_flash.get(d.id, 0.0)), "lv": _kit(d.id)})
+	return out
+
+func _kit_def() -> Dictionary:
+	return D.get("kits", {}).get(leader, {})
+
+
+func _kit(id: String) -> int:
+	return int(kit_lv.get(id, 0))
+
+
+func _kit_spell(id: String) -> Dictionary:
+	for d in _kit_def().get("pool", []):
+		if d.id == id:
+			return d
+	return {}
+
+
+func _kv(d: Dictionary, key: String) -> float:
+	var arr: Array = d.get(key, [0.0])
+	return float(arr[clampi(_kit(d.id) - 1, 0, arr.size() - 1)])
+
+
+## 升級卡：學會新技能（還有空位）或技能升級
+func _kit_cards() -> Array:
+	var K := _kit_def()
+	if K.is_empty():
+		return []
+	var out := []
+	var slots := 1 + kit_lv.size()
+	for d in K.pool:
+		var lv := _kit(d.id)
+		if lv == 0 and slots < int(K.slots):
+			out.append({"kind": "kit", "key": d.id, "title": "學會「%s」" % d.name, "tag": d.role,
+				"desc": "%s（%s）" % [d.desc[0], d.ref], "icon": "icon_" + d.id})
+		elif lv > 0 and lv < d.desc.size():
+			out.append({"kind": "kit", "key": d.id, "title": "%s　Lv%d → %d" % [d.name, lv, lv + 1], "tag": d.role,
+				"desc": d.desc[lv], "icon": "icon_" + d.id})
+	return out
+
+
+func _update_kit(dt: float, sm: float) -> void:
+	hurt_recent = maxf(0.0, hurt_recent - dt)
+	if kit_lv.is_empty() or over:
+		return
+	for id in kit_lv:
+		kit_cd[id] = float(kit_cd.get(id, 1.5)) - dt * sm
+	for id in kit_flash.keys():
+		kit_flash[id] = float(kit_flash[id]) - dt
+	kit_gcd -= dt
+	if kit_gcd > 0.0:
+		return
+	# 優先順序：救命 → 大招、爆發 → 控場、護盾 → 其他
+	for id in ["grace", "quake", "fight", "viper", "blind", "strengthen", "exhort", "cloth", "rebuke"]:
+		if not kit_lv.has(id) or float(kit_cd.get(id, 0.0)) > 0.0:
+			continue
+		var d := _kit_spell(id)
+		if d.is_empty() or not _kit_ready(id):
+			continue
+		_kit_cast(id, d)
+		kit_cd[id] = _kv(d, "cooldown")
+		kit_flash[id] = 0.6
+		kit_gcd = 0.35
+		_fxc("技能:" + d.name)
+		if tag_fx.size() < 12:
+			tag_fx.append({"pos": paul.pos + Vector2(-10, -6), "text": d.name, "col": C_GOLD, "t": 0.0, "big": true})
+		return
+
+
+func _crowd(r: float) -> int:
+	var n := 0
+	for e in _enemies_near(paul.pos, r):
+		if not e.dead and e.pos.distance_to(paul.pos) < r and float(e.get("ally", 0.0)) <= 0.0:
+			n += 1
+	return n
+
+
+func _kit_ready(id: String) -> bool:
+	match id:
+		"grace":
+			return paul.hp < float(D.paul.hp) * 0.45
+		"quake":
+			return _crowd(110.0) >= 10
+		"fight":
+			if _crowd(100.0) >= 6:
+				return true
+			for e in _enemies_near(paul.pos, 150.0):
+				if not e.dead and (e.get("elite", false) or e.get("boss", false)):
+					return true
+			return false
+		"viper":
+			return hurt_recent > 0.0 and _crowd(60.0) >= 1
+		"exhort":
+			if paul.hp < float(D.paul.hp) * 0.9:
+				return true
+			return comps.any(func(o): return o.level > 0 and o.down <= 0.0 and o.hp < _comp_max_hp() * 0.8)
+		"strengthen", "cloth":
+			return _crowd(120.0) >= 2
+		"blind", "rebuke":
+			return not _nearest_enemies(paul.pos, 150.0, 1).is_empty()
+	return false
+
+
+func _rebuke(e: Dictionary, dps: float) -> void:
+	e.rebuke_t = float(_kit_spell("rebuke").get("dur", 6.0))
+	e.rebuke_dps = maxf(float(e.get("rebuke_dps", 0.0)) * (1.0 if float(e.get("rebuke_t", 0.0)) > 0.0 else 0.0), dps)
+
+
+func _kit_cast(id: String, d: Dictionary) -> void:
+	var c0: Vector2 = paul.pos
+	match id:
+		"rebuke":
+			var best = null
+			for e in _nearest_enemies(c0, 150.0, 12):
+				if best == null or float(e.hp) > float(best.hp):
+					best = e
+			if best != null:
+				_rebuke(best, _kv(d, "dps") * (1.0 + level * 0.05) * (1.4 if _kit("rebuke") >= 3 else 1.0))
+				zaps.append({"pts": [c0 + Vector2(0, -14), best.pos + Vector2(0, -6)], "t": 0.05, "evo": false, "col": Color("e04a3a")})
+		"exhort":
+			hots.append({"t": float(d.get("dur", 5.0)), "amt": _kv(d, "hot"), "tick": 0.0})
+			_ring_pop(c0 + Vector2(0, -10), C_HEAL, 30.0)
+		"strengthen":
+			guard = mini(guard + int(_kv(d, "guard")), 5)
+			for o in comps:
+				if o.level > 0 and o.down <= 0.0:
+					o.garment = maxi(int(o.get("garment", 0)), 1)
+					if _kit("strengthen") >= 3:
+						_heal_comp(o, _comp_max_hp() * 0.2)
+			if _kit("strengthen") >= 3:
+				_heal_paul(float(D.paul.hp) * 0.2)
+			haste_t = maxf(haste_t, 5.0)
+			haste_amt = maxf(haste_amt, 0.25)
+			blasts.append({"pos": c0 + Vector2(0, -8), "t": 0.0, "r": 60.0, "col": Color("9fd8ff"), "evo": false})
+		"grace":
+			_heal_paul(float(D.paul.hp) * _kv(d, "heal"))
+			paul.inv = maxf(paul.inv, 2.5 if _kit("grace") >= 3 else 1.5)
+			heals.append({"who": paul, "t": 0.0})
+			fires.append({"pos": c0, "t": -0.01, "max": 0.01, "r": 0.0, "dmg": 0.0, "owner": {}, "evo": false, "look": "glory", "hit": true})
+			if _kit("grace") >= 3:
+				for o in comps:
+					if o.level > 0 and o.down <= 0.0:
+						_heal_comp(o, _comp_max_hp() * 0.4)
+						heals.append({"who": o, "t": 0.0})
+			Sfx.play("heal", 0.0)
+		"fight":
+			var waves := int(_kv(d, "waves"))
+			var big := _kit("fight") >= 3
+			for w in waves:
+				delayed.append({"t": w * 0.18, "fn": _fight_wave.bind(w, big)})
+			blasts.append({"pos": c0 + Vector2(0, -8), "t": 0.0, "r": 46.0, "col": C_GOLD, "evo": true})
+			shake = maxf(shake, 0.12)
+		"blind":
+			# 敵人最多的地方
+			var best_p: Vector2 = c0
+			var best_n := -1
+			for e in _nearest_enemies(c0, 150.0, 10):
+				var nn := 0
+				for o in _enemies_near(e.pos, 50.0):
+					if not o.dead:
+						nn += 1
+				if nn > best_n:
+					best_n = nn
+					best_p = e.pos
+			var r: float = _kv(d, "radius") * _area()
+			for e in _enemies_near(best_p, r + 8.0):
+				if not e.dead and not e.get("boss", false) and e.pos.distance_to(best_p) < r:
+					e.confused = 4.0 if _kit("blind") >= 3 else 3.0
+			blind_fx.append({"pos": best_p, "r": r, "t": 0.0})
+		"viper":
+			var r2: float = (50.0 if _kit("viper") < 3 else 70.0) * _area()
+			for e in _enemies_near(c0, r2 + 8.0):
+				if not e.dead and e.pos.distance_to(c0) < r2:
+					_hurt(e, _kv(d, "dmg") * (1.0 + level * 0.05), c0, pa)
+					e.burn_t = maxf(float(e.get("burn_t", 0.0)), 3.0)
+					e.burn_dps = maxf(float(e.get("burn_dps", 0.0)), _kv(d, "dmg") * 0.4)
+			blasts.append({"pos": c0 + Vector2(0, -6), "t": 0.0, "r": r2, "col": Color("7ac850"), "evo": false})
+		"quake":
+			var r3: float = _kv(d, "radius")
+			quakes.append({"pos": c0, "r": 10.0, "max": r3})
+			shake = maxf(shake, 0.4)
+			Sfx.play("roar", 0.0)
+			for e in _enemies_near(c0, r3 + 8.0):
+				if not e.dead and e.pos.distance_to(c0) < r3:
+					_hurt(e, _kv(d, "dmg") * (1.0 + level * 0.06), c0, pa)
+					e.stun = maxf(e.stun, 3.0 if _kit("quake") >= 3 else 2.0)
+		"cloth":
+			for i in int(_kv(d, "count")):
+				var a := randf() * TAU
+				spots.append({"kind": "cloth", "pos": c0 + Vector2(cos(a), sin(a) * 0.7) * randf_range(20.0, 46.0), "life": 8.0, "tick": 0.0, "r": 14.0,
+					"dmg": (6.0 + level * 0.4) * (1.5 if _kit("cloth") >= 3 else 1.0), "owner": pa})
+
+
+func _fight_wave(w: int, big: bool) -> void:
+	var n := 16
+	for i in n:
+		var dir := Vector2.from_angle(i * TAU / n + w * 0.2)
+		bolts.append({"pos": paul.pos + Vector2(0, -12), "straight": true, "vel": dir * 210.0, "dir": dir, "life": 0.9,
+			"pierce": 99 if big else 2 + w, "dmg": (6.0 + level * 0.6) * (1.5 if big else 1.0), "size": 1, "hit": {}, "look": "letter", "owner": pa,
+			"split": 0, "child": true, "spd": 210.0, "emult": 1.0, "target": {}, "evo": big})
 
 
 ## ---------- 招式的招牌機制（參考魔獸世界各職業的玩法）----------
@@ -6910,8 +7214,9 @@ func _draw_air() -> void:
 	for f in tag_fx:
 		var k: float = f.t / 0.8
 		var pos: Vector2 = (f.pos + Vector2(-8, -32 - k * 10.0)).round()
-		n.draw_string_outline(UIKit.font(), pos, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, 2, Color(Color("140c10"), 1.0 - k))
-		n.draw_string(UIKit.font(), pos, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 8, Color(f.col, 1.0 - k))
+		var tfs := 11 if f.get("big", false) else 8
+		n.draw_string_outline(UIKit.font(), pos, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs, 3 if tfs > 8 else 2, Color(Color("140c10"), 1.0 - k))
+		n.draw_string(UIKit.font(), pos, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs, Color(f.col, 1.0 - k))
 	if guard > 0:
 		# 護盾：一面一面小盾牌繞著主角轉（幾面就是擋得下幾次）
 		for i in guard:
@@ -7469,7 +7774,7 @@ const SAVE_VARS := ["t", "kills", "xp", "level", "xp_need", "meter", "run_lights
 	"run_chests", "run_midboss", "school_mods", "school_cards", "praise", "anoint", "run_converts", "run_minions", "run_songs",
 	"run_holies", "run_shocks", "bonds_seen", "run_bonds", "loaves_n", "run_relics", "seek_t", "seek_used", "run_saved",
 	"run_seek_spawned", "pressure", "life_avg", "persec_t", "fz_count", "scatter_by", "blind_state", "blind_r", "hz_t",
-	"founded_now", "someone_down", "full_party", "merchant_done", "banishes_left", "banished"]
+	"founded_now", "someone_down", "full_party", "merchant_done", "banishes_left", "banished", "kit_lv"]
 var resuming := {}
 var autosave_t := 20.0
 var save_test := false   # 測試用：--save_test 讓機器人模擬也寫存檔
