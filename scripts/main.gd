@@ -160,7 +160,8 @@ var prov_bread := 0.0       # 這局帶回的餅加成（舊的市集行囊用�
 var tip_queue: Array = []  # 新手教學：等著出現的提示
 var run_chests := 0
 var run_midboss := 0
-var build_text := ""      # HUD 左側：同工與肢體連結
+var build_text := ""      # 暫停畫面的「目前狀態」：呼召、流派、輔助、融合、分支、連結
+var build_short := ""     # HUD 左上角的一行精簡版
 var run_tasks: Array = [] # 旅程任務：{def, done, failed}
 var shots: Array = []
 var gems: Array = []
@@ -296,6 +297,9 @@ var kit_lv := {}
 var kit_cd := {}
 var kit_flash := {}
 var kit_gcd := 0.0
+var hastes: Array = []    # 加速類技能的速度線 {who, t, col}
+var sbursts: Array = []   # 護盾類技能：一圈小盾牌往外展開 {pos, t, n, col}
+var kit_pops: Array = []   # 主角頭上跳出的技能圖示 {id, t}
 var kres := 0.0            # 職業資源：司提反的恩惠、約翰的熱切、提摩太的專注、腓利的腳步
 var kstance := "praise"    # 亞薩的姿態：praise 讚美／lament 哀歌
 var kbuff := {}            # 職業技能的暫時效果（剩幾秒）：fisher、rock、abide、run
@@ -368,6 +372,10 @@ func _ready() -> void:
 	if story:
 		stage.hp_mult = float(stage.hp_mult) * float(Save.story.get("hp_mult", 1.0)) * float(chapter.get("hp_mult", 1.0))
 		stage.dmg_mult = float(stage.dmg_mult) * float(Save.story.get("dmg_mult", 1.0)) * float(chapter.get("dmg_mult", 1.0))
+	else:
+		# 自由模式：有聖物、膏抹、職業技能和覺醒，敵人整體再強一點（free_mult）
+		stage.hp_mult = float(stage.hp_mult) * float(D.get("free_mult", {}).get("hp", 1.0))
+		stage.dmg_mult = float(stage.dmg_mult) * float(D.get("free_mult", {}).get("damage", 1.0))
 	for k in stage.weights:
 		D.enemies[k].weight = stage.weights[k]
 	D.boss.merge(stage.boss, true)
@@ -1357,10 +1365,12 @@ func _update_tasks() -> void:
 			rt.failed = true
 
 
-func _task_text() -> String:
+func _task_text(full := false) -> String:
 	var lines := []
 	for rt in run_tasks:
 		var d: Dictionary = rt.def
+		if (rt.done or rt.failed) and not full:
+			continue   # 完成、失敗的任務不再占畫面（完成時已經跳過橫幅了；暫停畫面看得到全部）
 		var mark := "✓" if rt.done else ("×" if rt.failed else "・")
 		var limit := ""
 		if int(d.by) > 0 and not rt.done:
@@ -1412,6 +1422,20 @@ func _refresh_build_text() -> void:
 		var lvs := "" if int(L.get("lv", 1)) == 1 else " Lv%d" % int(L.lv)
 		lines.append("連結　%s%s" % [(K.short + "→" + L.dst.name) if _glob(L.kind) else (L.src.name + "→" + L.dst.name + "（" + K.short + "）"), lvs])
 	build_text = "\n".join(lines)
+	# 戰鬥中左上角只放一行精簡的（字太多會擋視線）；完整的在暫停畫面
+	var sh := []
+	for tag in school_tier:
+		if int(school_tier[tag]) > 0:
+			sh.append("%s%d" % [tag, int(school_tier[tag])])
+	var nf := 0
+	for f in D.fusions:
+		if _fused(f.a, f.b):
+			nf += 1
+	build_short = "・".join(sh)
+	if nf > 0:
+		build_short += "　融合 %d" % nf
+	if not links.is_empty():
+		build_short += "　連結 %d" % links.size()
 
 
 ## 暫停畫面的「怎麼構築」：每個流派差什麼、進化差什麼、融合與套裝還缺什麼
@@ -2433,7 +2457,7 @@ func _set_paused(on: bool) -> void:
 	ui.joy.on = false
 	if on:
 		_refresh_build_text()
-		ui.show_pause(build_text, _build_guide())
+		ui.show_pause(build_text + ("\n【旅程任務】\n" + _task_text(true) if not run_tasks.is_empty() else ""), _build_guide())
 	else:
 		ui.hide_pause()
 
@@ -3292,14 +3316,15 @@ func _dmg_number(e: Dictionary, dmg: float, src) -> void:
 	if not Save.data.get("dnum_on", true):
 		return
 	var col: Color = src.get("col", C_CREAM) if src is Dictionary else C_CREAM
+	var lead: bool = src is Dictionary and src == pa
 	for dn in dnums:
-		if dn.e == e.node and dn.t < 0.25:
+		if dn.e == e.node and dn.t < 0.25 and bool(dn.get("lead", false)) == lead:
 			dn.v += dmg
 			dn.col = col
 			return
 	if dnums.size() >= 40:
 		return
-	dnums.append({"e": e.node, "pos": e.pos + Vector2(randf_range(-4, 4), -14), "v": dmg, "t": 0.0, "col": col, "dx": randf_range(-10.0, 10.0)})
+	dnums.append({"e": e.node, "pos": e.pos + Vector2(randf_range(-4, 4), -14), "v": dmg, "t": 0.0, "col": col, "dx": randf_range(-10.0, 10.0), "lead": lead})
 
 
 ## 觸發條件是否不看來源（受傷、治療、菁英、共鳴、五旬節）
@@ -6541,7 +6566,7 @@ func _render(dt: float) -> void:
 			ui.place_name(c.name, ct * c.pos, nm_on)
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
-		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_text, "tasks": _task_text(), "combo": combo, "combo_t": combo_t, "boss_in": _boss_in(), "kit": _kit_hud(), "kit_res": _class_hud()})
+		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_short, "tasks": _task_text(), "combo": combo, "combo_t": combo_t, "boss_in": _boss_in(), "kit": _kit_hud(), "kit_res": _class_hud()})
 
 
 ## 人物的動作（不用另外畫圖，全部用位置、傾斜、伸縮做出來）：
@@ -6702,6 +6727,15 @@ func _update_kit(dt: float, sm: float) -> void:
 		kit_cd[id] = float(kit_cd.get(id, 1.5)) - dt * sm * _class_cdr()
 	for id in kit_flash.keys():
 		kit_flash[id] = float(kit_flash[id]) - dt
+	for hs in hastes:
+		hs.t += dt
+	hastes = hastes.filter(func(hs): return hs.t < 0.5)
+	for sb in sbursts:
+		sb.t += dt
+	sbursts = sbursts.filter(func(sb): return sb.t < 0.6)
+	for kp in kit_pops:
+		kp.t += dt
+	kit_pops = kit_pops.filter(func(kp): return kp.t < 0.8)
 	kit_gcd -= dt
 	if kit_gcd > 0.0:
 		return
@@ -6721,6 +6755,9 @@ func _update_kit(dt: float, sm: float) -> void:
 		kit_cd[id] = _kv(d, "cooldown")
 		kit_flash[id] = 0.6
 		kit_gcd = 0.35
+		kit_pops.append({"id": id, "t": 0.0})   # 放技能時，主角頭上跳出這招的圖示
+		if kit_pops.size() > 3:
+			kit_pops.pop_front()
 		_fxc("技能:" + d.name)
 		if tag_fx.size() < 12:
 			tag_fx.append({"pos": paul.pos + Vector2(-10, -6), "text": d.name, "col": C_GOLD, "t": 0.0, "big": true})
@@ -7364,7 +7401,7 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 				_heal_paul(float(D.paul.hp) * 0.2)
 			haste_t = maxf(haste_t, 5.0)
 			haste_amt = maxf(haste_amt, 0.25)
-			blasts.append({"pos": c0 + Vector2(0, -8), "t": 0.0, "r": 60.0, "col": Color("9fd8ff"), "evo": false})
+			_shield_burst(c0, 6, Color("9fd8ff"))
 		"grace":
 			_heal_paul(float(D.paul.hp) * _kv(d, "heal"))
 			paul.inv = maxf(paul.inv, 2.5 if _kit("grace") >= 3 else 1.5)
@@ -7434,7 +7471,7 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 		"rock":
 			kbuff.rock = 4.0
 			guard = mini(guard + int(_kv(d, "guard")), 5)
-			blasts.append({"pos": c0 + Vector2(0, -8), "t": 0.0, "r": 40.0, "col": Color("b0a090"), "evo": true})
+			_shield_burst(c0, 4, Color("d8c8a8"))
 		"shadow":
 			for o in comps:
 				if o.level > 0 and o.down <= 0.0:
@@ -7492,7 +7529,7 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 		"word":
 			haste_t = maxf(haste_t, 6.0)
 			haste_amt = maxf(haste_amt, _kv(d, "haste"))
-			_ring_pop(c0 + Vector2(0, -10), C_GOLD, 40.0)
+			_haste_burst(C_GOLD)
 		"temple":
 			var at := _densest(160.0, 40.0)
 			var dir: Vector2 = (at - c0).normalized() if at != c0 else Vector2.RIGHT
@@ -7535,7 +7572,7 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 		"abide":
 			guard = mini(guard + int(_kv(d, "guard")), 5)
 			kbuff.abide = 5.0
-			blasts.append({"pos": c0 + Vector2(0, -8), "t": 0.0, "r": 40.0, "col": Color("9fd8ff"), "evo": true})
+			_shield_burst(c0, 5, Color("c8e8ff"))
 		"light":
 			var cnt := int(_kv(d, "count"))
 			var off := randf() * TAU
@@ -7596,14 +7633,14 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 			haste_t = maxf(haste_t, 6.0)
 			haste_amt = maxf(haste_amt, _kv(d, "haste"))
 			kres = minf(6.0, kres + (2.0 if lv3 else 1.0))
-			_ring_pop(c0 + Vector2(0, -10), C_FLAME, 30.0)
+			_haste_burst(C_FLAME)
 		"lois":
 			_kheal_paul(mx * _kv(d, "heal"))
 			if lv3:
 				hots.append({"t": 5.0, "amt": _kheal_amt(1.5), "tick": 0.0})
 		"deposit":
 			guard = mini(guard + int(_kv(d, "guard")), 5)
-			blasts.append({"pos": c0 + Vector2(0, -8), "t": 0.0, "r": 40.0, "col": Color("9fd8ff"), "evo": false})
+			_shield_burst(c0, 3, C_GOLD)
 
 		# ---------- 腓利：刺客（腳步、衝刺）----------
 		"caught":
@@ -7639,6 +7676,7 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 			_team_heal(_kv(d, "heal"))
 			haste_t = maxf(haste_t, 4.0)
 			haste_amt = maxf(haste_amt, 0.2)
+			_haste_burst(C_GOLD)
 		"daughters":
 			for i in int(_kv(d, "count")):
 				_spawn_minion(c0 + Vector2.from_angle(i * TAU / 4.0) * 16.0, true)
@@ -7650,7 +7688,7 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 			kbuff.run = float(_kv(d, "dur"))
 			haste_t = maxf(haste_t, float(_kv(d, "dur")))
 			haste_amt = maxf(haste_amt, 0.25)
-			_ring_pop(c0 + Vector2(0, -10), Color("6ae0d0"), 26.0)
+			_haste_burst(Color("6ae0d0"))
 
 		# ---------- 呂底亞：控場＋召喚 ----------
 		"household":
@@ -7683,7 +7721,7 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 					o.garment = maxi(int(o.get("garment", 0)), 1)
 			for m in minions:
 				m.life = float(m.life) + 4.0
-			blasts.append({"pos": c0 + Vector2(0, -8), "t": 0.0, "r": 50.0, "col": Color("9fd8ff"), "evo": false})
+			_shield_burst(c0, 6, Color("d8a0e0"))
 		"comfort":
 			_team_heal(_kv(d, "heal"))
 			if lv3:
@@ -7755,7 +7793,7 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 		"sanctuary":
 			guard = mini(guard + int(_kv(d, "guard")) + (1 if kstance == "lament" else 0), 5)
 			_kheal_paul(mx * 0.08)
-			blasts.append({"pos": c0 + Vector2(0, -8), "t": 0.0, "r": 46.0, "col": Color("9fb8ff"), "evo": true})
+			_shield_burst(c0, 5, Color("9fb8ff"))
 		"remember":
 			var ld := _kit_spell(last_kit)
 			if not ld.is_empty():
@@ -7783,6 +7821,18 @@ func _kit_cast(id: String, d: Dictionary) -> void:
 			var at := _densest(150.0, 40.0)
 			if spots.size() < 40:
 				spots.append({"kind": "vine", "pos": at, "life": 4.0, "tick": 0.0, "r": _kv(d, "radius") * _area(), "dmg": _kdmg(3.0), "owner": pa})
+
+
+## 加速類技能：每個人身後拉出幾道往上飄的速度線
+func _haste_burst(col: Color) -> void:
+	for o in [pa] + comps:
+		if not o.is_empty() and int(o.get("level", 1)) > 0 and float(o.get("down", 0.0)) <= 0.0:
+			hastes.append({"who": o, "t": 0.0, "col": col})
+
+
+func _shield_burst(at: Vector2, n: int, col: Color) -> void:
+	sbursts.append({"pos": at, "t": 0.0, "n": n, "col": col})
+	Sfx.play("shield", 0.0)
 
 
 func _fight_wave(w: int, big: bool) -> void:
@@ -8403,12 +8453,41 @@ func _draw_air() -> void:
 		var txt := str(roundi(dn.v))
 		# 跳出來時先大一點再縮回去（0.1 秒），之後往上飄、往旁邊偏一點
 		var pop := 1.0 + 0.6 * clampf(1.0 - dn.t / 0.1, 0.0, 1.0)
-		var fs := roundi((11 if big else 8) * pop)
+		var lead2: bool = dn.get("lead", false)   # 主角打的數字大一點、亮一點；同伴的小一點、淡一點，主角才看得出自己在做什麼
+		var fs := roundi((11 if big else 8) * pop) + (2 if lead2 else -1)
 		var rise := 14.0 * (1.0 - pow(1.0 - minf(k2 * 1.6, 1.0), 2.0))
 		var pos2: Vector2 = (dn.pos + Vector2(-fs * txt.length() * 0.3 + float(dn.get("dx", 0.0)) * k2, -rise)).round()
-		var a2 := 1.0 if k2 < 0.6 else (1.0 - k2) / 0.4
+		var a2 := (1.0 if k2 < 0.6 else (1.0 - k2) / 0.4) * (1.0 if lead2 else 0.7)
 		n.draw_string_outline(UIKit.font(), pos2, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, 2, Color(Color("140c10"), a2))
-		n.draw_string(UIKit.font(), pos2, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(Color.WHITE.lerp(dn.col, 0.6) if not big else C_GOLD, a2))
+		n.draw_string(UIKit.font(), pos2, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color(C_GOLD if big or lead2 else Color.WHITE.lerp(dn.col, 0.6), a2))
+	for hs in hastes:
+		var hk: float = hs.t / 0.5
+		var hp: Vector2 = (hs.who.pos as Vector2).round()
+		for j in 3:
+			var hx: float = -8.0 + j * 8.0
+			var hy: float = -4.0 - hk * 18.0 - j * 3.0
+			n.draw_rect(Rect2(hp + Vector2(hx, hy), Vector2(1, 5)), Color(hs.col, 1.0 - hk))
+	for sb in sbursts:
+		# 護盾類技能：一圈小盾牌從主角身上往外展開、轉一下、淡掉
+		var sk: float = sb.t / 0.6
+		var sr: float = 6.0 + 28.0 * (1.0 - pow(1.0 - sk, 2.0))
+		for j in int(sb.n):
+			var sa: float = j * TAU / float(sb.n) + sk * 1.2
+			_fx(n, "shield", 2, j % 2, sb.pos + Vector2(0, -12) + Vector2(cos(sa) * sr, sin(sa) * sr * 0.65), 1.0, Color(sb.col, 1.0 - sk * sk))
+	for i in kit_pops.size():
+		# 主角放技能：頭上跳出這招的圖示（先放大再縮回、往上飄、最後淡掉），腳下一圈金光
+		var kp: Dictionary = kit_pops[i]
+		var kk: float = kp.t / 0.8
+		var ka: float = 1.0 if kk < 0.6 else (1.0 - kk) / 0.4
+		var ksz: float = 18.0 * (1.0 + 0.3 * clampf(1.0 - kp.t / 0.12, 0.0, 1.0))
+		var kc: Vector2 = (paul.pos + Vector2((i - (kit_pops.size() - 1) / 2.0) * 22.0, -60.0 - kk * 6.0)).round()
+		n.draw_rect(Rect2(kc - Vector2(ksz / 2.0 + 2.0, ksz / 2.0 + 2.0), Vector2(ksz + 4.0, ksz + 4.0)), Color(Color("140c10"), 0.85 * ka))
+		n.draw_rect(Rect2(kc - Vector2(ksz / 2.0 + 2.0, ksz / 2.0 + 2.0), Vector2(ksz + 4.0, ksz + 4.0)), Color(C_GOLD, ka), false, 1.0)
+		var itx := _tex("icon_" + str(kp.id))
+		if itx != null:
+			n.draw_texture_rect(itx, Rect2(kc - Vector2(ksz / 2.0, ksz / 2.0), Vector2(ksz, ksz)), false, Color(1, 1, 1, ka))
+		if kp.t < 0.3:
+			_pring(n, paul.pos.round() + Vector2(0, 1), 10.0 + kp.t * 40.0, Color(C_GOLD, 1.0 - kp.t / 0.3), 1, 0.5)
 	for f in tag_fx:
 		var k: float = f.t / 0.8
 		var pos: Vector2 = (f.pos + Vector2(-8, -32 - k * 10.0)).round()

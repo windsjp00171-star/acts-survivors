@@ -379,11 +379,15 @@ func update_hud(st: Dictionary) -> void:
 		combo_label.position = Vector2(roundf((size.x - combo_label.size.x) / 2.0), 130 if size.y > size.x else 98)
 	if build_label == null:
 		build_label = label("", 10, C_CREAM)
-	build_label.text = st.get("build", "")
+	if build_label.text != st.get("build", ""):
+		build_label.text = st.get("build", "")
+		build_label.reset_size()   # 字變少時框也跟著縮，下面的任務才不會空一大塊
 	build_label.position = Vector2(12, 52)
 	if task_label == null:
 		task_label = label("", 10, C_INK)
-	task_label.text = st.get("tasks", "")
+	if task_label.text != st.get("tasks", ""):
+		task_label.text = st.get("tasks", "")
+		task_label.reset_size()
 	if size.y > size.x:
 		# 直式：任務排在左邊、同工與連結的下面
 		task_label.position = Vector2(12, build_label.position.y + (build_label.size.y + 4.0 if build_label.text != "" else 0.0))
