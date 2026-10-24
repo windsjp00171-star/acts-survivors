@@ -717,8 +717,8 @@
   },
   "chest": { "rolls_min": 1, "rolls_max": 1 },
   "easter_egg": { "first_time": true, "chance": 0.1 },
-  "_leveling說明": "升到下一級需要的經驗 = first + step ×(等級-1) + growth ×(等級-1)²，越後面越慢。card_delay 是升級卡跳出後幾秒才能選；觸控用 touch_card_delay，避免滑動時誤觸。banishes 是每局可以放逐幾次（放逐的卡這一局不再出現）。",
-  "leveling": { "first": 8, "step": 8, "growth": 1.0, "card_delay": 0.4, "touch_card_delay": 1.0, "heal_card": 30, "banishes": 2 },
+  "_leveling說明": "升到下一級需要的經驗 = first + step ×(等級-1) + growth ×(等級-1)²，越後面越慢。card_delay 是升級卡跳出後幾秒才能選；觸控用 touch_card_delay，避免滑動時誤觸。banishes 是每局可以放逐幾次（放逐的卡這一局不再出現）。comp_every：每升幾級，隊伍裡的同伴自己升一級（不出同伴升級卡；升到 Lv3 有分支時免費選）。",
+  "leveling": { "first": 8, "step": 8, "growth": 1.0, "card_delay": 0.4, "touch_card_delay": 1.0, "heal_card": 30, "banishes": 2, "comp_every": 4 },
   "fever": {
     "_說明": "同心合意：隨著時間累積，隊伍越完整累積越快（徒 1:14 同心合意恆切禱告）；滿了按空白鍵（觸控按按鈕）開五旬節。五旬節的長短固定（聖靈是白白賜下的，不是驅散多少換來的）；五旬節裡偶爾有敵人「聽見自己的鄉談」被說服過來（徒 2:6）。",
     "fill_seconds": 22,

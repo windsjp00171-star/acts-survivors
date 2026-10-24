@@ -294,7 +294,7 @@ var kit_lv := {}
 var kit_cd := {}
 var kit_flash := {}
 var kit_gcd := 0.0
-var kit_pick_at := -1      # 上一次給職業技能選擇的等級
+var branch_queue: Array = []   # 同伴自己升到 Lv3、等著選分支的（免費選，不佔升級）
 var hurt_recent := 0.0     # 主角剛被打到（「抖在火裡」）
 var hots: Array = []       # 「勸勉」：全隊持續回血
 var blind_fx: Array = []   # 「手要加在你身上」：黑霧
@@ -1073,11 +1073,14 @@ func _make_cards() -> Array:
 					d2 += "（果子要先在補給帳棚解鎖）"
 			if c.level + 1 == int(D.support_rules.lend_level) and D.schools.has(c.tag) and not _school_on(c.tag):
 				d2 += "\n★ 練到 Lv%d 可以把流派「%s」借給主角" % [c.level + 1, D.schools[c.tag].name]
-			pool.append({"kind": "up", "key": c.key, "title": "%s　Lv%d → %d" % [c.name, c.level, c.level + 1], "tag": c.tag, "desc": d2})
+			if not D.leveling.has("comp_every"):   # 同伴自己會長進時，不出升級卡（見 _auto_level_comps）
+				pool.append({"kind": "up", "key": c.key, "title": "%s　Lv%d → %d" % [c.name, c.level, c.level + 1], "tag": c.tag, "desc": d2})
 	for st in _stage_list():
 		var ep: Dictionary = st.epistle
 		if Save.data.churches.has(st.id) and not epistles.has(ep.effect):
 			pool.append({"kind": "epistle", "key": ep.effect, "title": ep.name, "tag": "書信", "desc": ep.desc})
+	for kc in _kit_cards():
+		pool.append(kc)
 	var lc := _link_card() if _sys_open("link") else {}
 	if not lc.is_empty():
 		pool.append(lc)
@@ -1154,6 +1157,7 @@ func _filler_cards() -> Array:
 
 func _level_up() -> void:
 	level += 1
+	_auto_level_comps()
 	xp -= xp_need
 	var L: Dictionary = D.leveling
 	xp_need = int(L.first + (level - 1) * L.step + pow(level - 1, 2) * L.growth)
@@ -1467,20 +1471,11 @@ func _on_card(i: int) -> void:
 				pending_cards.append({"kind": "branch", "key": c.key, "idx": bi, "title": "%s：%s" % [who, br.name], "tag": "Lv3 分支", "desc": br.desc + "\n（之後的升級都會保留）"})
 			ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, 0.3, 0)
 			return
-	var was_kit: bool = card.kind == "kit"
 	_apply_card(card)
 	_refresh_build_text()
 	choosing = false
-	# 職業技能走自己的路：每升 3 級，多一次「職業技能」選擇（不佔一般升級，同伴照樣能練到進化）
-	if not was_kit and level % 3 == 0 and kit_pick_at != level:
-		var kc := _kit_cards()
-		kc.shuffle()
-		if not kc.is_empty():
-			kit_pick_at = level
-			choosing = true
-			pending_cards = kc.slice(0, 3)
-			ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, _card_delay(), 0, "職業技能：選一個", "每升 3 級一次，不佔一般的升級")
-			return
+	if _next_branch():
+		return
 	_autosave()
 	if xp >= xp_need:
 		_level_up()
@@ -6393,6 +6388,44 @@ func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, 
 	for k in count:
 		var a := k / float(count) * TAU + ph
 		n.draw_rect(Rect2(round(center.x + cos(a) * r), round(center.y + sin(a) * r * squash), thick, thick), col)
+
+
+## 同伴自己長進：每升 comp_every 級，隊伍裡的同伴都升一級（不用選卡）；升到 Lv3 有分支的，跳出來免費選
+func _auto_level_comps() -> void:
+	var every := int(D.leveling.get("comp_every", 0))
+	if every <= 0 or level % every != 0:
+		return
+	var grew := []
+	for c in comps:
+		if c.level <= 0 or c.level >= 5 or c.skill == "" or c.follows != "":
+			continue
+		if c.level == 2 and c.get("branch", -1) < 0 and D.skills[c.skill].has("branches"):
+			if not branch_queue.has(c.key):
+				branch_queue.append(c.key)
+			continue
+		_set_level(c, c.level + 1)
+		_ring_pop(c.pos + Vector2(0, -10), C_GOLD, 22.0)
+		grew.append(c.name)
+	if not grew.is_empty():
+		ui.show_banner("同伴一起長進：" + "、".join(grew), 1.6)
+		_refresh_build_text()
+
+
+## 有同伴等著選分支：直接跳出分支選單（回傳 true 表示已經跳出來了）
+func _next_branch() -> bool:
+	while not branch_queue.is_empty():
+		var key: String = branch_queue.pop_front()
+		var c: Dictionary = by_key.get(key, {})
+		if c.is_empty() or c.level != 2 or c.get("branch", -1) >= 0:
+			continue
+		pending_cards = []
+		for bi in D.skills[c.skill].branches.size():
+			var br: Dictionary = D.skills[c.skill].branches[bi]
+			pending_cards.append({"kind": "branch", "key": c.key, "idx": bi, "title": "%s：%s" % [c.name, br.name], "tag": "Lv3 分支", "desc": br.desc + "\n（之後的升級都會保留）"})
+		choosing = true
+		ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, 0.3, 0, "%s 長進到 Lv3：選一條路" % c.name, "這次不佔升級")
+		return true
+	return false
 
 
 ## ---------- 主角的職業技能（kits）----------
