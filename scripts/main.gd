@@ -287,6 +287,7 @@ var smoke_frames := 0
 var smoke_preset := ""
 var smoke_over := 0
 var smoke_nofever := false
+var smoke_awaken := -1
 var smoke_drain := 0.0      # 測試用（--drain）：每 8 秒把主角和同伴的血壓到三成，看救命技能放不放得出來
 var fxtest := false
 var keystones := {}
@@ -300,6 +301,23 @@ var kstance := "praise"    # 亞薩的姿態：praise 讚美／lament 哀歌
 var kbuff := {}            # 職業技能的暫時效果（剩幾秒）：fisher、rock、abide、run
 var smite_kit_cd := 0.0    # 馬雅各「醫治就是傷害」的間隔
 var last_kit := ""         # 上一個放的職業技能（亞薩「追念古時」再放一次）
+var kprev := Vector2.ZERO  # 上一格主角的位置（算走了多遠）
+var kmove := 0.0           # 連續走了幾秒
+var kacc := 0.0            # 職業特質的計時
+var kdist := 0.0           # 職業特質的累積距離（腓利的腳步、呂底亞的紫布）
+var knear := 0             # 彼得身邊的敵人數
+var ktrail: Array = []     # 呂底亞走過的紫布 {pos, life}
+var ktrail_tick := 0.0
+var kit_tal: Array = []    # 這一局選了哪些覺醒（id）
+var tal := {}              # 覺醒效果加總（kit_dmg、kit_cdr、class_k……）
+var awaken_queue: Array = []   # 等著選的覺醒（第幾排）
+var tal_reset_t := 0.0     # 「冷卻歸零」的計時
+var tal_casts := 0         # 放了幾個職業技能（每 N 個護盾 +1）
+var tal_minion_cd := 0.0
+var tal_shock_cd := 0.0
+var tal_aura_t := 0.0
+var siege_i := 0           # 黑暗圍城：已經發生到第幾次
+var siege_t := -1.0        # 圍城還剩幾秒（-1 = 沒有在圍城）
 var branch_queue: Array = []   # 同伴自己升到 Lv3、等著選分支的（免費選，不佔升級）
 var hurt_recent := 0.0     # 主角剛被打到（「抖在火裡」）
 var hots: Array = []       # 「勸勉」：全隊持續回血
@@ -478,6 +496,8 @@ func _ready() -> void:
 			bot = true
 			if not OS.get_cmdline_user_args().has("--film"):
 				Engine.time_scale = 4.0   # 機器人模擬：時間跑快 4 倍（--film 錄影時用正常速度）
+		elif a.begins_with("--awaken="):
+			smoke_awaken = int(a.substr(9))   # 測試：一開始就跳出第幾排覺醒（截圖用）
 		elif a.begins_with("--frames="):
 			smoke_max_frames = int(a.substr(9))   # 測試用：跑更久（整局約 25000 格）
 		elif a == "--drain":
@@ -1166,6 +1186,11 @@ func _filler_cards() -> Array:
 func _level_up() -> void:
 	level += 1
 	_auto_level_comps()
+	var AK: Dictionary = _kit_def()
+	if AK.has("awaken"):
+		var row: int = Array(AK.get("awaken_at", [])).find(float(level))   # JSON 的數字是 float
+		if row >= 0 and row < AK.awaken.size():
+			awaken_queue.append(row)
 	xp -= xp_need
 	var L: Dictionary = D.leveling
 	xp_need = int(L.first + (level - 1) * L.step + pow(level - 1, 2) * L.growth)
@@ -1218,6 +1243,9 @@ func _banish(i: int) -> void:
 
 
 func _apply_card(card: Dictionary) -> void:
+	if card.kind == "awaken":
+		_take_awaken(str(card.key), true)
+		return
 	if card.kind == "kit":
 		kit_lv[card.key] = int(kit_lv.get(card.key, 0)) + 1
 		kit_cd[card.key] = minf(float(kit_cd.get(card.key, 1.0)), 1.0)
@@ -1407,6 +1435,10 @@ func _build_guide() -> String:
 	if KD.has("trait"):
 		L.append("【職業特質】")
 		L.append(str(KD.trait))
+	for r in KD.get("awaken", []):
+		for o in r:
+			if kit_tal.has(o.id):
+				L.append("覺醒「%s」：%s" % [o.name, o.desc])
 	L.append("【流派】")
 	for tag in tags:
 		var S: Dictionary = D.schools[tag]
@@ -1487,6 +1519,8 @@ func _on_card(i: int) -> void:
 	_refresh_build_text()
 	choosing = false
 	if _next_branch():
+		return
+	if _next_awaken():
 		return
 	_autosave()
 	if xp >= xp_need:
@@ -1616,6 +1650,7 @@ func _bot_pick(cards: Array) -> int:
 		var sc := 0.0
 		match cd.kind:
 			"evolve": sc = 100.0
+			"awaken": sc = 200.0
 			"recruit": sc = 60.0
 			"branch": sc = 55.0
 			"up": sc = 40.0 + (float(by_key[cd.key].level) * 3.0 if by_key.has(cd.key) else 0.0)
@@ -1676,6 +1711,43 @@ func _curve(points: Array, x: float) -> float:
 		if x < b[0]:
 			return lerpf(a[1], b[1], (x - a[0]) / (b[0] - a[0]))
 	return points[-1][1]
+
+
+## 黑暗圍城（waves.siege）：到了時間，敵人在四周圍成一圈壓過來；撐過去就突圍，掉寶箱、全隊回血
+func _update_siege(dt: float) -> void:
+	var SG: Dictionary = D.waves.get("siege", {})
+	if SG.is_empty() or over or won:
+		return
+	if siege_t > 0.0:
+		siege_t -= dt
+		if siege_t <= 0.0:
+			siege_t = -1.0
+			ui.show_banner("突圍了！（詩 18:29 藉著我的神跳過牆垣）", 2.0)
+			chests.append({"pos": paul.pos + Vector2(0, -30)})
+			_team_heal(0.2)
+			_ring_pop(paul.pos + Vector2(0, -10), C_GOLD, 50.0)
+			Sfx.play("chest", 0.0)
+			_fxc("突圍")
+		return
+	var at: Array = SG.get("at", [])
+	if siege_i >= at.size() or t < float(at[siege_i]):
+		return
+	siege_i += 1
+	if boss != null and not boss.dead:
+		return   # Boss 在場時不圍城
+	siege_t = float(SG.dur)
+	var n := int(SG.count)
+	var r := float(SG.radius)
+	var type := _pick_type()
+	for i in n:
+		if i % 10 == 9:
+			type = _pick_type()
+		var a := i * TAU / n + randf_range(-0.05, 0.05)
+		_spawn_one(type, paul.pos + Vector2(cos(a), sin(a) * 0.8) * r)
+	ui.show_banner("黑暗圍上來了！撐過 %d 秒（詩 27:3 雖有軍兵安營攻擊我，我的心也不害怕）" % int(SG.dur), 2.6)
+	Sfx.play("warn", 0.0)
+	shake = maxf(shake, 0.25)
+	_fxc("圍城")
 
 
 ## 回傳 (目標隻數, 每群間隔)
@@ -1780,8 +1852,10 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 				tag_fx.append({"pos": e.pos + Vector2(4, 8), "text": TONGUES.pick_random(), "col": C_CREAM, "t": 0.0})
 			return
 	dmg *= _dmg_mult()
-	if leader == "tim" and kres > 0.0 and src is Dictionary and src == pa and randf() < kres * 0.05:
-		dmg *= 2.0   # 提摩太「專注」：會心一擊
+	if src is Dictionary and src == pa:
+		dmg *= _class_dmg()   # 彼得下水：身邊敵人越多越猛
+		if leader == "tim" and kres > 0.0 and randf() < kres * 0.08 * (1.0 + _tal("class_k")):
+			dmg *= 2.0   # 提摩太「專注」：會心一擊
 	if float(e.get("exposed_t", 0.0)) > 0.0:
 		dmg *= 1.0 + float(e.expose)   # 被尼哥底母的燈照到：受到更多傷害
 	if src is Dictionary:
@@ -1918,6 +1992,8 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 						o.hp = minf(_comp_max_hp(), float(o.hp) + fh)
 		if leader == "john" and not _kit_def().is_empty():
 			kres = minf(10.0, kres + 0.25)   # 約翰「熱切」：越打越快
+		if _tal("kill_heal") > 0.0:
+			_heal_paul(_tal("kill_heal"))
 		Sfx.play("kill")
 		gems.append({"pos": e.pos, "got": false})
 		var BD: Dictionary = Save.meta.bread.drop
@@ -2558,6 +2634,7 @@ func _step(dt: float) -> void:
 		if evo_timer <= 0.0:
 			_quake()
 
+	_update_siege(dt)
 	var wave := _wave_now()
 	spawn_timer -= dt
 	if spawn_timer <= 0.0 and enemies.size() < mini(int(wave.x), int(D.waves.max_enemies)):
@@ -5465,6 +5542,10 @@ func _damage_paul(n: float, pierce := false, src := "") -> void:
 	if epistles.has("burden"):
 		n *= 0.85   # 加拉太書：彼此擔當
 	n *= _class_guard()   # 職業特質、職業技能的減傷
+	if _tal("hit_shock") > 0.0 and t >= tal_shock_cd:
+		tal_shock_cd = t + 1.5
+		quakes.append({"pos": paul.pos, "r": 6.0, "max": 55.0})
+		_aoe(paul.pos, 55.0 * _area(), _kdmg(_tal("hit_shock")), 0.6, 150.0, Color("b0a090"))
 	if leader == "tim":
 		kres = maxf(0.0, kres - 2.0)   # 提摩太被打到，專注掉兩層
 	var sh: int = armor.get("shield", 0)
@@ -6074,6 +6155,13 @@ func _update_spots(dt: float) -> void:
 
 func _draw_spots(n: Node2D) -> void:
 	var hz: Dictionary = stage.get("hazard", {})
+	for tr in ktrail:
+		# 呂底亞走過的紫布：一小塊一小塊連成一條路，快消失時變淡
+		var ta: float = clampf(float(tr.life) / 1.0, 0.0, 1.0) * 0.8
+		var tp: Vector2 = tr.pos.round()
+		n.draw_rect(Rect2(tp + Vector2(-4, -2), Vector2(9, 4)), Color(Color("6e3068"), ta))
+		n.draw_rect(Rect2(tp + Vector2(-3, -1), Vector2(7, 1)), Color(Color("a050a0"), ta))
+		n.draw_rect(Rect2(tp + Vector2(-4, 1), Vector2(1, 1)), Color(Color("c8a040"), ta))
 	for sp in spots:
 		var x: float = roundf(sp.pos.x)
 		var y: float = roundf(sp.pos.y)
@@ -6556,7 +6644,7 @@ func _update_kit(dt: float, sm: float) -> void:
 	if kit_lv.is_empty() or over:
 		return
 	for id in kit_lv:
-		kit_cd[id] = float(kit_cd.get(id, 1.5)) - dt * sm
+		kit_cd[id] = float(kit_cd.get(id, 1.5)) - dt * sm * _class_cdr()
 	for id in kit_flash.keys():
 		kit_flash[id] = float(kit_flash[id]) - dt
 	kit_gcd -= dt
@@ -6573,6 +6661,7 @@ func _update_kit(dt: float, sm: float) -> void:
 		if id != "remember":
 			last_kit = id
 		_class_on_cast()
+		_tal_on_cast(id, d)
 		kit_cd[id] = _kv(d, "cooldown")
 		kit_flash[id] = 0.6
 		kit_gcd = 0.35
@@ -6674,14 +6763,19 @@ func _rebuke(e: Dictionary, dps: float) -> void:
 ## ---------- 職業技能的小工具 ----------
 ## 職業技能的傷害：跟著等級長；亞薩在「讚美」時 +30%
 func _kdmg(base: float) -> float:
-	var k := 1.0 + level * 0.05
+	var k := (1.0 + level * 0.05) * (1.0 + _tal("kit_dmg"))
 	if leader == "asaph" and kstance == "praise":
-		k *= 1.3
+		k *= 1.0 + 0.3 * (1.0 + _tal("class_k"))
 	return base * k
 
 
+## 覺醒效果（加總）
+func _tal(key: String) -> float:
+	return float(tal.get(key, 0.0))
+
+
 func _kheal_amt(n: float) -> float:
-	return n * (1.5 if leader == "asaph" and kstance == "lament" else 1.0)
+	return n * (1.0 + 0.5 * (1.0 + _tal("lament_k")) if leader == "asaph" and kstance == "lament" else 1.0)
 
 
 ## 職業技能補主角的血（馬雅各：補多少，就有一道光打向最近的敵人）
@@ -6707,7 +6801,7 @@ func _heal_smite(at: Vector2, n: float) -> void:
 	if tg.is_empty():
 		return
 	zaps.append({"pts": [at + Vector2(0, -10), tg[0].pos + Vector2(0, -4)], "t": 0.0, "evo": true, "col": C_HEAL})
-	_hurt(tg[0], n + level * 0.2, at, pa)
+	_hurt(tg[0], (n + level * 0.2) * (1.0 + _tal("smite_k")), at, pa)
 
 
 ## 全隊回血（主角、同伴各回 frac 的血）
@@ -6809,7 +6903,7 @@ func _class_guard() -> float:
 			k *= 1.0 - 0.06 * mini(5, minions.size())
 		"asaph":
 			if kstance == "lament":
-				k *= 0.75
+				k *= 1.0 - 0.25 * (1.0 + _tal("lament_k") * 0.8)
 	if float(kbuff.get("rock", 0.0)) > 0.0:
 		k *= 0.4
 	if float(kbuff.get("abide", 0.0)) > 0.0:
@@ -6823,9 +6917,9 @@ func _class_guard() -> float:
 func _class_haste() -> float:
 	match leader:
 		"john":
-			return kres * 0.03
+			return kres * 0.03 * (1.0 + _tal("class_k"))
 		"asaph":
-			return 0.15 if kstance == "praise" and not _kit_def().is_empty() else 0.0
+			return 0.15 * (1.0 + _tal("class_k")) if kstance == "praise" and not _kit_def().is_empty() else 0.0
 	return 0.0
 
 
@@ -6834,18 +6928,77 @@ func _update_class(dt: float) -> void:
 		kbuff[k] = float(kbuff[k]) - dt
 		if kbuff[k] <= 0.0:
 			kbuff.erase(k)
+	_update_trail(dt)
+	_update_tal(dt)
 	if _kit_def().is_empty() or over:
+		kprev = paul.pos
 		return
+	var mv: float = minf(6.0, paul.pos.distance_to(kprev))   # 這一格走了多遠（瞬移不算太多）
+	kprev = paul.pos
+	kmove = kmove + dt if mv > 0.05 else 0.0
+	kacc += dt
 	match leader:
+		"peter":
+			# 漁夫下水：身邊 50 以內的敵人越多，彼得越猛（每隻 +8%，最多 +64%），技能也轉得快
+			knear = 0
+			for e in _enemies_near(paul.pos, 58.0):
+				if not e.dead and float(e.get("ally", 0.0)) <= 0.0 and e.pos.distance_to(paul.pos) < 50.0:
+					knear += 1
+			knear = mini(knear, 8)
+		"stephen":
+			# 站著禱告：停下來每 2.5 秒多 1 層恩惠，技能冷卻快 60%
+			if still_t > 0.4 and kacc >= 2.5 / (1.0 + _tal("class_k")):
+				kacc = 0.0
+				kres += 1.0
+				_ring_pop(paul.pos + Vector2(0, -12), C_CREAM, 12.0)
+				if kres >= _res_need():
+					kres = 0.0
+					delayed.append({"t": 0.2, "fn": _heaven_open})
+			elif still_t <= 0.4:
+				kacc = 0.0
 		"john":
 			if _crowd(160.0) == 0:
 				kres = maxf(0.0, kres - dt * 0.5)
+		"tim":
+			# 保持距離：最近的敵人在 70 以外，每秒專注 +1；被貼身每秒 -1
+			if kacc >= 1.0:
+				kacc = 0.0
+				var nn := _nearest_enemies(paul.pos, 70.0, 1)
+				if nn.is_empty():
+					if kres < 6.0 and not _nearest_enemies(paul.pos, 200.0, 1).is_empty():
+						kres = minf(6.0, kres + 1.0)
+				else:
+					kres = maxf(0.0, kres - 1.0)
+		"philip":
+			# 一直跑：每跑 110 步多 1 步腳步，滿 3 步風馳
+			kdist += mv
+			if kdist >= 110.0 / (1.0 + _tal("class_k")):
+				kdist = 0.0
+				kres += 1.0
+				if kres >= _res_need() and not _nearest_enemies(paul.pos, 140.0, 1).is_empty():
+					kres = 0.0
+					delayed.append({"t": 0.1, "fn": _wind_run})
+				kres = minf(kres, _res_need())
+		"lydia":
+			# 邊走邊鋪紫布：走過的地方留下一條紫布，敵人踩到走不動、受傷（繞著敵人走，就把他們圍起來）
+			kdist += mv
+			if kdist >= 9.0:
+				kdist = 0.0
+				if ktrail.size() < 90:
+					ktrail.append({"pos": paul.pos + Vector2(0, 2), "life": 4.0 * (1.0 + _tal("class_k") * 0.5)})
+		"maxwell":
+			# 巡診：走到同伴身邊，每秒替身邊 50 以內的同伴回 4% 血
+			if kacc >= 1.0:
+				kacc = 0.0
+				for o in comps:
+					if o.level > 0 and o.down <= 0.0 and o.pos.distance_to(paul.pos) < 50.0 * (1.0 + _tal("class_k") * 0.4) and o.hp < _comp_max_hp():
+						_kheal_comp(o, _comp_max_hp() * 0.04 * (1.0 + _tal("class_k")))
 		"asaph":
-			var mx := float(D.paul.hp)
+			# 走動讚美、站定哀歌：自己決定什麼時候攻、什麼時候守
 			var want := kstance
-			if paul.hp < mx * 0.5:
+			if still_t > 0.8:
 				want = "lament"
-			elif paul.hp > mx * 0.7:
+			elif kmove > 0.8:
 				want = "praise"
 			if want != kstance:
 				kstance = want
@@ -6856,12 +7009,158 @@ func _update_class(dt: float) -> void:
 					tag_fx.append({"pos": paul.pos + Vector2(-10, -18), "text": "哀歌" if want == "lament" else "讚美", "col": sc, "t": 0.0, "big": true})
 
 
+## 呂底亞的紫布路：每 0.5 秒，踩在上面的敵人走不動、受一點傷
+func _update_trail(dt: float) -> void:
+	if ktrail.is_empty():
+		return
+	ktrail_tick -= dt
+	var hit := ktrail_tick <= 0.0
+	if hit:
+		ktrail_tick = 0.5
+	for tr in ktrail:
+		tr.life -= dt
+		if hit:
+			for e in _enemies_near(tr.pos, 14.0):
+				if not e.dead and float(e.get("ally", 0.0)) <= 0.0 and e.pos.distance_to(tr.pos) < 10.0:
+					e.slow_t = maxf(float(e.get("slow_t", 0.0)), 0.8)
+					if float(e.get("trail_hit", -1.0)) < t:
+						e.trail_hit = t + 0.45   # 同一隻每 0.5 秒只受一次傷
+						_hurt(e, (2.0 + level * 0.25) * (1.0 + _tal("class_k")), tr.pos, pa)
+					if _tal("trail_stun") > 0.0 and float(e.get("trail_imm", -1.0)) < t and not e.get("boss", false):
+						e.trail_imm = t + 2.5
+						e.stun = maxf(e.stun, _tal("trail_stun"))
+	ktrail = ktrail.filter(func(tr): return tr.life > 0.0)
+
+
+## 主角自己打出去的傷害倍數（彼得下水）
+func _class_dmg() -> float:
+	if leader == "peter" and knear > 0:
+		return 1.0 + 0.08 * (1.0 + _tal("class_k")) * knear
+	return 1.0
+
+
+## 職業技能冷卻轉多快（司提反站著禱告、彼得被圍住）
+func _class_cdr() -> float:
+	var k := 1.0 + _tal("kit_cdr")
+	match leader:
+		"stephen":
+			return k * (1.0 + 0.6 * (1.0 + _tal("class_k")) if still_t > 0.4 else 1.0)
+		"peter":
+			return k * (1.3 if knear >= 3 else 1.0)
+	return k
+
+
+## 恩惠、腳步要幾層才發動（覺醒可以減少）
+func _res_need() -> float:
+	return (5.0 if leader == "stephen" else 3.0) - _tal("res_need")
+
+
+## ---------- 覺醒（Lv10、Lv20 三選一，大大改變這位主角）----------
+func _next_awaken() -> bool:
+	if awaken_queue.is_empty():
+		return false
+	var row: int = awaken_queue.pop_front()
+	var rows: Array = _kit_def().get("awaken", [])
+	if row >= rows.size():
+		return false
+	pending_cards = []
+	for o in rows[row]:
+		pending_cards.append({"kind": "awaken", "key": o.id, "title": o.name, "tag": "覺醒", "desc": "%s\n（%s）" % [o.desc, o.ref]})
+	choosing = true
+	_hit_stop(0.12, 0.25)
+	_ring_pop(paul.pos + Vector2(0, -10), C_GOLD, 60.0)
+	Sfx.play("evolve", 0.0)
+	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, 0.6, 0, "覺醒！選一條路", "這一局都會帶著，選了就不能換")
+	return true
+
+
+## 選了覺醒：效果加上去；fanfare 是 true 時整個畫面震一下
+func _take_awaken(id: String, fanfare: bool) -> void:
+	var o: Dictionary = {}
+	for r in _kit_def().get("awaken", []):
+		for x in r:
+			if x.id == id:
+				o = x
+	if o.is_empty():
+		return
+	if not kit_tal.has(id):
+		kit_tal.append(id)
+	for k in o.fx:
+		tal[k] = float(tal.get(k, 0.0)) + float(o.fx[k])
+	_refresh_build_text()
+	if not fanfare:
+		return
+	# 覺醒的那一刻：畫面上的敵人全被震開、受傷，全隊回血
+	shake = maxf(shake, 0.5)
+	_hit_stop(0.1, 0.3)
+	quakes.append({"pos": paul.pos, "r": 6.0, "max": 260.0})
+	holies.append({"pos": paul.pos, "t": 0.0, "r": 200.0})
+	_aoe(paul.pos, 200.0, _kdmg(20.0), 1.0, 260.0, C_GOLD)
+	_team_heal(0.3)
+	for kid in kit_cd:
+		kit_cd[kid] = 0.0
+	ui.show_banner("覺醒：%s（%s）" % [o.name, o.ref], 2.4)
+	Sfx.play("holy", 0.0)
+	_fxc("覺醒:" + o.name)
+
+
+func _update_tal(dt: float) -> void:
+	if tal.is_empty() or over:
+		return
+	if _tal("cd_reset") > 0.0:
+		tal_reset_t += dt
+		if tal_reset_t >= _tal("cd_reset"):
+			tal_reset_t = 0.0
+			for kid in kit_cd:
+				kit_cd[kid] = 0.0
+			_ring_pop(paul.pos + Vector2(0, -10), C_GOLD, 30.0)
+			if tag_fx.size() < 12:
+				tag_fx.append({"pos": paul.pos + Vector2(-14, -18), "text": "冷卻歸零", "col": C_GOLD, "t": 0.0, "big": true})
+			_fxc("冷卻歸零")
+	if _tal("aura_heal") > 0.0:
+		tal_aura_t += dt
+		if tal_aura_t >= 1.0:
+			tal_aura_t = 0.0
+			for o in comps:
+				if o.level > 0 and o.down <= 0.0 and o.hp < _comp_max_hp() and o.pos.distance_to(paul.pos) < 60.0:
+					_kheal_comp(o, _comp_max_hp() * _tal("aura_heal"))
+
+
+func _tal_on_cast(id: String, d: Dictionary) -> void:
+	if tal.is_empty():
+		return
+	var c0: Vector2 = paul.pos
+	if _tal("cast_pull") > 0.0:
+		var r := _tal("cast_pull")
+		nets.append({"pos": c0, "r": r * 0.7, "t": 0.0, "evo": false, "look": "", "stun": 0.3, "col": Color("e8dcc0")})
+		_aoe(c0, r, 0.0, 0.4, -r * 1.4, Color("e8dcc0"))
+	if _tal("cast_aoe") > 0.0:
+		_aoe(c0, 56.0 * _area(), _kdmg(_tal("cast_aoe")), 0.0, 80.0, C_GOLD)
+	if _tal("cast_heal") > 0.0:
+		_team_heal(_tal("cast_heal"))
+	if _tal("cast_minion") > 0.0 and t >= tal_minion_cd:
+		tal_minion_cd = t + 3.0
+		_spawn_minion(c0 + Vector2(randf_range(-14, 14), 10), true)
+	if _tal("guard_every") > 0.0:
+		tal_casts += 1
+		if tal_casts >= int(_tal("guard_every")):
+			tal_casts = 0
+			guard = mini(guard + 1, 5)
+			_ring_pop(c0 + Vector2(0, -10), Color("9fd8ff"), 18.0)
+	if _tal("double") > 0.0 and id != "remember" and randf() < _tal("double"):
+		delayed.append({"t": 0.25, "fn": func():
+			if not over:
+				_kit_cast(id, d)
+				if tag_fx.size() < 12:
+					tag_fx.append({"pos": paul.pos + Vector2(-10, -18), "text": "再一次", "col": C_CREAM, "t": 0.0})})
+
+
 ## 每放一個職業技能
 func _class_on_cast() -> void:
 	match leader:
 		"stephen":
 			kres += 1.0
-			if kres >= 5.0:
+			if kres >= _res_need():
 				kres = 0.0
 				delayed.append({"t": 0.3, "fn": _heaven_open})
 		"john":
@@ -6870,7 +7169,7 @@ func _class_on_cast() -> void:
 			kres = minf(6.0, kres + 1.0)
 		"philip":
 			kres += 1.0
-			if kres >= 3.0 and not _nearest_enemies(paul.pos, 140.0, 1).is_empty():
+			if kres >= _res_need() and not _nearest_enemies(paul.pos, 140.0, 1).is_empty():
 				kres = 0.0
 				delayed.append({"t": 0.25, "fn": _wind_run})
 
@@ -6881,21 +7180,21 @@ func _class_hud() -> String:
 		return ""
 	match leader:
 		"peter":
-			return "磐石：減傷 %d%%" % roundi((1.0 - _class_guard()) * 100.0)
+			return "下水：身邊 %d 隻，傷害 +%d%%、減傷 %d%%" % [knear, roundi((_class_dmg() - 1.0) * 100.0), roundi((1.0 - _class_guard()) * 100.0)]
 		"stephen":
-			return "恩惠 %d／5（滿了就天開了）" % int(kres)
+			return ("站著禱告中　" if still_t > 0.4 else "停下來禱告　") + "恩惠 %d／%d" % [int(kres), int(_res_need())]
 		"john":
-			return "熱切 ×%d（出手 +%d%%）" % [int(kres), roundi(kres * 3.0)]
+			return "熱切 ×%d（出手 +%d%%）" % [int(kres), roundi(_class_haste() * 100.0)]
 		"tim":
-			return "專注 %d（會心 %d%%）" % [int(kres), roundi(kres * 5.0)]
+			return "專注 %d（會心 %d%%）%s" % [int(kres), roundi(kres * 8.0 * (1.0 + _tal("class_k"))), "　太近了！" if not _nearest_enemies(paul.pos, 70.0, 1).is_empty() else ""]
 		"philip":
-			return "腳步 %d／3（滿了就風馳）" % int(kres)
+			return "腳步 %d／%d（一直跑就會滿）" % [int(kres), int(_res_need())]
 		"lydia":
-			return "一家人 %d（減傷 %d%%）" % [minions.size(), mini(5, minions.size()) * 6]
+			return "邊走邊鋪紫布　一家人 %d（減傷 %d%%）" % [minions.size(), mini(5, minions.size()) * 6]
 		"maxwell":
-			return "醫治就是傷害"
+			return "巡診：走到同伴身邊替他們回血"
 		"asaph":
-			return "哀歌：受傷 -25%、補血 +50%" if kstance == "lament" else "讚美：傷害 +30%、出手 +15%"
+			return "站定・哀歌：受傷 -25%、補血 +50%" if kstance == "lament" else "走動・讚美：傷害 +30%、出手 +15%"
 	return ""
 
 
@@ -6904,7 +7203,8 @@ func _heaven_open() -> void:
 	if over:
 		return
 	var at := _densest(160.0, 60.0)
-	_pillar(at, 70.0 * _area(), _kdmg(30.0), 0.5, true)
+	var hk := _tal("heaven_k")
+	_pillar(at, 70.0 * _area() * (1.0 + hk * 0.4), _kdmg(30.0) * (1.0 + hk), 0.5, true)
 	_team_heal(0.12)
 	ui.show_banner("我看見天開了（徒 7:56）", 1.4)
 	_fxc("天開了")
@@ -8565,7 +8865,7 @@ func _stage_list() -> Array:
 ## 已經符合條件、還沒進化的
 ## ---------- 中途存檔 ----------
 ## 存的是「構築」：時間、等級、隊伍、果子、軍裝、聖物、流派、連結、任務。不存敵人與子彈，繼續時重新生怪（像 Brotato 在波次之間存）
-const SAVE_VARS := ["kres", "kstance", "t", "kills", "xp", "level", "xp_need", "meter", "run_lights", "run_bread", "xp_acc", "fruits", "armor",
+const SAVE_VARS := ["kres", "kstance", "kit_tal", "siege_i", "t", "kills", "xp", "level", "xp_need", "meter", "run_lights", "run_bread", "xp_acc", "fruits", "armor",
 	"run_elites", "run_fevers", "run_evolutions", "tasks_done", "task_witness", "rerolls_left", "t_start", "journey_step",
 	"chariot_done", "epistles", "killed_types", "link_count", "combo_best", "guard", "grace_dmg", "grace_spd", "mids_done",
 	"boss_spawned", "endless_boss_t", "endless_bosses", "run_resonances", "event_t", "events_done", "enemy_hp_bonus", "move_bonus",
@@ -8615,6 +8915,11 @@ func _apply_resume(r: Dictionary) -> void:
 		_take_relic(id)   # 先拿聖物（亞倫的杖會動到果子，下面再照存檔蓋回去）
 	for k in r.vars:
 		set(k, r.vars[k])
+	var took: Array = kit_tal.duplicate()
+	kit_tal = []
+	tal = {}
+	for id in took:
+		_take_awaken(str(id), false)   # 覺醒的效果照選過的重新加回去
 	for cd in r.comps:
 		var c: Dictionary = by_key.get(cd.key, {})
 		if c.is_empty():
@@ -9380,6 +9685,11 @@ func _smoke_tick() -> void:
 		_fx_gallery()
 	if fxtest and smoke_frames == 26:
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_fx.png"))
+	if smoke_awaken >= 0 and smoke_frames == 60 and not choosing:
+		awaken_queue.append(smoke_awaken)
+		_next_awaken()
+	if smoke_awaken >= 0 and smoke_shot != "" and (smoke_frames == 64 or smoke_frames == 100):
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_awaken%d.png" % smoke_frames))
 	if smoke_shot != "" and smoke_frames == 30:   # 開局的畫面（看地面、物件）
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_start.png"))
 	if smoke_shot != "" and smoke_frames == smoke_max_frames - 5 and paused:

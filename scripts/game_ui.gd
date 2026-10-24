@@ -570,9 +570,9 @@ func _draw_joy() -> void:
 
 
 # ---------- 升級卡 ----------
-const KIND_NAME := {"kit": "主角技能", "recruit": "新同伴", "up": "升級", "branch": "分支", "evolve": "進化", "fruit": "聖靈果子", "armor": "軍裝",
+const KIND_NAME := {"awaken": "主角", "kit": "主角技能", "recruit": "新同伴", "up": "升級", "branch": "分支", "evolve": "進化", "fruit": "聖靈果子", "armor": "軍裝",
 	"epistle": "書信", "event": "事件", "school": "深化卡", "relic": "聖物", "anoint": "主角輔助", "link": "肢體連結", "link_up": "強化連結", "heal": "恩典", "grace_dmg": "恩典", "grace_spd": "恩典", "manna": "恩典"}
-const KIND_COL := {"kit": Color("ff6a8a"), "recruit": Color("7be08a"), "up": Color("4fd8ff"), "branch": Color("4fd8ff"), "evolve": Color("ffd75e"),
+const KIND_COL := {"awaken": Color("ffd75e"), "kit": Color("ff6a8a"), "recruit": Color("7be08a"), "up": Color("4fd8ff"), "branch": Color("4fd8ff"), "evolve": Color("ffd75e"),
 	"fruit": Color("ff9ae0"), "armor": Color("c9a46b"), "epistle": Color("fff4c2"), "event": Color("c8a0ff"), "school": Color("ffd75e"), "relic": Color("ff8a2a"), "anoint": Color("c8a0ff"), "link": Color("ff8a2a"), "link_up": Color("ff8a2a")}
 
 
