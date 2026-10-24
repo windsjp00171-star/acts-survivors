@@ -306,7 +306,7 @@ func update_hud(st: Dictionary) -> void:
 	kit_data = st.get("kit", [])
 	kit_res = str(st.get("kit_res", ""))
 	kit_bar.visible = not kit_data.is_empty() and not st.over
-	kit_bar.position = Vector2(12, size.y - 44.0 - (60.0 if size.y > size.x else 0.0))
+	kit_bar.position = Vector2(12, size.y - 74.0 - (60.0 if size.y > size.x else 0.0))   # 在「同心合意」那一行上面，不疊在一起
 	kit_bar.size = Vector2(kit_data.size() * 34.0, 36.0)
 	kit_bar.queue_redraw()
 	hp_fill.size.x = roundf(120.0 * st.hp_frac)

@@ -287,6 +287,7 @@ var smoke_frames := 0
 var smoke_preset := ""
 var smoke_over := 0
 var smoke_nofever := false
+var smoke_drain := 0.0      # 測試用（--drain）：每 8 秒把主角和同伴的血壓到三成，看救命技能放不放得出來
 var fxtest := false
 var keystones := {}
 # 主角的職業技能（game.json 的 kits）：kit_lv 是學會的技能與等級，kit_cd 是冷卻
@@ -297,6 +298,7 @@ var kit_gcd := 0.0
 var kres := 0.0            # 職業資源：司提反的恩惠、約翰的熱切、提摩太的專注、腓利的腳步
 var kstance := "praise"    # 亞薩的姿態：praise 讚美／lament 哀歌
 var kbuff := {}            # 職業技能的暫時效果（剩幾秒）：fisher、rock、abide、run
+var smite_kit_cd := 0.0    # 馬雅各「醫治就是傷害」的間隔
 var last_kit := ""         # 上一個放的職業技能（亞薩「追念古時」再放一次）
 var branch_queue: Array = []   # 同伴自己升到 Lv3、等著選分支的（免費選，不佔升級）
 var hurt_recent := 0.0     # 主角剛被打到（「抖在火裡」）
@@ -478,6 +480,8 @@ func _ready() -> void:
 				Engine.time_scale = 4.0   # 機器人模擬：時間跑快 4 倍（--film 錄影時用正常速度）
 		elif a.begins_with("--frames="):
 			smoke_max_frames = int(a.substr(9))   # 測試用：跑更久（整局約 25000 格）
+		elif a == "--drain":
+			smoke_drain = 8.0
 		elif a == "--nofever":
 			smoke_nofever = true
 		elif a.begins_with("--preset="):
@@ -6539,6 +6543,14 @@ func _kit_cards() -> Array:
 
 
 func _update_kit(dt: float, sm: float) -> void:
+	if smoke_drain > 0.0:
+		smoke_drain -= dt
+		if smoke_drain <= 0.0:
+			smoke_drain = 8.0
+			paul.hp = minf(paul.hp, float(D.paul.hp) * 0.3)
+			for o in comps:
+				if o.level > 0 and o.down <= 0.0:
+					o.hp = minf(float(o.hp), _comp_max_hp() * 0.3)
 	hurt_recent = maxf(0.0, hurt_recent - dt)
 	_update_class(dt)
 	if kit_lv.is_empty() or over:
@@ -6688,13 +6700,14 @@ func _kheal_comp(o: Dictionary, n: float) -> void:
 
 
 func _heal_smite(at: Vector2, n: float) -> void:
-	if leader != "maxwell" or n < 1.0:
+	if leader != "maxwell" or n < 1.0 or t < smite_kit_cd:
 		return
+	smite_kit_cd = t + 0.2   # 一次補全隊時不會一下子打出六道光
 	var tg := _nearest_enemies(at, 130.0, 1)
 	if tg.is_empty():
 		return
 	zaps.append({"pts": [at + Vector2(0, -10), tg[0].pos + Vector2(0, -4)], "t": 0.0, "evo": true, "col": C_HEAL})
-	_hurt(tg[0], n * 1.5 + level * 0.3, at, pa)
+	_hurt(tg[0], n + level * 0.2, at, pa)
 
 
 ## 全隊回血（主角、同伴各回 frac 的血）
@@ -6870,13 +6883,13 @@ func _class_hud() -> String:
 		"peter":
 			return "磐石：減傷 %d%%" % roundi((1.0 - _class_guard()) * 100.0)
 		"stephen":
-			return "恩惠 " + "●".repeat(int(kres)) + "○".repeat(5 - int(kres))
+			return "恩惠 %d／5（滿了就天開了）" % int(kres)
 		"john":
 			return "熱切 ×%d（出手 +%d%%）" % [int(kres), roundi(kres * 3.0)]
 		"tim":
 			return "專注 %d（會心 %d%%）" % [int(kres), roundi(kres * 5.0)]
 		"philip":
-			return "腳步 " + "●".repeat(int(kres)) + "○".repeat(3 - int(kres))
+			return "腳步 %d／3（滿了就風馳）" % int(kres)
 		"lydia":
 			return "一家人 %d（減傷 %d%%）" % [minions.size(), mini(5, minions.size()) * 6]
 		"maxwell":
