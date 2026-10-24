@@ -316,6 +316,7 @@ var tal_casts := 0         # 放了幾個職業技能（每 N 個護盾 +1）
 var tal_minion_cd := 0.0
 var tal_shock_cd := 0.0
 var tal_aura_t := 0.0
+var churches_now: Array = []   # 保羅建立的教會（spots 裡 kind 是 church 的，每格整理一次）
 var siege_i := 0           # 黑暗圍城：已經發生到第幾次
 var siege_t := -1.0        # 圍城還剩幾秒（-1 = 沒有在圍城）
 var branch_queue: Array = []   # 同伴自己升到 Lv3、等著選分支的（免費選，不佔升級）
@@ -1201,6 +1202,8 @@ func _level_up() -> void:
 	_tip("cards")
 	if pending_cards.any(func(cd): return cd.kind == "link"):
 		_tip("link")
+	if pending_cards.any(func(cd): return cd.kind == "kit"):
+		_tip("kit")
 	if pending_cards.any(func(cd): return cd.kind == "anoint"):
 		_tip("anoint")
 	if pending_cards.any(func(cd): return cd.kind == "school"):
@@ -1637,6 +1640,21 @@ func _bot_move() -> Vector2:
 				pull = (g.pos - p).normalized() * 0.6
 	# 不要離起點太遠（太遠會撿不到東西、被包圍）
 	pull += -p / 400.0
+	# 照主角的走法：該站的時候站（司提反、保羅停下建教會、亞薩血少時哀歌），提摩太離敵人遠一點
+	if push.length() < 0.25 and seekers.is_empty() and not _kit_def().is_empty():
+		var stand := false
+		match leader:
+			"stephen":
+				stand = true
+			"paul":
+				stand = kres >= 0.6 or (not churches_now.is_empty() and p.distance_to(churches_now[0].pos) < 40.0)
+			"asaph":
+				stand = paul.hp < float(D.paul.hp) * 0.5
+		if stand:
+			return Vector2.ZERO
+	if leader == "tim" and not _kit_def().is_empty():
+		for e in _nearest_enemies(p, 75.0, 4):
+			push += (p - e.pos).normalized() * 0.5
 	var v := push * 2.0 + pull
 	return v.normalized() if v.length() > 0.05 else Vector2.ZERO
 
@@ -1744,6 +1762,7 @@ func _update_siege(dt: float) -> void:
 			type = _pick_type()
 		var a := i * TAU / n + randf_range(-0.05, 0.05)
 		_spawn_one(type, paul.pos + Vector2(cos(a), sin(a) * 0.8) * r)
+	_tip("siege")
 	ui.show_banner("黑暗圍上來了！撐過 %d 秒（詩 27:3 雖有軍兵安營攻擊我，我的心也不害怕）" % int(SG.dur), 2.6)
 	Sfx.play("warn", 0.0)
 	shake = maxf(shake, 0.25)
@@ -1852,6 +1871,11 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 				tag_fx.append({"pos": e.pos + Vector2(4, 8), "text": TONGUES.pick_random(), "col": C_CREAM, "t": 0.0})
 			return
 	dmg *= _dmg_mult()
+	if src is Dictionary and src.has("pos") and not churches_now.is_empty():
+		for ch in churches_now:
+			if (src.pos as Vector2).distance_to(ch.pos) < float(ch.r):
+				dmg *= 1.0 + 0.5 * float(ch.k)   # 保羅建立的教會：在裡面出手更有力
+				break
 	if src is Dictionary and src == pa:
 		dmg *= _class_dmg()   # 彼得下水：身邊敵人越多越猛
 		if leader == "tim" and kres > 0.0 and randf() < kres * 0.08 * (1.0 + _tal("class_k")):
@@ -2319,7 +2343,7 @@ func _update_tips() -> void:
 	# 升級卡相關的提示要在選卡時就出現，其他的等選完再說
 	if tip_queue.is_empty() or chest_open or paused:
 		return
-	var card_tip: bool = tip_queue[0] in ["cards", "link", "anoint", "deepen"]
+	var card_tip: bool = tip_queue[0] in ["cards", "link", "anoint", "deepen", "kit", "awaken"]
 	if (choosing and not card_tip) or (ui.tip_busy() and not (choosing and card_tip)):
 		return
 	var id: String = tip_queue.pop_front()
@@ -6109,6 +6133,22 @@ func _update_spots(dt: float) -> void:
 					for o in comps:
 						if o.level > 0 and o.down <= 0.0 and o.pos.distance_to(sp.pos) < sp.r + 16.0:
 							o.hp = minf(_comp_max_hp(), float(o.hp) + 0.6)
+			"church":
+				# 保羅建立的教會：裡面的自己人每秒回血、技能冷卻快，敵人走進來會變慢
+				sp.tick -= dt
+				if paul.pos.distance_to(sp.pos) < sp.r:
+					for kid in kit_cd:
+						kit_cd[kid] = float(kit_cd[kid]) - dt * 0.5 * float(sp.k)
+				if sp.tick <= 0.0:
+					sp.tick = 1.0
+					if paul.pos.distance_to(sp.pos) < sp.r:
+						_heal_paul(1.0 + 2.0 * float(sp.k))
+					for o in comps:
+						if o.level > 0 and o.down <= 0.0 and o.pos.distance_to(sp.pos) < sp.r:
+							o.hp = minf(_comp_max_hp(), float(o.hp) + 1.0 + 2.0 * float(sp.k))
+					for e in _enemies_near(sp.pos, sp.r + 8.0):
+						if not e.dead and e.pos.distance_to(sp.pos) < sp.r:
+							e.slow_t = maxf(float(e.get("slow_t", 0.0)), 1.1)
 			"clinic":
 				# 馬雅各的醫館：裡面的自己人回血，敵人受傷
 				sp.tick -= dt
@@ -6151,6 +6191,7 @@ func _update_spots(dt: float) -> void:
 						if not e.dead and e.pos.distance_to(sp.pos) < float(hz.radius):
 							_hurt(e, float(hz.damage) * _curve(D.waves.scaling.hp, t) * 0.5, Vector2.INF)
 	spots = spots.filter(func(sp): return sp.life > 0.0)
+	churches_now = spots.filter(func(sp): return sp.kind == "church")
 
 
 func _draw_spots(n: Node2D) -> void:
@@ -6219,6 +6260,20 @@ func _draw_spots(n: Node2D) -> void:
 				_pring(n, Vector2(x, y), sp.r, Color(Color("2a6a5a"), pk2), 1, 0.6)
 				var bb := int(t * 3.0 + x) % 4
 				n.draw_rect(Rect2(x - 4 + bb * 2, y - 2 - bb, 2, 2), Color(Color.WHITE, pk2))
+			"church":
+				# 保羅建立的教會：一圈金色的點、中間一間小小的聚會的房子（沒有十字架）
+				var ck: float = clampf(sp.life / 1.0, 0.0, 1.0)
+				n.draw_set_transform(Vector2(x, y), 0.0, Vector2(1.0, 0.7))
+				n.draw_circle(Vector2.ZERO, sp.r, Color(1.0, 0.85, 0.4, 0.07 * ck))
+				n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+				_dot_ring(n, Vector2(x, y), sp.r, 0.7, Color(C_GOLD, 0.8 * ck), 5.0, t * 0.5, 1)
+				n.draw_rect(Rect2(x - 7, y - 9, 15, 10), Color(Color("2a1a14"), ck))
+				n.draw_rect(Rect2(x - 6, y - 8, 13, 8), Color(Color("e8d8b0"), ck))
+				n.draw_colored_polygon(PackedVector2Array([Vector2(x - 9, y - 8), Vector2(x, y - 14), Vector2(x + 9, y - 8)]), Color(Color("2a1a14"), ck))
+				n.draw_colored_polygon(PackedVector2Array([Vector2(x - 7, y - 9), Vector2(x, y - 13), Vector2(x + 7, y - 9)]), Color(Color("a0603a"), ck))
+				n.draw_rect(Rect2(x - 1, y - 5, 3, 5), Color(Color("6a4020"), ck))
+				n.draw_rect(Rect2(x - 5, y - 6, 2, 2), Color(C_GOLD, ck))
+				n.draw_rect(Rect2(x + 4, y - 6, 2, 2), Color(C_GOLD, ck))
 			"clinic":
 				# 醫館：小小的白牆房子、綠屋頂，地上一圈淡綠的光
 				var cl: float = clampf(sp.life / 0.6, 0.0, 1.0)
@@ -6662,6 +6717,7 @@ func _update_kit(dt: float, sm: float) -> void:
 			last_kit = id
 		_class_on_cast()
 		_tal_on_cast(id, d)
+		_combo_on_cast(id)
 		kit_cd[id] = _kv(d, "cooldown")
 		kit_flash[id] = 0.6
 		kit_gcd = 0.35
@@ -6933,11 +6989,27 @@ func _update_class(dt: float) -> void:
 	if _kit_def().is_empty() or over:
 		kprev = paul.pos
 		return
+	if t > 12.0:
+		_tip("trait_" + leader)   # 第一次用這位主角：告訴玩家怎麼走
 	var mv: float = minf(6.0, paul.pos.distance_to(kprev))   # 這一格走了多遠（瞬移不算太多）
 	kprev = paul.pos
 	kmove = kmove + dt if mv > 0.05 else 0.0
 	kacc += dt
 	match leader:
+		"paul":
+			# 宣教旅程：走動時累積「行程」，停下來就在原地建立教會（行程越長，教會越強、留得越久）
+			if still_t <= 0.3:
+				kres = minf(1.0, kres + mv / 320.0)
+			elif kres >= 0.3 and still_t > 0.5:
+				var old := spots.filter(func(sp): return sp.kind == "church")
+				for sp in old:
+					sp.life = 0.0
+				spots.append({"kind": "church", "pos": paul.pos, "life": 6.0 + 8.0 * kres, "max": 6.0 + 8.0 * kres, "tick": 0.0, "r": 64.0 * _area(), "k": kres})
+				_ring_pop(paul.pos + Vector2(0, -10), C_GOLD, 40.0)
+				if tag_fx.size() < 12:
+					tag_fx.append({"pos": paul.pos + Vector2(-14, -18), "text": "建立教會", "col": C_GOLD, "t": 0.0, "big": true})
+				_fxc("建立教會")
+				kres = 0.0
 		"peter":
 			# 漁夫下水：身邊 50 以內的敵人越多，彼得越猛（每隻 +8%，最多 +64%），技能也轉得快
 			knear = 0
@@ -7050,6 +7122,36 @@ func _class_cdr() -> float:
 	return k
 
 
+## 隱藏組合（kit_combos）：主角放某一招時，隊伍裡的某位同伴立刻跟著出手，兩人 4 秒傷害加倍；第一次觸發是「發現！」
+func _combo_on_cast(id: String) -> void:
+	for cb in D.get("kit_combos", []):
+		if cb.leader != leader or cb.kit != id:
+			continue
+		var c: Dictionary = by_key.get(cb.comp, {})
+		if c.is_empty() or c == pa or not _active(c) or c.get("follows", "") != "":
+			continue
+		_cast(c, true)
+		bond_buff[c.key] = 4.0
+		bond_buff[pa.key] = 4.0
+		links_fx_pair(c)
+		_fxc("組合:" + cb.name)
+		var found: Array = Save.data.get("combos_found", [])
+		if not found.has(cb.id):
+			found.append(cb.id)
+			Save.data.combos_found = found
+			ui.show_banner("發現！「%s」（%s）：%s" % [cb.name, cb.ref, cb.why], 3.0)
+			Sfx.play("evolve", 0.0)
+			_hit_stop(0.08, 0.2)
+			_ring_pop(c.pos + Vector2(0, -10), C_GOLD, 40.0)
+		elif tag_fx.size() < 12:
+			tag_fx.append({"pos": c.pos + Vector2(-10, -18), "text": cb.name, "col": C_GOLD, "t": 0.0, "big": true})
+
+
+## 組合時，主角和同伴之間拉一道金線
+func links_fx_pair(c: Dictionary) -> void:
+	zaps.append({"pts": [paul.pos + Vector2(0, -12), c.pos + Vector2(0, -12)], "t": 0.0, "evo": true, "col": C_GOLD})
+
+
 ## 恩惠、腳步要幾層才發動（覺醒可以減少）
 func _res_need() -> float:
 	return (5.0 if leader == "stephen" else 3.0) - _tal("res_need")
@@ -7071,6 +7173,7 @@ func _next_awaken() -> bool:
 	_ring_pop(paul.pos + Vector2(0, -10), C_GOLD, 60.0)
 	Sfx.play("evolve", 0.0)
 	ui.show_cards(pending_cards, Time.get_ticks_msec() / 1000.0, 0.6, 0, "覺醒！選一條路", "這一局都會帶著，選了就不能換")
+	_tip("awaken")
 	return true
 
 
@@ -7179,6 +7282,10 @@ func _class_hud() -> String:
 	if _kit_def().is_empty():
 		return ""
 	match leader:
+		"paul":
+			if not churches_now.is_empty():
+				return "教會建立了（剩 %d 秒）　旅程 %d%%" % [int(churches_now[0].life), roundi(kres * 100.0)]
+			return "旅程 %d%%（走一段路，停下來建立教會）" % roundi(kres * 100.0)
 		"peter":
 			return "下水：身邊 %d 隻，傷害 +%d%%、減傷 %d%%" % [knear, roundi((_class_dmg() - 1.0) * 100.0), roundi((1.0 - _class_guard()) * 100.0)]
 		"stephen":

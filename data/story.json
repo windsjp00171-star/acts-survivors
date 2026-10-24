@@ -47,8 +47,8 @@
       "solo": true,
       "cast": [],
       "camp": "大馬色",
-      "hp_mult": 0.85,
-      "dmg_mult": 0.9
+      "hp_mult": 1.0,
+      "dmg_mult": 1.0
     },
     {
       "stage": "joppa",
@@ -101,8 +101,8 @@
         "tim"
       ],
       "camp": "安提阿",
-      "hp_mult": 0.7,
-      "dmg_mult": 0.8,
+      "hp_mult": 0.9,
+      "dmg_mult": 1.0,
       "boss_mult": 0.6,
       "late": true
     },
@@ -117,8 +117,8 @@
         "tim"
       ],
       "camp": "安提阿",
-      "hp_mult": 0.85,
-      "dmg_mult": 0.9
+      "hp_mult": 1.0,
+      "dmg_mult": 1.0
     },
     {
       "stage": "ephesus",
@@ -130,8 +130,8 @@
         "tim"
       ],
       "camp": "以弗所",
-      "hp_mult": 0.8,
-      "dmg_mult": 0.85
+      "hp_mult": 1.0,
+      "dmg_mult": 1.0
     },
     {
       "stage": "jerusalem",
@@ -142,8 +142,8 @@
         "tim"
       ],
       "camp": "該撒利亞",
-      "hp_mult": 0.75,
-      "dmg_mult": 0.8,
+      "hp_mult": 0.95,
+      "dmg_mult": 1.0,
       "boss_mult": 0.7
     },
     {
@@ -155,8 +155,8 @@
       ],
       "camp": "米利大",
       "boss_mult": 0.6,
-      "hp_mult": 0.7,
-      "dmg_mult": 0.8
+      "hp_mult": 0.9,
+      "dmg_mult": 1.0
     },
     {
       "stage": "rome",
@@ -168,8 +168,8 @@
         "tim"
       ],
       "camp": "羅馬",
-      "hp_mult": 0.65,
-      "dmg_mult": 0.7,
+      "hp_mult": 0.85,
+      "dmg_mult": 0.9,
       "boss_mult": 0.6
     },
     {
@@ -183,8 +183,8 @@
         "daniel"
       ],
       "camp": "拔摩海島",
-      "hp_mult": 0.38,
-      "dmg_mult": 0.38,
+      "hp_mult": 0.7,
+      "dmg_mult": 0.7,
       "boss_mult": 0.6
     },
     {
@@ -196,12 +196,12 @@
         "kauchang"
       ],
       "camp": "府城",
-      "hp_mult": 0.55,
-      "dmg_mult": 0.6,
+      "hp_mult": 0.85,
+      "dmg_mult": 0.85,
       "boss_mult": 0.6
     }
   ],
-  "hp_mult": 1.0,
-  "dmg_mult": 0.78,
+  "hp_mult": 1.15,
+  "dmg_mult": 0.95,
   "boss_mult": 0.9
 }

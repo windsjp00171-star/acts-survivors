@@ -11,6 +11,7 @@ var scroll: ScrollContainer
 var witness_label: Label
 var nav_buttons := {}
 var portrait := false
+var kit_open := false   # 出發頁：主角技能說明展開
 var tabs_enabled := {"home": true, "roster": true, "shop": true, "gifts": true, "ach": true, "codex": true}
 var board_sel := ""      # 恩賜盤上選到的節點
 var board_zoom := 1.0
@@ -318,6 +319,7 @@ func _show_home() -> void:
 		for L in leaders:
 			if L.key == lead:
 				_text(content, "%s　血 %d　速度 %d" % [L.desc, int(L.hp), int(L.speed)], 11, UIKit.MUTED, true)
+	_kit_box(content, lead)
 	_calling_ui()
 	var starter: String = Save.data.starter
 	if not Save.is_unlocked(starter) or starter == lead:
@@ -556,6 +558,8 @@ func _show_story() -> void:
 				_text(col, "這一章只有主角一個人", 11, UIKit.SKY, true)
 		if open and i == sel and stg.has("story"):
 			_text(col, "這段故事：" + stg.story, 11, UIKit.INK, true)
+		if open and i == sel:
+			_kit_box(col, str(ch.leader))
 		if open and i != sel:
 			var pick := UIKit.button("選這章", 12)
 			pick.custom_minimum_size = Vector2(72, 30)
@@ -569,6 +573,60 @@ func _show_story() -> void:
 	_calling_ui()
 	content.move_child(go, 0)
 	go.grab_focus()
+
+
+## 主角的職業特質、職業技能、覺醒（出發前先知道這位主角怎麼玩）
+func _kit_box(parent: Control, lead: String) -> void:
+	var K: Dictionary = G.get("kits", {}).get(lead, {})
+	if K.is_empty():
+		return
+	var nm: String = G.paul.name if lead == "paul" else _comp_def(lead).get("name", lead)
+	var box := PanelContainer.new()
+	box.add_theme_stylebox_override("panel", UIKit.box(Color(0.12, 0.09, 0.14), Color("ff6a8a"), 6))
+	parent.add_child(box)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 4)
+	box.add_child(v)
+	_text(v, "%s怎麼玩" % nm, 14, Color("ff6a8a"))
+	_text(v, str(K.get("trait", "")), 12, UIKit.INK, true)
+	var flow := HFlowContainer.new()
+	flow.add_theme_constant_override("h_separation", 8)
+	flow.add_theme_constant_override("v_separation", 4)
+	v.add_child(flow)
+	for d in K.pool:
+		var chip := HBoxContainer.new()
+		chip.add_theme_constant_override("separation", 3)
+		var path := "res://assets/sprites/icon_%s.png" % d.id
+		if ResourceLoader.exists(path):
+			var ic := TextureRect.new()
+			ic.texture = load(path)
+			ic.custom_minimum_size = Vector2(24, 24)
+			ic.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			ic.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+			chip.add_child(ic)
+		var lb := UIKit.label("%s（%s）" % [d.name, d.role], 11, UIKit.CREAM)
+		lb.tooltip_text = "%s（%s）" % [d.desc[0], d.ref]
+		chip.add_child(lb)
+		flow.add_child(chip)
+	_text(v, "升級時學會（最多 %d 招），全部自動施放" % (int(K.slots) - 1), 10, UIKit.MUTED, true)
+	var detail := VBoxContainer.new()
+	detail.add_theme_constant_override("separation", 4)
+	detail.visible = kit_open
+	var more := UIKit.button("收起說明" if kit_open else "每一招、覺醒的說明", 12)
+	more.pressed.connect(func():
+		kit_open = not kit_open
+		detail.visible = kit_open   # 只展開這一塊，不重畫整頁（捲動位置不會跳回最上面）
+		more.text = "收起說明" if kit_open else "每一招、覺醒的說明")
+	v.add_child(more)
+	v.add_child(detail)
+	for d in K.pool:
+		_text(detail, "・%s（%s）：%s" % [d.name, d.ref, d.desc[0]], 11, UIKit.INK, true)
+	var at: Array = K.get("awaken_at", [])
+	var rows: Array = K.get("awaken", [])
+	for ri in rows.size():
+		_text(detail, ("覺醒（Lv%d，三選一）" % int(at[ri])) if ri < at.size() else "覺醒", 12, UIKit.GOLD)
+		for o in rows[ri]:
+			_text(detail, "・%s（%s）：%s" % [o.name, o.ref, o.desc], 11, UIKit.INK, true)
 
 
 func _stage_by_id(sid: String) -> Dictionary:
@@ -1200,6 +1258,7 @@ func _show_log() -> void:
 	content.add_child(rb)
 	content.add_child(rnote)
 	_save_code_ui()
+	_text(content, "素材說明：人物、敵人、地圖、特效都是程式畫的像素圖；過場背景圖是用 AI（Pollinations 的 FLUX 模型）畫出空場景，再縮成像素風格；音樂是程式合成的原創曲，裡面引用的聖詩旋律都是 1929 年以前、早已公版的曲調。", 10, UIKit.MUTED, true)
 	for i in devlog.entries.size():
 		var e: Dictionary = devlog.entries[i]
 		var box := PanelContainer.new()
@@ -1260,6 +1319,18 @@ func _save_code_ui() -> void:
 func _show_codex() -> void:
 	_clear("codex")
 	var cx: Dictionary = Save.data.get("codex", {})
+	# 同工的組合：主角放某一招時，某位同伴跟著出手（找到的才看得到全部）
+	var CB: Array = G.get("kit_combos", [])
+	if not CB.is_empty():
+		var found: Array = Save.data.get("combos_found", [])
+		_text(content, "同工的組合　%d／%d" % [found.size(), CB.size()], 16, UIKit.GOLD)
+		_text(content, "主角放出某一招時，隊伍裡剛好有某位同伴，他會跟著一起出手。還沒找到的只看得到是哪位主角。", 11, UIKit.MUTED, true)
+		for cb in CB:
+			var lname: String = G.paul.name if cb.leader == "paul" else _comp_def(cb.leader).get("name", cb.leader)
+			if found.has(cb.id):
+				_text(content, "✓ %s（%s）：%s" % [cb.name, cb.ref, cb.why], 12, UIKit.INK, true)
+			else:
+				_text(content, "？ %s的某一招 ＋ 某位同伴" % lname, 12, UIKit.MUTED, true)
 	# 詩歌本：去過的城市音樂可以在這裡點播
 	_text(content, "詩歌本", 16, UIKit.GOLD)
 	_text(content, "去過的城市，那裡的音樂就會收進來，點一下就能播放。", 11, UIKit.MUTED, true)
