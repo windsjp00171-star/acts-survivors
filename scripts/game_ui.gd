@@ -272,6 +272,7 @@ var task_label: Label
 
 var kit_bar: Control
 var kit_data: Array = []
+var kit_res := ""   # 技能列上面那一行：這位主角的職業資源
 var kit_tex := {}
 
 
@@ -295,11 +296,15 @@ func _draw_kit() -> void:
 		kit_bar.draw_rect(Rect2(x, 0, cell, cell), C_GOLD if fl > 0.0 else Color("5a4a3a"), false, 2.0 if fl > 0.0 else 1.0)
 		for j in mini(int(k.lv), 5):
 			kit_bar.draw_rect(Rect2(x + 3 + j * 5, cell + 2, 3, 3), C_GOLD)
+	if kit_res != "":
+		kit_bar.draw_string_outline(font, Vector2(0, -5), kit_res, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color("140c10"))
+		kit_bar.draw_string(font, Vector2(0, -5), kit_res, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, C_GOLD)
 
 
 func update_hud(st: Dictionary) -> void:
 	var size := vp()
 	kit_data = st.get("kit", [])
+	kit_res = str(st.get("kit_res", ""))
 	kit_bar.visible = not kit_data.is_empty() and not st.over
 	kit_bar.position = Vector2(12, size.y - 44.0 - (60.0 if size.y > size.x else 0.0))
 	kit_bar.size = Vector2(kit_data.size() * 34.0, 36.0)
