@@ -171,6 +171,11 @@ func _build() -> void:
 	st.custom_minimum_size = Vector2(200, 40) if portrait else Vector2(140, 52)
 	st.pressed.connect(_toggle_settings)
 	btns.add_child(st)
+	# 試作：宣教之路 2（暗黑式的動作 RPG），先放在標題給大家試玩
+	var proto := UIKit.button("試作：宣教之路 2", 15)
+	proto.custom_minimum_size = Vector2(200, 40) if portrait else Vector2(170, 52)
+	proto.pressed.connect(func(): get_tree().change_scene_to_file("res://scenes/arpg.tscn"))
+	btns.add_child(proto)
 	await get_tree().process_frame
 	btns.position = Vector2(round((vs.x - btns.size.x) / 2.0), round(vs.y * 0.79) if portrait else vs.y - btns.size.y - 14.0)
 	go.grab_focus()
