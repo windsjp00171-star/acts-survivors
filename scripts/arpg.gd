@@ -6,6 +6,27 @@ extends Node2D
 ## 操作：左鍵移動／攻擊、右鍵撒網（在游標處）、1～4 技能、Q 吃餅、E 喝水、I 背包、T 回城、空白鍵撿東西。
 
 const SAVE_PATH := "user://arpg.json"
+const DARK_SHADER := """
+shader_type canvas_item;
+uniform vec4 L[16];
+uniform int n = 1;
+uniform float dark = 0.6;
+uniform float aspect = 1.7777;
+void fragment() {
+	vec2 uv = SCREEN_UV;
+	float lit = 0.0;
+	for (int i = 0; i < 16; i++) {
+		if (i >= n) { break; }
+		vec2 d = (uv - L[i].xy) * vec2(aspect, 1.0);
+		float r = L[i].z;
+		lit = max(lit, (1.0 - smoothstep(r * 0.35, r, length(d))) * L[i].w);
+	}
+	float a = dark * (1.0 - lit);
+	a = floor(a * 16.0 + 0.5) / 16.0;
+	COLOR = vec4(0.03, 0.01, 0.07, a);
+}
+"""
+const DARKNESS := {"town": 0.2, "gate": 0.55, "alley": 0.72, "council": 0.78}
 const C_GOLD := Color("ffd75e")
 const C_CREAM := Color("fff4c2")
 const C_INK := Color("f4ead2")
@@ -80,7 +101,10 @@ const RUNEWORDS := [
 ## 被釋放的人說的話（第一次見面時）
 const FREED_LINES := ["我被懼怕綁了好多年……今天第一次覺得可以呼吸。", "原來我不是一個人。", "他們說我沒救了。你們卻來找我。",
 	"謊言在我耳邊說了一輩子，現在安靜了。", "我想跟你們回去，看看你們的教會。", "我家門口那條巷子，以後我來守。",
-	"我會打鐵。城裡需要人手嗎？", "我想學怎麼禱告。", "我以前是跟著拿石頭的那群人……可以重新開始嗎？", "謝謝你沒有放棄我。"]
+	"我會打鐵。城裡需要人手嗎？", "我想學怎麼禱告。", "我以前是跟著拿石頭的那群人……可以重新開始嗎？", "謝謝你沒有放棄我。",
+	"我在門口討了三十年的錢，沒有人停下來看我。", "我的女兒還在家裡等，我可以先回去告訴她嗎？", "那些聲音說我不配。原來它們在說謊。",
+	"我好累……可是心裡好輕。", "你們的神，連我這種人也要嗎？", "我記得你的臉，在我最黑的時候。",
+	"我要把我的餅分給城裡的人。", "原來天這麼亮。", "我以前很會吵架。以後，我想學會勸和。", "我可以跟著你們嗎？我走得慢，但我會跟上。"]
 
 var zone := "town"
 var P := {}                 # 玩家
@@ -105,6 +129,11 @@ var attack_cd := 0.0
 var swing_n := 0
 var cam: Camera2D
 var ui: CanvasLayer
+var dark_rect: ColorRect
+var dark_mat: ShaderMaterial
+var shake_t := 0.0
+var decals: Array = []      # 地上的細節 {tex, pos}
+var line_bag: Array = []    # 被釋放的人說的話（抽完才重洗，不會一直重複）
 var hud: Control
 var inv_panel: PanelContainer
 var inv_open := false
@@ -120,6 +149,9 @@ var smoke_shot := ""
 var stats := {"kills": 0, "freed": 0, "deaths": 0, "drops": 0, "zones": {}}
 var bot_goal := ""
 var full_warn_t := 0.0
+var bot_stuck_t := 0.0
+var bot_last_pos := Vector2.ZERO
+var shots_every := 0   # 測試：每幾格截一張圖（--every=）
 
 
 # ---------------------------------------------------------------- 開始
@@ -135,6 +167,10 @@ func _ready() -> void:
 			smoke_max = int(a.substr(9))
 		elif a.begins_with("--shot="):
 			smoke_shot = a.substr(7)
+		elif a.begins_with("--every="):
+			shots_every = int(a.substr(8))
+		elif a == "--real":
+			Engine.time_scale = 1.0   # 測試：機器人照正常速度玩（看手感）
 	cam = Camera2D.new()
 	add_child(cam)
 	cam.zoom = Vector2(2, 2)   # 靠近一點看：人物大、黑暗看得清楚（像暗黑的視角）
@@ -413,16 +449,16 @@ func _enter(z: String, at: Vector2) -> void:
 		P.mp = P.mpmax
 	else:
 		_say(Z.name, 2.0)
-	cam.limit_left = -40
-	cam.limit_top = -40
-	cam.limit_right = int(Z.size.x) + 40
-	cam.limit_bottom = int(Z.size.y) + 40
+	cam.limit_left = 0
+	cam.limit_top = -16
+	cam.limit_right = int(Z.size.x)
+	cam.limit_bottom = int(Z.size.y) + 16
 	cam.position = P.pos
 	cam.reset_smoothing()
 
 
 func _tint() -> Color:
-	return Color.from_hsv(randf(), randf_range(0.1, 0.35), randf_range(0.8, 1.0))
+	return Color.from_hsv(randf(), randf_range(0.04, 0.14), randf_range(0.88, 1.0))
 
 
 func _free_spot(lo: Vector2, hi: Vector2) -> Vector2:
@@ -441,7 +477,10 @@ func _free_spot(lo: Vector2, hi: Vector2) -> Vector2:
 
 
 func _spawn_pack(at: Vector2, lvl: int, elite: bool) -> void:
-	packs.append({"pos": at, "alive": 0, "freed": false, "tint": _tint(), "line": FREED_LINES.pick_random()})
+	if line_bag.is_empty():
+		line_bag = FREED_LINES.duplicate()
+		line_bag.shuffle()
+	packs.append({"pos": at, "alive": 0, "freed": false, "tint": _tint(), "line": line_bag.pop_back()})
 	var pi := packs.size() - 1
 	var n := randi_range(3, 6)
 	if elite:
@@ -464,8 +503,18 @@ func _spawn_mob(key: String, at: Vector2, pack: int, lvl: int) -> void:
 
 func _build_obstacles() -> void:
 	obstacles.clear()
+	decals.clear()
 	var Z: Dictionary = ZONES[zone]
 	var sz: Vector2 = Z.size
+	var dk: Array = ["decal_pebbles", "decal_crack_1", "decal_crack_2", "decal_potsherd", "decal_tuft_dry", "decal_footprints", "decal_straw", "decal_pebbles_dark"]
+	if zone == "town":
+		dk = ["decal_flowers_w", "decal_flowers_y", "decal_straw", "decal_footprints", "decal_tuft"]
+	for i in int(sz.x * sz.y / 9000.0):
+		decals.append({"tex": dk.pick_random(), "pos": Vector2(randf_range(10, sz.x - 10), randf_range(20, sz.y - 10)).round()})
+	# 邊界：上下一排矮牆（只是畫面，走不出去是地圖邊）
+	if zone != "town":
+		for x in range(0, int(sz.x), 34):
+			decals.append({"tex": "wall_1", "pos": Vector2(x, -6), "solid": true})
 	match zone:
 		"town":
 			_obs("lm_colonnade", Vector2(320, 70))
@@ -483,18 +532,28 @@ func _build_obstacles() -> void:
 			_obs("column_1", Vector2(440, 130))
 		"gate":
 			_obs("lm_gate_jerusalem", Vector2(60, 220))
-			for i in 9:
-				_obs(["olive_1", "tree_1", "house", "stones", "wall_1"].pick_random(), Vector2(randf_range(160, sz.x - 120), randf_range(60, sz.y - 40)))
+			# 城外：橄欖樹林、小屋、石堆，一群一群的
+			for c in 7:
+				var cc := Vector2(randf_range(180, sz.x - 140), randf_range(80, sz.y - 60))
+				var kind: Array = [["olive_1", "olive_2", "olive_1"], ["house", "stall", "amphora"], ["stones", "rock_1", "rock_2"], ["tree_1", "bush", "dry_bush"]].pick_random()
+				for j in kind.size():
+					_obs(kind[j], cc + Vector2(j * 26 - 26, randf_range(-14, 14)))
+			_obs("lantern", Vector2(150, 330))
+			_obs("lantern", Vector2(150, 130))
 		"alley":
 			# 窄巷：兩排房子夾出一條彎彎的路
 			for i in 9:
 				var x := 120.0 + i * 120.0
 				_obs(["house", "redhouse", "wall_1"].pick_random(), Vector2(x, 70 + (i % 2) * 40))
 				_obs(["house", "redhouse", "wall_2"].pick_random(), Vector2(x + 50, sz.y - 40 - (i % 3) * 30))
+				if i % 3 == 1:
+					_obs("lantern", Vector2(x + 20, 120))
 		"council":
 			for i in 6:
 				_obs("column_1", Vector2(150 + i * 90, 70))
 				_obs("column_1", Vector2(150 + i * 90, sz.y - 30))
+			_obs("lantern", Vector2(120, 240))
+			_obs("lantern", Vector2(sz.x - 60, 240))
 
 
 func _obs(texk: String, foot: Vector2) -> void:
@@ -544,6 +603,9 @@ func _process(dt: float) -> void:
 	_update_mobs(dt)
 	_update_misc(dt)
 	cam.position = cam.position.lerp(P.pos, minf(1.0, dt * 8.0))
+	shake_t = maxf(0.0, shake_t - dt)
+	cam.offset = Vector2(randf_range(-2, 2), randf_range(-2, 2)) if shake_t > 0.0 else Vector2.ZERO
+	_update_light()
 	queue_redraw()
 	hud.queue_redraw()
 
@@ -919,7 +981,12 @@ func _hurt(m: Dictionary, n: float, crit: bool) -> void:
 	m.hp -= n
 	m.hit_t = 0.12
 	m.aggro = true
-	_float(m.pos + Vector2(randf_range(-4, 4), -22), str(roundi(n)), C_GOLD if crit else C_CREAM)
+	if not SPIRITS[m.key].get("boss", false) and not SPIRITS[m.key].get("elite", false):
+		m.pos = _collide(m.pos + (m.pos - P.pos).normalized() * (6.0 if crit else 3.0), 5.0)   # 被打得往後退一點
+	if crit:
+		shake_t = 0.1
+	if floats.size() < 50:
+		floats.append({"pos": m.pos + Vector2(randf_range(-4, 4), -22), "text": str(roundi(n)) + ("!" if crit else ""), "col": C_GOLD if crit else C_CREAM, "t": 0.0, "big": crit})
 	if m.hp <= 0.0:
 		_kill(m)
 
@@ -976,8 +1043,15 @@ func _free_person(pk: Dictionary) -> void:
 
 
 func _drop(at: Vector2, it: Dictionary) -> void:
-	drops.append({"pos": _collide(at, 4.0), "item": it})
+	var p := _collide(at, 10.0)
+	drops.append({"pos": p, "item": it})
 	stats.drops += 1
+	# 好東西掉下來：一道光柱、一聲響（像暗黑的暗金）
+	if it.rarity in ["unique", "rune"]:
+		fxs.append({"kind": "pillar", "pos": p, "t": 0.0, "max": 1.6, "col": _item_color(it)})
+		Sfx.play("evolve" if it.rarity == "unique" else "chest", 0.0)
+		if it.rarity == "unique":
+			_say("暗金掉下來了：" + it.name, 3.0)
 
 
 func _pickup(dr: Dictionary) -> void:
@@ -1108,6 +1182,45 @@ func _update_misc(dt: float) -> void:
 	escorts = escorts.filter(func(e): return float(e.hp) > 0.0)
 
 
+## 光源：彼得（穿著「光」更亮）、城裡的燈、被釋放的人、地上的寶、出口
+func _update_light() -> void:
+	var vs := get_viewport_rect().size
+	var ct := get_viewport().get_canvas_transform()
+	var arr: Array = []
+	var zoom: float = cam.zoom.y
+	var add := func(wp: Vector2, wr: float, k: float):
+		if arr.size() >= 16:
+			return
+		var sp: Vector2 = ct * wp
+		if sp.x < -200 or sp.y < -200 or sp.x > vs.x + 200 or sp.y > vs.y + 200:
+			return
+		arr.append(Vector4(sp.x / vs.x, sp.y / vs.y, wr * zoom / vs.y, k))
+	add.call(P.pos + Vector2(0, -10), 120.0 * (1.5 if P.fx.get("light", false) else 1.0), 1.0)
+	for o in obstacles:
+		if o.tex == "lantern":
+			add.call((o.at as Vector2) + Vector2(6, 4), 70.0, 0.9)
+	for ex in ZONES[zone].exits:
+		add.call((ex.rect as Rect2).get_center(), 60.0, 0.7)
+	for w in walkers:
+		add.call(w.pos + Vector2(0, -10), 30.0, 0.8)
+	for e in escorts:
+		add.call(e.pos + Vector2(0, -10), 30.0, 0.8)
+	for f in fxs:
+		if f.kind == "chains":
+			add.call(f.pos + Vector2(0, -10), 70.0 * (1.0 - f.t / f.max), 1.0)
+	for dr in drops:
+		if dr.item.rarity in ["unique", "rune", "runeword"]:
+			add.call(dr.pos, 26.0, 0.8)
+	if not corpse.is_empty() and corpse.zone == zone:
+		add.call(corpse.pos, 30.0, 0.6)
+	while arr.size() < 16:
+		arr.append(Vector4(-9, -9, 0, 0))
+	dark_mat.set_shader_parameter("L", PackedVector4Array(arr))
+	dark_mat.set_shader_parameter("n", 16)
+	dark_mat.set_shader_parameter("aspect", vs.x / vs.y)
+	dark_mat.set_shader_parameter("dark", float(DARKNESS.get(zone, 0.5)))
+
+
 func _float(at: Vector2, text: String, col: Color) -> void:
 	if floats.size() < 40:
 		floats.append({"pos": at, "text": text, "col": col, "t": 0.0})
@@ -1160,12 +1273,20 @@ func _draw() -> void:
 		items.append({"y": w.pos.y, "k": "walk", "o": w})
 	items.append({"y": P.pos.y, "k": "me", "o": P})
 	items.sort_custom(func(a, b): return a.y < b.y)
+	for dc in decals:
+		var dt2 := _tex(dc.tex)
+		if dt2:
+			draw_texture(dt2, dc.pos)
 	for dr in drops:
 		_draw_drop(dr)
 	for it in items:
 		match it.k:
 			"obs":
-				draw_texture(_tex(it.o.tex), (it.o.at as Vector2).round())
+				# 彼得走到房子、城門後面時，那一塊變半透明（才看得到自己）
+				var otx := _tex(it.o.tex)
+				var orr := Rect2(it.o.at, otx.get_size())
+				var behind: bool = orr.grow(-2).has_point(P.pos + Vector2(0, -8)) and P.pos.y < (it.o.rect as Rect2).end.y
+				draw_texture(otx, (it.o.at as Vector2).round(), Color(1, 1, 1, 0.45 if behind else 1.0))
 			"pack":
 				_draw_pack(it.o)
 			"mob":
@@ -1183,8 +1304,9 @@ func _draw() -> void:
 	for f in floats:
 		var k: float = f.t / 0.9
 		var p: Vector2 = (f.pos + Vector2(0, -k * 14.0)).round()
-		draw_string_outline(UIKit.font(), p, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, 2, Color(0, 0, 0, 1.0 - k))
-		draw_string(UIKit.font(), p, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, 7, Color(f.col, 1.0 - k))
+		var fsz := 11 if f.get("big", false) else 8
+		draw_string_outline(UIKit.font(), p, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, 2, Color(0, 0, 0, 1.0 - k))
+		draw_string(UIKit.font(), p, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, fsz, Color(f.col, 1.0 - k))
 
 
 func _draw_town() -> void:
@@ -1216,7 +1338,15 @@ func _draw_pack(pk: Dictionary) -> void:
 	var p: Vector2 = pk.pos
 	if pk.freed:
 		return
-	# 被捆綁的人：暗暗的、坐在地上，身上一圈鎖鏈
+	# 被捆綁的人：暗暗的，每一個黑暗都拉著一條鎖鏈綁在他身上；趕走一個，就斷一條
+	for m in mobs:
+		if not m.dead and int(m.pack) == packs.find(pk) and m.pos.distance_to(p) < 160.0:
+			var a: Vector2 = p + Vector2(0, -10)
+			var b: Vector2 = m.pos + Vector2(0, -6)
+			var steps := int(a.distance_to(b) / 4.0)
+			for i in steps:
+				var q := a.lerp(b, float(i) / maxf(1.0, steps)) + Vector2(0, sin(i * 0.9 + t * 2.0) * 1.0)
+				draw_rect(Rect2(q.round(), Vector2(2, 1) if i % 2 == 0 else Vector2(1, 2)), Color(0.55, 0.5, 0.62, 0.85))
 	_draw_person(p, Color(0.35, 0.28, 0.42), false, 1)
 	for i in 8:
 		var a := i * TAU / 8.0 + t * 0.5
@@ -1312,7 +1442,15 @@ func _draw_fx(f: Dictionary) -> void:
 			draw_line(f.pos, f.pos + f.dir * f.len, Color(C_CREAM, 1.0 - k), 5.0)
 			draw_line(f.pos, f.pos + f.dir * f.len, Color(C_GOLD, 1.0 - k), 2.0)
 		"poof":
-			draw_circle(f.pos + Vector2(0, -8), 8.0 * (1.0 + k), Color(0.2, 0.05, 0.25, 0.5 * (1.0 - k)))
+			# 黑暗散掉：一團紫煙往外、往上飄散
+			draw_circle(f.pos + Vector2(0, -8 - k * 6.0), 8.0 * (1.0 + k), Color(0.2, 0.05, 0.25, 0.5 * (1.0 - k)))
+			for i in 6:
+				var a: float = i * TAU / 6.0 + f.pos.x
+				draw_rect(Rect2((f.pos + Vector2(cos(a) * k * 16.0, -8.0 + sin(a) * k * 10.0 - k * 10.0)).round(), Vector2(2, 2)), Color(0.6, 0.3, 0.8, 1.0 - k))
+		"pillar":
+			var pa := (1.0 - k) * 0.8
+			draw_rect(Rect2(f.pos + Vector2(-2, -60), Vector2(4, 60)), Color(f.col, pa * 0.6))
+			draw_rect(Rect2(f.pos + Vector2(-1, -60), Vector2(2, 60)), Color(Color.WHITE, pa))
 		"chains":
 			# 鎖鏈斷開：碎片往外飛
 			for i in 10:
@@ -1323,7 +1461,21 @@ func _draw_fx(f: Dictionary) -> void:
 
 # ---------------------------------------------------------------- 介面
 func _build_ui() -> void:
+	# 黑暗：整個畫面蓋一層，只有光源附近亮（彼得身邊、燈、被釋放的人、掉在地上的寶）
+	var dl := CanvasLayer.new()
+	dl.layer = 1
+	add_child(dl)
+	dark_rect = ColorRect.new()
+	dark_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dark_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var sh := Shader.new()
+	sh.code = DARK_SHADER
+	dark_mat = ShaderMaterial.new()
+	dark_mat.shader = sh
+	dark_rect.material = dark_mat
+	dl.add_child(dark_rect)
 	ui = CanvasLayer.new()
+	ui.layer = 2
 	add_child(ui)
 	hud = Control.new()
 	hud.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -1621,9 +1773,19 @@ func _score(it: Dictionary) -> float:
 	return s
 
 
-func _bot(_dt: float) -> void:
+func _bot(dt: float) -> void:
 	if float(P.hp) <= 0.0 or inv_open:
 		return
+	# 卡住了（兩秒沒動）：放棄要撿的東西、換個方向
+	bot_stuck_t += dt
+	if bot_stuck_t > 2.0:
+		if P.pos.distance_to(bot_last_pos) < 4.0 and move_target != Vector2.INF:
+			for dr in drops.duplicate():
+				if dr.pos.distance_to(move_target) < 2.0:
+					drops.erase(dr)
+			move_target = P.pos + Vector2.from_angle(randf() * TAU) * 60.0
+		bot_stuck_t = 0.0
+		bot_last_pos = P.pos
 	# 撿屍體優先
 	if not corpse.is_empty():
 		_bot_go_zone(corpse.zone, corpse.pos)
@@ -1711,7 +1873,7 @@ func _smoke_tick() -> void:
 	smoke_frames += 1
 	if OS.get_cmdline_user_args().has("--die") and smoke_frames % 1200 == 900 and zone != "town":
 		_hit_player(99999.0, null)   # 測試：倒下、撿屍體
-	if smoke_shot != "" and smoke_frames in [60, 600, 1500, smoke_max - 10]:
+	if smoke_shot != "" and (smoke_frames in [60, 600, 1500, smoke_max - 10] or (shots_every > 0 and smoke_frames % shots_every == 0)):
 		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_%d.png" % smoke_frames))
 	if smoke_frames == smoke_max / 2 and smoke_shot != "":
 		_toggle_inv()
