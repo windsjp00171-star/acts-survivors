@@ -27,6 +27,9 @@ static func font() -> Font:
 		var sys := SystemFont.new()
 		sys.font_names = PackedStringArray(["Noto Sans CJK TC", "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", "Heiti TC", "sans-serif"])
 		f.fallbacks = [sys]
+		# 希伯來字母（古老的符文）：主字型沒有，放在系統字型前面
+		if ResourceLoader.exists("res://assets/fonts/Hebrew-Game.ttf"):
+			f.fallbacks = [load("res://assets/fonts/Hebrew-Game.ttf"), sys]
 		_font = f
 	return _font
 

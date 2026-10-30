@@ -81,8 +81,14 @@ const TIPS := {
 const CLASSES := {
 	"peter": {"name": "彼得", "tex": "peter", "life": 70, "life_lv": 10, "mana": 25, "mana_lv": 5, "ranged": false, "weapon": 0,
 		"desc": "近身：船槳打、網子拉、跳進黑暗裡"},
-	"paul": {"name": "保羅", "tex": "paul", "life": 55, "life_lv": 8, "mana": 40, "mana_lv": 6, "ranged": true, "weapon": 3,
+	"paul": {"name": "保羅", "tex": "paul", "life": 55, "life_lv": 8, "mana": 40, "mana_lv": 6, "ranged": true, "weapon": 3, "acd": 0.6,
 		"desc": "遠程：寫書信射出去、責備、讓黑暗自相紛爭"},
+	"john": {"name": "約翰", "tex": "john", "life": 55, "life_lv": 8, "mana": 45, "mana_lv": 7, "ranged": true, "weapon": 3, "acd": 0.75, "bolt": "thunder",
+		"desc": "遠程法術：雷聲會跳到旁邊的黑暗（「雷子」後來成了愛的使徒）"},
+	"philip": {"name": "腓利", "tex": "philip", "life": 65, "life_lv": 9, "mana": 30, "mana_lv": 5, "ranged": false, "weapon": 0, "acd": 0.42, "speed": 1.15,
+		"desc": "近身、很快：衝刺、加速、施洗、被聖靈提去"},
+	"lydia": {"name": "呂底亞", "tex": "lydia", "life": 60, "life_lv": 9, "mana": 40, "mana_lv": 6, "ranged": false, "weapon": 0, "acd": 0.6,
+		"desc": "召喚：開門接待，一家人和你一起打"},
 }
 ## 技能（等級到了才會）
 const SKILLS := {"peter": [
@@ -103,25 +109,61 @@ const SKILLS := {"peter": [
 		"desc": "回 40% 生命，2 秒內不受傷"},
 	{"id": "fight", "name": "美好的仗", "ref": "提後 4:7", "lv": 9, "mp": 16, "cd": 10.0, "icon": "icon_fight",
 		"desc": "書信往四面八方射出三圈"},
+], "john": [
+	{"id": "thunder", "name": "雷子", "ref": "可 3:17", "lv": 1, "mp": 7, "cd": 1.2, "icon": "icon_thunder",
+		"desc": "一道雷打在游標的地方：一圈黑暗受傷、愣一下"},
+	{"id": "lamps", "name": "七盞火燈", "ref": "啟 4:5", "lv": 3, "mp": 14, "cd": 9.0, "icon": "icon_lamps",
+		"desc": "七盞燈繞著你轉 6 秒，碰到的黑暗受傷"},
+	{"id": "abide", "name": "常在我裡面", "ref": "約 15:5", "lv": 6, "mp": 16, "cd": 18.0, "icon": "icon_abide",
+		"desc": "6 秒內靈力回得快三倍、受到的傷害少三成"},
+	{"id": "seven", "name": "七雷發聲", "ref": "啟 10:3", "lv": 9, "mp": 22, "cd": 12.0, "icon": "icon_tempest",
+		"desc": "身邊最多七個黑暗各被一道雷打中"},
+], "philip": [
+	{"id": "run", "name": "就跑到那裡", "ref": "徒 8:30", "lv": 1, "mp": 5, "cd": 2.5, "icon": "icon_run",
+		"desc": "往游標衝過去（最遠 110），路上的黑暗都被撞到"},
+	{"id": "south", "name": "起來，向南走", "ref": "徒 8:26", "lv": 3, "mp": 10, "cd": 10.0, "icon": "icon_walk",
+		"desc": "5 秒內走得快一半、出手快三成"},
+	{"id": "baptize", "name": "施洗", "ref": "徒 8:38", "lv": 6, "mp": 14, "cd": 8.0, "icon": "icon_baptize",
+		"desc": "身邊湧出一圈水：黑暗受傷、被推開，你回 15% 生命"},
+	{"id": "caught", "name": "主的靈把腓利提了去", "ref": "徒 8:39", "lv": 9, "mp": 16, "cd": 12.0, "icon": "icon_caught",
+		"desc": "一下子到游標的地方（最遠 200），落地時一圈黑暗受重傷"},
+], "lydia": [
+	{"id": "household", "name": "開門接待", "ref": "徒 16:15", "lv": 1, "mp": 12, "cd": 3.0, "icon": "icon_household",
+		"desc": "家裡的人出來和你一起打（最多 2 人，每 5 級多 1 人）；人滿了就替他們補血"},
+	{"id": "purple", "name": "紫色布疋", "ref": "徒 16:14", "lv": 3, "mp": 10, "cd": 6.0, "icon": "icon_purple",
+		"desc": "在游標鋪一塊紫布 5 秒：上面的黑暗變慢、一直受傷"},
+	{"id": "river", "name": "河邊禱告", "ref": "徒 16:13", "lv": 6, "mp": 18, "cd": 16.0, "icon": "icon_river",
+		"desc": "你回 30% 生命，家人全好了；8 秒內家人傷害 +50%"},
+	{"id": "heart", "name": "主開導她的心", "ref": "徒 16:14", "lv": 9, "mp": 20, "cd": 20.0, "icon": "icon_heart",
+		"desc": "又有三位家人出來幫忙 12 秒"},
 ]}
 
 ## 裝備的底子
 const BASES := {
-	"weapon": [{"name": "漁夫的木槳", "min": 3, "max": 6, "lv": 1}, {"name": "牧人的杖", "min": 4, "max": 8, "lv": 3}, {"name": "鐵頭漁叉", "min": 6, "max": 11, "lv": 6}, {"name": "蘆葦筆", "min": 2, "max": 6, "lv": 1}],
-	"body": [{"name": "粗麻外衣", "armor": 4, "lv": 1}, {"name": "羊毛外衣", "armor": 8, "lv": 3}, {"name": "皮革外衣", "armor": 13, "lv": 6}],
-	"feet": [{"name": "草鞋", "armor": 1, "lv": 1}, {"name": "皮鞋", "armor": 3, "lv": 4}],
-	"belt": [{"name": "布腰帶", "armor": 1, "lv": 1}, {"name": "皮腰帶", "armor": 2, "lv": 4}],
+	"weapon": [{"name": "漁夫的木槳", "min": 3, "max": 6, "lv": 1}, {"name": "牧人的杖", "min": 4, "max": 8, "lv": 3}, {"name": "鐵頭漁叉", "min": 6, "max": 11, "lv": 6}, {"name": "蘆葦筆", "min": 2, "max": 6, "lv": 1},
+		{"name": "鍛鐵漁叉", "min": 10, "max": 18, "lv": 12}, {"name": "橄欖木大杖", "min": 13, "max": 23, "lv": 18}],
+	"body": [{"name": "粗麻外衣", "armor": 4, "lv": 1}, {"name": "羊毛外衣", "armor": 8, "lv": 3}, {"name": "皮革外衣", "armor": 13, "lv": 6}, {"name": "銅甲", "armor": 22, "lv": 12}, {"name": "鎧甲", "armor": 32, "lv": 18}],
+	"feet": [{"name": "草鞋", "armor": 1, "lv": 1}, {"name": "皮鞋", "armor": 3, "lv": 4}, {"name": "厚皮靴", "armor": 6, "lv": 10}],
+	"head": [{"name": "頭巾", "armor": 2, "lv": 1}, {"name": "皮帽", "armor": 4, "lv": 5}, {"name": "銅盔", "armor": 8, "lv": 12}],
+	"ring": [{"name": "銅戒指", "lv": 1}, {"name": "銀戒指", "lv": 8}, {"name": "印戒", "lv": 15}],
+	"belt": [{"name": "布腰帶", "armor": 1, "lv": 1}, {"name": "皮腰帶", "armor": 2, "lv": 4}, {"name": "寬皮帶", "armor": 4, "lv": 10}],
 }
-const SLOT_NAME := {"weapon": "手上", "body": "外衣", "feet": "鞋", "belt": "腰帶"}
+const SLOT_NAME := {"weapon": "手上", "body": "外衣", "feet": "鞋", "belt": "腰帶", "head": "頭", "ring": "戒指"}
+const SLOTS := ["weapon", "body", "feet", "belt", "head", "ring"]
+## 最多幾個孔
+const MAX_SOCKETS := {"weapon": 4, "body": 4, "head": 2}
 ## 詞綴：前綴＋後綴，數值隨物品等級長
 const AFFIXES := [
-	{"id": "dmg", "name": "堅實的", "pos": "pre", "desc": "傷害 +%d%%", "min": 8, "max": 20, "per": 2.0, "slots": ["weapon", "belt"]},
-	{"id": "life", "name": "活潑的", "pos": "pre", "desc": "生命 +%d", "min": 6, "max": 14, "per": 2.0, "slots": ["body", "belt", "feet", "weapon"]},
+	{"id": "dmg", "name": "堅實的", "pos": "pre", "desc": "傷害 +%d%%", "min": 8, "max": 20, "per": 2.0, "slots": ["weapon", "belt", "ring"]},
+	{"id": "life", "name": "活潑的", "pos": "pre", "desc": "生命 +%d", "min": 6, "max": 14, "per": 2.0, "slots": ["body", "belt", "feet", "weapon", "head", "ring"]},
+	{"id": "crit", "name": "敏銳的", "pos": "pre", "desc": "會心 +%d%%", "min": 2, "max": 6, "per": 0.2, "slots": ["weapon", "head", "ring"]},
+	{"id": "cdr", "name": "專心的", "pos": "suf", "desc": "技能冷卻快 %d%%", "min": 4, "max": 10, "per": 0.3, "slots": ["head", "ring"]},
+	{"id": "lifep", "name": "強健的", "pos": "suf", "desc": "生命 +%d%%", "min": 4, "max": 10, "per": 0.3, "slots": ["body", "head"]},
 	{"id": "move", "name": "腳步快的", "pos": "suf", "desc": "移動 +%d%%", "min": 6, "max": 14, "per": 0.6, "slots": ["feet", "belt"]},
-	{"id": "aspd", "name": "迅捷的", "pos": "pre", "desc": "出手 +%d%%", "min": 5, "max": 12, "per": 0.5, "slots": ["weapon", "belt"]},
+	{"id": "aspd", "name": "迅捷的", "pos": "pre", "desc": "出手 +%d%%", "min": 5, "max": 12, "per": 0.5, "slots": ["weapon", "belt", "ring"]},
 	{"id": "armorp", "name": "厚實的", "pos": "pre", "desc": "防護 +%d%%", "min": 10, "max": 30, "per": 2.0, "slots": ["body", "feet", "belt"]},
-	{"id": "mana", "name": "有靈的", "pos": "suf", "desc": "靈力 +%d", "min": 5, "max": 12, "per": 1.5, "slots": ["body", "belt", "weapon"]},
-	{"id": "regen", "name": "得醫治的", "pos": "suf", "desc": "每秒回血 %d", "min": 1, "max": 3, "per": 0.15, "slots": ["body", "belt"]},
+	{"id": "mana", "name": "有靈的", "pos": "suf", "desc": "靈力 +%d", "min": 5, "max": 12, "per": 1.5, "slots": ["body", "belt", "weapon", "head", "ring"]},
+	{"id": "regen", "name": "得醫治的", "pos": "suf", "desc": "每秒回血 %d", "min": 1, "max": 3, "per": 0.15, "slots": ["body", "belt", "ring"]},
 ]
 ## 暗金（職業專屬）
 const UNIQUES := [
@@ -133,11 +175,39 @@ const UNIQUES := [
 		"fx": {"dmg": 30, "aspd": 20}, "lines": ["傷害 +30%", "出手 +20%", "「大衛用手從囊中掏出一塊石子來，用機弦甩去」"]},
 	{"id": "troas_coat", "slot": "body", "name": "留在特羅亞的外衣", "ref": "提後 4:13", "armor": 10, "lv": 1,
 		"fx": {"life": 30, "regen": 3, "mana": 15}, "lines": ["生命 +30", "每秒回血 3", "靈力 +15", "「我在特羅亞留於加布的那件外衣，你來的時候可以帶來」"]},
+	{"id": "patmos_scroll", "slot": "weapon", "name": "拔摩島的書卷", "ref": "啟 1:11", "min": 5, "max": 10, "lv": 1,
+		"fx": {"dmg": 25, "cdr": 20}, "lines": ["傷害 +25%", "技能冷卻快 20%（約翰最合用）", "「你所看見的，當寫在書上」"]},
+	{"id": "chariot_shoes", "slot": "feet", "name": "跑到車旁的鞋", "ref": "徒 8:30", "armor": 4, "lv": 1,
+		"fx": {"move": 30, "aspd": 15, "life": 20}, "lines": ["移動 +30%", "出手 +15%（腓利最合用）", "生命 +20", "「腓利就跑到太監那裡」"]},
+	{"id": "thyatira_purple", "slot": "body", "name": "推雅推喇的紫布", "ref": "徒 16:14", "armor": 12, "lv": 1,
+		"fx": {"life": 40, "minions": 1}, "lines": ["生命 +40", "家人多 1 位、傷害 +30%（呂底亞）", "「有一個賣紫色布疋的婦人，名叫呂底亞」"]},
+	{"id": "baptist_belt", "slot": "belt", "name": "施洗約翰的皮帶", "ref": "太 3:4", "armor": 4, "lv": 1,
+		"fx": {"life": 25, "regen": 2, "armorp": 30}, "lines": ["生命 +25", "每秒回血 2", "防護 +30%", "「腰束皮帶，吃的是蝗蟲野蜜」"]},
+	{"id": "helmet_salvation", "slot": "head", "name": "救恩的頭盔", "ref": "弗 6:17", "armor": 12, "lv": 6,
+		"fx": {"lifep": 20, "cdr": 10}, "lines": ["生命 +20%", "技能冷卻快 10%", "「並戴上救恩的頭盔」"]},
+	{"id": "prodigal_ring", "slot": "ring", "name": "浪子的戒指", "ref": "路 15:22", "lv": 1,
+		"fx": {"life": 20, "mana": 20, "dmg": 15}, "lines": ["生命 +20", "靈力 +20", "傷害 +15%", "不是賺來的，是父親給的", "「把戒指戴在他指頭上」"]},
 ]
 ## 符文（希臘字母）與符文之語（新約的希臘文字）
-const RUNES := {"Φ": {"name": "Φ（Phi）", "drop": 0.03}, "Ω": {"name": "Ω（Omega）", "drop": 0.02}, "Σ": {"name": "Σ（Sigma）", "drop": 0.025},
-	"Ζ": {"name": "Ζ（Zeta）", "drop": 0.02}, "Η": {"name": "Η（Eta）", "drop": 0.018}, "Ν": {"name": "Ν（Nu）", "drop": 0.012},
-	"Ι": {"name": "Ι（Iota）", "drop": 0.018}, "Κ": {"name": "Κ（Kappa）", "drop": 0.012}}
+const RUNES := {
+	"Φ": {"name": "Φ（Phi）", "drop": 0.016, "fx": {"dmg": 5}}, "Ω": {"name": "Ω（Omega）", "drop": 0.012, "fx": {"life": 10}},
+	"Σ": {"name": "Σ（Sigma）", "drop": 0.014, "fx": {"armorp": 8}}, "Ζ": {"name": "Ζ（Zeta）", "drop": 0.012, "fx": {"regen": 1}},
+	"Η": {"name": "Η（Eta）", "drop": 0.012, "fx": {"mana": 8}}, "Ν": {"name": "Ν（Nu）", "drop": 0.01, "fx": {"aspd": 4}},
+	"Ι": {"name": "Ι（Iota）", "drop": 0.012, "fx": {"crit": 2}}, "Κ": {"name": "Κ（Kappa）", "drop": 0.01, "fx": {"move": 4}},
+	"Χ": {"name": "Χ（Chi）", "drop": 0.01, "fx": {"dmg": 6}}, "Α": {"name": "Α（Alpha）", "drop": 0.014, "fx": {"life": 12}},
+	"Ρ": {"name": "Ρ（Rho）", "drop": 0.01, "fx": {"armorp": 10}}, "Ο": {"name": "Ο（Omicron）", "drop": 0.012, "fx": {"mana": 10}},
+	"Δ": {"name": "Δ（Delta）", "drop": 0.01, "fx": {"aspd": 5}},
+	# 古老的符文（希伯來字母）：「夜裡」以後才會掉，效果也比較強
+	"א": {"name": "א（Aleph）", "drop": 0.008, "tier": 1, "fx": {"dmg": 12}}, "מ": {"name": "מ（Mem）", "drop": 0.008, "tier": 1, "fx": {"mana": 15}},
+	"ת": {"name": "ת（Tav）", "drop": 0.007, "tier": 1, "fx": {"armorp": 15}}, "ח": {"name": "ח（Het）", "drop": 0.007, "tier": 1, "fx": {"life": 25}},
+	"ס": {"name": "ס（Samekh）", "drop": 0.006, "tier": 1, "fx": {"lifep": 6}}, "ד": {"name": "ד（Dalet）", "drop": 0.007, "tier": 1, "fx": {"regen": 3}},
+	"ש": {"name": "ש（Shin）", "drop": 0.007, "tier": 1, "fx": {"cdr": 6}}, "ע": {"name": "ע（Ayin）", "drop": 0.006, "tier": 1, "fx": {"crit": 4}},
+	"ל": {"name": "ל（Lamed）", "drop": 0.006, "tier": 1, "fx": {"aspd": 8}}, "ב": {"name": "ב（Bet）", "drop": 0.006, "tier": 1, "fx": {"move": 8}},
+	"ר": {"name": "ר（Resh）", "drop": 0.006, "tier": 1, "fx": {"dmg": 10}}, "ו": {"name": "ו（Vav）", "drop": 0.007, "tier": 1, "fx": {"life": 20}},
+}
+## 效果的說明（符文、加總時用）
+const FX_DESC := {"dmg": "傷害 +%d%%", "life": "生命 +%d", "mana": "靈力 +%d", "move": "移動 +%d%%", "aspd": "出手 +%d%%", "armorp": "防護 +%d%%",
+	"regen": "每秒回血 %d", "lifep": "生命 +%d%%", "crit": "會心 +%d%%", "cdr": "技能冷卻快 %d%%", "stun": "定住機會 %d%%"}
 const RUNEWORDS := [
 	{"word": "ΦΩΣ", "slot": "weapon", "name": "光", "ref": "約 8:12",
 		"lines": ["ΦΩΣ 是新約希臘文的「光」", "傷害 +40%", "每第 3 下攻擊，往前射出一道光（穿透）", "「我是世界的光。跟從我的，就不在黑暗裡走。」"],
@@ -148,7 +218,31 @@ const RUNEWORDS := [
 	{"word": "ΝΙΚΗ", "slot": "weapon", "name": "得勝", "ref": "約壹 5:4",
 		"lines": ["ΝΙΚΗ 是新約希臘文的「得勝」", "傷害 +60%", "每一下有 10% 機會把黑暗定住 1 秒", "「使我們勝了世界的，就是我們的信心」"],
 		"fx": {"dmg": 60, "stun": 10}},
+	# 古老的符文之語：舊約的希伯來文字（照字母順序鑲：第一個字母先）
+	{"word": "אמת", "slot": "weapon", "name": "真實", "ref": "詩 119:160",
+		"lines": ["אמת 是舊約希伯來文的「真實」（古老的符文）", "傷害 +80%", "會心一擊 +15%", "「你話的總綱是真實」"],
+		"fx": {"dmg": 80, "crit": 15}},
+	{"word": "שמע", "slot": "weapon", "name": "聽", "ref": "申 6:4",
+		"lines": ["שמע 是舊約希伯來文的「聽」（古老的符文）", "技能冷卻快 30%", "靈力 +40", "傷害 +30%", "「以色列啊，你要聽！」"],
+		"fx": {"cdr": 30, "mana": 40, "dmg": 30}},
+	{"word": "ΧΑΡΑ", "slot": "body", "name": "喜樂", "ref": "加 5:22",
+		"lines": ["ΧΑΡΑ 是新約希臘文的「喜樂」", "出手 +25%", "移動 +15%", "生命 +20%", "「聖靈所結的果子，就是仁愛、喜樂、和平」"],
+		"fx": {"aspd": 25, "move": 15, "lifep": 20}},
+	{"word": "ΟΔΟΣ", "slot": "weapon", "name": "道路", "ref": "約 14:6",
+		"lines": ["ΟΔΟΣ 是新約希臘文的「道路」", "傷害 +50%", "移動 +20%", "會心 +5%", "「我就是道路」"],
+		"fx": {"dmg": 50, "move": 20, "crit": 5}},
+	{"word": "לב", "slot": "head", "name": "心", "ref": "箴 4:23",
+		"lines": ["לב 是舊約希伯來文的「心」（古老的符文）", "靈力 +30", "技能冷卻快 15%", "每秒回血 3", "「你要保守你心，勝過保守一切」"],
+		"fx": {"mana": 30, "cdr": 15, "regen": 3}},
+	{"word": "רוח", "slot": "body", "name": "靈", "ref": "亞 4:6",
+		"lines": ["רוח 是舊約希伯來文的「靈」（古老的符文）", "靈力 +60", "技能冷卻快 20%", "傷害 +20%", "「不是倚靠勢力，不是倚靠才能，乃是倚靠我的靈」"],
+		"fx": {"mana": 60, "cdr": 20, "dmg": 20}},
+	{"word": "חסד", "slot": "body", "name": "慈愛", "ref": "詩 136:1",
+		"lines": ["חסד 是舊約希伯來文的「慈愛」（古老的符文）", "生命 +50%", "防護 +30%", "每秒回血 6", "「他的慈愛永遠長存」"],
+		"fx": {"lifep": 50, "armorp": 30, "regen": 6}},
 ]
+## 一遍一遍再走：打倒公會的恐嚇就解開下一遍（像暗黑的惡夢、地獄）
+const TIERS := [{"name": "白天", "lv": 0}, {"name": "夜裡", "lv": 8}, {"name": "半夜", "lv": 16}]
 ## 被釋放的人說的話（第一次見面時）
 const FREED_LINES := ["我被懼怕綁了好多年……今天第一次覺得可以呼吸。", "原來我不是一個人。", "他們說我沒救了。你們卻來找我。",
 	"謊言在我耳邊說了一輩子，現在安靜了。", "我想跟你們回去，看看你們的教會。", "我家門口那條巷子，以後我來守。",
@@ -193,7 +287,9 @@ var newchar_confirm := ""   # 開新角色：再按一次才算
 var inv_msg := ""
 var inv_msg_until := 0.0
 var inv_test_mp := Vector2.INF   # 測試截圖：假裝滑鼠在這裡
-var pbolts: Array = []      # 保羅的書信 {pos, vel, dmg, crit, life}
+var pbolts: Array = []      # 保羅的書信、約翰的雷 {pos, vel, dmg, crit, life, kind}
+var helpers: Array = []     # 呂底亞的家人 {pos, hp, hpmax, cd, temp}
+var cloths: Array = []      # 紫布 {pos, r, t, dps}
 var talk_t := 0.0
 var talk_text := ""
 var smoke := false
@@ -244,6 +340,9 @@ func _ready() -> void:
 			P.lv = int(a.substr(5))   # 測試：直接從這個等級開始
 			_recalc()
 			P.hp = P.hpmax
+		elif a.begins_with("--tier="):
+			P.tier = int(a.substr(7))   # 測試：直接走第幾遍
+			P.tier_max = P.tier
 		elif a.begins_with("--start="):
 			zone = a.substr(8)   # 測試：直接從這一區開始
 			P.pos = Vector2(60, 240)
@@ -256,7 +355,7 @@ func _ready() -> void:
 func _new_char(cls := "peter") -> void:
 	var C: Dictionary = CLASSES[cls]
 	P = {"cls": cls, "name": C.name, "lv": 1, "xp": 0, "hp": 60.0, "mp": 30.0, "pos": Vector2(320, 260), "face": 1, "bread": 3, "water": 2,
-		"equip": {"weapon": {}, "body": {}, "feet": {}, "belt": {}}, "bag": [], "cds": {}, "buffs": {}, "slow_t": 0.0}
+		"equip": {"weapon": {}, "body": {}, "feet": {}, "belt": {}, "head": {}, "ring": {}}, "bag": [], "cds": {}, "buffs": {}, "slow_t": 0.0, "tier": 0, "tier_max": 0}
 	P.equip.weapon = _make_base("weapon", int(C.weapon), 1)
 	P.equip.body = _make_base("body", 0, 1)
 	zone = "town"
@@ -315,6 +414,11 @@ func _load() -> void:
 	P.lv = int(P.lv)
 	if not P.has("cls"):
 		P.cls = "peter"
+	for s in SLOTS:
+		if not P.equip.has(s):
+			P.equip[s] = {}
+	P.tier = int(P.get("tier", 0))
+	P.tier_max = int(P.get("tier_max", 0))
 	P.name = CLASSES[P.cls].name
 	# 舊存檔（清單式的背包）：照格子重新排；排不下的放倉庫
 	_repack(town.stash)
@@ -348,11 +452,11 @@ func _roll_item(ilvl: int, boss := false, champ := false) -> Dictionary:
 			"sockets": 0, "runes": [], "lines": U.lines, "ref": U.ref}
 		if U.has("armor"):
 			u.armor = int(U.armor) + ilvl / 2
-		else:
+		if U.has("min"):
 			u.min = int(U.min) + ilvl / 2
 			u.max = int(U.max) + ilvl
 		return u
-	var slot: String = ["weapon", "body", "feet", "belt"].pick_random()
+	var slot: String = ["weapon", "weapon", "body", "body", "feet", "belt", "head", "ring"].pick_random()
 	var cands := []
 	for i in BASES[slot].size():
 		if int(BASES[slot][i].lv) <= ilvl + 1:
@@ -361,7 +465,7 @@ func _roll_item(ilvl: int, boss := false, champ := false) -> Dictionary:
 	if it.has("min"):
 		it.min = int(it.min) + ilvl / 3
 		it.max = int(it.max) + ilvl / 2
-	if randf() < (0.6 if boss else (0.55 if champ else 0.34)):
+	if slot == "ring" or randf() < (0.6 if boss else (0.55 if champ else 0.34)):
 		# 魔法（藍色）：一到兩個詞綴
 		it.rarity = "magic"
 		var pool := AFFIXES.filter(func(A): return A.slots.has(slot))
@@ -377,10 +481,10 @@ func _roll_item(ilvl: int, boss := false, champ := false) -> Dictionary:
 			else:
 				suf = A.name
 		it.name = pre + suf + it.base if pre != "" or suf != "" else it.base
-	elif slot == "weapon" or slot == "body":
-		# 普通（白色）：可能有孔，可以鑲符文（等級高一點的武器才會有 4 個孔）
+	elif MAX_SOCKETS.has(slot):
+		# 普通（白色）：可能有孔，可以鑲符文（等級高一點的才會有 4 個孔）
 		if randf() < 0.45:
-			it.sockets = randi_range(1, 4 if slot == "weapon" and ilvl >= 3 else 3)
+			it.sockets = randi_range(1, mini(int(MAX_SOCKETS[slot]), 3 if ilvl < 3 else 4))
 			it.name = "有 %d 個孔的%s" % [it.sockets, it.base]
 	return it
 
@@ -401,9 +505,17 @@ func _item_color(it: Dictionary) -> Color:
 func _item_lines(it: Dictionary) -> Array:
 	var L := [it.name]
 	if it.rarity == "rune":
-		L.append("鑲進有孔的裝備（照順序拼字）")
-		L.append("右鍵：直接鑲進身上的武器或外衣")
-		L.append("武器 3 孔：Φ Ω Σ「光」　武器 4 孔：Ν Ι Κ Η「得勝」　外衣 3 孔：Ζ Ω Η「生命」")
+		var R: Dictionary = RUNES[it.letter]
+		if int(R.get("tier", 0)) > 0:
+			L.append("古老的符文（希伯來字母）")
+		L.append("鑲進去：" + _fx_text(R.get("fx", {})))
+		L.append("右鍵：直接鑲進身上有空孔的裝備")
+		for RW in RUNEWORDS:
+			if RW.word.contains(it.letter):
+				var seq := []
+				for ch in RW.word:
+					seq.append(str(RUNES[ch].name).get_slice("（", 1).trim_suffix("）") if int(RUNES[ch].get("tier", 0)) > 0 else ch)
+				L.append("%s %d 孔：%s →「%s」" % [SLOT_NAME[RW.slot], RW.word.length(), " → ".join(seq), RW.name])
 		return L
 	L.append(SLOT_NAME.get(it.slot, ""))
 	if it.has("min"):
@@ -419,10 +531,25 @@ func _item_lines(it: Dictionary) -> Array:
 				L.append(A.desc % int(it.mods[A.id]))
 	if int(it.get("sockets", 0)) > 0:
 		var s := ""
+		var rfx := {}
 		for i in int(it.sockets):
 			s += (str(it.runes[i]) if i < it.runes.size() else "○") + " "
+			if i < it.runes.size():
+				var F: Dictionary = RUNES[it.runes[i]].get("fx", {})
+				for k in F:
+					rfx[k] = float(rfx.get(k, 0)) + float(F[k])
 		L.append("孔：" + s)
+		if not rfx.is_empty():
+			L.append("符文：" + _fx_text(rfx))
 	return L
+
+
+func _fx_text(F: Dictionary) -> String:
+	var out := []
+	for k in F:
+		if FX_DESC.has(k):
+			out.append(FX_DESC[k] % int(F[k]))
+	return "、".join(out)
 
 
 ## 鑲符文：照順序鑲滿、拼成符文之語時，整件變成那個字
@@ -445,6 +572,14 @@ func _socket(it: Dictionary, letter: String) -> bool:
 
 
 # ---------------------------------------------------------------- 角色數值
+func _acc(M: Dictionary) -> void:
+	for k in M:
+		if P.acc.has(k):
+			P.acc[k] = float(P.acc[k]) + float(M[k])
+		elif k in ["net_big", "light", "letter2"]:
+			P.fx[k] = true
+
+
 func _recalc() -> void:
 	var C: Dictionary = CLASSES[P.get("cls", "peter")]
 	var lv := int(P.lv)
@@ -458,9 +593,13 @@ func _recalc() -> void:
 	var aspd := 0.0
 	var regen := 0.0
 	var stun := 0.0
+	var crit := 0.0
+	var cdr := 0.0
+	var minions := 0
 	var wmin := 2.0
 	var wmax := 4.0
 	P.fx = {}
+	P.acc = {"life": 0.0, "mana": 0.0, "dmg": 0.0, "move": 0.0, "armorp": 0.0, "lifep": 0.0, "aspd": 0.0, "regen": 0.0, "stun": 0.0, "crit": 0.0, "cdr": 0.0, "minions": 0.0}
 	for s in P.equip:
 		var it: Dictionary = P.equip[s]
 		if it.is_empty():
@@ -469,28 +608,35 @@ func _recalc() -> void:
 			wmin = float(it.min)
 			wmax = float(it.max)
 		armor += float(it.get("armor", 0))
-		var M: Dictionary = it.mods
-		life += float(M.get("life", 0))
-		mana += float(M.get("mana", 0))
-		dmgp += float(M.get("dmg", 0))
-		move += float(M.get("move", 0))
-		armorp += float(M.get("armorp", 0))
-		lifep += float(M.get("lifep", 0))
-		aspd += float(M.get("aspd", 0))
-		regen += float(M.get("regen", 0))
-		stun += float(M.get("stun", 0))
-		for k in M:
-			if k in ["net_big", "light", "letter2"]:
-				P.fx[k] = true
+		# 裝備本身的詞綴，加上鑲進去的每一個符文（像暗黑：符文自己也有效果）
+		_acc(it.mods)
+		for r in it.get("runes", []):
+			_acc(RUNES[r].get("fx", {}))
+	var A: Dictionary = P.acc
+	life += A.life
+	mana += A.mana
+	dmgp += A.dmg
+	move += A.move
+	armorp += A.armorp
+	lifep += A.lifep
+	aspd += A.aspd
+	regen += A.regen
+	stun += A.stun
+	crit += A.crit
+	cdr += A.cdr
+	minions += int(A.minions)
 	P.hpmax = life * (1.0 + lifep / 100.0)
 	P.mpmax = mana
 	P.dmin = (wmin + lv * 0.8) * (1.0 + dmgp / 100.0)
 	P.dmax = (wmax + lv * 1.2) * (1.0 + dmgp / 100.0)
 	P.armor = armor * (1.0 + armorp / 100.0)
-	P.speed = 70.0 * (1.0 + move / 100.0)
+	P.speed = 70.0 * float(C.get("speed", 1.0)) * (1.0 + move / 100.0)
+	P.minions = minions
 	P.aspd = aspd
 	P.regen = regen
 	P.stunp = stun
+	P.crit = crit
+	P.cdr = minf(cdr, 60.0)
 	P.hp = minf(float(P.get("hp", P.hpmax)), float(P.hpmax))
 	P.mp = minf(float(P.get("mp", P.mpmax)), float(P.mpmax))
 
@@ -525,7 +671,10 @@ func _enter(z: String, at: Vector2) -> void:
 	drops.clear()
 	shots.clear()
 	pbolts.clear()
+	cloths.clear()
 	fxs.clear()
+	for h in helpers:
+		h.pos = at + Vector2(randf_range(-20, 20), randf_range(-10, 10))
 	walkers.clear()
 	move_target = Vector2.INF
 	attack_target = null
@@ -537,23 +686,32 @@ func _enter(z: String, at: Vector2) -> void:
 		# 公會：Boss 在右邊，其他的群擺在左半邊
 		var hi: Vector2 = Z.size - Vector2(80, 60) if not Z.get("boss", false) else Vector2(330, Z.size.y - 60)
 		var pp := _free_spot(Vector2(140, 60), hi)
-		_spawn_pack(pp, int(Z.lvl), z == "alley" and i == int(Z.packs) - 1)
+		_spawn_pack(pp, int(Z.lvl) + _tier_lv(), z == "alley" and i == int(Z.packs) - 1)
 	if Z.get("boss", false):
 		var bp := Vector2(Z.size.x * 0.65, Z.size.y * 0.5)
 		packs.append({"pos": bp + Vector2(60, 0), "alive": 1, "freed": false, "tint": _tint(), "line": "公會裡的一位年輕人：「我一直以為……他們說的就是對的。」", "boss": true})
-		_spawn_mob("council", bp, packs.size() - 1, int(Z.lvl))
+		_spawn_mob("council", bp, packs.size() - 1, int(Z.lvl) + _tier_lv())
 	if z == "town":
 		_say("耶路撒冷・所羅門的廊下：被釋放的人 %d 位" % town.freed.size(), 3.0)
 		P.hp = P.hpmax
 		P.mp = P.mpmax
 	else:
-		_say(Z.name, 2.0)
+		_say(_zname(), 2.0)
 	cam.limit_left = 0
 	cam.limit_top = -16
 	cam.limit_right = int(Z.size.x)
 	cam.limit_bottom = int(Z.size.y) + 16
 	cam.position = P.pos
 	cam.reset_smoothing()
+
+
+func _tier_lv() -> int:
+	return int(TIERS[int(P.get("tier", 0))].lv)
+
+
+func _zname() -> String:
+	var tr := int(P.get("tier", 0))
+	return ZONES[zone].name + ("（%s）" % TIERS[tr].name if tr > 0 and zone != "town" else "")
 
 
 func _tint() -> Color:
@@ -608,7 +766,8 @@ func _spawn_pack(at: Vector2, lvl: int, elite: bool) -> void:
 
 func _spawn_mob(key: String, at: Vector2, pack: int, lvl: int, champ := "") -> void:
 	var S: Dictionary = SPIRITS[key]
-	var k := (1.0 + (lvl - 1) * 0.28) * 1.3
+	var tk := 1.0 + 0.25 * int(P.get("tier", 0))   # 夜裡、半夜：等級之外再強一點
+	var k := (1.0 + (lvl - 1) * 0.28) * 1.3 * tk
 	var hp := float(S.hp) * k
 	var spd := float(S.spd)
 	var cdk := 1.0
@@ -617,7 +776,7 @@ func _spawn_mob(key: String, at: Vector2, pack: int, lvl: int, champ := "") -> v
 	if champ == "fast":
 		spd *= 1.6
 		cdk = 0.7
-	mobs.append({"key": key, "pos": at, "home": at, "hp": hp, "hpmax": hp, "dmg": float(S.dmg) * (1.0 + (lvl - 1) * 0.2) * 1.3, "spd": spd,
+	mobs.append({"key": key, "pos": at, "home": at, "hp": hp, "hpmax": hp, "dmg": float(S.dmg) * (1.0 + (lvl - 1) * 0.2) * 1.3 * tk, "spd": spd,
 		"cd": randf_range(0.5, 1.5), "wind": 0.0, "pack": pack, "stun": 0.0, "hit_t": 0.0, "lvl": lvl, "aggro": false, "vel": Vector2.ZERO,
 		"phase": 0, "dead": false, "champ": champ, "cdk": cdk, "confuse": 0.0, "dot_t": 0.0, "dot_dps": 0.0})
 	packs[pack].alive = int(packs[pack].alive) + 1
@@ -744,7 +903,7 @@ func _update_player(dt: float) -> void:
 		P.buffs[k] = float(P.buffs[k]) - dt
 		if P.buffs[k] <= 0.0:
 			P.buffs.erase(k)
-	P.mp = minf(float(P.mpmax), float(P.mp) + dt * (1.5 + int(P.lv) * 0.15))
+	P.mp = minf(float(P.mpmax), float(P.mp) + dt * (1.5 + int(P.lv) * 0.15) * (3.0 if float(P.buffs.get("abide", 0.0)) > 0.0 else 1.0))
 	if float(P.buffs.get("bread", 0.0)) > 0.0:
 		P.hp = minf(float(P.hpmax), float(P.hp) + float(P.hpmax) * 0.5 / 3.0 * dt)
 	if float(P.buffs.get("water", 0.0)) > 0.0:
@@ -805,7 +964,7 @@ func _update_player(dt: float) -> void:
 
 
 func _step(dir: Vector2, dt: float) -> void:
-	var sp := float(P.speed) * (0.55 if float(P.get("slow_t", 0.0)) > 0.0 else 1.0)
+	var sp := float(P.speed) * (0.55 if float(P.get("slow_t", 0.0)) > 0.0 else 1.0) * (1.5 if float(P.buffs.get("south", 0.0)) > 0.0 else 1.0)
 	P.pos = _collide(P.pos + dir * sp * dt, 5.0)
 	if absf(dir.x) > 0.1:
 		P.face = 1 if dir.x > 0 else -1
@@ -836,17 +995,22 @@ func _click(wp: Vector2, right: bool) -> void:
 
 func _swing(m: Dictionary) -> void:
 	var ranged: bool = CLASSES[P.cls].ranged
-	attack_cd = (0.6 if ranged else 0.55) / (1.0 + float(P.get("aspd", 0.0)) / 100.0)
+	var C: Dictionary = CLASSES[P.cls]
+	var aspd := float(P.get("aspd", 0.0)) + (30.0 if float(P.buffs.get("south", 0.0)) > 0.0 else 0.0)
+	attack_cd = float(C.get("acd", 0.55)) / (1.0 + aspd / 100.0)
 	swing_n += 1
 	P.face = 1 if m.pos.x > P.pos.x else -1
 	var dmg := randf_range(float(P.dmin), float(P.dmax))
-	var crit := randf() < 0.08
+	var crit := randf() < 0.08 + float(P.get("crit", 0.0)) / 100.0
 	if crit:
 		dmg *= 2.0
 	var dir: Vector2 = (m.pos - P.pos).normalized()
 	if ranged:
-		# 保羅：寫一封書信射出去
-		_bolt(dir * 220.0, dmg, crit, 0.7)
+		# 保羅：寫一封書信射出去；約翰：一道雷（打中會跳到旁邊的黑暗）
+		if C.get("bolt", "") == "thunder":
+			_bolt(dir * 260.0, dmg * 1.15, crit, 0.6, "thunder")
+		else:
+			_bolt(dir * 220.0, dmg, crit, 0.7)
 		if P.fx.get("letter2", false):
 			_bolt(dir.rotated(0.2) * 220.0, dmg * 0.7, false, 0.7)
 		Sfx.play("link1", 0.08)
@@ -862,8 +1026,8 @@ func _swing(m: Dictionary) -> void:
 				_hurt(o, dmg * 1.5, false)
 
 
-func _bolt(vel: Vector2, dmg: float, crit: bool, life: float) -> void:
-	pbolts.append({"pos": P.pos + Vector2(0, -10), "vel": vel, "dmg": dmg, "crit": crit, "life": life})
+func _bolt(vel: Vector2, dmg: float, crit: bool, life: float, kind := "letter") -> void:
+	pbolts.append({"pos": P.pos + Vector2(0, -10), "vel": vel, "dmg": dmg, "crit": crit, "life": life, "kind": kind})
 
 
 ## 玩家的普通攻擊打中：「得勝」有機會把黑暗定住
@@ -898,7 +1062,7 @@ func _cast(id: String, at: Vector2) -> void:
 		_float(P.pos + Vector2(0, -30), "靈力不夠", C_MAGIC)
 		return
 	P.mp = float(P.mp) - float(S.mp)
-	var cd := float(S.cd)
+	var cd := float(S.cd) * (1.0 - float(P.get("cdr", 0.0)) / 100.0)
 	var base := (float(P.dmin) + float(P.dmax)) * 0.5
 	match id:
 		"haul":
@@ -975,6 +1139,95 @@ func _cast(id: String, at: Vector2) -> void:
 			P.buffs.grace = 2.0
 			fxs.append({"kind": "ring", "pos": P.pos, "r": 36.0, "t": 0.0, "max": 0.6, "col": C_GOLD})
 			Sfx.play("heal", 0.0)
+		"thunder":
+			if at.distance_to(P.pos) > 180.0:
+				at = P.pos + (at - P.pos).normalized() * 180.0
+			fxs.append({"kind": "strike", "pos": at, "t": 0.0, "max": 0.35})
+			for m in mobs:
+				if not m.dead and m.pos.distance_to(at) < 28.0:
+					m.stun = maxf(m.stun, 0.3)
+					_hurt(m, base * 1.6, false)
+			Sfx.play("shatter", 0.05)
+		"lamps":
+			P.buffs.lamps = 6.0
+			Sfx.play("holy", 0.0)
+		"abide":
+			P.buffs.abide = 6.0
+			fxs.append({"kind": "ring", "pos": P.pos, "r": 34.0, "t": 0.0, "max": 0.6, "col": Color("7af0a0")})
+			Sfx.play("heal", 0.0)
+		"seven":
+			var near: Array = mobs.filter(func(o): return not o.dead and o.pos.distance_to(P.pos) < 180.0)
+			near.shuffle()
+			for o in near.slice(0, 7):
+				fxs.append({"kind": "strike", "pos": o.pos, "t": 0.0, "max": 0.35})
+				o.stun = maxf(o.stun, 0.3)
+				_hurt(o, base * 2.0, false)
+			shake_t = 0.2
+			Sfx.play("shatter", 0.0)
+		"run":
+			if at.distance_to(P.pos) > 110.0:
+				at = P.pos + (at - P.pos).normalized() * 110.0
+			var end := _collide(at, 5.0)
+			fxs.append({"kind": "dash", "pos": P.pos, "to": end, "t": 0.0, "max": 0.25, "col": C_GOLD})
+			for m in mobs:
+				if not m.dead and _seg_hit(P.pos, end, m.pos, 16.0):
+					_hurt(m, base * 1.2, false)
+			P.pos = end
+			attack_target = null
+			move_target = Vector2.INF
+			Sfx.play("hit", 0.05)
+		"south":
+			P.buffs.south = 5.0
+			fxs.append({"kind": "ring", "pos": P.pos, "r": 26.0, "t": 0.0, "max": 0.4, "col": C_GOLD})
+			Sfx.play("shield", 0.0)
+		"baptize":
+			fxs.append({"kind": "splash", "pos": P.pos, "r": 60.0, "t": 0.0, "max": 0.5})
+			for m in mobs:
+				if not m.dead and m.pos.distance_to(P.pos) < 60.0:
+					_hurt(m, base * 1.8, false)
+					if not SPIRITS[m.key].get("boss", false):
+						m.pos = _collide(m.pos + (m.pos - P.pos).normalized() * 30.0, 5.0)
+			P.hp = minf(float(P.hpmax), float(P.hp) + float(P.hpmax) * 0.15)
+			Sfx.play("splash", 0.0)
+		"caught":
+			if at.distance_to(P.pos) > 200.0:
+				at = P.pos + (at - P.pos).normalized() * 200.0
+			fxs.append({"kind": "poof", "pos": P.pos, "t": 0.0, "max": 0.4})
+			P.pos = _collide(at, 5.0)
+			P.buffs.grace = maxf(float(P.buffs.get("grace", 0.0)), 0.8)
+			attack_target = null
+			move_target = Vector2.INF
+			fxs.append({"kind": "splash", "pos": P.pos, "r": 50.0, "t": 0.0, "max": 0.5})
+			for m in mobs:
+				if not m.dead and m.pos.distance_to(P.pos) < 50.0:
+					_hurt(m, base * 2.5, false)
+			Sfx.play("holy", 0.0)
+		"household":
+			var cap := 2 + int(P.lv) / 5 + int(P.get("minions", 0))
+			var perm := helpers.filter(func(h): return not h.has("temp"))
+			if perm.size() < cap:
+				_add_helper(-1.0)
+			else:
+				for h in helpers:
+					h.hp = h.hpmax
+				_float(P.pos + Vector2(0, -30), "家人都好了", Color("d8b0ff"))
+			Sfx.play("heal", 0.0)
+		"purple":
+			if at.distance_to(P.pos) > 160.0:
+				at = P.pos + (at - P.pos).normalized() * 160.0
+			cloths.append({"pos": at, "r": 40.0, "t": 5.0, "dps": base * 0.6})
+			Sfx.play("persuade", 0.0)
+		"river":
+			P.hp = minf(float(P.hpmax), float(P.hp) + float(P.hpmax) * 0.3)
+			for h in helpers:
+				h.hp = h.hpmax
+			P.buffs.river = 8.0
+			fxs.append({"kind": "splash", "pos": P.pos, "r": 40.0, "t": 0.0, "max": 0.5})
+			Sfx.play("heal", 0.0)
+		"heart":
+			for i in 3:
+				_add_helper(12.0)
+			Sfx.play("holy", 0.0)
 		"fight":
 			for w in 3:
 				for i in 12:
@@ -1034,6 +1287,11 @@ func _hud_click(sp: Vector2) -> bool:
 	if sp.distance_to(Vector2(vs.x - 34, vs.y - 34)) < 30.0 or Rect2(vs.x - 120, vs.y - 24, 60, 20).has_point(sp):
 		_eat("water")
 		return true
+	if zone == "town" and int(P.tier_max) > 0 and Rect2(vs.x - 70, 30, 66, 20).has_point(sp):
+		P.tier = (int(P.tier) + 1) % (int(P.tier_max) + 1)
+		_say("這一趟走「%s」%s" % [TIERS[P.tier].name, "（黑暗 +%d 級）" % _tier_lv() if int(P.tier) > 0 else ""], 3.0)
+		_save()
+		return true
 	if Rect2(vs.x - 70, 4, 66, 22).has_point(sp):
 		_toggle_inv()
 		return true
@@ -1046,6 +1304,7 @@ func _update_mobs(dt: float) -> void:
 		if m.dead:
 			continue
 		m.hit_t = maxf(0.0, m.hit_t - dt)
+		m.slow_t = float(m.get("slow_t", 0.0)) - dt
 		var S: Dictionary = SPIRITS[m.key]
 		# 被責備：慢慢受傷
 		if float(m.dot_t) > 0.0:
@@ -1076,8 +1335,8 @@ func _update_mobs(dt: float) -> void:
 			P.slow_t = maxf(float(P.get("slow_t", 0.0)), 0.3)
 		var target: Vector2 = P.pos
 		# 陪你的人也會被打
-		if not escorts.is_empty() and float(P.buffs.get("rock", 0.0)) <= 0.0:
-			for e in escorts:
+		if not (escorts.is_empty() and helpers.is_empty()) and float(P.buffs.get("rock", 0.0)) <= 0.0:
+			for e in escorts + helpers:
 				if e.pos.distance_to(m.pos) < d - 20.0:
 					target = e.pos
 		if not m.aggro or float(P.hp) <= 0.0:
@@ -1094,7 +1353,7 @@ func _update_mobs(dt: float) -> void:
 			continue
 		var dd: float = m.pos.distance_to(target)
 		if dd > float(S.range):
-			m.pos = _collide(m.pos + (target - m.pos).normalized() * float(m.spd) * dt, 5.0)
+			m.pos = _collide(m.pos + (target - m.pos).normalized() * float(m.spd) * (0.5 if float(m.get("slow_t", 0.0)) > 0.0 else 1.0) * dt, 5.0)
 		elif m.cd <= 0.0:
 			m.cd = float(S.cd) * float(m.cdk)
 			m.aim = target
@@ -1185,7 +1444,7 @@ func _mob_strike(m: Dictionary) -> void:
 		if aim.distance_to(P.pos) < 4.0:
 			_hit_player(m.dmg, m)
 		else:
-			for e in escorts:
+			for e in escorts + helpers:
 				if e.pos.distance_to(aim) < 6.0:
 					e.hp = float(e.hp) - m.dmg
 
@@ -1205,6 +1464,8 @@ func _hit_player(n: float, src) -> void:
 	n *= 100.0 / (100.0 + float(P.armor) * 4.0)
 	if float(P.buffs.get("rock", 0.0)) > 0.0:
 		n *= 0.5
+	if float(P.buffs.get("abide", 0.0)) > 0.0:
+		n *= 0.7
 	P.hp = float(P.hp) - n
 	_float(P.pos + Vector2(0, -28), str(roundi(n)), C_RED)
 	Sfx.play("hurt", 0.05)
@@ -1264,6 +1525,9 @@ func _kill(m: Dictionary) -> void:
 	if boss:
 		stats.boss = int(stats.get("boss", 0)) + 1
 		_say("公會的恐嚇退去了。彼得和約翰說：「聽從你們，不聽從神，這在神面前合理不合理？」（徒 4:19）", 5.0)
+		if int(P.tier) == int(P.tier_max) and int(P.tier_max) < TIERS.size() - 1:
+			P.tier_max = int(P.tier_max) + 1
+			_say("公會的恐嚇退去了（徒 4:19）。解開「%s」：回城後點右上角切換──黑暗更強，會掉古老的希伯來文符文" % TIERS[P.tier_max].name, 7.0)
 	if randf() < (1.0 if boss else (0.6 if S.get("elite", false) else (0.45 if champ != "" else 0.16))):
 		for i in (3 if boss else 1):
 			_drop(m.pos + Vector2(randf_range(-14, 14), randf_range(-8, 8)), _roll_item(ilvl + (1 if champ != "" else 0), boss, champ != ""))
@@ -1272,7 +1536,10 @@ func _kill(m: Dictionary) -> void:
 	elif randf() < 0.06:
 		_drop(m.pos + Vector2(randf_range(-10, 10), 4), {"slot": "food", "rarity": "food", "food": "water", "name": "水"})
 	for L in RUNES:
-		if randf() < float(RUNES[L].drop) * (4.0 if boss else (2.0 if S.get("elite", false) or champ != "" else 1.0)):
+		var rt := int(RUNES[L].get("tier", 0))
+		if rt > int(P.tier):
+			continue
+		if randf() < float(RUNES[L].drop) * (float(P.tier) if rt > 0 else 1.0) * (4.0 if boss else (2.0 if S.get("elite", false) or champ != "" else 1.0)):
 			_drop(m.pos + Vector2(randf_range(-10, 10), 6), _rune_item(L))
 	var pk: Dictionary = packs[int(m.pack)]
 	pk.alive = int(pk.alive) - 1
@@ -1295,7 +1562,7 @@ func _free_person(pk: Dictionary) -> void:
 	talk_t = 4.0
 	town.freed.append({"name": who, "line": line, "tint": [pk.tint.r, pk.tint.g, pk.tint.b], "from": ZONES[zone].name})
 	walkers.append({"pos": pk.pos, "tint": pk.tint, "t": 0.0})
-	_gain_xp(10 * int(ZONES[zone].lvl))
+	_gain_xp(10 * (int(ZONES[zone].lvl) + _tier_lv()))
 	_save()
 
 
@@ -1327,6 +1594,9 @@ func _pickup(dr: Dictionary) -> void:
 		return
 	drops.erase(dr)
 	_fit(P.bag, dr.item)
+	if dr.item.rarity == "rune":
+		var rk := "heb" if int(RUNES[dr.item.letter].get("tier", 0)) > 0 else "greek"
+		stats[rk] = int(stats.get(rk, 0)) + 1
 	_float(dr.pos + Vector2(0, -12), dr.item.name, _item_color(dr.item))
 	Sfx.play("gem", 0.0)
 	if bot:
@@ -1364,6 +1634,7 @@ func _die() -> void:
 	P.mp = P.mpmax
 	_enter("town", Vector2(320, 260))
 	pbolts.clear()
+	helpers.clear()
 	escorts.clear()
 	var n := mini(5, 1 + town.freed.size() / 3)
 	for i in n:
@@ -1414,6 +1685,13 @@ func _update_misc(dt: float) -> void:
 			if not m.dead and (m.pos + Vector2(0, -8)).distance_to(b.pos) < 10.0 + (14.0 if SPIRITS[m.key].get("boss", false) else 0.0):
 				_strike(m, float(b.dmg), b.crit)
 				b.life = 0.0
+				if b.get("kind", "") == "thunder":
+					# 雷跳到旁邊一個黑暗
+					for o in mobs:
+						if not o.dead and not is_same(o, m) and o.pos.distance_to(m.pos) < 60.0:
+							fxs.append({"kind": "link", "pos": m.pos + Vector2(0, -8), "to": o.pos + Vector2(0, -8), "t": 0.0, "max": 0.25, "col": Color("9fd0ff")})
+							_hurt(o, float(b.dmg) * 0.6, false)
+							break
 				break
 	pbolts = pbolts.filter(func(b): return b.life > 0.0)
 	for f in fxs:
@@ -1451,6 +1729,50 @@ func _update_misc(dt: float) -> void:
 		else:
 			e.pos = e.pos.move_toward(slot, dt * 70.0)
 	escorts = escorts.filter(func(e): return float(e.hp) > 0.0)
+	# 呂底亞的家人：跟著你，打附近的黑暗
+	var hdmg := (3.0 + int(P.lv) * 1.2) * (1.5 if float(P.buffs.get("river", 0.0)) > 0.0 else 1.0) * (1.0 + 0.3 * int(P.get("minions", 0)))
+	for h in helpers:
+		h.cd = float(h.cd) - dt
+		if h.has("temp"):
+			h.temp = float(h.temp) - dt
+		if h.pos.distance_to(P.pos) > 260.0:
+			h.pos = P.pos + Vector2(randf_range(-20, 20), randf_range(-10, 10))
+		var tgt = null
+		var bd := 90.0
+		for m in mobs:
+			if not m.dead and m.pos.distance_to(h.pos) < bd and m.pos.distance_to(P.pos) < 160.0:
+				bd = m.pos.distance_to(h.pos)
+				tgt = m
+		if tgt != null:
+			if bd > 15.0:
+				h.pos = _collide(h.pos + (tgt.pos - h.pos).normalized() * 62.0 * dt, 5.0)
+			elif h.cd <= 0.0:
+				h.cd = 0.7
+				fxs.append({"kind": "swing", "pos": h.pos + Vector2(0, -8), "t": 0.0, "max": 0.18, "face": 1 if tgt.pos.x > h.pos.x else -1})
+				_hurt(tgt, hdmg, false)
+		else:
+			var slot: Vector2 = P.pos + Vector2.from_angle(helpers.find(h) * 1.1 + 2.0) * 26.0
+			h.pos = h.pos.move_toward(slot, dt * 80.0)
+	helpers = helpers.filter(func(h): return float(h.hp) > 0.0 and float(h.get("temp", 1.0)) > 0.0)
+	# 紫布：上面的黑暗變慢、受傷
+	for c in cloths:
+		c.t = float(c.t) - dt
+		for m in mobs:
+			if not m.dead and m.pos.distance_to(c.pos) < float(c.r):
+				m.slow_t = 0.2
+				m.hp -= float(c.dps) * dt
+				if m.hp <= 0.0:
+					_kill(m)
+	cloths = cloths.filter(func(c): return float(c.t) > 0.0)
+	# 七盞火燈：繞著你轉
+	if float(P.buffs.get("lamps", 0.0)) > 0.0:
+		var ldmg := (float(P.dmin) + float(P.dmax)) * 0.25
+		for i in 7:
+			var lp: Vector2 = P.pos + Vector2(0, -8) + Vector2.from_angle(t * 2.5 + i * TAU / 7.0) * 36.0
+			for m in mobs:
+				if not m.dead and (m.pos + Vector2(0, -8)).distance_to(lp) < 10.0 and float(m.get("lamp_t", 0.0)) <= t:
+					m.lamp_t = t + 0.4
+					_hurt(m, ldmg, false)
 
 
 ## 光源：彼得（穿著「光」更亮）、城裡的燈、被釋放的人、地上的寶、出口
@@ -1474,7 +1796,7 @@ func _update_light() -> void:
 		add.call((ex.rect as Rect2).get_center(), 60.0, 0.7)
 	for w in walkers:
 		add.call(w.pos + Vector2(0, -10), 30.0, 0.8)
-	for e in escorts:
+	for e in escorts + helpers:
 		add.call(e.pos + Vector2(0, -10), 30.0, 0.8)
 	for f in fxs:
 		if f.kind == "chains":
@@ -1489,7 +1811,7 @@ func _update_light() -> void:
 	dark_mat.set_shader_parameter("L", PackedVector4Array(arr))
 	dark_mat.set_shader_parameter("n", 16)
 	dark_mat.set_shader_parameter("aspect", vs.x / vs.y)
-	dark_mat.set_shader_parameter("dark", float(DARKNESS.get(zone, 0.5)))
+	dark_mat.set_shader_parameter("dark", minf(0.9, float(DARKNESS.get(zone, 0.5)) + (0.06 * int(P.tier) if zone != "town" else 0.0)))
 
 
 func _float(at: Vector2, text: String, col: Color) -> void:
@@ -1507,6 +1829,16 @@ func _say(s: String, sec: float) -> void:
 
 
 ## 第一次遇到：說一句（整個帳號只說一次）
+func _add_helper(temp: float) -> void:
+	var hp := 30.0 + int(P.lv) * 8.0
+	var h := {"pos": P.pos + Vector2.from_angle(randf() * TAU) * 16.0, "hp": hp, "hpmax": hp, "cd": 0.3,
+		"tint": Color.from_hsv(randf_range(0.7, 0.85), randf_range(0.15, 0.3), 1.0)}
+	if temp > 0.0:
+		h.temp = temp
+	helpers.append(h)
+	fxs.append({"kind": "ring", "pos": h.pos, "r": 18.0, "t": 0.0, "max": 0.4, "col": Color("d8b0ff")})
+
+
 func _tip(k: String) -> void:
 	if not TIPS.has(k) or town.seen.has(k):
 		return
@@ -1546,7 +1878,7 @@ func _draw() -> void:
 		items.append({"y": pk.pos.y, "k": "pack", "o": pk})
 	for m in mobs:
 		items.append({"y": m.pos.y, "k": "mob", "o": m})
-	for e in escorts:
+	for e in escorts + helpers:
 		items.append({"y": e.pos.y, "k": "esc", "o": e})
 	for w in walkers:
 		items.append({"y": w.pos.y, "k": "walk", "o": w})
@@ -1556,6 +1888,12 @@ func _draw() -> void:
 		var dt2 := _tex(dc.tex)
 		if dt2:
 			draw_texture(dt2, dc.pos)
+	for c in cloths:
+		var ca := minf(1.0, float(c.t)) * 0.35
+		draw_set_transform(c.pos, 0.0, Vector2(1.0, 0.55))
+		draw_circle(Vector2.ZERO, float(c.r), Color(0.5, 0.15, 0.55, ca))
+		draw_arc(Vector2.ZERO, float(c.r), 0, TAU, 28, Color(0.75, 0.4, 0.85, ca * 2.0), 1.5)
+		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	for dr in drops:
 		_draw_drop(dr)
 	for it in items:
@@ -1582,9 +1920,24 @@ func _draw() -> void:
 		else:
 			draw_circle(s.pos, 3.0, Color("6e8a48"))
 			draw_circle(s.pos, 1.5, Color("c8e070"))
+	if float(P.buffs.get("lamps", 0.0)) > 0.0:
+		for i in 7:
+			var lp: Vector2 = P.pos + Vector2(0, -8) + Vector2.from_angle(t * 2.5 + i * TAU / 7.0) * 36.0
+			draw_circle(lp, 3.0, Color(1.0, 0.6, 0.2, 0.9))
+			draw_circle(lp + Vector2(0, -1), 1.5, Color(1.0, 0.95, 0.6))
 	for b in pbolts:
-		# 書信：一小卷羊皮紙
 		var bp: Vector2 = (b.pos as Vector2).round()
+		if b.get("kind", "") == "thunder":
+			# 雷：一小道鋸齒狀的藍光
+			var bd: Vector2 = (b.vel as Vector2).normalized()
+			var q := bp - bd * 8.0
+			for k in 3:
+				var q2: Vector2 = q + bd * 3.0 + bd.orthogonal() * (2.0 if k % 2 == 0 else -2.0)
+				draw_line(q, q2, Color("cfe8ff"), 1.5)
+				q = q2
+			draw_circle(bp, 2.0, Color("9fd0ff"))
+			continue
+		# 書信：一小卷羊皮紙
 		draw_rect(Rect2(bp - Vector2(3, 2), Vector2(6, 4)), Color("f4ead2"))
 		draw_rect(Rect2(bp - Vector2(2, 1), Vector2(4, 1)), Color("6a4a30"))
 		draw_rect(Rect2(bp - (b.vel as Vector2).normalized() * 6.0 - Vector2(1, 1), Vector2(2, 2)), Color(C_GOLD, 0.5))
@@ -1750,7 +2103,16 @@ func _draw_fx(f: Dictionary) -> void:
 		"ring":
 			draw_arc(f.pos, f.r * (0.4 + 0.6 * k), 0, TAU, 32, Color(f.col, 1.0 - k), 2.0)
 		"dash":
-			draw_line(f.pos, f.to, Color(C_RED, 1.0 - k), 4.0)
+			draw_line(f.pos, f.to, Color(f.get("col", C_RED), 1.0 - k), 4.0)
+		"strike":
+			# 一道雷從天上打下來
+			var top: Vector2 = f.pos + Vector2(6, -90)
+			var q: Vector2 = top
+			for i in 6:
+				var q2: Vector2 = top.lerp(f.pos, (i + 1) / 6.0) + Vector2((4.0 if i % 2 == 0 else -4.0), 0)
+				draw_line(q, q2, Color(Color("dff0ff"), 1.0 - k), 2.0)
+				q = q2
+			draw_circle(f.pos, 14.0 * (1.0 - k), Color(0.6, 0.85, 1.0, 0.4 * (1.0 - k)))
 		"beam":
 			draw_line(f.pos, f.pos + f.dir * f.len, Color(C_CREAM, 1.0 - k), 5.0)
 			draw_line(f.pos, f.pos + f.dir * f.len, Color(C_GOLD, 1.0 - k), 2.0)
@@ -1838,8 +2200,12 @@ func _draw_hud() -> void:
 	hud.draw_rect(Rect2(x0, vs.y - 44.0, 4 * 34.0 - 4.0, 3), Color(0, 0, 0, 0.6))
 	hud.draw_rect(Rect2(x0, vs.y - 44.0, (4 * 34.0 - 4.0) * float(P.xp) / float(need), 3), C_GOLD)
 	# 左上：地點、等級、城
-	hud.draw_string_outline(f, Vector2(8, 16), "%s　%s Lv%d" % [ZONES[zone].name, P.name, int(P.lv)], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
-	hud.draw_string(f, Vector2(8, 16), "%s　%s Lv%d" % [ZONES[zone].name, P.name, int(P.lv)], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, C_GOLD)
+	hud.draw_string_outline(f, Vector2(8, 16), "%s　%s Lv%d" % [_zname(), P.name, int(P.lv)], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, 3, Color.BLACK)
+	hud.draw_string(f, Vector2(8, 16), "%s　%s Lv%d" % [_zname(), P.name, int(P.lv)], HORIZONTAL_ALIGNMENT_LEFT, -1, 12, C_GOLD)
+	if zone == "town" and int(P.tier_max) > 0:
+		hud.draw_rect(Rect2(vs.x - 70, 30, 66, 20), Color("140c10"))
+		hud.draw_rect(Rect2(vs.x - 70, 30, 66, 20), Color("8fb0ff"), false, 1.0)
+		hud.draw_string(f, Vector2(vs.x - 64, 44), "走：%s ▸" % TIERS[int(P.tier)].name, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, C_CREAM)
 	hud.draw_string_outline(f, Vector2(8, 32), "被釋放的人 %d　（I 背包、T 回城、空白鍵撿東西）" % town.freed.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 3, Color.BLACK)
 	hud.draw_string(f, Vector2(8, 32), "被釋放的人 %d　（I 背包、T 回城、空白鍵撿東西）" % town.freed.size(), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, C_INK)
 	hud.draw_rect(Rect2(vs.x - 70, 4, 66, 22), Color("140c10"))
@@ -1919,6 +2285,7 @@ func _isize(it: Dictionary) -> Vector2i:
 		"body": return Vector2i(2, 3)
 		"feet": return Vector2i(2, 2)
 		"belt": return Vector2i(2, 1)
+		"head": return Vector2i(2, 2)
 	return Vector2i(1, 1)
 
 
@@ -1996,13 +2363,19 @@ func _inv_o() -> Vector2:
 	return ((get_viewport_rect().size - Vector2(608, 328)) / 2.0).floor()
 
 
+func _class_btn(i: int) -> Rect2:
+	return Rect2(_inv_o() + Vector2(130 + i * 50, 302), Vector2(46, 18))
+
+
 func _eq_rect(s: String) -> Rect2:
 	var o := _inv_o()
 	match s:
-		"weapon": return Rect2(o + Vector2(14, 44), Vector2(40, 60))
-		"body": return Rect2(o + Vector2(60, 44), Vector2(40, 60))
-		"feet": return Rect2(o + Vector2(106, 44), Vector2(40, 40))
-		"belt": return Rect2(o + Vector2(60, 112), Vector2(40, 20))
+		"head": return Rect2(o + Vector2(60, 36), Vector2(40, 40))
+		"ring": return Rect2(o + Vector2(114, 52), Vector2(20, 20))
+		"weapon": return Rect2(o + Vector2(14, 82), Vector2(40, 60))
+		"body": return Rect2(o + Vector2(60, 82), Vector2(40, 60))
+		"feet": return Rect2(o + Vector2(106, 102), Vector2(40, 40))
+		"belt": return Rect2(o + Vector2(60, 148), Vector2(40, 20))
 	return Rect2()
 
 
@@ -2029,10 +2402,12 @@ func _inv_hit(mp: Vector2) -> Dictionary:
 			return {"w": g[0], "it": {}, "org": org, "list": g[2]}
 	if zone == "town" and Rect2(o + Vector2(160, 250), Vector2(200, 24)).has_point(mp):
 		return {"w": "craft"}
-	if zone == "town" and Rect2(o + Vector2(14, 292), Vector2(64, 22)).has_point(mp):
-		return {"w": "new", "cls": "peter"}
-	if zone == "town" and Rect2(o + Vector2(84, 292), Vector2(64, 22)).has_point(mp):
-		return {"w": "new", "cls": "paul"}
+	if zone == "town":
+		var ci := 0
+		for cls in CLASSES:
+			if _class_btn(ci).has_point(mp):
+				return {"w": "new", "cls": cls}
+			ci += 1
 	return {"w": "panel"}
 
 
@@ -2133,9 +2508,9 @@ func _inv_click(h: Dictionary, mp: Vector2, right: bool) -> void:
 				_inv_say("城裡有 3 位以上被釋放的人，才會有工匠")
 			elif held.is_empty():
 				_inv_say("把白色的武器或外衣拿起來，放到這裡")
-			elif held.rarity != "normal" or not (held.slot in ["weapon", "body"]) or not held.runes.is_empty():
-				_inv_say("工匠只替還沒鑲東西的白色武器、外衣打孔")
-			elif int(held.sockets) >= (4 if held.slot == "weapon" else 3):
+			elif held.rarity != "normal" or not MAX_SOCKETS.has(held.slot) or not held.runes.is_empty():
+				_inv_say("工匠只替還沒鑲東西的白色武器、外衣、頭打孔")
+			elif int(held.sockets) >= int(MAX_SOCKETS[held.slot]):
 				_inv_say("已經打滿了")
 			else:
 				held.sockets = int(held.sockets) + 1
@@ -2161,12 +2536,12 @@ func _inv_quick(it: Dictionary, list: Array, where: String) -> void:
 			_inv_say("背包放不下")
 		return
 	if it.rarity == "rune":
-		for s in ["weapon", "body"]:
+		for s in ["weapon", "body", "head"]:
 			if not P.equip[s].is_empty() and _socket(P.equip[s], it.letter):
 				list.erase(it)
 				_recalc()
 				return
-		_inv_say("身上的武器、外衣沒有空的孔")
+		_inv_say("身上的裝備沒有空的孔")
 		return
 	var s2: String = it.slot
 	var old: Dictionary = P.equip[s2]
@@ -2193,6 +2568,7 @@ func _start_new_char(cls: String) -> void:
 		if not _fit(town.stash, it):
 			lost += 1
 	town.chars = int(town.chars) + 1
+	helpers.clear()
 	_new_char(cls)
 	_toggle_inv()
 	_enter("town", Vector2(320, 260))
@@ -2204,16 +2580,16 @@ func _start_new_char(cls: String) -> void:
 func _swap_delta(slot: String, it: Dictionary) -> Array:
 	var keep_hp: float = P.hp
 	var keep_mp: float = P.mp
-	var a := [float(P.dmin) + float(P.dmax), float(P.hpmax), float(P.armor), float(P.mpmax), float(P.speed), float(P.aspd), float(P.regen)]
+	var a := [float(P.dmin) + float(P.dmax), float(P.hpmax), float(P.armor), float(P.mpmax), float(P.speed), float(P.aspd), float(P.regen), float(P.crit), float(P.cdr)]
 	var old: Dictionary = P.equip[slot]
 	P.equip[slot] = it
 	_recalc()
-	var b := [float(P.dmin) + float(P.dmax), float(P.hpmax), float(P.armor), float(P.mpmax), float(P.speed), float(P.aspd), float(P.regen)]
+	var b := [float(P.dmin) + float(P.dmax), float(P.hpmax), float(P.armor), float(P.mpmax), float(P.speed), float(P.aspd), float(P.regen), float(P.crit), float(P.cdr)]
 	P.equip[slot] = old
 	_recalc()
 	P.hp = keep_hp
 	P.mp = keep_mp
-	var names := ["平均傷害", "生命", "防護", "靈力", "移動", "出手 %", "每秒回血"]
+	var names := ["平均傷害", "生命", "防護", "靈力", "移動", "出手 %", "每秒回血", "會心 %", "冷卻 %"]
 	var out: Array = []
 	for i in a.size():
 		var dv: float = (b[i] - a[i]) * (0.5 if i == 0 else 1.0)
@@ -2261,6 +2637,12 @@ func _draw_item(c: CanvasItem, it: Dictionary, r: Rect2) -> void:
 		"belt":
 			c.draw_rect(Rect2(r.position + Vector2(3, 7), Vector2(r.size.x - 6, 6)), ink)
 			c.draw_rect(Rect2(Vector2(m.x - 3, r.position.y + 5), Vector2(6, 10)), C_GOLD, false, 1.0)
+		"head":
+			c.draw_rect(Rect2(r.position + Vector2(9, 12), Vector2(r.size.x - 18, 12)), ink)
+			c.draw_rect(Rect2(r.position + Vector2(6, 22), Vector2(r.size.x - 12, 5)), ink)
+		"ring":
+			c.draw_arc(m + Vector2(0, 1), 5.0, 0, TAU, 14, ink, 2.0)
+			c.draw_rect(Rect2(m + Vector2(-2, -7), Vector2(4, 3)), C_GOLD)
 		"rune":
 			c.draw_circle(m, 7.0, Color("2a1a14"))
 			c.draw_circle(m, 6.0, Color("ffcf80"))
@@ -2333,28 +2715,31 @@ func _draw_inv() -> void:
 	for s in P.equip:
 		var r := _eq_rect(s)
 		c.draw_rect(r, Color("18121a"))
-		var lit: bool = not held.is_empty() and (held.get("slot", "") == s or (held.rarity == "rune" and s in ["weapon", "body"]))
+		var lit: bool = not held.is_empty() and (held.get("slot", "") == s or (held.rarity == "rune" and MAX_SOCKETS.has(s)))
 		c.draw_rect(r, C_GOLD if lit else Color("5a4a40"), false, 1.0)
 		_txt(c, r.position + Vector2(1, -2), SLOT_NAME[s], 7, Color("8a7a70"))
 		if not P.equip[s].is_empty():
 			_draw_item(c, P.equip[s], r)
-	var y := o.y + 150.0
-	for line in ["傷害 %d～%d" % [roundi(float(P.dmin)), roundi(float(P.dmax))], "生命 %d" % roundi(float(P.hpmax)), "靈力 %d" % roundi(float(P.mpmax)),
-			"防護 %d" % roundi(float(P.armor)), "出手 +%d%%" % roundi(float(P.aspd)), "移動 %d" % roundi(float(P.speed)), "每秒回血 %.1f" % (0.4 + float(P.regen))]:
-		_txt(c, Vector2(o.x + 14, y), line, 9, C_INK)
-		y += 13.0
+	var stl := ["傷害 %d～%d" % [roundi(float(P.dmin)), roundi(float(P.dmax))], "生命 %d" % roundi(float(P.hpmax)), "靈力 %d" % roundi(float(P.mpmax)),
+			"防護 %d" % roundi(float(P.armor)), "出手 +%d%%" % roundi(float(P.aspd)), "會心 %d%%" % roundi(8.0 + float(P.crit)), "移動 %d" % roundi(float(P.speed)),
+			"回血 %.1f/秒" % (0.4 + float(P.regen)), "冷卻 -%d%%" % roundi(float(P.cdr))]
+	for i in stl.size():
+		_txt(c, Vector2(o.x + 14 + (i % 2) * 72, o.y + 192 + (i / 2) * 13), stl[i], 9, C_INK)
 	# 背包、倉庫、工匠
 	_grid(c, o + Vector2(160, 44), P.bag, "背包", mp)
 	if zone == "town":
 		_grid(c, o + Vector2(160, 154), town.stash, "倉庫（每一位宣教士共用）", mp)
 		var has_smith: bool = town.freed.size() >= 3
 		_button(c, Rect2(o + Vector2(160, 250), Vector2(200, 24)), "工匠：白色裝備放這裡打一個孔" if has_smith else "工匠（被釋放的人 3 位以上才有）", 8, has_smith and not held.is_empty())
-		_txt(c, o + Vector2(14, 286), "開新角色（城和倉庫留著）", 8, C_GOLD)
-		_button(c, Rect2(o + Vector2(14, 292), Vector2(64, 22)), "真的？再按" if newchar_confirm == "peter" else "新的彼得", 9, newchar_confirm == "peter")
-		_button(c, Rect2(o + Vector2(84, 292), Vector2(64, 22)), "真的？再按" if newchar_confirm == "paul" else "新的保羅", 9, newchar_confirm == "paul")
+		_txt(c, o + Vector2(14, 296), "開新角色（城和倉庫留著）：", 8, C_GOLD)
+		var ci := 0
+		for cls in CLASSES:
+			_button(c, _class_btn(ci), "再按一次" if newchar_confirm == cls else CLASSES[cls].name, 8, newchar_confirm == cls)
+			ci += 1
+		if newchar_confirm != "":
+			_txt(c, o + Vector2(14, 286), CLASSES[newchar_confirm].desc, 8, Color("b0a090"))
 	else:
 		_txt(c, o + Vector2(160, 168), "倉庫、工匠、開新角色都在城裡（T 回城）", 8, Color("8a7a70"))
-	c.draw_multiline_string(UIKit.font(), o + Vector2(160, 292), "左鍵拿起、放下；右鍵直接穿上（符文直接鑲進去、倉庫的拿進背包）；拿著東西點外面＝丟在地上", HORIZONTAL_ALIGNMENT_LEFT, 200, 8, -1, Color("8a7a70"))
 	# 右邊：滑過去的東西（拿著的優先）
 	var hv := _inv_hit(mp)
 	var show: Dictionary = held if not held.is_empty() else hv.get("it", {})
@@ -2362,8 +2747,9 @@ func _draw_inv() -> void:
 		_tooltip(c, show, o + Vector2(376, 34), 222)
 	else:
 		_txt(c, o + Vector2(376, 46), "滑鼠指著一件東西看說明", 9, Color("8a7a70"))
+		c.draw_multiline_string(UIKit.font(), o + Vector2(376, 70), "左鍵拿起、放下；右鍵直接穿上（符文直接鑲進去、倉庫的拿進背包）；拿著東西點外面＝丟在地上", HORIZONTAL_ALIGNMENT_LEFT, 222, 9, -1, Color("8a7a70"))
 	if t < inv_msg_until:
-		_txtc(c, Vector2(o.x + 304, o.y + 322), inv_msg, 10, C_RED)
+		_txtc(c, Vector2(o.x + 488, o.y + 318), inv_msg, 10, C_RED)
 	# 拿著的東西跟著游標
 	if not held.is_empty():
 		var hs := Vector2(_isize(held)) * CELL
@@ -2373,15 +2759,18 @@ func _draw_inv() -> void:
 # ---------------------------------------------------------------- 測試機器人
 func _bot_equip(it: Dictionary) -> void:
 	if it.rarity == "rune":
-		for s in ["weapon", "body"]:
+		for s in ["weapon", "body", "head"]:
 			var tgt: Dictionary = P.equip[s]
 			if not tgt.is_empty() and tgt.rarity != "runeword" and int(tgt.get("sockets", 0)) > tgt.runes.size():
-				var want := ""
+				var have := "".join(tgt.runes)
+				var any_word := false
+				var ok := false
 				for RW in RUNEWORDS:
 					if RW.slot == s and RW.word.length() == int(tgt.sockets):
-						want = RW.word
-				var nxt: String = want.substr(tgt.runes.size(), 1) if want != "" else it.letter
-				if it.letter == nxt and _socket(tgt, it.letter):
+						any_word = true
+						if RW.word.begins_with(have) and RW.word.substr(have.length(), 1) == it.letter:
+							ok = true
+				if (ok or not any_word) and _socket(tgt, it.letter):
 					P.bag.erase(it)
 					_recalc()
 					return
@@ -2429,6 +2818,10 @@ func _bot(dt: float) -> void:
 		_bot_go_zone(corpse.zone, corpse.pos)
 		return
 	if zone == "town":
+		if int(P.tier) < int(P.tier_max) and int(P.lv) >= 8 + int(TIERS[int(P.tier) + 1].lv):
+			P.tier = int(P.tier) + 1
+			if smoke:
+				print("BOT TIER %d lv=%d" % [int(P.tier), int(P.lv)])
 		_bot_go_exit("gate")
 		return
 	# 打最近的黑暗
@@ -2470,7 +2863,35 @@ func _bot(dt: float) -> void:
 		for m in mobs:
 			if not m.dead and m.pos.distance_to(near.pos) < 50.0:
 				cnt += 1
-		if P.cls == "paul":
+		if P.cls == "john":
+			if float(P.hp) < float(P.hpmax) * 0.5:
+				_cast("abide", P.pos)
+			if cnt >= 2:
+				_cast("lamps", P.pos)
+			if cnt >= 3:
+				_cast("seven", P.pos)
+			if float(P.mp) > 16.0:
+				_cast("thunder", near.pos)
+			if nd < 26.0 and float(P.hp) < float(P.hpmax) * 0.7:
+				move_target = _collide(P.pos + (P.pos - near.pos).normalized() * 50.0, 5.0)
+				attack_target = null
+				return
+		elif P.cls == "philip":
+			if nd > 40.0:
+				_cast("run", near.pos)
+			if cnt >= 3:
+				_cast("south", P.pos)
+				_cast("caught", near.pos)
+			if cnt >= 3 or float(P.hp) < float(P.hpmax) * 0.5:
+				_cast("baptize", P.pos)
+		elif P.cls == "lydia":
+			_cast("household", P.pos)
+			if cnt >= 3:
+				_cast("purple", near.pos)
+				_cast("heart", P.pos)
+			if float(P.hp) < float(P.hpmax) * 0.5:
+				_cast("river", P.pos)
+		elif P.cls == "paul":
 			if float(P.hp) < float(P.hpmax) * 0.4:
 				_cast("grace", P.pos)
 			if cnt >= 3:
@@ -2478,6 +2899,11 @@ func _bot(dt: float) -> void:
 				_cast("fight", P.pos)
 			if float(near.dot_t) <= 0.0 and float(P.mp) > 14.0:
 				_cast("rebuke", near.pos)
+			# 遠程：被貼身就退開一點再射（像真人一樣邊退邊打）
+			if nd < 26.0 and float(P.hp) < float(P.hpmax) * 0.7:
+				move_target = _collide(P.pos + (P.pos - near.pos).normalized() * 50.0, 5.0)
+				attack_target = null
+				return
 		else:
 			if cnt >= 3:
 				_cast("haul", near.pos)
@@ -2534,8 +2960,10 @@ func _smoke_tick() -> void:
 	if smoke_frames == smoke_max / 2 and smoke_shot != "":
 		_toggle_inv()
 		# 截圖時假裝滑鼠指著背包裡的第一件（看說明、比較）
-		for it in P.bag:
-			if it.rarity != "rune":
+		var pick: Array = P.bag.filter(func(x): return x.rarity == "rune" and int(RUNES[x.letter].get("tier", 0)) > 0)
+		pick.append_array(P.bag.filter(func(x): return x.rarity != "rune"))
+		for it in pick:
+			if true:
 				inv_test_mp = _inv_o() + Vector2(160, 44) + (Vector2(int(it.gx), int(it.gy)) + Vector2(_isize(it)) / 2.0) * CELL
 				break
 	if smoke_frames == smoke_max / 2 + 30 and smoke_shot != "":
@@ -2546,7 +2974,7 @@ func _smoke_tick() -> void:
 		for s in P.equip:
 			if not P.equip[s].is_empty():
 				eq.append(P.equip[s].name)
-		print("ARPG DONE cls=%s t=%.0f lv=%d zone=%s stats=%s freed_town=%d equip=%s bag=%d" % [P.cls, t, int(P.lv), zone, stats, town.freed.size(), eq, P.bag.size()])
+		print("ARPG DONE cls=%s tier=%d/%d t=%.0f lv=%d zone=%s stats=%s freed_town=%d equip=%s bag=%d" % [P.cls, int(P.tier), int(P.tier_max), t, int(P.lv), zone, stats, town.freed.size(), eq, P.bag.size()])
 		get_tree().quit()
 
 
@@ -2603,7 +3031,7 @@ func _inv_test() -> void:
 	_inv_click(_inv_hit(sp), sp, true)
 	print("INV stash=%d bag_has_feet=%s" % [town.stash.size(), P.bag.has(st)])
 	# 開新角色：保羅
-	var np := o + Vector2(100, 300)
+	var np := _class_btn(1).get_center()
 	_inv_click(_inv_hit(np), np, false)
 	_inv_click(_inv_hit(np), np, false)
 	print("INV newchar=%s cls=%s stash=%d inv_open=%s" % [P.name, P.cls, town.stash.size(), inv_open])

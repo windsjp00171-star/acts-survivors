@@ -32,3 +32,17 @@ sub.populate(text="".join(sorted(chars)))
 sub.subset(font)
 font.save(OUT)
 print(f"{len(chars)} 個字 → {OUT}  {os.path.getsize(OUT) // 1024} KB")
+
+# 希伯來文（古老的符文）：思源黑體沒有希伯來字母，另外從 DejaVu Sans 取出來當備用字型
+# DejaVu 字型授權：見 assets/fonts/LICENSE-DejaVu.txt（可自由散布、嵌入）
+HEB_SRC = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+HEB_OUT = os.path.join(ROOT, "assets", "fonts", "Hebrew-Game.ttf")
+heb = "".join(sorted({c for c in chars if 0x0590 <= ord(c) <= 0x05FF}))
+if heb:
+    from fontTools.ttLib import TTFont
+    hf = TTFont(HEB_SRC)
+    hs = subset.Subsetter(opts)
+    hs.populate(text=heb)
+    hs.subset(hf)
+    hf.save(HEB_OUT)
+    print(f"希伯來文 {len(heb)} 個字 → {HEB_OUT}  {os.path.getsize(HEB_OUT) // 1024} KB")
