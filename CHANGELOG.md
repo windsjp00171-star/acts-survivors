@@ -12,6 +12,7 @@
 - `tools/sim/storysim.sh` 在 Windows 上會讀寫真實存檔與 `runs.json`（原本換的是 Linux 路徑）；現在改用暫存 `APPDATA`，模擬不再碰到真實資料
 
 ### 變更
+- 繼續拆分 `scripts/main.gd`：繪圖效果函式（`_bolt_pts`、`_draw_ground_fx`、`_draw_air`、`_draw_schools`，共 759 行）抽到 `scripts/draw/draw_fx.gd`（`RefCounted` + `var g` 指向 main）；`ground_fx` 與 `air` 的 `draw` signal 改連 `_draw_fx` 的方法；畫面逐像素不變（storysim 6/6 wins，存檔測試 PASS）
 - 開始拆分 `scripts/main.gd`：像素繪圖小工具（線、圓環、布、網）抽到 `scripts/draw/px.gd`；畫面逐像素不變（26 張固定場景截圖比對相同）
 - 引擎升級到 Godot 4.7.2：全部資源重新 import，`.import` 檔補上新版欄位（例如貼圖的 `compress/uastc_level`、`process/channel_remap/*`）；遊戲內容與存檔格式不變
 
