@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 新增
+- 視覺基準：`tools/sim/shots.sh` 以固定種子（新增的 `--seed=`）、固定幀率、暫存 APPDATA 拍 26 張固定場景截圖；`tools/sim/shots_diff.py` 逐像素比對兩個資料夾；基準截圖放在 `production/qa/evidence/baseline-before-refactor/`。重現性已驗證：連跑兩次，26 張完全相同（機器人場景兩張的提示橫幅區域除外，比對時已遮罩）
 - 存檔相容性測試 `tests/unit/save/run.sh`：三份測試存檔的存檔碼往返、寫檔讀檔往返、壞存檔碼會被擋下，並附黃金存檔碼（`golden/`）確保舊版匯出的存檔碼之後還讀得進來；跑在暫存 APPDATA，不碰真實存檔
 
 ### 修正

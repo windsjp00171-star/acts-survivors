@@ -334,6 +334,9 @@ var overcome_cd := 0.0   # 恩賜盤上裝了哪些有代價的基石（preach�
 
 
 func _ready() -> void:
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--seed="):
+			seed(int(a.substr(7)))   # 測試用：固定亂數，截圖才能重現
 	resuming = Save.resume
 	Save.resume = {}
 	if OS.get_cmdline_user_args().has("--resume"):
