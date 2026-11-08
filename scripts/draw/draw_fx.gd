@@ -14,7 +14,7 @@ func _bolt_pts(a: Vector2, b: Vector2, seed: int) -> PackedVector2Array:
 	var step = int(g.t * 20.0)
 	for i in range(1, segs):
 		var k := float(i) / segs
-		var j: float = (g._hash(seed + i * 7, step) - 0.5) * 10.0 * sin(k * PI)
+		var j: float = (PX.hash2(seed + i * 7, step) - 0.5) * 10.0 * sin(k * PI)
 		pts.append(a + d * k + side * j)
 	pts.append(b)
 	return pts
@@ -70,8 +70,8 @@ func _draw_ground_fx() -> void:
 	# 先知：預言之地（紫色的圈，中間一隻眼睛）
 	if not g.prophecy.is_empty():
 		var pc: Vector2 = g.prophecy.pos.round()
-		g._dot_ring(n, pc, g.prophecy.r, 0.8, Color("c8a0ff"), 3.0, g.t * 0.6, 2)
-		g._dot_ring(n, pc, g.prophecy.r - 6.0, 0.8, g.C_GOLD, 5.0, -g.t * 0.6, 1)
+		PX.dot_ring(n, pc, g.prophecy.r, 0.8, Color("c8a0ff"), 3.0, g.t * 0.6, 2)
+		PX.dot_ring(n, pc, g.prophecy.r - 6.0, 0.8, g.C_GOLD, 5.0, -g.t * 0.6, 1)
 		n.draw_rect(Rect2(pc.x - 6, pc.y - 2, 13, 5), Color("2a1640"))
 		n.draw_rect(Rect2(pc.x - 5, pc.y - 1, 11, 3), Color("c8a0ff"))
 		n.draw_rect(Rect2(pc.x - 1, pc.y - 2, 3, 5), g.C_GOLD)
@@ -79,8 +79,8 @@ func _draw_ground_fx() -> void:
 	for sf in g.star_falls:
 		if sf.t > 0.0:
 			var k: float = clampf(sf.t / sf.max, 0.0, 1.0)
-			g._dot_ring(n, sf.pos.round(), sf.r, 0.8, g.C_RED, 3.0, g.t * 3.0, 2)
-			g._dot_ring(n, sf.pos.round(), sf.r * k, 0.8, g.C_GOLD, 4.0, -g.t * 3.0, 1)
+			PX.dot_ring(n, sf.pos.round(), sf.r, 0.8, g.C_RED, 3.0, g.t * 3.0, 2)
+			PX.dot_ring(n, sf.pos.round(), sf.r * k, 0.8, g.C_GOLD, 4.0, -g.t * 3.0, 1)
 	# 差派：發光的腳蹤（實心，快消失時變小）
 	for f in g.trail:
 		var fx: float = roundf(f.pos.x) + (2.0 if f.side == 1 else -3.0)
@@ -116,8 +116,8 @@ func _draw_ground_fx() -> void:
 		var pulse = fmod(g.t, 1.6) / 1.6
 		var bc: Vector2 = barn.pos.round() + Vector2(0, -2)
 		var col = g.C_GOLD if g.fever > 0.0 or g.evolved.has("barn") else Color("bfe3ff")
-		g._dot_ring(n, bc, g._aura_r(barn), 0.62, Color(col, 0.9), 3.0, g.t * 0.8)
-		g._dot_ring(n, bc, g._aura_r(barn) * pulse, 0.62, Color(col.lightened(0.4), 0.8), 4.0, -g.t)
+		PX.dot_ring(n, bc, g._aura_r(barn), 0.62, Color(col, 0.9), 3.0, g.t * 0.8)
+		PX.dot_ring(n, bc, g._aura_r(barn) * pulse, 0.62, Color(col.lightened(0.4), 0.8), 4.0, -g.t)
 	g._draw_finds(n)
 	for ch in g.chests:
 		var cx: float = roundf(ch.pos.x)
@@ -158,7 +158,7 @@ func _draw_air() -> void:
 		var v = g._view_rect()
 		for i in 24:
 			var ph = fmod(g.t * 1.7 + i * 0.37, 1.0)
-			var base = v.position + Vector2(g._hash(i, 3) * v.size.x, g._hash(i, 7) * v.size.y)
+			var base = v.position + Vector2(PX.hash2(i, 3) * v.size.x, PX.hash2(i, 7) * v.size.y)
 			var p0 = base + g.wind_dir * (ph - 0.5) * 120.0
 			g.air.draw_line(p0, p0 + g.wind_dir * 14.0, Color(1, 1, 1, 0.45 * minf(1.0, g.wind_on)), 1.0)
 	var n: Node2D = g.air
@@ -282,15 +282,15 @@ func _draw_air() -> void:
 			n.draw_circle(h.sh.c, h.sh.r, Color(Color("d8d8e8"), a * 0.8))
 	for q in g.quakes:
 		var qm: float = float(q.get("max", 360.0))
-		g._dot_ring(n, q.pos.round(), q.r, 0.7, Color(g.C_GOLD, 1.0 - q.r / qm), 3.0, 0.0, 2)
-		g._dot_ring(n, q.pos.round(), q.r * 0.7, 0.7, Color(g.C_CREAM, 1.0 - q.r / qm), 4.0, 0.5, 1)
+		PX.dot_ring(n, q.pos.round(), q.r, 0.7, Color(g.C_GOLD, 1.0 - q.r / qm), 3.0, 0.0, 2)
+		PX.dot_ring(n, q.pos.round(), q.r * 0.7, 0.7, Color(g.C_CREAM, 1.0 - q.r / qm), 4.0, 0.5, 1)
 	if g.armor.get("shield", 0) > 0 and g.shield_cd <= 0.0:
 		g.PX.ring(n, g.paul.pos.round() + Vector2(0, -12), 13.0, Color(g.C_GOLD, 0.7), 1, 1.1, 3)
 	if g.light > 0.0:
 		g._draw_light(n)
 	for fb in g.fever_bursts:
-		g._dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r, 0.8, g.C_GOLD, 2.0, 0.0, 2)
-		g._dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r - 4.0, 0.8, g.C_FLAME, 3.0, 0.3, 2)
+		PX.dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r, 0.8, g.C_GOLD, 2.0, 0.0, 2)
+		PX.dot_ring(n, fb.pos.round() + Vector2(0, -4), fb.r - 4.0, 0.8, g.C_FLAME, 3.0, 0.3, 2)
 	for f in g.nets:
 		if f.get("look", "") == "purple":
 			# 呂底亞：紫布鋪在地上，定住的時間內慢慢淡掉
@@ -333,8 +333,8 @@ func _draw_air() -> void:
 		g._fx(n, "spark", 4, int((1.0 - a) * 4.0), tip, 2.0 if th.crit else 1.0)
 	for ga in g.gathers:
 		var k: float = ga.t / 0.5
-		g._dot_ring(n, ga.pos.round() + Vector2(0, -4), ga.r * (1.0 - k), 0.8, g.C_HEAL, 4.0, k * 3.0, 2)
-		g._dot_ring(n, ga.pos.round() + Vector2(0, -4), ga.r * (1.0 - k) - 5.0, 0.8, g.C_CREAM, 6.0, -k * 3.0, 1)
+		PX.dot_ring(n, ga.pos.round() + Vector2(0, -4), ga.r * (1.0 - k), 0.8, g.C_HEAL, 4.0, k * 3.0, 2)
+		PX.dot_ring(n, ga.pos.round() + Vector2(0, -4), ga.r * (1.0 - k) - 5.0, 0.8, g.C_CREAM, 6.0, -k * 3.0, 1)
 	# 五旬節：頭上的火焰（實心的紅、橘、金三層）
 	for tg in g.tongues:
 		var hp: Vector2 = (tg.who.pos + Vector2(0, -32 - (int(g.t * 8.0) % 2))).round()
@@ -348,7 +348,7 @@ func _draw_air() -> void:
 			var k: float = clampf(sh.t / sh.max, 0.0, 1.0)
 			var r: float = float(g.stage.hazard.radius)
 			var c0: Vector2 = (sh.pos + Vector2(0, -160.0 * k)).round()
-			g._dot_ring(n, sh.pos.round(), r, 0.8, g.C_CREAM, 5.0, g.t, 1)
+			PX.dot_ring(n, sh.pos.round(), r, 0.8, g.C_CREAM, 5.0, g.t, 1)
 			var w := r * (0.6 + 0.4 * (1.0 - k))
 			for cx in [-1, 1]:
 				n.draw_line(c0 + Vector2(cx * w, -w * 0.5), c0 + Vector2(cx * w * 0.3, -w * 0.5 - 60.0), Color("c9a46b"), 1.0)
@@ -361,7 +361,7 @@ func _draw_air() -> void:
 		if sf.t > 0.0 and g.stage.get("hazard", {}).get("look", "") == "stone" and not sf.get("pierce", false):
 			var ks: float = clampf(sf.t / sf.max, 0.0, 1.0)
 			var spp: Vector2 = (sf.pos + Vector2(-90.0, -60.0) * ks + Vector2(0, -40.0 * sin(ks * PI))).round()
-			g._dot_ring(n, sf.pos.round(), sf.r, 0.8, Color("c8b8a0"), 4.0, 0.0, 1)
+			PX.dot_ring(n, sf.pos.round(), sf.r, 0.8, Color("c8b8a0"), 4.0, 0.0, 1)
 			n.draw_rect(Rect2(spp.x - 3, spp.y - 3, 7, 6), Color("3a3430"))
 			n.draw_rect(Rect2(spp.x - 2, spp.y - 3, 5, 5), Color("8a8078"))
 			n.draw_rect(Rect2(spp.x - 2, spp.y - 3, 2, 2), Color("b0a89c"))
@@ -472,7 +472,7 @@ func _draw_air() -> void:
 		var x: float = roundf(b.pos.x)
 		var y: float = roundf(b.pos.y)
 		if b.get("evo", false):
-			g._dot_ring(n, b.pos.round(), 5.0, 1.0, g.C_GOLD, 4.0, g.t * 6.0)
+			PX.dot_ring(n, b.pos.round(), 5.0, 1.0, g.C_GOLD, 4.0, g.t * 6.0)
 		var col: Color = g.C_FLAME if on_fire else (b.owner.get("col", g.C_GOLD) if b.get("owner") is Dictionary else g.C_GOLD)
 		if b.look == "coin":
 			n.draw_rect(Rect2(x - 2, y - 2, 5, 5), Color("2a1a10"))
@@ -533,7 +533,7 @@ func _draw_air() -> void:
 	for w in g.joy_waves:
 		# 歡呼：金色的圈往外擴散，越外面越淡
 		var ka: float = 1.0 - w.r / w.max
-		g._dot_ring(n, w.pos, w.r, 0.8, Color(g.C_GOLD, 0.3 + 0.6 * ka), 4.0, g.t * 2.0, 2)
+		PX.dot_ring(n, w.pos, w.r, 0.8, Color(g.C_GOLD, 0.3 + 0.6 * ka), 4.0, g.t * 2.0, 2)
 	for ln in g.boss_lines:
 		# 長老的指控：一道細線慢慢變亮，快落下時閃爍
 		var k: float = clampf(1.0 - ln.t / ln.max, 0.0, 1.0)
@@ -554,7 +554,7 @@ func _draw_air() -> void:
 		n.draw_rect(Rect2(w.x - 6, gy1, 12, 3), Color("ffd75e"))
 	if not g.tether.is_empty():
 		# 捆鎖：從釘住的點拉到主角的一條鎖鏈，和一圈範圍
-		g._dot_ring(n, g.tether.pos, g.tether.r, 0.8, Color(Color("a8a8b8"), 0.8), 5.0, g.t, 1)
+		PX.dot_ring(n, g.tether.pos, g.tether.r, 0.8, Color(Color("a8a8b8"), 0.8), 5.0, g.t, 1)
 		var cl: Vector2 = g.paul.pos - g.tether.pos
 		for i in int(cl.length() / 5.0):
 			var cp: Vector2 = g.tether.pos + cl.normalized() * (i * 5.0)
@@ -628,7 +628,7 @@ func _draw_air() -> void:
 			n.draw_rect(Rect2(rz.pos.x - 1, rz.pos.y - 120, 3, 120), g.C_CREAM)
 	for o in g.pops:
 		var k: float = o.t / 0.25
-		g._dot_ring(n, o.pos.round(), o.size * (0.3 + k), 1.0, o.col, 3.0, 0.0, 2 if k < 0.5 else 1)
+		PX.dot_ring(n, o.pos.round(), o.size * (0.3 + k), 1.0, o.col, 3.0, 0.0, 2 if k < 0.5 else 1)
 	var max_hp: float = g._comp_max_hp()
 	for c in [g.paul] + g.comps:
 		if c != g.paul and c.level == 0:
@@ -732,8 +732,8 @@ func _draw_schools(n: Node2D) -> void:
 	if not g.rains.is_empty():
 		var v = g._view_rect()
 		for i in 70:
-			var rx: float = v.position.x + g._hash(i, 11) * v.size.x
-			var ry: float = v.position.y + fmod(g._hash(i, 5) * v.size.y + g.t * 260.0, v.size.y)
+			var rx: float = v.position.x + PX.hash2(i, 11) * v.size.x
+			var ry: float = v.position.y + fmod(PX.hash2(i, 5) * v.size.y + g.t * 260.0, v.size.y)
 			n.draw_rect(Rect2(roundf(rx), roundf(ry), 1, 6), Color("8fd0ff"))
 			n.draw_rect(Rect2(roundf(rx), roundf(ry) + 4, 1, 2), Color.WHITE)
 	# 同行合擊的加倍：頭上一個橘色的小火焰

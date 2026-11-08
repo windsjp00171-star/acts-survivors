@@ -4526,8 +4526,8 @@ func _draw_engines(n: Node2D) -> void:
 	for z in zones:
 		var k: float = clampf(z.life / z.max, 0.0, 1.0)
 		var zc: Vector2 = z.pos.round()
-		_dot_ring(n, zc, z.r, 0.75, z.owner.col, 4.0, t * 0.5, 2)
-		_dot_ring(n, zc, z.r * 0.6, 0.75, C_CREAM, 5.0, -t * 0.7, 1)
+		PX.dot_ring(n, zc, z.r, 0.75, z.owner.col, 4.0, t * 0.5, 2)
+		PX.dot_ring(n, zc, z.r * 0.6, 0.75, C_CREAM, 5.0, -t * 0.7, 1)
 		for i in 4:
 			var py: float = fmod(t * 14.0 + i * 7.0, 18.0)
 			var px: float = zc.x + sin(i * 2.1 + t) * z.r * 0.5
@@ -5085,7 +5085,7 @@ func _draw_seek(n: Node2D) -> void:
 		var x: float = roundf(sk.pos.x)
 		var y: float = roundf(sk.pos.y)
 		# 範圍圈與進度
-		_dot_ring(n, Vector2(x, y), float(SK.radius), 0.75, C_CREAM, 4.0, t * 0.6, 1)
+		PX.dot_ring(n, Vector2(x, y), float(SK.radius), 0.75, C_CREAM, 4.0, t * 0.6, 1)
 		var k: float = clampf(sk.prog / float(SK.need), 0.0, 1.0)
 		if k > 0.0:
 			n.draw_arc(Vector2(x, y - 6), 12.0, -PI / 2.0, -PI / 2.0 + TAU * k, 24, C_GOLD, 3.0)
@@ -5101,7 +5101,7 @@ func _draw_seek(n: Node2D) -> void:
 			n.draw_rect(Rect2(x + fx * 19 - 2, y - 11, 4, 5), Color("6a4a30"))
 			n.draw_rect(Rect2(x + fx * 11 - 1, y - 2, 2, 5), Color("4a3020"))
 			n.draw_rect(Rect2(x + fx * 16 - 1, y - 2, 2, 5), Color("4a3020"))
-		_draw_person(n, x, y - (6 if sk.get("chariot", false) else 0), Color("e8c060") if sk.get("chariot", false) else Color("8a8a96"), Color("a06030") if sk.get("chariot", false) else Color("5a5a66"))
+		PX.person(n, x, y - (6 if sk.get("chariot", false) else 0), Color("e8c060") if sk.get("chariot", false) else Color("8a8a96"), Color("a06030") if sk.get("chariot", false) else Color("5a5a66"))
 		# 頭上的問號，血少時變紅
 		var qc: Color = C_RED if sk.hp < float(SK.hp) * 0.4 else C_CREAM
 		var qy: float = y - 22.0 - (int(t * 3.0) % 2)
@@ -5116,17 +5116,8 @@ func _draw_seek(n: Node2D) -> void:
 	for f in followers:
 		var fx: float = roundf(f.pos.x)
 		var fy: float = roundf(f.pos.y)
-		_draw_person(n, fx, fy, Color("e8dcc0"), f.col)
+		PX.person(n, fx, fy, Color("e8dcc0"), f.col)
 		n.draw_rect(Rect2(fx, fy - 12, 1, 1), C_GOLD)
-
-
-## 小人：深色外框、袍子、腰帶、臉
-func _draw_person(n: Node2D, x: float, y: float, robe: Color, sash: Color) -> void:
-	n.draw_rect(Rect2(x - 3, y - 11, 7, 12), Color("1a1420"))
-	n.draw_rect(Rect2(x - 2, y - 6, 5, 6), robe)
-	n.draw_rect(Rect2(x, y - 6, 1, 6), sash)
-	n.draw_rect(Rect2(x - 1, y - 10, 3, 4), Color("e0a878"))
-	n.draw_rect(Rect2(x - 2, y - 11, 5, 2), Color("4a3020"))
 
 
 ## 近戰同伴出手前往最近的敵人跨一步（最多 40），打完被隊形拉回來；主角不會被拉走
@@ -5711,13 +5702,6 @@ func _damage_companion(c: Dictionary, n: float) -> void:
 
 
 # ---------- 場景物件（依區塊生成） ----------
-func _hash(x: int, y: int) -> float:
-	var h := (x * 374761393 + y * 668265263) & 0xFFFFFFFF
-	h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
-	h = h ^ (h >> 16)
-	return float(h) / 4294967296.0
-
-
 ## 把圓形的東西推出擋路的方塊（石柱、石牆）
 func _push_out(pos: Vector2, r: float) -> Vector2:
 	for rc: Rect2 in solids:
@@ -6256,12 +6240,12 @@ func _draw_spots(n: Node2D) -> void:
 				n.draw_circle(Vector2.ZERO, sp.r, Color(0.16, 0.06, 0.22, 0.55 * da))
 				n.draw_circle(Vector2.ZERO, sp.r * 0.7, Color(0.28, 0.08, 0.36, 0.45 * da))
 				n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-				_dot_ring(n, Vector2(x, y), sp.r, 0.7, Color(Color("a060ff"), da), 4.0, -t * 1.2, 1)
+				PX.dot_ring(n, Vector2(x, y), sp.r, 0.7, Color(Color("a060ff"), da), 4.0, -t * 1.2, 1)
 			"water":
 				# 活水：淡藍的一片，邊緣有慢慢轉的點
 				var wa: float = clampf(sp.life / 1.0, 0.0, 1.0)
 				n.draw_circle(Vector2(x, y), sp.r, Color(0.45, 0.75, 0.95, 0.12 * wa))
-				_dot_ring(n, Vector2(x, y), sp.r, 0.8, Color(Color("9fd8ff"), wa), 5.0, t * 0.8, 1)
+				PX.dot_ring(n, Vector2(x, y), sp.r, 0.8, Color(Color("9fd8ff"), wa), 5.0, t * 0.8, 1)
 			"cloth":
 				# 手巾圍裙：地上一塊白布，一閃一閃的光
 				var ca: float = clampf(sp.life / 0.6, 0.0, 1.0)
@@ -6299,7 +6283,7 @@ func _draw_spots(n: Node2D) -> void:
 				n.draw_set_transform(Vector2(x, y), 0.0, Vector2(1.0, 0.7))
 				n.draw_circle(Vector2.ZERO, sp.r, Color(1.0, 0.85, 0.4, 0.07 * ck))
 				n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-				_dot_ring(n, Vector2(x, y), sp.r, 0.7, Color(C_GOLD, 0.8 * ck), 5.0, t * 0.5, 1)
+				PX.dot_ring(n, Vector2(x, y), sp.r, 0.7, Color(C_GOLD, 0.8 * ck), 5.0, t * 0.5, 1)
 				n.draw_rect(Rect2(x - 7, y - 9, 15, 10), Color(Color("2a1a14"), ck))
 				n.draw_rect(Rect2(x - 6, y - 8, 13, 8), Color(Color("e8d8b0"), ck))
 				n.draw_colored_polygon(PackedVector2Array([Vector2(x - 9, y - 8), Vector2(x, y - 14), Vector2(x + 9, y - 8)]), Color(Color("2a1a14"), ck))
@@ -6310,7 +6294,7 @@ func _draw_spots(n: Node2D) -> void:
 			"clinic":
 				# 醫館：小小的白牆房子、綠屋頂，地上一圈淡綠的光
 				var cl: float = clampf(sp.life / 0.6, 0.0, 1.0)
-				_dot_ring(n, Vector2(x, y), sp.r, 0.7, Color(C_HEAL, 0.8 * cl), 5.0, t * 0.6, 1)
+				PX.dot_ring(n, Vector2(x, y), sp.r, 0.7, Color(C_HEAL, 0.8 * cl), 5.0, t * 0.6, 1)
 				n.draw_rect(Rect2(x - 7, y - 9, 15, 10), Color(Color("2a1a14"), cl))
 				n.draw_rect(Rect2(x - 6, y - 8, 13, 8), Color(Color("f4ead2"), cl))
 				n.draw_colored_polygon(PackedVector2Array([Vector2(x - 9, y - 8), Vector2(x, y - 15), Vector2(x + 9, y - 8)]), Color(Color("2a1a14"), cl))
@@ -6329,12 +6313,12 @@ func _draw_spots(n: Node2D) -> void:
 					n.draw_rect(Rect2(vp.round() + Vector2(1, -1), Vector2(1, 1)), Color(Color("8a5a8a"), vk))
 			"ember":
 				var fl2 := int(t * 10.0 + x) % 2
-				_dot_ring(n, Vector2(x, y), 12.0, 0.75, C_FLAME, 4.0, t * 2.0, 1)
+				PX.dot_ring(n, Vector2(x, y), 12.0, 0.75, C_FLAME, 4.0, t * 2.0, 1)
 				n.draw_rect(Rect2(x - 2, y - 4 - fl2, 5, 4), C_RED)
 				n.draw_rect(Rect2(x - 1, y - 5 + fl2, 3, 4), C_FLAME)
 			"altar":
 				# 石壇：灰白色的方台，上面刻著字；站上去時下面的圈慢慢填滿
-				_dot_ring(n, Vector2(x, y), 14.0, 0.75, C_GOLD, 3.0, t, 2)
+				PX.dot_ring(n, Vector2(x, y), 14.0, 0.75, C_GOLD, 3.0, t, 2)
 				var k: float = clampf(sp.on / float(hz.need), 0.0, 1.0)
 				if k > 0.0:
 					n.draw_arc(Vector2(x, y), 10.0, -PI / 2.0, -PI / 2.0 + TAU * k, 24, C_GOLD, 3.0)
@@ -6349,10 +6333,10 @@ func _draw_spots(n: Node2D) -> void:
 					n.draw_colored_polygon(PackedVector2Array([Vector2(x - 8, y - 1), Vector2(x, y - 12), Vector2(x + 8, y - 1)]), Color("c8a46b"))
 					n.draw_line(Vector2(x, y - 12), Vector2(x, y - 1), Color("8a6438"), 1.0)
 					n.draw_rect(Rect2(x - 2, y - 5, 4, 4), Color("5a3a20"))
-				_dot_ring(n, Vector2(x, y), 14.0, 0.75, Color("9fd8ff"), 4.0, t, 1)
+				PX.dot_ring(n, Vector2(x, y), 14.0, 0.75, Color("9fd8ff"), 4.0, t, 1)
 			"bonfire":
 				var fl := int(t * 10.0 + x) % 2
-				_dot_ring(n, Vector2(x, y), float(hz.radius), 0.75, C_FLAME, 4.0, t * 2.0, 2)
+				PX.dot_ring(n, Vector2(x, y), float(hz.radius), 0.75, C_FLAME, 4.0, t * 2.0, 2)
 				n.draw_rect(Rect2(x - 6, y - 2, 13, 4), Color("3a1a08"))
 				n.draw_rect(Rect2(x - 5, y - 1, 11, 2), Color("8a5a30"))
 				n.draw_rect(Rect2(x - 4, y - 8 - fl, 9, 7), C_RED)
@@ -6412,19 +6396,19 @@ func _update_chunks() -> void:
 			var dl: Array = stage.get("decals", [])
 			if not dl.is_empty():
 				for k in 6:
-					var dk: String = dl[floori(_hash(cx * 3 + k * 41, cy * 11 + k * 7) * dl.size()) % dl.size()]
+					var dk: String = dl[floori(PX.hash2(cx * 3 + k * 41, cy * 11 + k * 7) * dl.size()) % dl.size()]
 					var ds := Sprite2D.new()
 					ds.texture = _tex(dk)
 					ds.centered = true
-					ds.flip_h = _hash(cx + k, cy - k) > 0.5
-					ds.position = Vector2(cx * CHUNK + floori(_hash(cx * 13 + k, cy * 5 + k * 3) * CHUNK), cy * CHUNK + floori(_hash(cx * 7 - k, cy * 17 + k) * CHUNK))
+					ds.flip_h = PX.hash2(cx + k, cy - k) > 0.5
+					ds.position = Vector2(cx * CHUNK + floori(PX.hash2(cx * 13 + k, cy * 5 + k * 3) * CHUNK), cy * CHUNK + floori(PX.hash2(cx * 7 - k, cy * 17 + k) * CHUNK))
 					decals.add_child(ds)
 					items.append(ds)
 			# 這座城的地標：偶爾才有一座，有地標的那一格就不放別的物件
 			var lms: Array = stage.get("landmarks", [])
-			var lmh := _hash(cx * 31 + 5, cy * 37 + 9)
+			var lmh := PX.hash2(cx * 31 + 5, cy * 37 + 9)
 			if not lms.is_empty() and lmh < 0.045 and Vector2(cx, cy).length() > 1.5:
-				var lm: Dictionary = lms[floori(_hash(cx + 3, cy + 5) * lms.size()) % lms.size()]
+				var lm: Dictionary = lms[floori(PX.hash2(cx + 3, cy + 5) * lms.size()) % lms.size()]
 				var lt := _tex(lm.tex)
 				var lx := cx * CHUNK + CHUNK / 2
 				var ly := cy * CHUNK + CHUNK / 2 + lt.get_height() / 2
@@ -6440,9 +6424,9 @@ func _update_chunks() -> void:
 				chunks[key] = {"items": items, "rects": rects}
 				continue
 			for k in 3:
-				var h := _hash(cx * 7 + k * 131, cy * 13 + k * 71)
-				var wx := cx * CHUNK + floori(_hash(cx + k * 17, cy * 3 + 1) * CHUNK)
-				var wy := cy * CHUNK + floori(_hash(cx * 5 + 2, cy + k * 29) * CHUNK)
+				var h := PX.hash2(cx * 7 + k * 131, cy * 13 + k * 71)
+				var wx := cx * CHUNK + floori(PX.hash2(cx + k * 17, cy * 3 + 1) * CHUNK)
+				var wy := cy * CHUNK + floori(PX.hash2(cx * 5 + 2, cy + k * 29) * CHUNK)
 				if Vector2(wx, wy).length() < 50.0:
 					continue
 				# 依關卡的 props 比例挑一種物件
@@ -6456,7 +6440,7 @@ func _update_chunks() -> void:
 				if pick == null:
 					continue
 				var texs: Array = pick.tex
-				var key2: String = texs[floori(_hash(cx, cy + k) * texs.size()) % texs.size()]
+				var key2: String = texs[floori(PX.hash2(cx, cy + k) * texs.size()) % texs.size()]
 				var t2 := _tex(key2)
 				var s := _sprite(key2, Vector2(-t2.get_width() / 2, -t2.get_height()))
 				s.position = Vector2(wx, wy)
@@ -6620,13 +6604,6 @@ func _draw_light(n: Node2D) -> void:
 	n.draw_colored_polygon(PackedVector2Array([at + Vector2(-6, 0), at + Vector2(-3, -14), at + Vector2(3, -14), at + Vector2(6, 0)]), Color(1, 1, 0.95, 0.75 * k))
 	n.draw_circle(at + Vector2(0, -17), 3.0, Color(1, 1, 0.95, 0.85 * k))
 	n.draw_arc(at + Vector2(0, -17), 5.0, 0.0, TAU, 16, Color(C_GOLD, 0.6 * k), 1.0)
-
-
-func _dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, every: float, ph: float, thick := 1) -> void:
-	var count := maxi(12, int(r * TAU / every))
-	for k in count:
-		var a := k / float(count) * TAU + ph
-		n.draw_rect(Rect2(round(center.x + cos(a) * r), round(center.y + sin(a) * r * squash), thick, thick), col)
 
 
 ## 同伴自己長進：每升 comp_every 級，隊伍裡的同伴都升一級（不用選卡）；升到 Lv3 有分支的，跳出來免費選
@@ -8028,7 +8005,7 @@ func _draw_finds(n: Node2D) -> void:
 					n.draw_rect(Rect2(gp, Vector2(2, 2)), Color("8a3ac8") if k % 2 else Color("b06ad8"))
 				n.draw_rect(Rect2(ix, iy - 6, 1, 2), Color("5a8a3a"))
 	for hr in horn_rings:
-		_dot_ring(n, hr.pos, hr.r, 0.8, Color(C_GOLD, 1.0 - hr.r / 420.0), 3.0, t, 2)
+		PX.dot_ring(n, hr.pos, hr.r, 0.8, Color(C_GOLD, 1.0 - hr.r / 420.0), 3.0, t, 2)
 	if not merchant.is_empty():
 		var mx: float = roundf(merchant.pos.x)
 		var my: float = roundf(merchant.pos.y)

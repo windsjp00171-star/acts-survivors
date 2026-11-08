@@ -65,3 +65,26 @@ static func ring(n: Node2D, c: Vector2, r: float, col: Color, w := 1, ky := 0.75
 			continue
 		last = p
 		n.draw_rect(Rect2(p - Vector2(w / 2, w / 2), Vector2(w, w)), col)
+
+static func dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: Color, every: float, ph: float, thick := 1) -> void:
+	var count := maxi(12, int(r * TAU / every))
+	for k in count:
+		var a := k / float(count) * TAU + ph
+		n.draw_rect(Rect2(round(center.x + cos(a) * r), round(center.y + sin(a) * r * squash), thick, thick), col)
+
+
+## 小人：深色外框、袍子、腰帶、臉
+static func person(n: Node2D, x: float, y: float, robe: Color, sash: Color) -> void:
+	n.draw_rect(Rect2(x - 3, y - 11, 7, 12), Color("1a1420"))
+	n.draw_rect(Rect2(x - 2, y - 6, 5, 6), robe)
+	n.draw_rect(Rect2(x, y - 6, 1, 6), sash)
+	n.draw_rect(Rect2(x - 1, y - 10, 3, 4), Color("e0a878"))
+	n.draw_rect(Rect2(x - 2, y - 11, 5, 2), Color("4a3020"))
+
+
+## 座標雜湊成 0~1（不用亂數，同一格永遠同樣結果）
+static func hash2(x: int, y: int) -> float:
+	var h := (x * 374761393 + y * 668265263) & 0xFFFFFFFF
+	h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
+	h = h ^ (h >> 16)
+	return float(h) / 4294967296.0
