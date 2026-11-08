@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 新增
+- 存檔相容性測試 `tests/unit/save/run.sh`：三份測試存檔的存檔碼往返、寫檔讀檔往返、壞存檔碼會被擋下，並附黃金存檔碼（`golden/`）確保舊版匯出的存檔碼之後還讀得進來；跑在暫存 APPDATA，不碰真實存檔
+
 ### 修正
 - `tools/sim/storysim.sh` 在 Windows 上會讀寫真實存檔與 `runs.json`（原本換的是 Linux 路徑）；現在改用暫存 `APPDATA`，模擬不再碰到真實資料
 
