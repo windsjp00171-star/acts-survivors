@@ -14,6 +14,12 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 G="${GODOT:-godot}"
 PAR="${SIM_PAR:-2}"
 U="$HOME/.local/share/godot/app_userdata/宣教之路"
+# Windows：Godot 讀 %APPDATA%/Godot/app_userdata，不是上面那個路徑。改用暫存 APPDATA，不碰真實存檔與 runs.json
+if [ -n "${APPDATA:-}" ] && command -v cygpath >/dev/null 2>&1; then
+  ISO="$(cygpath -m "$(mktemp -d)")"
+  export APPDATA="$ISO"
+  U="$ISO/Godot/app_userdata/宣教之路"
+fi
 PROF="$ROOT/tools/sim/profiles/$1.json"
 N=$2
 shift 2

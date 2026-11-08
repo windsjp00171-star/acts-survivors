@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 修正
+- `tools/sim/storysim.sh` 在 Windows 上會讀寫真實存檔與 `runs.json`（原本換的是 Linux 路徑）；現在改用暫存 `APPDATA`，模擬不再碰到真實資料
+
 ### 變更
 - 引擎升級到 Godot 4.7.2：全部資源重新 import，`.import` 檔補上新版欄位（例如貼圖的 `compress/uastc_level`、`process/channel_remap/*`）；遊戲內容與存檔格式不變
 
