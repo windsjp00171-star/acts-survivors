@@ -13,6 +13,7 @@
 - `tools/sim/storysim.sh` 在 Windows 上會讀寫真實存檔與 `runs.json`（原本換的是 Linux 路徑）；現在改用暫存 `APPDATA`，模擬不再碰到真實資料
 
 ### 變更
+- 音樂改成史詩感：17 首關卡曲（五旬節到 Boss）與聖靈充滿（FEVER）重新作曲，沿用各章原本的主題、調式、聖詩與地區配器，改成半速、定音鼓與太鼓、大提琴低音、弦樂與合唱鋪底、銅管主題，力度由弱到強再收回。速度刻意取原本的一半，遊戲重拍落在音樂第 1、3 拍，同行合擊與「詩歌」流派的節拍判定不變。府城（北管）、營地、標題、劇情、結局四首維持原樣。音樂檔案總量約由 22.6 MB 增為 32 MB（曲子變為兩倍長）；由 `tools/make_music_epic.py` 產生
 - 繼續拆分 `scripts/main.gd`：點狀圓環、小人、座標雜湊三個無狀態函式（`_dot_ring`、`_draw_person`、`_hash`）併入 `scripts/draw/px.gd`；畫面逐像素不變（26 張截圖比對相同）
 - 繼續拆分 `scripts/main.gd`：繪圖效果函式（`_bolt_pts`、`_draw_ground_fx`、`_draw_air`、`_draw_schools`，共 759 行）抽到 `scripts/draw/draw_fx.gd`（`RefCounted` + `var g` 指向 main）；`ground_fx` 與 `air` 的 `draw` signal 改連 `_draw_fx` 的方法；畫面逐像素不變（storysim 6/6 wins，存檔測試 PASS）
 - 開始拆分 `scripts/main.gd`：像素繪圖小工具（線、圓環、布、網）抽到 `scripts/draw/px.gd`；畫面逐像素不變（26 張固定場景截圖比對相同）
