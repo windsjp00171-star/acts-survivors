@@ -23,6 +23,26 @@ Godot 4.7.2（GL Compatibility）的使徒行傳背景 survivors-like，主程�
 | 5144a10 / 531db78 / 9e3ee45 | 玩法方向與構築機制提案（只有文件，沒改程式） |
 | b54406c | 放寬存檔相容性規定（見下） |
 
+## 更新（構築機制階段完成，2026-11-08 稍後）
+
+構築機制 04 的六項已處理（commit：496b1d9、ef3e8de、b9a48ad、0cd7cc0、c1fdbbf）：
+
+| 提案 | 結果 |
+|---|---|
+| 1 多段進化 | 做完。進化資料加 `stage`、`fruit_lv`；示範三條（以利亞、大衛、約翰）；測試預設 `--preset=teamevo2:a,b,c` |
+| 2 寶箱觸發進化 | 本來就有（`_open_chest`）；升級進化卡仍並存，沒改成只有寶箱 |
+| 3 欄位上限 | 隊伍與軍裝本來就有；新增 `fruit_slots`=3（`data/game.json`） |
+| 4 開局三選一 | 做完（只改自由模式）；「第一位同工」（starter）整個移除 |
+| 5 Boss 掉修飾 | 做完：Boss 擊殺掉膏抹，`anoint_rules.boss_chance`=0.4、`boss_pity`=0.3 |
+| 6 路線預覽 | 簡化版：圖鑑與同伴頁標出第二段與條件；沒有獨立頁 |
+
+驗證：存檔測試 PASS；storysim 6/6 全勝；自由模式機器人長局過關。
+**新的畫面基準**：`production/qa/evidence/baseline-build-mechanics/`（23 張，連拍兩次完全相同）。和 `baseline-epic-grade/` 相比，18 張靜態場景逐像素相同；`bot_*` 五張因開局不同而不同，`bot_fever`、`bot_link`、`bot_quake` 三張這次沒觸發到（機器人玩法改變），涵蓋變少，需要時要調 shots.sh 的觸發條件。
+
+**尚未做 / 待你試玩後決定**：果子欄 3 格鬆緊、第二段強度、Boss 掉落頻率（數字都未經真人平衡）；進化是否只留寶箱觸發；第二段沒有專屬美術；專案沒有 `tour.js`，Rule 15 教學步驟沒補；自由模式沒有 storysim 級的平衡腳本。
+
+（以上取代本文件「下一步（預設）」與「待決定」第 1 項；其餘照舊。）
+
 ## 約束（以這裡為準，已更新）
 
 - 不動 main 分支；Android 金鑰絕不 commit、密碼只用環境變數。
