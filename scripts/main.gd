@@ -348,7 +348,7 @@ func _ready() -> void:
 	save_test = OS.get_cmdline_user_args().has("--save_test")
 	if OS.get_cmdline_user_args().has("--daily"):
 		var dly := Save.daily_today()   # 測試用：今天的每日挑戰
-		Save.run_config = {"starter": str(dly.starter), "stage": int(dly.stage), "faith": 0, "endless": false,
+		Save.run_config = {"stage": int(dly.stage), "faith": 0, "endless": false,
 			"calling": str(dly.calling), "daily": str(dly.date), "daily_trials": dly.trials, "daily_relic": str(dly.relic)}
 		print("DAILY ", dly)
 	if not resuming.is_empty():

@@ -29,11 +29,9 @@ func daily_today() -> Dictionary:
 		var L: Dictionary = levels[rng.randi_range(0, levels.size() - 1)]
 		if not trials.has(L.id):
 			trials.append(L.id)
-	var starters: Array = meta.start_unlocked.filter(func(k): return not str(k).begins_with("fruit_") and not str(k).begins_with("armor_"))
 	return {"date": date, "stage": rng.randi_range(0, stages.size() - 1), "trials": trials,
 		"calling": G.callings[rng.randi_range(0, G.callings.size() - 1)].id,
-		"relic": G.relics[rng.randi_range(0, G.relics.size() - 1)].id,
-		"starter": starters[rng.randi_range(0, starters.size() - 1)]}
+		"relic": G.relics[rng.randi_range(0, G.relics.size() - 1)].id}
 
 
 func has_run_save() -> bool:
@@ -75,7 +73,7 @@ func _defaults() -> Dictionary:
 	return {
 		"witness": 0, "witness_total": 0,
 		"unlocked": meta.start_unlocked.duplicate(), "bought": [],
-		"affinity": {}, "achievements": [], "starter": meta.default_starter,
+		"affinity": {}, "achievements": [],
 		"baskets": 0, "egg_seen": false, "camp_seen": [], "churches": [], "stage": 0, "talks_seen": {}, "talk_pending": [], "talk_run": -1, "bread": 0, "bread_total": 0, "ups": {}, "trials_on": [], "trial_best": {}, "faith_best": {}, "faith_sel": 0, "codex": {"enemies": [], "evos": [], "fruits": [], "armor": []},
 		"stats": {"runs": 0, "wins": 0, "elites": 0, "best_kills": 0, "best_fevers": 0,
 			"evolutions": 0, "no_down": 0, "full_party": 0, "tasks": 0, "lights": 0},

@@ -1,7 +1,6 @@
 {
   "_說明": "局外成長：見證怎麼算、一開始有哪些、商店賣什麼、見證錄目標、默契門檻。",
   "start_unlocked": ["silas", "tim", "luke", "fruit_joy", "fruit_faith", "armor_shoes"],
-  "default_starter": "silas",
   "_camp_visible說明": "營火旁同時出現幾位同伴（有話要說的一定會出現，其他隨機）。",
   "camp_visible": 8,
   "party_cap_base": 3,

@@ -321,18 +321,8 @@ func _show_home() -> void:
 				_text(content, "%s　血 %d　速度 %d" % [L.desc, int(L.hp), int(L.speed)], 11, UIKit.MUTED, true)
 	_kit_box(content, lead)
 	_calling_ui()
-	var starter: String = Save.data.starter
-	if not Save.is_unlocked(starter) or starter == lead:
-		starter = Save.meta.default_starter
-	var c := _comp_def(starter)
-	var h := _row(content)
-	h.add_child(UIKit.sprite_icon(starter, 4))
-	var v := VBoxContainer.new()
-	v.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	h.add_child(v)
-	_text(v, "第一位同工：" + _display_name(c), 16, UIKit.GOLD)
-	_text(v, "第一次升級一定會出現他的招募卡；到「同伴」頁可以換人", 12, UIKit.MUTED, true)
-	_text(v, "隊伍上限 %d 人　每局重抽 %d 次" % [Save.party_cap(), Save.rerolls()], 13, UIKit.INK)
+	_text(content, "第一次升級會從三個流派各給一張招募卡，由你選第一位同工", 12, UIKit.MUTED, true)
+	_text(content, "隊伍上限 %d 人　每局重抽 %d 次" % [Save.party_cap(), Save.rerolls()], 13, UIKit.INK)
 	# 自由模式：在劇情裡通過的城都可以再去
 	_text(content, "自由模式：通過過的地方", 16, UIKit.GOLD)
 	var sel := clampi(int(Save.data.stage), 0, stages.size() - 1)
@@ -654,7 +644,7 @@ func _daily_box() -> void:
 		if r.id == dly.relic:
 			rn = r.name
 	_text(content, "今日挑戰　%s" % dly.date, 16, UIKit.GOLD)
-	_text(content, "城市：%s　主角：保羅　第一位同伴：%s\n呼召：%s　一開始帶著聖物：%s\n條件：%s" % [st.name, _display_name(_comp_def(str(dly.starter))) if not _comp_def(str(dly.starter)).is_empty() else str(dly.starter), cn, rn, "、".join(tn)], 12, UIKit.INK, true)
+	_text(content, "城市：%s　主角：保羅\n呼召：%s　一開始帶著聖物：%s\n條件：%s" % [st.name, cn, rn, "、".join(tn)], 12, UIKit.INK, true)
 	var best: Dictionary = Save.data.get("daily_best", {})
 	if str(best.get("date", "")) == dly.date:
 		_text(content, "今天最好：%s　撐了 %d:%02d　驅散 %d" % ["通關 ✓" if best.won else "還沒通關", int(best.seconds) / 60, int(best.seconds) % 60, int(best.kills)], 12, UIKit.HEAL, true)
@@ -663,7 +653,7 @@ func _daily_box() -> void:
 	var db := UIKit.button("出發：今日挑戰", 15)
 	db.custom_minimum_size = Vector2(0, 40)
 	db.pressed.connect(func():
-		Save.run_config = {"starter": str(dly.starter), "stage": int(dly.stage), "faith": 0, "endless": false,
+		Save.run_config = {"stage": int(dly.stage), "faith": 0, "endless": false,
 			"calling": str(dly.calling), "daily": str(dly.date), "daily_trials": dly.trials, "daily_relic": str(dly.relic)}
 		get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	content.add_child(db)
@@ -674,7 +664,7 @@ func _start_story(i: int) -> void:
 	for j in stages.size():
 		if stages[j].id == Save.story.chapters[i].stage:
 			idx = j
-	Save.run_config = {"story": i, "stage": idx, "starter": Save.data.starter, "faith": 0, "endless": false,
+	Save.run_config = {"story": i, "stage": idx, "faith": 0, "endless": false,
 		"calling": _calling_ok(str(Save.data.get("calling", "apostle")))}
 	get_tree().change_scene_to_file("res://scenes/main.tscn")
 
@@ -705,13 +695,10 @@ func _first_open() -> int:
 
 
 func _start() -> void:
-	var starter: String = Save.data.starter
-	if not Save.is_unlocked(starter):
-		starter = Save.meta.default_starter
 	var sel := clampi(int(Save.data.stage), 0, stages.size() - 1)
 	if not _stage_open(sel):
 		sel = _first_open()
-	Save.run_config = {"starter": starter, "stage": sel,
+	Save.run_config = {"stage": sel,
 		"faith": clampi(int(Save.data.get("faith_sel", 0)), 0, Save.faith_open(stages[sel].id)),
 		"endless": _endless_open() and bool(Save.data.get("endless_on", false)),
 		"calling": _calling_ok(str(Save.data.get("calling", "apostle")))}
@@ -876,14 +863,6 @@ func _show_companion(key: String) -> void:
 		var nxt := Save.next_threshold(key)
 		var prog := "默契 Lv%d　%s" % [lv, ("下一級還差 %d" % (nxt - Save.affinity_xp(key))) if nxt > 0 else "已滿"]
 		_text(content, prog + "　攻擊速度 +%d%%" % int(lv * Save.meta.affinity.bonus_per_level * 100), 13, UIKit.SKY)
-		var starter := UIKit.button("設為第一位同工" if Save.data.starter != key else "目前的第一位同工", 13, Save.data.starter != key)
-		starter.disabled = Save.data.starter == key
-		starter.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		starter.pressed.connect(func():
-			Save.data.starter = key
-			Save.save_profile()
-			_show_companion(key))
-		content.add_child(starter)
 	_text(content, "生平", 16, UIKit.GOLD)
 	var entries: Array = bios.get(key, [])
 	var lv2 := Save.affinity_level(key) if unlocked else -1
