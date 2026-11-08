@@ -1095,7 +1095,7 @@ func _make_cards() -> Array:
 		var pd: String = D.skills[pa.skill].desc[pa.level]
 		var pe := _evo_of(pa.key)
 		if pa.level == 4 and not pe.is_empty():
-			pd +="\n滿級＋果子「%s」→ 進化「%s」" % [D.fruits[pe.fruit].name, pe.name]
+			pd +="\n滿級＋果子「%s」→ 下一個寶箱進化「%s」" % [D.fruits[pe.fruit].name, pe.name]
 		pool.append({"kind": "up", "key": pa.key, "title": "%s%s　Lv%d → %d" % [pa.name, "的書信" if pa.key == "paul" else "（主角）", pa.level, pa.level + 1], "tag": pa.tag, "desc": pd})
 	for c in comps:
 		if c.follows != "" or c.skill == "" or solo:
@@ -1116,7 +1116,7 @@ func _make_cards() -> Array:
 			var evo := _evo_of(c.key)
 			if c.level == 4 and not evo.is_empty():
 				var fname: String = D.fruits[evo.fruit].name
-				d2 += "\n滿級＋果子「%s」→ 進化「%s」" % [fname, evo.name]
+				d2 += "\n滿級＋果子「%s」→ 下一個寶箱進化「%s」" % [fname, evo.name]
 				if not Save.is_unlocked("fruit_" + evo.fruit):
 					d2 += "（果子要先在補給帳棚解鎖）"
 			if c.level + 1 == int(D.support_rules.lend_level) and D.schools.has(c.tag) and not _school_on(c.tag):
@@ -1163,6 +1163,19 @@ func _make_cards() -> Array:
 	var spc_i := pool.find_custom(func(cd): return cd.kind == "anoint")
 	if spc_i > 0 and randf() < 0.6:
 		pool.push_front(pool.pop_at(spc_i))
+	# 進化缺的果子：有同伴 Lv3 以上、下一段進化的果子還沒有（或等級不夠）時，那張果子卡比較常排到前面
+	var need_fruit := ""
+	for fo in [pa] + comps:
+		if fo.is_empty() or int(fo.get("level", 0)) < 3:
+			continue
+		var fe := _evo_of(fo.key)
+		if not fe.is_empty() and fruits.get(fe.fruit, 0) < int(fe.get("fruit_lv", 1)):
+			need_fruit = str(fe.fruit)
+			break
+	if need_fruit != "":
+		var fi := pool.find_custom(func(cd): return cd.kind == "fruit" and cd.key == need_fruit)
+		if fi > 0 and randf() < float(D.fruit_pull):
+			pool.push_front(pool.pop_at(fi))
 	# 開局三選一（自由模式）：還沒有同伴時，第一次升級的卡是三個不同流派的招募卡，主角起點流派排第一
 	if level <= 2 and not story and not solo and resuming.is_empty() and _party_count() == 0:
 		var open_tags := {}
@@ -1182,11 +1195,7 @@ func _make_cards() -> Array:
 		pool = pool.filter(func(cd): return not (cd.kind == "recruit" and cd.key == first_recruit))
 		var nm2: String = fc.name + ("・" + by_key[fc.with].name if fc.with != "" else "")
 		pool.push_front({"kind": "recruit", "key": fc.key, "title": nm2 + "　加入", "tag": fc.tag, "desc": D.skills[fc.skill].desc[0]})
-	# 符合進化條件時，進化卡一定排第一張
-	for evo in _ready_evolutions():
-		var c: Dictionary = by_key[evo.companion]
-		pool.push_front({"kind": "evolve", "key": c.key, "title": "進化！" + evo.name, "tag": c.tag, "desc": c.name + "：" + evo.desc})
-		break
+	# 進化只在開寶箱時發生（_open_chest），不再出進化卡
 	var n_cards := mini(4, (4 if calling == "teacher" else 3) + (1 if epistles.has("vernacular") else 0)) - (1 if trials.has("tempt") else 0)
 	if calling == "teacher":
 		# 教師：有流派卡時一定排進來
@@ -1709,6 +1718,17 @@ func _bot_move() -> Vector2:
 	return v.normalized() if v.length() > 0.05 else Vector2.ZERO
 
 
+## 有沒有 Lv3 以上的同伴，下一段進化正缺這種果子（沒拿到或等級不夠）
+func _evo_needs_fruit(fruit: String) -> bool:
+	for fo in [pa] + comps:
+		if fo.is_empty() or int(fo.get("level", 0)) < 3:
+			continue
+		var fe := _evo_of(fo.key)
+		if not fe.is_empty() and fe.fruit == fruit and fruits.get(fruit, 0) < int(fe.get("fruit_lv", 1)):
+			return true
+	return false
+
+
 ## 測試機器人選卡：進化 > 招募 > 升級最高等的人 > 果子 > 軍裝 > 連結 > 其他
 func _bot_pick(cards: Array) -> int:
 	var best := 0
@@ -1722,7 +1742,7 @@ func _bot_pick(cards: Array) -> int:
 			"recruit": sc = 60.0
 			"branch": sc = 55.0
 			"up": sc = 40.0 + (float(by_key[cd.key].level) * 3.0 if by_key.has(cd.key) else 0.0)
-			"fruit": sc = 35.0
+			"fruit": sc = 90.0 if _evo_needs_fruit(cd.key) else 35.0   # 進化缺的果子：像真人一樣優先拿
 			"armor": sc = 30.0
 			"link", "link_up": sc = 28.0
 			"epistle": sc = 26.0
@@ -9134,7 +9154,7 @@ func _smoke_tick() -> void:
 		ui._close_chest()
 	if over and smoke_shot == "":
 		# 不截圖時：一結束就印結果離開（大量模擬用）
-		print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d pressure=%.2f" % [stage.id, t - t_start, won, level, kills, _party_count(), pressure])
+		print("BOTRESULT stage=%s t=%.0f won=%s level=%d kills=%d party=%d pressure=%.2f chests=%d evos=%d" % [stage.id, t - t_start, won, level, kills, _party_count(), pressure, run_chests, run_evolutions])
 		print("DMG ", dmg_log)
 		var dealt := {}
 		for c in [pa] + comps:
