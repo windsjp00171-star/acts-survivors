@@ -7,11 +7,14 @@
 
 - 「艾澤拉斯倖存者」（Azeroth Survivors）：Aethus 做的免費同人網頁遊戲，非暴雪官方；9 個職業，技能自動施放，開箱選飾品與裝備、方式類似選技能；仍在 alpha，天賦細節查不到。
   [職業排行指南](https://buffbuff.com/blog/azeroth-survivors-tier-list)、[介紹](https://www.betterlaunch.co/product/azeroth-survivors)
-- 「暗黑破壞神倖存者」：**查不到一款確切叫這個名字的遊戲**。找到的是一批「暗黑式裝備＋倖存者」作品，共通點是隨機詞綴、稀有度、局內鍛造或合成、Boss 掉裝：
-  [Grind Survivors](https://finalboss.io/grind-survivors-aims-to-mash-vampire-survivors-chaos)（程序化武器、詞綴、局內熔煉：合併、重鑄、銷毀）、
+- 「暗黑破壞神倖存者」＝ **D2 Survivors**（framara 開發的非官方免費同人遊戲，《暗黑破壞神 II》世界觀加上類吸血鬼倖存者玩法）。
+  依使用者提供的介紹：技能自動施放，玩家只控制移動、撿掉落、升級時挑技能；收錄七職業、技能樹、裝備系統、乳牛關彩蛋；需自備正版 D2 才能取用美術與音效。
+  **我查不到這款遊戲本身的細節**（搜尋只回原版 D2 的一般資料），所以下面凡是「D2 式」的裝備概念都是**原版《暗黑 II》**的公認設計（稀有度分階、鑲孔與符文、符文之語、護符、套裝），不保證 D2 Survivors 都有。
+  另有一批同類作品可當旁證：
+  [Grind Survivors](https://finalboss.io/grind-survivors-aims-to-mash-vampire-survivors-chaos)（程序化武器、詞綴、局內熔煉）、
   [Looter Survivors](https://cogconnected.com/2026/08/looter-survivors-adds-new-ways-to-craft-customize-and-perfect-your-builds/)（隨機效果裝備、詞綴合成最多六條）、
   [Tower of Babel: Survivors of Chaos](https://vaporlens.app/app/2665680/tower_of_babel_survivors_of_chaos.md)（普通到傳奇四階、鑲孔、符文）。
-  **待使用者確認指的是哪一款**，或接受「這個類型」當參考。
+- **智慧財產**：只參考機制與設計概念，**不使用也不仿造暗黑／魔獸的名稱、美術、音效**；我們的主題維持使徒行傳。
 
 ## 我們現有的系統（盤點自 `data/game.json`、`data/meta.json`、`main.gd`）
 
@@ -53,6 +56,6 @@
 
 ## 待使用者決定
 
-1. 「暗黑破壞神倖存者」指哪一款，或接受類型參考。
+1. ~~「暗黑破壞神倖存者」指哪一款~~ 已確認是 D2 Survivors；下一步是從 D2 式概念挑要用的（見 A 提案，可加：鑲孔與符文之語、護符、套裝；乳牛關彩蛋可對應成隱藏關卡）。
 2. 四個面向的優先順序（我建議 A → C → B → D）。
 3. A 先做到哪一步（只做稀有度＋詞綴，還是連熔煉一起）。
