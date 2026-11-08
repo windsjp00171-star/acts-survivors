@@ -528,12 +528,7 @@ func _ready() -> void:
 	meter = Save.building_bonus("meter")   # 營地的祭壇：開局就有一些同心合意
 	_build_world()
 	_build_ui()
-	var starter: String = Save.run_config.get("starter", Save.data.starter)
-	if not by_key.has(starter) or not Save.is_unlocked(starter) or starter == leader:
-		starter = Save.meta.default_starter
-	if starter == leader:
-		starter = "tim" if leader != "tim" else "luke"
-	first_recruit = "" if solo else starter
+	first_recruit = ""   # 自由模式：不再指定第一位，第一次升級改成三個流派各一張（見 _make_cards）
 	if story:
 		first_recruit = "" if solo or chapter.cast.is_empty() or chapter.get("late", false) else str(chapter.cast[0])
 	if not resuming.is_empty():
@@ -1166,6 +1161,19 @@ func _make_cards() -> Array:
 	var spc_i := pool.find_custom(func(cd): return cd.kind == "anoint")
 	if spc_i > 0 and randf() < 0.6:
 		pool.push_front(pool.pop_at(spc_i))
+	# 開局三選一（自由模式）：還沒有同伴時，第一次升級的卡是三個不同流派的招募卡，主角起點流派排第一
+	if level <= 2 and not story and not solo and resuming.is_empty() and _party_count() == 0:
+		var open_tags := {}
+		var open_cards := []
+		for cd in pool:
+			if cd.kind == "recruit" and not open_tags.has(cd.tag) and open_cards.size() < 3:
+				open_tags[cd.tag] = true
+				open_cards.append(cd)
+		for cd in open_cards:
+			pool.erase(cd)
+		open_cards.reverse()
+		for cd in open_cards:
+			pool.push_front(cd)
 	# 第一位同工：還沒加入前，招募卡一定排第一張
 	if first_recruit != "" and by_key.has(first_recruit) and by_key[first_recruit].level == 0:
 		var fc: Dictionary = by_key[first_recruit]
