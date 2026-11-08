@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 變更
+- 引擎升級到 Godot 4.7.2：全部資源重新 import，`.import` 檔補上新版欄位（例如貼圖的 `compress/uastc_level`、`process/channel_remap/*`）；遊戲內容與存檔格式不變
+
 ## [0.50.0] - 2026-10-25
 
 ### 新增（試作：宣教之路 2，把試玩時覺得可惜的地方補完）
