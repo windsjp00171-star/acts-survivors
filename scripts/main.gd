@@ -163,6 +163,7 @@ var prov_bread := 0.0       # 這局帶回的餅加成（舊的市集行囊用�
 var tip_queue: Array = []  # 新手教學：等著出現的提示
 var run_chests := 0
 var run_midboss := 0
+var boss_anoint_miss := 0   # Boss 連續沒掉膏抹的次數（保底用）
 var build_text := ""      # 暫停畫面的「目前狀態」：呼召、流派、輔助、融合、分支、連結
 var build_short := ""     # HUD 左上角的一行精簡版
 var run_tasks: Array = [] # 旅程任務：{def, done, failed}
@@ -2055,6 +2056,8 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		if e.has("born") and not e.get("elite", false):
 			life_avg = lerpf(life_avg, t - float(e.born), 0.02)
 		killed_types["boss_" + stage.id if e.get("boss", false) else e.type] = true
+		if e.get("boss", false):
+			_boss_anoint_drop()
 		kills += 1
 		if float(kbuff.get("fisher", 0.0)) > 0.0:
 			var fh: float = _kv(_kit_spell("fisher"), "heal")
@@ -4793,8 +4796,8 @@ func _take_relic(id: String) -> void:
 
 
 ## 升級時偶爾出現的膏抹卡：選一位有空格、招式合用的同伴
-func _anoint_card() -> Dictionary:
-	if randf() > float(D.anoint_rules.chance):
+func _anoint_card(force := false) -> Dictionary:
+	if not force and randf() > float(D.anoint_rules.chance):
 		return {}
 	var who := []
 	for o in comps + [pa]:
@@ -4809,6 +4812,24 @@ func _anoint_card() -> Dictionary:
 		var a: Dictionary = opts.pick_random()
 		return {"kind": "anoint", "key": o.key, "aid": a.id, "title": "膏抹「%s」→ %s" % [a.name, o.name], "tag": o.tag, "desc": a.desc + "\n（每位同伴最多 %d 種）" % int(D.anoint_rules.slots)}
 	return {}
+
+
+## Boss（含中途 Boss）被打倒時掉一個膏抹；連續沒掉，下次機率逐步提高（保底）
+func _boss_anoint_drop() -> void:
+	var rules: Dictionary = D.anoint_rules
+	if randf() >= float(rules.boss_chance) + boss_anoint_miss * float(rules.boss_pity):
+		boss_anoint_miss += 1
+		if smoke:
+			print("BOSSDROP miss=", boss_anoint_miss)
+		return
+	var card := _anoint_card(true)
+	if card.is_empty():
+		return   # 每位同伴的膏抹格都滿了：沒東西可掉，不算沒中
+	boss_anoint_miss = 0
+	_apply_card(card)
+	ui.show_banner("Boss 掉落　" + card.title, 2.6)
+	if smoke:
+		print("BOSSDROP ", card.title)
 
 
 func _who(k: String) -> Dictionary:
@@ -8236,7 +8257,7 @@ const SAVE_VARS := ["kres", "kstance", "kit_tal", "siege_i", "t", "kills", "xp",
 	"run_elites", "run_fevers", "run_evolutions", "tasks_done", "task_witness", "rerolls_left", "t_start", "journey_step",
 	"chariot_done", "epistles", "killed_types", "link_count", "combo_best", "guard", "grace_dmg", "grace_spd", "mids_done",
 	"boss_spawned", "endless_boss_t", "endless_bosses", "run_resonances", "event_t", "events_done", "enemy_hp_bonus", "move_bonus",
-	"run_chests", "run_midboss", "school_mods", "school_cards", "praise", "anoint", "run_converts", "run_minions", "run_songs",
+	"run_chests", "run_midboss", "boss_anoint_miss", "school_mods", "school_cards", "praise", "anoint", "run_converts", "run_minions", "run_songs",
 	"run_holies", "run_shocks", "bonds_seen", "run_bonds", "loaves_n", "run_relics", "seek_t", "seek_used", "run_saved",
 	"run_seek_spawned", "pressure", "life_avg", "persec_t", "fz_count", "scatter_by", "blind_state", "blind_r", "hz_t",
 	"founded_now", "someone_down", "full_party", "merchant_done", "banishes_left", "banished", "kit_lv"]

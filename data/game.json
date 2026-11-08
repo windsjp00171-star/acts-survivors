@@ -379,7 +379,7 @@
     {"id": "dove", "name": "挪亞的鴿子", "ref": "創 8:11", "desc": "主角血量低於一半時，每 8 秒得到 1 層護盾、回 5 血", "story": "到了晚上，鴿子回到他那裡，嘴裡叼著一個新擰下來的橄欖葉子。"}
   ],
   "_anoints說明": "主角的一般輔助（像流亡黯道的輔助寶石）：裝在主角招式的輔助格（見 support_rules），升級時偶爾出現。engines 是能裝的招式種類（all 是都可以）。anoint_rules 只剩舊存檔／測試用。",
-  "anoint_rules": {"slots": 2, "chance": 0.35},
+  "anoint_rules": {"slots": 2, "chance": 0.35, "boss_chance": 0.4, "boss_pity": 0.3},
   "anoints": [
     {"id": "multi", "name": "多重", "desc": "投射物 +2，每發傷害 ×0.7", "engines": ["bolt", "shot", "boomerang", "turret"]},
     {"id": "pierce", "name": "穿透", "desc": "投射物多穿透 2 隻", "engines": ["bolt", "shot"]},

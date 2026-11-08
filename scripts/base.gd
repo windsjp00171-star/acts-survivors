@@ -1378,7 +1378,8 @@ func _show_codex() -> void:
 	_codex_section("進化", G.evolutions.size(), G.evolutions.filter(evo_seen).size())
 	for v in G.evolutions:
 		var who: String = G.paul.name if v.companion == "paul" else _comp_def(v.companion).get("name", v.companion)
-		var need: String = "條件：%s滿級＋果子「%s」%s" % ["第一段之後再次" if int(v.get("stage", 1)) > 1 else "", G.fruits[v.fruit].name,
+		var prev: Array = G.evolutions.filter(func(pv): return pv.companion == v.companion and int(pv.get("stage", 1)) == int(v.get("stage", 1)) - 1)
+		var need: String = "條件：%s滿級＋果子「%s」%s" % ["進化「%s」之後從 Lv1 再次" % prev[0].name if not prev.is_empty() else "", G.fruits[v.fruit].name,
 			("Lv%d" % int(v.fruit_lv)) if int(v.get("fruit_lv", 1)) > 1 else ""]
 		_codex_entry(evo_seen.call(v), "%s：%s" % [who, v.name], [[v.desc, UIKit.INK], [need, UIKit.MUTED]])
 	var seen_f: Array = cx.get("fruits", [])
