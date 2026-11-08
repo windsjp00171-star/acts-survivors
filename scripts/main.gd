@@ -1068,8 +1068,9 @@ func _make_cards() -> Array:
 				if evo.fruit == k and by_key.has(evo.companion) and by_key[evo.companion].level > 0:
 					fdesc += "\n可讓%s進化（滿級時）" % by_key[evo.companion].name
 					break
-		if lv == 0 and fruits.size() < 6:
-			pool.append({"kind": "fruit", "key": k, "title": f.name + "　新果子", "tag": f.tag, "desc": fdesc + _fruit_desc(k, 0).substr(f.desc.length())})
+		if lv == 0 and fruits.size() < int(D.fruit_slots):
+			pool.append({"kind": "fruit", "key": k, "title": f.name + "　新果子", "tag": f.tag, "desc": fdesc + _fruit_desc(k, 0).substr(f.desc.length()) + "
+果子欄 %d/%d（滿了就不能再拿新的）" % [fruits.size() + 1, int(D.fruit_slots)]})
 		elif lv > 0 and lv < 5:
 			pool.append({"kind": "fruit", "key": k, "title": "%s　Lv%d → %d" % [f.name, lv, lv + 1], "tag": f.tag, "desc": _fruit_desc(k, lv)})
 	for k in D.armor:
