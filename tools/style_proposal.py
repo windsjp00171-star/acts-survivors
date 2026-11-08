@@ -27,22 +27,33 @@ def hex2rgb(h: str) -> np.ndarray:
 
 
 def grade(img: Image.Image) -> Image.Image:
-    a = np.asarray(img.convert("RGB"), dtype=float) / 255.0
+    """史詩感調色：保留原本的色相與細節，只做『輕微壓暗 + 暗部偏靛 + 亮部偏金 + 提高飽和 + 暈邊』。
+    不用漸層映射（會把所有顏色壓成同一條色帶、肤色變黑）、不用光暈模糊（會讓像素畫變糊）。"""
+    rgb = img.convert("RGB")
+    a = np.asarray(rgb, dtype=float) / 255.0
     lum = a @ np.array([0.299, 0.587, 0.114])
-    lum = np.clip((lum - 0.5) * 1.25 + 0.5, 0, 1) ** 1.9               # S 曲線加強對比，再壓暗中間調（低調：只有光源亮）
-    xs = [s[0] for s in STOPS]
-    cols = np.stack([hex2rgb(s[1]) / 255.0 for s in STOPS])
-    mapped = np.stack([np.interp(lum, xs, cols[:, c]) for c in range(3)], axis=-1)
-    sat = a.max(-1) - a.min(-1)
-    keep = np.clip(sat * 1.6, 0.2, 0.6)[..., None]                    # 越鮮豔（特效）越保留原色
-    out = mapped * (1 - keep) + a * keep * (0.55 + 0.45 * lum[..., None])
+    hsv = np.asarray(rgb.convert("HSV"), dtype=float) / 255.0
+    hue, sat, val = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+    # 肤色保護：橘色相、中等飽和、不太暗 → 幾乎不調（只留下暈邊）
+    skin = ((hue > 0.02) & (hue < 0.095) & (sat > 0.25) & (sat < 0.8) & (val > 0.45)).astype(float)
+    skin = np.asarray(Image.fromarray((skin * 255).astype("uint8")).filter(ImageFilter.MaxFilter(3)), dtype=float)[..., None] / 255.0
+    # 1) 輕微壓暗（保留色相與飽和）：lum ** 1.4 的倍率，暗處多壓一點
+    scale = (np.clip(lum, 1e-4, 1) ** 1.4) / np.clip(lum, 1e-4, 1)
+    out = a * scale[..., None]
+    # 2) 暗部偏夜靛、亮部偏帝金（很輕）
+    out = out + ((1 - lum) ** 2)[..., None] * (hex2rgb("#2a2a6a") / 255.0) * 0.16
+    out = out + (lum ** 3)[..., None] * (hex2rgb("#e8b060") / 255.0) * 0.08
+    # 3) 提高飽和
+    g = out.mean(-1, keepdims=True)
+    out = np.clip(g + (out - g) * 1.4, 0, 1)
+    # 4) 肤色與其他部分混回原色
+    out = out * (1 - skin * 0.9) + a * (0.97) * skin * 0.9
+    # 5) 暈邊（輕）
     h, w = lum.shape
     yy, xx = np.mgrid[0:h, 0:w]
     r = np.sqrt(((xx - w / 2) / (w / 2)) ** 2 + ((yy - h / 2) / (h / 2)) ** 2)
-    out *= (1 - 0.55 * np.clip(r - 0.35, 0, 1) ** 1.3)[..., None]       # 暈邊
-    glow = Image.fromarray((np.clip(out * (lum[..., None] > 0.7), 0, 1) * 255).astype("uint8")).filter(ImageFilter.GaussianBlur(3))
-    out = np.clip(out + np.asarray(glow, dtype=float) / 255.0 * 0.3 * hex2rgb("#ffd890") / 255.0 * 1.6, 0, 1)   # 亮處泛金光
-    return Image.fromarray((out * 255).astype("uint8"))
+    out *= (1 - 0.42 * np.clip(r - 0.4, 0, 1) ** 1.3)[..., None]
+    return Image.fromarray((np.clip(out, 0, 1) * 255).astype("uint8"))
 
 
 def font(size: int) -> ImageFont.FreeTypeFont:
