@@ -10,6 +10,18 @@
 | 美術 | 程式內畫圖與色彩 token 化；素材集中載入；清未使用素材；UI 套件與版面；**重設視覺風格（史詩感）** | 結構部分逐像素不變；風格部分以新風格為準，由使用者逐畫面核可 |
 | 音樂 | `sfx.gd` 播放與混音整理；`make_music.py`／`make_sounds.py` 資產管線整理；**重新作曲成史詩感，允許改 BPM** | 見下 |
 
+### 美術範圍細項（2026-11-08 補充：使用者指定人物與關卡也要重構）
+
+| 項目 | 程式端 | 素材端（`tools/`） |
+|---|---|---|
+| 人物 | `main.gd` 的 `_animate`、隊形與人物繪製；`camp.gd` 的人物 | `make_people.py`（218 行）、`make_people_src.py`（241 行）、`people_src/` 原圖 |
+| 敵人 | 敵人繪製與特效 | `make_enemies.py` |
+| 關卡 | `main.gd` 的「場景物件」段（766 行）、`_draw_ground_fx`、`_draw_air` | `make_terrain.py`（702 行）、`make_landmarks.py`（488 行）、`make_decals.py`（182 行） |
+| 營地／標題／UI | `camp.gd`、`title.gd`、`base.gd`、`game_ui.gd`、`ui_kit.gd` | `make_camp.py`、`make_board.py`、`make_kit_icons.py` |
+| 特效 | `_fx`、`_draw_*` 系列 | `make_vfx.py` |
+
+結構階段（A）對以上每一項都要求逐像素不變；風格階段（B）才換樣子。
+
 ## 不動
 
 - `arpg.gd`、`arpg.tscn`、`wip/0.51-classes-runes`。`arpg.gd` 的外觀因此**不會**跟著新風格改，是已知缺口。

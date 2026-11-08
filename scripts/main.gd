@@ -7,6 +7,7 @@ const ZOOM_PORTRAIT := 1.9   # 直式畫面窄，鏡頭拉遠一點才看得到�
 const CHUNK := 96
 const SEP_CELL := 8.0
 const DATA_PATH := "res://data/game.json"
+const PX := preload("res://scripts/draw/px.gd")
 ## 隊形：同伴依加入順序站到這些位置（相對保羅）
 const SLOTS := [Vector2(-32, 12), Vector2(32, 11), Vector2(-28, -14), Vector2(27, -15), Vector2(0, -28), Vector2(-9, 29)]   # 人物圖 0.45 起變大，隊形也拉開一點
 
@@ -4639,9 +4640,9 @@ func _draw_engines(n: Node2D) -> void:
 		outline.append(cn.pos)
 		var col: Color = C_GOLD if cn.evo else cn.col
 		for i in outline.size() - 1:
-			_pline(n, outline[i], outline[i + 1], col.darkened(0.6), 3)
+			PX.line(n, outline[i], outline[i + 1], col.darkened(0.6), 3)
 		for i in outline.size() - 1:
-			_pline(n, outline[i], outline[i + 1], col, 1)
+			PX.line(n, outline[i], outline[i + 1], col, 1)
 		for i in range(1, 9, 2):
 			_fx(n, "note", 1, 0, pts[i])
 	# 以斯帖的標記：被標記的敵人頭上一頂金冠
@@ -4662,7 +4663,7 @@ func _draw_engines(n: Node2D) -> void:
 			var bp: Vector2 = (b.pos + Vector2(cos(ja) * jr, sin(ja) * jr * 0.7)).round()
 			var sz := 6 - int(bk * 4.0)
 			n.draw_rect(Rect2(bp - Vector2(sz, sz) * 0.5, Vector2(sz, sz)), Color(Color("3a2a4a"), 0.8 * (1.0 - bk)))
-		_pring(n, b.pos.round(), b.r * (0.6 + bk * 0.4), Color(Color("8a6aaa"), 1.0 - bk), 1, 0.7, 2)
+		PX.ring(n, b.pos.round(), b.r * (0.6 + bk * 0.4), Color(Color("8a6aaa"), 1.0 - bk), 1, 0.7, 2)
 	# 被責備的敵人：頭上一團紅色的火（跳動）
 	for e in enemies:
 		if not e.dead and float(e.get("rebuke_t", 0.0)) > 0.0:
@@ -6265,11 +6266,11 @@ func _draw_spots(n: Node2D) -> void:
 				n.draw_rect(Rect2(x - 4, y - 3, 9, 1), Color(Color("e0d4b8"), ca))
 				if int(t * 4.0 + x) % 3 == 0:
 					n.draw_rect(Rect2(x + 3, y - 7, 1, 1), Color(Color.WHITE, ca))
-				_pring(n, Vector2(x, y), sp.r, Color(C_CREAM, 0.5 * ca), 1, 0.6, 2)
+				PX.ring(n, Vector2(x, y), sp.r, Color(C_CREAM, 0.5 * ca), 1, 0.6, 2)
 			"blaze":
 				# 燒著的地：一圈火苗在地上跳
 				var bk: float = clampf(sp.life / 0.6, 0.0, 1.0)
-				_pring(n, Vector2(x, y), sp.r, Color(C_RED, bk), 1, 0.6, 2)
+				PX.ring(n, Vector2(x, y), sp.r, Color(C_RED, bk), 1, 0.6, 2)
 				for j in 9:
 					var ja := j * 2.4 + 0.7
 					var jr: float = sp.r * (0.25 + 0.7 * fmod(j * 0.37, 1.0))
@@ -6285,7 +6286,7 @@ func _draw_spots(n: Node2D) -> void:
 				for yy in range(-int(ry2), int(ry2) + 1):
 					var hw := floorf(sp.r * sqrt(maxf(0.0, 1.0 - pow(yy / ry2, 2.0))))
 					n.draw_rect(Rect2(x - hw, y + yy, hw * 2.0 + 1.0, 1), Color(Color("5ac8a0") if yy % 3 else Color("8ae0c0"), 0.55 * pk2))
-				_pring(n, Vector2(x, y), sp.r, Color(Color("2a6a5a"), pk2), 1, 0.6)
+				PX.ring(n, Vector2(x, y), sp.r, Color(Color("2a6a5a"), pk2), 1, 0.6)
 				var bb := int(t * 3.0 + x) % 4
 				n.draw_rect(Rect2(x - 4 + bb * 2, y - 2 - bb, 2, 2), Color(Color.WHITE, pk2))
 			"church":
@@ -6316,7 +6317,7 @@ func _draw_spots(n: Node2D) -> void:
 			"vine":
 				# 葡萄樹：地上爬滿綠藤，一圈葉子
 				var vk: float = clampf(sp.life / 0.6, 0.0, 1.0)
-				_pring(n, Vector2(x, y), sp.r, Color(Color("3a7a2a"), vk), 2, 0.6)
+				PX.ring(n, Vector2(x, y), sp.r, Color(Color("3a7a2a"), vk), 2, 0.6)
 				for i in 8:
 					var va: float = i * TAU / 8.0 + 0.3
 					var vp := Vector2(x, y) + Vector2(cos(va) * sp.r * 0.75, sin(va) * sp.r * 0.45)
@@ -8000,68 +8001,6 @@ func _fx(n: Node2D, key: String, frames: int, f: int, at: Vector2, sc := 1.0, co
 	n.draw_texture_rect_region(tx, Rect2(o.round(), Vector2(w, hh).round()), Rect2(clampi(f, 0, frames - 1) * fw, 0, fw, fh), col)
 
 
-## 呂底亞的紫布：一片橢圓的布（一橫條一橫條畫，邊上金色流蘇），在原解析度畫才不會變成大方塊
-func _pcloth(n: Node2D, c: Vector2, r: float, a: float, evo: bool) -> void:
-	var ry := r * 0.62
-	for yy in range(-int(ry), int(ry) + 1):
-		var half := floorf(r * sqrt(maxf(0.0, 1.0 - pow(yy / ry, 2.0))))
-		if half < 1.0:
-			continue
-		var col := Color("6e3068") if posmod(yy, 4) < 2 else Color("8e4488")
-		n.draw_rect(Rect2(c.x - half, c.y + yy, half * 2.0 + 1.0, 1), Color(col, a))
-		n.draw_rect(Rect2(c.x - half, c.y + yy, 1, 1), Color(C_GOLD if evo else Color("c8a040"), a))
-		n.draw_rect(Rect2(c.x + half, c.y + yy, 1, 1), Color(C_GOLD if evo else Color("c8a040"), a))
-	_pring(n, c, r, Color(C_GOLD, a), 1, 0.62, 1)
-
-
-## 彼得的網：斜格子的漁網＋一圈網邊和鉛墜
-func _pnet(n: Node2D, c: Vector2, r: float, a: float, col: Color) -> void:
-	var ry := r * 0.75
-	var step := 6.0
-	for k in range(-int(r * 2.0 / step), int(r * 2.0 / step) + 1):
-		for sgn in [1.0, -1.0]:
-			var last := Vector2(INF, INF)
-			for yy in range(-int(ry), int(ry) + 1):
-				var xx: float = k * step + sgn * yy
-				if pow(xx / r, 2.0) + pow(yy / ry, 2.0) > 1.0:
-					continue
-				var p := Vector2(c.x + xx, c.y + yy)
-				if p != last:
-					n.draw_rect(Rect2(p, Vector2.ONE), Color(col, a * 0.85))
-					last = p
-	_pring(n, c, r, Color(Color("6b4a2a"), a), 2, 0.75)
-	for i in 10:
-		var ang := i * TAU / 10.0
-		n.draw_rect(Rect2((c + Vector2(cos(ang) * r, sin(ang) * ry)).round() - Vector2(1, 1), Vector2(3, 3)), Color(Color("8a8a9a"), a))
-
-
-## 一條像素線（每一步畫一個 w×w 的方塊）
-func _pline(n: Node2D, a: Vector2, b: Vector2, col: Color, w := 1) -> void:
-	var d := b - a
-	var steps := maxi(1, int(maxf(absf(d.x), absf(d.y))))
-	var off := Vector2(w / 2, w / 2)
-	for i in steps + 1:
-		var p := (a + d * (float(i) / steps)).round() - off
-		n.draw_rect(Rect2(p, Vector2(w, w)), col)
-
-
-## 像素圓環（橢圓：ky 是上下壓扁的比例）
-func _pring(n: Node2D, c: Vector2, r: float, col: Color, w := 1, ky := 0.75, gap := 0) -> void:
-	if r < 1.0:
-		return
-	var count := maxi(12, int(r * TAU / maxf(1.0, w * 0.9)))
-	var last := Vector2(INF, INF)
-	for k in count:
-		if gap > 0 and k % (gap * 2) >= gap:
-			continue
-		var a := k / float(count) * TAU
-		var p := Vector2(roundf(c.x + cos(a) * r), roundf(c.y + sin(a) * r * ky))
-		if p == last:
-			continue
-		last = p
-		n.draw_rect(Rect2(p - Vector2(w / 2, w / 2), Vector2(w, w)), col)
-
-
 ## 閃電：從 a 到 b 的鋸齒折線（每 0.05 秒換一次形狀，看起來在跳動）
 func _bolt_pts(a: Vector2, b: Vector2, seed: int) -> PackedVector2Array:
 	var pts := PackedVector2Array([a])
@@ -8246,13 +8185,13 @@ func _draw_air() -> void:
 		var col: Color = C_FLAME if on_fire else r.owner.get("col", C_GOLD)
 		# 聲波：一圈像素環，越外面越細；環上四個音符跟著轉
 		var w: int = 3 if k < 0.4 and r.thick >= 2 else 2
-		_pring(n, center, r.r, col.darkened(0.5), w + 1, 0.8)
-		_pring(n, center, r.r, col, w - 1 if w > 1 else 1, 0.8)
+		PX.ring(n, center, r.r, col.darkened(0.5), w + 1, 0.8)
+		PX.ring(n, center, r.r, col, w - 1 if w > 1 else 1, 0.8)
 		for j in 4:
 			var ang: float = j * TAU / 4.0 + r.r * 0.03
 			_fx(n, "note", 1, 0, center + Vector2(cos(ang), sin(ang) * 0.8) * r.r)
 		if r.get("evo", false):
-			_pring(n, center, r.r + 3.0, C_GOLD, 1, 0.8, 2)
+			PX.ring(n, center, r.r + 3.0, C_GOLD, 1, 0.8, 2)
 	for b in beams:
 		var end: Vector2 = b.pos + b.dir * b.len
 		# 實心光束：越接近消失越細，而不是變透明
@@ -8286,19 +8225,19 @@ func _draw_air() -> void:
 			var sc := maxf(1.0, roundf(b.r / 14.0 * 2.0) / 2.0)
 			_fx(n, "boom", 6, int(k * 6.0), b.pos, sc, Color.WHITE.lerp(bcol, 0.35))
 		else:
-			_pring(n, b.pos.round(), rr, bcol.darkened(0.5), 3, 0.8)
-			_pring(n, b.pos.round(), rr, bcol, 2, 0.8)
-			_pring(n, b.pos.round(), rr - 2.0, C_CREAM, 1, 0.8, 2)
+			PX.ring(n, b.pos.round(), rr, bcol.darkened(0.5), 3, 0.8)
+			PX.ring(n, b.pos.round(), rr, bcol, 2, 0.8)
+			PX.ring(n, b.pos.round(), rr - 2.0, C_CREAM, 1, 0.8, 2)
 		if b.get("evo", false):
-			_pring(n, b.pos.round(), b.r * (0.6 + k * 0.7), C_GOLD, 1, 0.8, 2)
+			PX.ring(n, b.pos.round(), b.r * (0.6 + k * 0.7), C_GOLD, 1, 0.8, 2)
 	for f in fires:
 		var flook: String = f.get("look", "")
 		if f.t > 0.0:
 			# 預兆：地上一圈虛線，裡面一圈往內收
 			var k: float = 1.0 - f.t / f.max
 			var wc: Color = Color("8fd0ff") if flook == "spit" else (C_GOLD if flook == "glory" else C_FLAME)
-			_pring(n, f.pos.round(), f.r, wc, 2, 0.6, 2)
-			_pring(n, f.pos.round(), f.r * (1.0 - k), C_CREAM, 1, 0.6)
+			PX.ring(n, f.pos.round(), f.r, wc, 2, 0.6, 2)
+			PX.ring(n, f.pos.round(), f.r * (1.0 - k), C_CREAM, 1, 0.6)
 		else:
 			var a: float = 1.0 + f.t / 0.35      # 1 → 0：落下後慢慢收掉
 			var fr := int((1.0 - a) * 12.0) % 4
@@ -8310,12 +8249,12 @@ func _draw_air() -> void:
 			elif flook == "glory":
 				# 司提反：天開了，白金色的光柱，落點一圈光
 				_fx(n, "glorycol", 4, fr, f.pos + Vector2(0, 2), 1.0, Color(1, 1, 1, shrink), false)
-				_pring(n, f.pos.round(), f.r * (1.4 - a * 0.4), C_GOLD, 2, 0.6)
+				PX.ring(n, f.pos.round(), f.r * (1.4 - a * 0.4), C_GOLD, 2, 0.6)
 			else:
 				_fx(n, "firecol", 4, fr, f.pos + Vector2(0, 2), 1.0, Color(1, 1, 1, shrink), false)
 				_fx(n, "boom", 6, int((1.0 - a) * 5.0) + 1, f.pos + Vector2(0, -4), 1.0)
 			if f.get("evo", false):
-				_pring(n, f.pos.round(), f.r * 1.2, C_CREAM, 1, 0.6, 2)
+				PX.ring(n, f.pos.round(), f.r * 1.2, C_CREAM, 1, 0.6, 2)
 	var blink := int(t * 8.0) % 2 == 0
 	for sh in tele:
 		if sh.kind == "line":
@@ -8338,7 +8277,7 @@ func _draw_air() -> void:
 		_dot_ring(n, q.pos.round(), q.r, 0.7, Color(C_GOLD, 1.0 - q.r / qm), 3.0, 0.0, 2)
 		_dot_ring(n, q.pos.round(), q.r * 0.7, 0.7, Color(C_CREAM, 1.0 - q.r / qm), 4.0, 0.5, 1)
 	if armor.get("shield", 0) > 0 and shield_cd <= 0.0:
-		_pring(n, paul.pos.round() + Vector2(0, -12), 13.0, Color(C_GOLD, 0.7), 1, 1.1, 3)
+		PX.ring(n, paul.pos.round() + Vector2(0, -12), 13.0, Color(C_GOLD, 0.7), 1, 1.1, 3)
 	if light > 0.0:
 		_draw_light(n)
 	for fb in fever_bursts:
@@ -8350,12 +8289,12 @@ func _draw_air() -> void:
 			var life: float = maxf(0.4, f.stun)
 			var pk: float = clampf(f.t / life, 0.0, 1.0)
 			var rr2: float = f.r * minf(1.0, f.t / 0.12)
-			_pcloth(n, f.pos.round(), rr2, 1.0 - pk * pk, f.evo)
+			PX.cloth(n, f.pos.round(), rr2, 1.0 - pk * pk, f.evo)
 			continue
 		# 彼得的網：一張圓網撒開再收攏
 		var k: float = f.t / 0.4
 		var rr: float = f.r * (1.0 - 0.3 * k)
-		_pnet(n, f.pos.round(), rr, 1.0 - k * k, C_GOLD if f.evo else Color("c8b48a"))
+		PX.net(n, f.pos.round(), rr, 1.0 - k * k, C_GOLD if f.evo else Color("c8b48a"))
 	for z in zaps:
 		# 閃電：鋸齒狀的像素線，外面一層本色、裡面白芯；打中的地方一團電光
 		var col: Color = C_GOLD if z.evo else z.get("col", Color("ffe14d"))
@@ -8365,11 +8304,11 @@ func _draw_air() -> void:
 			var p1: Vector2 = z.pts[i + 1]
 			var bp := _bolt_pts(p0, p1, i * 31 + int(p0.x))
 			for j in bp.size() - 1:
-				_pline(n, bp[j], bp[j + 1], col.darkened(0.45), thick + 1)
+				PX.line(n, bp[j], bp[j + 1], col.darkened(0.45), thick + 1)
 			for j in bp.size() - 1:
-				_pline(n, bp[j], bp[j + 1], col if thick > 2 else col.lightened(0.3), thick - 1)
+				PX.line(n, bp[j], bp[j + 1], col if thick > 2 else col.lightened(0.3), thick - 1)
 			for j in bp.size() - 1:
-				_pline(n, bp[j], bp[j + 1], Color.WHITE, 1)
+				PX.line(n, bp[j], bp[j + 1], Color.WHITE, 1)
 			_fx(n, "zapend", 3, int(z.t / 0.25 * 3.0), p1)
 	for th in thrusts:
 		var a: float = 1.0 - th.t / 0.2
@@ -8380,9 +8319,9 @@ func _draw_air() -> void:
 			col = C_GOLD if th.crit or th.evo else Color("6ae0d0")
 			var sd: Vector2 = th.dir.orthogonal()
 			for i in 3:
-				_pline(n, th.from + sd * (i - 1) * 4.0, th.from.lerp(tip, 0.6 + i * 0.15) + sd * (i - 1) * 4.0, col.darkened(0.2 * i), 2 if i == 1 else 1)
-		_pline(n, th.from, tip, col.darkened(0.6), 4 if th.crit else 3)
-		_pline(n, th.from, tip, col, 2 if th.crit else 1)
+				PX.line(n, th.from + sd * (i - 1) * 4.0, th.from.lerp(tip, 0.6 + i * 0.15) + sd * (i - 1) * 4.0, col.darkened(0.2 * i), 2 if i == 1 else 1)
+		PX.line(n, th.from, tip, col.darkened(0.6), 4 if th.crit else 3)
+		PX.line(n, th.from, tip, col, 2 if th.crit else 1)
 		_fx(n, "spark", 4, int((1.0 - a) * 4.0), tip, 2.0 if th.crit else 1.0)
 	for g in gathers:
 		var k: float = g.t / 0.5
@@ -8490,7 +8429,7 @@ func _draw_air() -> void:
 		if itx != null:
 			n.draw_texture_rect(itx, Rect2(kc - Vector2(ksz / 2.0, ksz / 2.0), Vector2(ksz, ksz)), false, Color(1, 1, 1, ka))
 		if kp.t < 0.3:
-			_pring(n, paul.pos.round() + Vector2(0, 1), 10.0 + kp.t * 40.0, Color(C_GOLD, 1.0 - kp.t / 0.3), 1, 0.5)
+			PX.ring(n, paul.pos.round() + Vector2(0, 1), 10.0 + kp.t * 40.0, Color(C_GOLD, 1.0 - kp.t / 0.3), 1, 0.5)
 	for f in tag_fx:
 		var k: float = f.t / 0.8
 		var pos: Vector2 = (f.pos + Vector2(-8, -32 - k * 10.0)).round()
@@ -8511,9 +8450,9 @@ func _draw_air() -> void:
 			var tip: Vector2 = f.a.lerp(to, minf(1.0, f.t / 0.08))
 			var lc: Color = C_FLAME if f.depth >= 2 else C_GOLD
 			var lw := 2 + mini(f.depth, 2) if a > 0.4 else 2
-			_pline(n, f.a, tip, lc.darkened(0.6), lw + 1)
-			_pline(n, f.a, tip, lc, maxi(1, lw - 1))
-			_pline(n, f.a, tip, C_CREAM, 1)
+			PX.line(n, f.a, tip, lc.darkened(0.6), lw + 1)
+			PX.line(n, f.a, tip, lc, maxi(1, lw - 1))
+			PX.line(n, f.a, tip, C_CREAM, 1)
 			_fx(n, "spark", 4, int((1.0 - a) * 3.0), tip, 2.0 if f.depth >= 2 else 1.0)
 		if f.depth >= 2:
 			var k: float = f.t / 0.6
@@ -8672,9 +8611,9 @@ func _draw_air() -> void:
 		var ra: float = 1.0 - rz.r / 260.0
 		var rcol: Color = [C_GOLD, C_FLAME, Color("ff6ad5"), Color.WHITE][mini(rz.tier, 3)]
 		var rw := int((2.0 + rz.tier) * ra) + 2
-		_pring(n, rz.pos.round(), rz.r, rcol.darkened(0.6), rw + 1, 0.8)
-		_pring(n, rz.pos.round(), rz.r, rcol, rw - 1, 0.8)
-		_pring(n, rz.pos.round(), rz.r * 0.85, C_CREAM, 1, 0.8, 2)
+		PX.ring(n, rz.pos.round(), rz.r, rcol.darkened(0.6), rw + 1, 0.8)
+		PX.ring(n, rz.pos.round(), rz.r, rcol, rw - 1, 0.8)
+		PX.ring(n, rz.pos.round(), rz.r * 0.85, C_CREAM, 1, 0.8, 2)
 		if rz.r < 60.0:
 			var pw: float = (9.0 + rz.tier * 2) * ra
 			n.draw_rect(Rect2(rz.pos.x - pw / 2.0, rz.pos.y - 120, pw, 120), rcol)
