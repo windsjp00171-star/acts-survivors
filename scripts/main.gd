@@ -8401,8 +8401,7 @@ func _evolve(evo: Dictionary, reset_level := true) -> void:
 	ui.do_flash(0.5)
 	ui.show_banner("進化！%s：%s" % [c.name, evo.name], 2.2)
 	var l: Label = ui.names[c.name]
-	if not l.text.begins_with("★"):
-		l.text = "★" + l.text
+	l.text = "★".repeat(_evo_tier(c.key)) + l.text.lstrip("★")   # 第二段進化：兩顆星
 	l.label_settings.font_color = C_GOLD
 	l.modulate.a = 1.0
 	if reset_level and not _evo_of(c.key).is_empty():
