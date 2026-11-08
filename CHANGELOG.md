@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 新增
+- 多段進化：進化資料可加 `"stage": 2`（以及 `fruit_lv`）。第一段進化後，有下一段的同伴回到 Lv1 重新累積，再次滿級、拿到指定果子（並達 `fruit_lv`）後，下一個寶箱或進化卡才能進化第二段。示範三條：以利亞「火車火馬」→「從天降下的火」（信心 Lv2）、大衛「戰役是耶和華的」→「日見強盛」（平安 Lv2）、約翰「彼此相愛」→「神就是愛」（善良 Lv2）。圖鑑與同伴頁會標出第二段與條件；中途存檔的 `evolved` 改存各同伴的進化段數（舊格式的中途存檔仍可讀，視為只進化一段）；新增測試預設 `--preset=teamevo2:a,b,c`
 - 構築機制提案（待選）：`docs/refactor/04-build-mechanics.md`，整理 D2 Survivors 的構築機制（單一來源、未驗證）並對照現有進化與選卡系統，提出多段進化、寶箱觸發、欄位上限等六項；不影響遊戲本身
 - 玩法方向提案（待選）：`docs/refactor/03-gameplay-direction.md`，對照現有系統與兩類參考作品（裝備與掉寶、職業與天賦、戰鬥節奏、關卡與世界）的缺口，不影響遊戲本身
 - 史詩感調色層：自動載入的全螢幕調色（`scripts/grade.gd`、`scripts/draw/post_grade_epic.gdshader`），輕微壓暗、暗部偏夜靛、亮部偏帝金、提高飽和、保護膚色、加暈邊，所有章節、營地、標題、UI 立即套用；`arpg`（宣教之路 2 試作）場景自動排除；命令列加 `--nograde` 可關閉。新的畫面基準在 `production/qa/evidence/baseline-epic-grade/`（結構重構的舊基準搭配 `GRADE_ARG=--nograde tools/sim/shots.sh` 仍可逐像素比對）

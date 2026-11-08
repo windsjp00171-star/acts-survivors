@@ -860,7 +860,8 @@ func _show_companion(key: String) -> void:
 	_text(v, sk.desc[0], 13, UIKit.INK, true)
 	for evo in G.evolutions:
 		if evo.companion == key:
-			_text(v, "進化「%s」：滿級＋果子「%s」" % [evo.name, G.fruits[evo.fruit].name], 12, UIKit.GOLD, true)
+			_text(v, "%s進化「%s」：滿級＋果子「%s」%s" % ["第二段" if int(evo.get("stage", 1)) > 1 else "", evo.name, G.fruits[evo.fruit].name,
+				("Lv%d" % int(evo.fruit_lv)) if int(evo.get("fruit_lv", 1)) > 1 else ""], 12, UIKit.GOLD, true)
 			_text(v, evo.desc, 11, UIKit.MUTED, true)
 	# 同行合擊：跟誰是聖經裡的搭檔
 	for B in G.get("bonds", []):
@@ -1373,10 +1374,13 @@ func _show_codex() -> void:
 	for r in G.get("relics", []):
 		_codex_entry(seen_r.has(r.id), "%s（%s）" % [r.name, r.ref], [[r.desc, UIKit.INK], [r.story, UIKit.MUTED]])
 	var seen_v: Array = cx.get("evos", [])
-	_codex_section("進化", G.evolutions.size(), G.evolutions.filter(func(v): return seen_v.has(v.companion)).size())
+	var evo_seen := func(v): return seen_v.has(v.companion if int(v.get("stage", 1)) == 1 else v.companion + "#2")
+	_codex_section("進化", G.evolutions.size(), G.evolutions.filter(evo_seen).size())
 	for v in G.evolutions:
 		var who: String = G.paul.name if v.companion == "paul" else _comp_def(v.companion).get("name", v.companion)
-		_codex_entry(seen_v.has(v.companion), "%s：%s" % [who, v.name], [[v.desc, UIKit.INK], ["條件：滿級＋果子「%s」" % G.fruits[v.fruit].name, UIKit.MUTED]])
+		var need: String = "條件：%s滿級＋果子「%s」%s" % ["第一段之後再次" if int(v.get("stage", 1)) > 1 else "", G.fruits[v.fruit].name,
+			("Lv%d" % int(v.fruit_lv)) if int(v.get("fruit_lv", 1)) > 1 else ""]
+		_codex_entry(evo_seen.call(v), "%s：%s" % [who, v.name], [[v.desc, UIKit.INK], [need, UIKit.MUTED]])
 	var seen_f: Array = cx.get("fruits", [])
 	_codex_section("聖靈果子", G.fruits.size(), G.fruits.keys().filter(func(k): return seen_f.has(k)).size())
 	for k in G.fruits:

@@ -602,9 +602,9 @@ func _ready() -> void:
 			if c.level > 0:
 				_set_level(c, 4)
 		fruits = {"joy": 2, "faith": 2}
-	if smoke_preset.begins_with("team:") or smoke_preset.begins_with("teamevo:"):
-		# 測試用：--preset=team:a,b,c（Lv4）或 teamevo:a,b,c（滿級並進化）
-		var evo_on := smoke_preset.begins_with("teamevo:")
+	if smoke_preset.begins_with("team:") or smoke_preset.begins_with("teamevo:") or smoke_preset.begins_with("teamevo2:"):
+		# 測試用：--preset=team:a,b,c（Lv4）、teamevo:a,b,c（滿級並進化）或 teamevo2:a,b,c（連第二段也進化）
+		var evo_on := not smoke_preset.begins_with("team:")
 		for k in smoke_preset.get_slice(":", 1).split(","):
 			_recruit(by_key[k])
 			_set_level(by_key[k], 5 if evo_on else 4)
@@ -612,6 +612,12 @@ func _ready() -> void:
 			fruits = {"joy": 1, "faith": 1, "good": 1, "peace": 1}
 			for evo in _ready_evolutions():
 				_evolve(evo)
+			if smoke_preset.begins_with("teamevo2:"):
+				fruits = {"joy": 2, "faith": 2, "good": 2, "peace": 2}
+				for k in smoke_preset.get_slice(":", 1).split(","):
+					_set_level(by_key[k], 5)
+				for evo in _ready_evolutions():
+					_evolve(evo)
 	for a in OS.get_cmdline_user_args():
 		# 測試用：--relics=hair,mantle　--anoint=tim:multi,chain
 		if a.begins_with("--branch="):
@@ -1511,13 +1517,15 @@ func _build_guide() -> String:
 		L.append_array(fl)
 	var el := []
 	for c in [pa] + comps:
-		if c.is_empty() or int(c.get("level", 0)) <= 0 or evolved.has(c.key):
+		if c.is_empty() or int(c.get("level", 0)) <= 0:
 			continue
 		var evo := _evo_of(c.key)
 		if evo.is_empty():
 			continue
-		var has_f: bool = fruits.has(evo.fruit)
-		el.append("%s「%s」：Lv%d／5 %s、果子「%s」%s" % [c.name, evo.name, int(c.level), "✓" if int(c.level) >= 5 else "", D.fruits[evo.fruit].name, "✓" if has_f else "（還沒有）"])
+		var fneed := int(evo.get("fruit_lv", 1))
+		var has_f: bool = fruits.get(evo.fruit, 0) >= fneed
+		el.append("%s「%s」：Lv%d／5 %s、果子「%s」%s%s" % [c.name, evo.name, int(c.level), "✓" if int(c.level) >= 5 else "", D.fruits[evo.fruit].name,
+			("Lv%d" % fneed) if fneed > 1 else "", "✓" if has_f else "（還沒有）"])
 	for k in evolved:
 		el.append("✓ %s 已進化「%s」" % [by_key[k].name if by_key.has(k) else pa.name, evolved[k].name])
 	if not el.is_empty():
@@ -8250,7 +8258,9 @@ func _snapshot() -> Dictionary:
 		if c.level > 0:
 			d.comps.append({"key": c.key, "level": int(c.level), "branch": int(c.get("branch", -1)), "anoints": c.get("anoints", []).duplicate(), "hp": float(c.hp)})
 	d.pa = {"level": int(pa.level), "branch": int(pa.get("branch", -1)), "anoints": pa.get("anoints", []).duplicate()}
-	d.evolved = evolved.keys()
+	d.evolved = {}
+	for k in evolved:
+		d.evolved[k] = _evo_tier(k)
 	d.relics = relics.keys()
 	d.links = []
 	for L in links:
@@ -8283,10 +8293,12 @@ func _apply_resume(r: Dictionary) -> void:
 	pa.branch = int(r.pa.branch)
 	pa.anoints = Array(r.pa.anoints)
 	_set_level(pa, int(r.pa.level))
-	for k in r.evolved:
-		var ev := _evo_of(str(k))
-		if not ev.is_empty() and not evolved.has(k) and not _who(str(k)).is_empty():
-			_evolve(ev)
+	var rev: Dictionary = r.evolved if r.evolved is Dictionary else {}
+	for k in rev:
+		for i in int(rev[k]):
+			var ev := _evo_of(str(k))
+			if not ev.is_empty() and not _who(str(k)).is_empty():
+				_evolve(ev, false)
 	for L in r.links:
 		var src := _who(str(L.src)) if str(L.src) != "" else {}
 		var dst := _who(str(L.dst))
@@ -8312,19 +8324,35 @@ func _ready_evolutions() -> Array:
 		if not by_key.has(evo.companion):
 			continue
 		var c: Dictionary = by_key[evo.companion]
-		if c.level >= 5 and fruits.has(evo.fruit) and not evolved.has(c.key):
+		if int(evo.get("stage", 1)) == _evo_tier(c.key) + 1 and c.level >= 5 and fruits.get(evo.fruit, 0) >= int(evo.get("fruit_lv", 1)):
 			out.append(evo)
+	return out
+
+
+## 已經進化到第幾段（0 = 還沒）
+func _evo_tier(key: String) -> int:
+	return int(evolved[key].get("stage", 1)) if evolved.has(key) else 0
+
+
+## 這位下一段的進化資料（已走完全部段數就回空）
+## 圖鑑用：進化過的人（第一段記 key，第二段另記 key#2）
+func _seen_evos() -> Array:
+	var out := []
+	for k in evolved:
+		out.append(k)
+		if _evo_tier(k) >= 2:
+			out.append(k + "#2")
 	return out
 
 
 func _evo_of(key: String) -> Dictionary:
 	for evo in D.evolutions:
-		if evo.companion == key:
+		if evo.companion == key and int(evo.get("stage", 1)) == _evo_tier(key) + 1:
 			return evo
 	return {}
 
 
-func _evolve(evo: Dictionary) -> void:
+func _evolve(evo: Dictionary, reset_level := true) -> void:
 	var c: Dictionary = by_key[evo.companion]
 	evolved[c.key] = evo
 	run_evolutions += 1
@@ -8343,9 +8371,14 @@ func _evolve(evo: Dictionary) -> void:
 	ui.do_flash(0.5)
 	ui.show_banner("進化！%s：%s" % [c.name, evo.name], 2.2)
 	var l: Label = ui.names[c.name]
-	l.text = "★" + l.text
+	if not l.text.begins_with("★"):
+		l.text = "★" + l.text
 	l.label_settings.font_color = C_GOLD
 	l.modulate.a = 1.0
+	if reset_level and not _evo_of(c.key).is_empty():
+		_set_level(c, 1)   # 還有下一段：從 Lv1 重新累積（進化的數值照舊蓋在上面）
+	if smoke:
+		print("EVOLVE %s stage=%d lv=%d" % [c.key, _evo_tier(c.key), int(c.level)])
 
 
 func _on_chest_closed() -> void:
@@ -8851,7 +8884,7 @@ func _finish_run() -> Array:
 		"resonances": run_resonances, "midbosses": run_midboss, "chests": run_chests, "links": link_count,
 		"combo": combo_best, "party_size": _party_count(), "converts": run_converts, "minions": run_minions, "songs": run_songs, "holies": run_holies, "shocks": run_shocks, "bonds": run_bonds, "relics": run_relics, "saved": run_saved, "school": school_tier.values().max() if not school_tier.is_empty() else 0, "endless": endless, "sets": sets_on.size(), "leader": leader,
 		"faith": faith, "stage": stage.id, "daily": str(Save.run_config.get("daily", "")),
-		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": evolved.keys(), "fruits": fruits.keys(), "armor": armor.keys(), "relics": relics.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
+		"seen": {"enemies": killed_types.keys().map(func(k): return k.replace("pride_small", "pride")), "evos": _seen_evos(), "fruits": fruits.keys(), "armor": armor.keys(), "relics": relics.keys()}, "no_down": t - t_start >= 210.0 and not someone_down, "full_party": full_party, "party": party})
 	if smoke:
 		print("WITNESS +%d bread +%d saved=%d kills=%d" % [res.witness, res.bread, run_saved, kills])
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
