@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 新增
+- 史詩感調色層：自動載入的全螢幕調色（`scripts/grade.gd`、`scripts/draw/post_grade_epic.gdshader`），輕微壓暗、暗部偏夜靛、亮部偏帝金、提高飽和、保護膚色、加暈邊，所有章節、營地、標題、UI 立即套用；`arpg`（宣教之路 2 試作）場景自動排除；命令列加 `--nograde` 可關閉。新的畫面基準在 `production/qa/evidence/baseline-epic-grade/`（結構重構的舊基準搭配 `GRADE_ARG=--nograde tools/sim/shots.sh` 仍可逐像素比對）
 - 史詩感風格提案（待核可）：`docs/refactor/02-style-direction.md`、`docs/refactor/style-proposal/`（配色板、五張調色前後對比、48 秒示範曲與現有五旬節曲的對照），以及產生它們的 `tools/style_proposal.py`、`tools/music_epic_sample.py`；不影響遊戲本身
 - 視覺基準：`tools/sim/shots.sh` 以固定種子（新增的 `--seed=`）、固定幀率、暫存 APPDATA 拍 26 張固定場景截圖；`tools/sim/shots_diff.py` 逐像素比對兩個資料夾；基準截圖放在 `production/qa/evidence/baseline-before-refactor/`。重現性已驗證：連跑兩次，26 張完全相同（機器人場景兩張的提示橫幅區域除外，比對時已遮罩）
 - 存檔相容性測試 `tests/unit/save/run.sh`：三份測試存檔的存檔碼往返、寫檔讀檔往返、壞存檔碼會被擋下，並附黃金存檔碼（`golden/`）確保舊版匯出的存檔碼之後還讀得進來；跑在暫存 APPDATA，不碰真實存檔

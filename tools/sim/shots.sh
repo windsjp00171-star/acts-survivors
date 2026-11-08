@@ -3,6 +3,7 @@
 #
 # 用法：tools/sim/shots.sh <輸出資料夾> [存檔，預設 fresh]
 # 固定：亂數種子 --seed=1、固定幀率 --fixed-fps 60、視窗 640x360、暫存 APPDATA（不碰真實存檔）。
+# 關閉史詩調色（結構重構的逐像素基準用）：GRADE_ARG=--nograde tools/sim/shots.sh <資料夾>
 # 比對兩次輸出：python tools/sim/shots_diff.py <資料夾A> <資料夾B>
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -29,7 +30,7 @@ run() {   # 名稱 遊戲參數...
   cp "$PROF" "$U/profile.json"
   rm -f "$U/runs.json"
   timeout 180 "$G" --path . --fixed-fps 60 --resolution 640x360 --windowed --position 0,0 \
-    res://scenes/main.tscn -- --smoke --seed=1 --shot="$OUTARG/$name.png" "$@" 2>&1 \
+    res://scenes/main.tscn -- --smoke --seed=1 --shot="$OUTARG/$name.png" ${GRADE_ARG:-} "$@" 2>&1 \
     | grep -E "SCRIPT ERROR|ERROR:" | head -3
 }
 run ch0 --story=0 --frames=80

@@ -33,6 +33,7 @@
 
 ## 核可後要做的事（階段 B）
 
+0. **已先做**：用全螢幕調色層（`scripts/grade.gd`）把這組調色套到整個遊戲，`--nograde` 可關。之後逐章重畫素材會讓質感超越單純調色。
 1. 把 `style_proposal.py` 的配色收進 token，程式與素材共用同一組色。
 2. 改寫 `tools/make_*.py`（人物、敵人、地形、地標、裝飾、特效、營地）使用新配色並加強明暗，**逐章**更新、每章你看過再往下。
 3. UI 套件與版面換新（`ui_kit.gd`、`game_ui.gd`、`title.gd`、`camp.gd`、`base.gd`；`ui_kit.gd` 動之前先確認 `wip/0.51-classes-runes` 現況）。
