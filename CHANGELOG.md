@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 新增
+- 構築機制提案（待選）：`docs/refactor/04-build-mechanics.md`，整理 D2 Survivors 的構築機制（單一來源、未驗證）並對照現有進化與選卡系統，提出多段進化、寶箱觸發、欄位上限等六項；不影響遊戲本身
 - 玩法方向提案（待選）：`docs/refactor/03-gameplay-direction.md`，對照現有系統與兩類參考作品（裝備與掉寶、職業與天賦、戰鬥節奏、關卡與世界）的缺口，不影響遊戲本身
 - 史詩感調色層：自動載入的全螢幕調色（`scripts/grade.gd`、`scripts/draw/post_grade_epic.gdshader`），輕微壓暗、暗部偏夜靛、亮部偏帝金、提高飽和、保護膚色、加暈邊，所有章節、營地、標題、UI 立即套用；`arpg`（宣教之路 2 試作）場景自動排除；命令列加 `--nograde` 可關閉。新的畫面基準在 `production/qa/evidence/baseline-epic-grade/`（結構重構的舊基準搭配 `GRADE_ARG=--nograde tools/sim/shots.sh` 仍可逐像素比對）
 - 史詩感風格提案（待核可）：`docs/refactor/02-style-direction.md`、`docs/refactor/style-proposal/`（配色板、五張調色前後對比、48 秒示範曲與現有五旬節曲的對照），以及產生它們的 `tools/style_proposal.py`、`tools/music_epic_sample.py`；不影響遊戲本身
