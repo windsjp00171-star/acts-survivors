@@ -5,7 +5,9 @@ const PATH := "user://profile.json"
 const TMP := "user://profile.json.tmp"     # 寫存檔時先寫這裡，確認完整才換上去
 const PREV := "user://profile_prev.json"   # 上一次的存檔（主檔壞了就用它救回來）
 
+const Equipment := preload("res://scripts/equipment.gd")
 var meta: Dictionary
+var equip_cfg: Dictionary   # data/equipment.json
 var data: Dictionary
 var run_config := {}
 var story: Dictionary      # 劇情模式的章節（data/story.json）
@@ -61,6 +63,7 @@ func clear_run_save() -> void:
 
 func _ready() -> void:
 	meta = JSON.parse_string(FileAccess.get_file_as_string("res://data/meta.json"))
+	equip_cfg = JSON.parse_string(FileAccess.get_file_as_string("res://data/equipment.json"))
 	story = JSON.parse_string(FileAccess.get_file_as_string("res://data/story.json"))
 	load_profile()
 	# 直式螢幕（手機）改用 360×640 當基準，介面與鏡頭會自動換成直式排版
@@ -357,8 +360,73 @@ func up_rank(id: String) -> int:
 func up_value(id: String) -> float:
 	for u in meta.bread.upgrades:
 		if u.id == id:
-			return up_rank(id) * float(u.per)
+			return up_rank(id) * float(u.per) + Equipment.bonus(meta.bread.upgrades, equip_worn(), id)
 	return 0.0
+
+
+# ---------- 局外裝備（信物）：存在 data.equip，沒掉過東西時不會有這個欄位 ----------
+func equip_state() -> Dictionary:
+	if not data.has("equip"):
+		data.equip = {"bag": [], "worn": {}, "seq": 0, "miss": 0}
+	return data.equip
+
+
+## 穿著中的裝備（沒穿東西時直接回空陣列，不建立欄位）
+func equip_worn() -> Array:
+	if not data.has("equip"):
+		return []
+	var out := []
+	for it in data.equip.bag:
+		if int(data.equip.worn.get(it.slot, -1)) == int(it.id):
+			out.append(it)
+	return out
+
+
+## 放進行囊；滿了回 false（掉落的東西會直接折成餅，由呼叫端處理）
+func equip_add(item: Dictionary) -> bool:
+	var st := equip_state()
+	if st.bag.size() >= int(equip_cfg.bag_max):
+		return false
+	st.bag.append(item)
+	return true
+
+
+func equip_item(item_id: int) -> Dictionary:
+	for it in equip_state().bag:
+		if int(it.id) == item_id:
+			return it
+	return {}
+
+
+## 穿上（同部位原本穿的那件留在行囊）；要脫下用 equip_unwear
+func equip_wear(item_id: int) -> bool:
+	var it := equip_item(item_id)
+	if it.is_empty():
+		return false
+	equip_state().worn[it.slot] = int(it.id)
+	return true
+
+
+func equip_unwear(slot: String) -> void:
+	equip_state().worn.erase(slot)
+
+
+## 賣掉一件換餅，回傳換到的餅；找不到回 0
+func equip_sell(item_id: int) -> int:
+	var it := equip_item(item_id)
+	if it.is_empty():
+		return 0
+	var st := equip_state()
+	if int(st.worn.get(it.slot, -1)) == item_id:
+		st.worn.erase(it.slot)
+	st.bag.erase(it)
+	var gain := equip_sell_value(it)
+	data.bread = int(data.get("bread", 0)) + gain
+	return gain
+
+
+func equip_sell_value(it: Dictionary) -> int:
+	return int(equip_cfg.rarities[int(it.rarity)].sell)
 
 
 # ---------- 營地建設 ----------

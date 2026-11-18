@@ -1,0 +1,19 @@
+{
+  "_說明": "局外裝備（信物）：敵人掉落、跨局保留。詞綴 id 直接對應 data/meta.json 的永久恩典（bread.upgrades），一條詞綴 = 該恩典 +1 級；裝備提供的等級加總後不會超過該恩典的上限（max），所以不會比花餅買滿更強。",
+  "bag_max": 24,
+  "drop": {"elite": 0.1, "boss": 1.0, "boss_min_rarity": 1},
+  "slots": [
+    {"id": "staff", "name": "杖", "names": ["牧羊杖", "橄欖木杖", "亞倫的杖", "拿單的杖"]},
+    {"id": "cloak", "name": "外衣", "names": ["粗麻外衣", "紫色外衣", "以利亞的外袍", "約瑟的彩衣"]},
+    {"id": "sandals", "name": "涼鞋", "names": ["皮繩涼鞋", "平安的鞋底", "使者的涼鞋", "遠行的涼鞋"]},
+    {"id": "signet", "name": "印戒", "names": ["銅印戒", "銀印戒", "約書亞的印", "大衛的印"]},
+    {"id": "scroll", "name": "經卷", "names": ["羊皮卷", "詩篇抄本", "書信抄本", "先知書卷"]}
+  ],
+  "rarities": [
+    {"id": "common", "name": "普通", "affixes": 1, "weight": 60, "sell": 5},
+    {"id": "fine", "name": "精良", "affixes": 2, "weight": 28, "sell": 15},
+    {"id": "rare", "name": "稀有", "affixes": 3, "weight": 10, "sell": 40},
+    {"id": "legend", "name": "傳奇", "affixes": 4, "weight": 2, "sell": 120}
+  ],
+  "affix_pool": ["might", "haste", "vigor", "renew", "reap", "growth", "run", "aegis"]
+}

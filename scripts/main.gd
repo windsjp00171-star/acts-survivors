@@ -9,6 +9,7 @@ const SEP_CELL := 8.0
 const DATA_PATH := "res://data/game.json"
 const PX := preload("res://scripts/draw/px.gd")
 const DrawFX := preload("res://scripts/draw/draw_fx.gd")
+const Equipment := preload("res://scripts/equipment.gd")
 ## 隊形：同伴依加入順序站到這些位置（相對保羅）
 const SLOTS := [Vector2(-32, 12), Vector2(32, 11), Vector2(-28, -14), Vector2(27, -15), Vector2(0, -28), Vector2(-9, 29)]   # 人物圖 0.45 起變大，隊形也拉開一點
 
@@ -262,6 +263,7 @@ var dove_t := 0.0
 var chaining := false      # 連鎖膏抹：避免一跳再跳
 var elem_of := {}          # 同伴 key → fire / water / shock
 var run_relics := 0
+var run_loot: Array = []   # 這一局掉的裝備（還沒編號，結算時才放進行囊）
 # 帶人信主與劇情對話
 var talking := false       # 劇情對話中（遊戲暫停）
 var seekers: Array = []    # 在尋找的人 {pos, hp, prog, def, life}
@@ -2078,6 +2080,9 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		killed_types["boss_" + stage.id if e.get("boss", false) else e.type] = true
 		if e.get("boss", false):
 			_boss_anoint_drop()
+			_equip_drop(true)
+		elif e.get("elite", false):
+			_equip_drop(false)
 		kills += 1
 		if float(kbuff.get("fisher", 0.0)) > 0.0:
 			var fh: float = _kv(_kit_spell("fisher"), "heal")
@@ -4850,6 +4855,21 @@ func _boss_anoint_drop() -> void:
 	ui.show_banner("Boss 掉落　" + card.title, 2.6)
 	if smoke:
 		print("BOSSDROP ", card.title)
+
+
+## 精英有機率、Boss 必掉（至少精良）局外裝備；先記在 run_loot，結算時才放進行囊
+func _equip_drop(is_boss: bool) -> void:
+	var cfg: Dictionary = Save.equip_cfg
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([kills, int(t * 1000.0), run_loot.size()])   # 不動全域亂數，固定種子的截圖與測試才不會因為掉寶而變
+	if not is_boss and rng.randf() >= float(cfg.drop.elite):
+		return
+	var rar := Equipment.pick_rarity(cfg, rng, int(cfg.drop.boss_min_rarity) if is_boss else 0)
+	var it := Equipment.roll(cfg, rng, rar, 0)
+	run_loot.append(it)
+	ui.show_banner("掉落　%s　（%s）" % [it.name, cfg.rarities[rar].name], 2.2)
+	if smoke:
+		print("EQUIPDROP ", it.name, " ", cfg.rarities[rar].name, " ", it.aff)
 
 
 func _who(k: String) -> Dictionary:
@@ -8279,7 +8299,7 @@ const SAVE_VARS := ["kres", "kstance", "kit_tal", "siege_i", "t", "kills", "xp",
 	"boss_spawned", "endless_boss_t", "endless_bosses", "run_resonances", "event_t", "events_done", "enemy_hp_bonus", "move_bonus",
 	"run_chests", "run_midboss", "boss_anoint_miss", "school_mods", "school_cards", "praise", "anoint", "run_converts", "run_minions", "run_songs",
 	"run_holies", "run_shocks", "bonds_seen", "run_bonds", "loaves_n", "run_relics", "seek_t", "seek_used", "run_saved",
-	"run_seek_spawned", "pressure", "life_avg", "persec_t", "fz_count", "scatter_by", "blind_state", "blind_r", "hz_t",
+	"run_loot", "run_seek_spawned", "pressure", "life_avg", "persec_t", "fz_count", "scatter_by", "blind_state", "blind_r", "hz_t",
 	"founded_now", "someone_down", "full_party", "merchant_done", "banishes_left", "banished", "kit_lv"]
 var resuming := {}
 var autosave_t := 20.0
@@ -8922,7 +8942,33 @@ func _record_run() -> void:
 
 
 ## 結算：交給存檔算見證、默契、見證錄，回傳要顯示的幾行
+## 這一局掉的裝備放進行囊：編號、該部位還空著就自動穿上、行囊滿了折成餅
+func _flush_loot() -> Array:
+	var out := []
+	var names := {}
+	for u in Save.meta.bread.upgrades:
+		names[u.id] = u.name
+	for it in run_loot:
+		var st := Save.equip_state()
+		st.seq = int(st.seq) + 1
+		it.id = int(st.seq)
+		it.rarity = int(it.rarity)
+		var desc := "%s（%s）　%s" % [it.name, Save.equip_cfg.rarities[it.rarity].name, "、".join(it.aff.map(func(a): return names.get(a, a)))]
+		if Save.equip_add(it):
+			var empty: bool = not st.worn.has(it.slot)
+			if empty:
+				Save.equip_wear(it.id)
+			out.append("獲得信物：" + desc + ("　已穿上" if empty else ""))
+		else:
+			var gain := Save.equip_sell_value(it)
+			Save.data.bread = int(Save.data.get("bread", 0)) + gain
+			out.append("行囊滿了，折成餅 +%d：%s" % [gain, desc])
+	run_loot = []
+	return out
+
+
 func _finish_run() -> Array:
+	var loot_lines := _flush_loot()
 	var party := {}
 	for c in comps:
 		if c.level > 0 and c.follows == "":
@@ -8937,6 +8983,8 @@ func _finish_run() -> Array:
 	if smoke:
 		print("WITNESS +%d bread +%d saved=%d kills=%d" % [res.witness, res.bread, run_saved, kills])
 	var lines := [["帶回見證 +%d　（共 %d）　餅 +%d" % [res.witness, Save.data.witness, res.bread], 15, C_SKY]]
+	for l in loot_lines:
+		lines.append([l, 12, C_GOLD])
 	if res.get("daily_bonus", false):
 		lines.append(["今日挑戰通關！見證與餅 ×1.5", 13, C_GOLD])
 	if faith > 0:
