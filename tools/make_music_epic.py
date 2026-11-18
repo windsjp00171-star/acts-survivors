@@ -18,8 +18,8 @@ import make_music as mm  # noqa: E402
 
 GAME_JSON = os.path.join(os.path.dirname(__file__), "..", "data", "game.json")
 # 力度走勢（各段的音量倍率）：弱起 → 主題 → 銅管與合唱 → 聖詩（收一點）→ 高潮 → 收尾回到弱起，循環才接得上
-ARC = {"intro": 0.35, "A": 0.55, "B": 0.85, "C": 0.55, "A2": 1.0, "end": 0.4}
-PERC_BOOST = 1.6   # +4 dB：半速後鼓點稀疏、RMS 偏低，史詩感要靠定音鼓與太鼓撐住（現有曲子打擊層比旋律層只低 3.5–5.6 dB）
+ARC = {"intro": 0.55, "A": 0.75, "B": 0.9, "C": 0.7, "A2": 1.0, "end": 0.6}   # 谷底墊高：起伏太大、低處太輕會讓人想睡
+PERC_BOOST = 2.4   # 半速後鼓點稀疏、RMS 偏低，要靠定音鼓與太鼓撐住；試聽回饋「很催眠」後由 1.6 提高到 2.4
 current = {"name": ""}
 
 
@@ -70,6 +70,8 @@ def epic_battle(root, mode, bpm, prog, motif, answer, lead=mm.aulos, taiko_a=Non
             if bar >= B:
                 for t in (1, 3):
                     tr.hit(b + t, big, 0.4)
+            for t in (0.5, 1.5, 2.5, 3.5):   # 強拍之間補輕的八分音符鼓點，加推進感（不動重拍位置，對拍不變）
+                tr.hit(b + t, big, 0.3 if bar < B else 0.45)
         if bar in (0, 1, B - 1, C - 1, total - 1) or (A2 - 1 == bar):
             tr.put(b, mm.timp(1.0), 1.0, mm.taiko, "perc")
 
@@ -79,9 +81,14 @@ def epic_battle(root, mode, bpm, prog, motif, answer, lead=mm.aulos, taiko_a=Non
         c = cchord(bar)
         b = bar * 4
         soft = 0.8 if in_c(bar) else 0.6
+        drive = not in_c(bar) and (B <= bar < C or bar >= A2)   # 主題與高潮段：低音改成八分音符律動
+        if drive:
+            for i in range(8):
+                tr.note(mm.cello, b + i * 0.5, mm.hz(mm.deg(root - 24, mode, c)), beat * 0.48, 0.85)
         if not in_c(bar) or bar % 2 == 0:
             span = 8.2 if in_c(bar) else 4.2
-            tr.note(mm.cello, b, mm.hz(mm.deg(root - 24, mode, c)), beat * span, 1.0)
+            if not drive:
+                tr.note(mm.cello, b, mm.hz(mm.deg(root - 24, mode, c)), beat * span, 1.0)
             for d in (c, c + 2, c + 4):
                 tr.note(mm.strings, b, mm.hz(mm.deg(root - 12, mode, d)), beat * span, soft)
         if not in_c(bar):
