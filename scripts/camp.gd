@@ -366,7 +366,7 @@ func _build_hud() -> void:
 	var p2 = load("res://scripts/base.gd").new()
 	panel = p2
 	hud.add_child(panel)
-	panel.tabs_enabled = {"home": true, "roster": true, "shop": _has("shop"), "gifts": _has("shop"), "ach": _has("ach"), "log": true}
+	panel.tabs_enabled = {"home": true, "roster": true, "shop": _has("shop"), "gifts": _has("shop"), "ach": _has("ach"), "bag": Save.data.has("equip"), "log": true}
 	panel.closed.connect(func(): target = null)
 
 

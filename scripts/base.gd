@@ -56,6 +56,7 @@ func open(tab: String, key := "") -> void:
 		"gifts": _show_gifts()
 		"ach": _show_achievements()
 		"codex": _show_codex()
+		"bag": _show_bag()
 		"log": _show_log()
 		"altar": _show_altar()
 		"library": _show_library()
@@ -173,7 +174,7 @@ func _build() -> void:
 	nav.add_theme_constant_override("h_separation", 6)
 	nav.add_theme_constant_override("v_separation", 6)
 	body.add_child(nav)
-	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["gifts", "恩賜", _show_gifts], ["ach", "見證錄", _show_achievements], ["codex", "圖鑑", _show_codex], ["log", "日誌", _show_log]]:
+	for item in [["home", "出發", _show_home], ["roster", "同伴", _show_roster], ["shop", "解鎖", _show_shop], ["gifts", "恩賜", _show_gifts], ["ach", "見證錄", _show_achievements], ["codex", "圖鑑", _show_codex], ["bag", "行囊", _show_bag], ["log", "日誌", _show_log]]:
 		var b := UIKit.button(item[1], 15 if portrait else 14)
 		b.custom_minimum_size = Vector2(76, 34) if portrait else Vector2(112, 31)
 		b.pressed.connect(item[2])
@@ -786,6 +787,75 @@ func _show_library() -> void:
 			_text(content, "？ %s：還沒找到" % st.name, 13, UIKit.MUTED)
 
 
+## 行囊：局外裝備（信物）。掉落與自動穿上在 main.gd，這裡負責看、換、賣
+const RARITY_COL := [UIKit.INK, UIKit.HEAL, UIKit.SKY, UIKit.GOLD]
+
+
+func _affix_names(it: Dictionary) -> String:
+	var names := {}
+	for u in Save.meta.bread.upgrades:
+		names[u.id] = u.name
+	return "、".join(it.aff.map(func(a): return names.get(a, a)))
+
+
+func _bag_item_row(it: Dictionary, worn: bool) -> void:
+	var rar: Dictionary = Save.equip_cfg.rarities[int(it.rarity)]
+	var row := _row(content)
+	_text(row, "%s（%s）\n%s" % [it.name, rar.name, _affix_names(it)], 13, RARITY_COL[int(it.rarity)], true)
+	var iid := int(it.id)
+	var slot: String = it.slot
+	var b1 := UIKit.button("脫下" if worn else "穿上", 13)
+	b1.custom_minimum_size = Vector2(64, 34)
+	b1.pressed.connect(func():
+		if worn:
+			Save.equip_unwear(slot)
+		else:
+			Save.equip_wear(iid)
+		Save.save_profile()
+		_show_bag())
+	row.add_child(b1)
+	var b2 := UIKit.button("賣出 +%d 餅" % Save.equip_sell_value(it), 12)
+	b2.custom_minimum_size = Vector2(96, 34)
+	b2.pressed.connect(func():
+		Save.equip_sell(iid)
+		Save.save_profile()
+		_show_bag())
+	row.add_child(b2)
+
+
+func _show_bag() -> void:
+	_clear("bag")
+	var st: Dictionary = Save.data.get("equip", {"bag": [], "worn": {}})
+	var bag: Array = st.bag
+	var worn: Array = Save.equip_worn()
+	_text(content, "行囊（%d／%d）" % [bag.size(), int(Save.equip_cfg.bag_max)], 18, UIKit.GOLD)
+	_text(content, "打倒精英有機會掉信物，Boss 一定會掉。每個部位穿一件，詞綴會加到永久恩典上（不會超過恩典的上限）。行囊滿了，新掉的信物會折成餅。", 11, UIKit.MUTED, true)
+	_text(content, "穿著中", 15, UIKit.CREAM)
+	for sl in Save.equip_cfg.slots:
+		var on: Array = worn.filter(func(it): return it.slot == sl.id)
+		if on.is_empty():
+			_text(content, "%s：（空）" % sl.name, 13, UIKit.MUTED)
+		else:
+			_text(content, sl.name, 11, UIKit.MUTED)
+			_bag_item_row(on[0], true)
+	var counts := {}
+	for it in worn:
+		for a in it.aff:
+			counts[a] = int(counts.get(a, 0)) + 1
+	if not counts.is_empty():
+		var parts := []
+		for u in Save.meta.bread.upgrades:
+			if counts.has(u.id):
+				parts.append("%s %d／%d 級" % [u.name, mini(int(counts[u.id]), int(u.max)), int(u.max)])
+		_text(content, "目前加成：" + "、".join(parts), 12, UIKit.HEAL, true)
+	var rest: Array = bag.filter(func(it): return not worn.has(it))
+	_text(content, "備用", 15, UIKit.CREAM)
+	if rest.is_empty():
+		_text(content, "（沒有）", 13, UIKit.MUTED)
+	for it in rest:
+		_bag_item_row(it, false)
+
+
 func _show_roster() -> void:
 	_clear("roster")
 	_text(content, "常帶出門的同伴默契會升高：攻擊變快，並解鎖他的生平。", 12, UIKit.MUTED, true)
@@ -1376,7 +1446,7 @@ func _show_codex() -> void:
 
 # ---------- 自動截圖測試 ----------
 func auto_shots(shot_path: String) -> void:
-	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["gifts", _show_gifts], ["ach", _show_achievements], ["codex", _show_codex], ["log", _show_log]]:
+	for step in [["home", _show_home], ["roster", _show_roster], ["detail", func(): _show_companion("silas")], ["shop", _show_shop], ["gifts", _show_gifts], ["ach", _show_achievements], ["codex", _show_codex], ["bag", _show_bag], ["log", _show_log]]:
 		visible = true
 		step[1].call()
 		await get_tree().create_timer(0.6).timeout

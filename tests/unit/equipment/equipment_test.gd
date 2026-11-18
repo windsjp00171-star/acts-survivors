@@ -17,6 +17,7 @@ func _initialize() -> void:
 	_bonus_is_capped(s)
 	_old_save_untouched(s)
 	_wear_sell_and_json_roundtrip(s)
+	_wear_replaces_same_slot(s)
 	print("RESULT ", "FAIL (%d)" % fails if fails else "PASS")
 	quit(1 if fails else 0)
 
@@ -86,3 +87,15 @@ func _wear_sell_and_json_roundtrip(s: Node) -> void:
 	for i in int(s.equip_cfg.bag_max):
 		s.equip_add({"id": 100 + i, "slot": "cloak", "rarity": 0, "name": "x", "aff": ["might"]})
 	_expect(not s.equip_add({"id": 999, "slot": "cloak", "rarity": 0, "name": "x", "aff": ["might"]}), "行囊滿了要擋下來")
+
+
+## 營地行囊頁按「穿上」會頂掉同部位原本穿的那件（同部位只能穿一件），原本那件留在行囊
+func _wear_replaces_same_slot(s: Node) -> void:
+	s.load_profile()
+	s.equip_add({"id": 1, "slot": "staff", "rarity": 0, "name": "a", "aff": ["might"]})
+	s.equip_add({"id": 2, "slot": "staff", "rarity": 0, "name": "b", "aff": ["haste"]})
+	s.equip_wear(1)
+	s.equip_wear(2)
+	_expect(s.equip_worn().size() == 1 and int(s.equip_worn()[0].id) == 2, "同部位只能穿一件，後穿的頂掉先穿的")
+	_expect(s.equip_state().bag.size() == 2, "被頂掉的那件留在行囊，不會消失")
+	_expect(is_equal_approx(s.up_value("might"), 0.0) and s.up_value("haste") > 0.0, "被頂掉的詞綴不再加成")
