@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 新增
+- 人物新比例示範（待核可）：`tools/make_people_v2.py` 用約 4.3 頭身的新身體模板（頭 6×7、肩窄、腰收、長袍到腳踝，畫布 26×34）產生保羅、彼得、司提反的示範圖，輸出到指定資料夾，不動 `assets/sprites`；新舊對照在 `docs/refactor/style-proposal/people_v2_compare.png`。HANDOFF.md 補上最近六個 commit 與新陷阱
 - 測試存檔 `tools/sim/profiles/fresh_eq.json`（典型裝備）、`fresh_eqmax.json`（滿上限裝備），給 storysim 比較有／沒有裝備的平衡；第一輪結果在 `docs/refactor/05-equipment-layer.md`
 - 營地「行囊」頁：看穿著中與備用的信物，可穿上、脫下、賣出換餅（同部位只能穿一件，後穿的頂掉先穿的），並列出目前各項恩典加成的等級；分頁在第一次掉到信物後才出現。尚未補聚焦式教學步驟（專案目前沒有 `tour.js`）
 - 局外裝備「信物」：精英有 10% 機率、Boss 必掉（至少精良）一件信物，結算時放進行囊（上限 24 件，滿了折成餅），該部位還空著就自動穿上，跨局保留。5 個部位（杖、外衣、草鞋、印章、經卷）、4 階稀有度（詞綴 1～4 條）；詞綴就是永久恩典（剛強、殷勤、堅忍、更新、收割、長進、奔跑、盾牌）的 +1 級，加總後不超過該恩典的上限，所以不會比花餅買滿更強。資料在 `data/equipment.json`，邏輯在 `scripts/equipment.gd`，接線在 `Save.up_value()`，戰鬥程式不用改。沒掉過信物的存檔不會多出欄位，舊存檔與存檔碼不受影響。設計與分階段見 `docs/refactor/05-equipment-layer.md`；新增測試 `tests/unit/equipment/run.sh`
