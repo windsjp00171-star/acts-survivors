@@ -78,18 +78,17 @@ def body(s, f, evo):
     if s["long"]:
         d.rectangle([CX - HEAD_R - 2, hy, CX - HEAD_R + 1, top + 6], fill=hair)
         d.rectangle([CX + HEAD_R - 1, hy, CX + HEAD_R + 2, top + 6], fill=sh(hair, 0.75))
-    # 大眼睛：深色瞳孔＋兩點高光，下面一點腮紅
-    for ex in (CX - 6, CX + 2):
-        d.rectangle([ex, hy, ex + 3, hy + 4], fill=(40, 26, 30, 255))
-        d.rectangle([ex + 1, hy + 3, ex + 2, hy + 4], fill=(96, 64, 58, 255))
-        d.rectangle([ex, hy, ex + 1, hy + 1], fill=(255, 255, 255, 255))
-        d.point((ex + 3, hy + 3), fill=(220, 220, 230, 255))
-        d.rectangle([ex - 1, hy + 6, ex + 1, hy + 6], fill=(236, 140, 130, 255))
+    # 眼睛：小而簡單（2×3 的深色塊，只留一點高光），間距靠近、位置偏低，臉才不會像在瞪人
+    for ex in (CX - 6, CX + 4):
+        d.rectangle([ex, hy + 2, ex + 1, hy + 5], fill=(40, 26, 30, 255))
+        d.point((ex, hy + 2), fill=(235, 235, 240, 255))
+    d.rectangle([CX - 8, hy + 7, CX - 6, hy + 7], fill=(232, 150, 140, 255))   # 淡淡的腮紅
+    d.rectangle([CX + 6, hy + 7, CX + 8, hy + 7], fill=(232, 150, 140, 255))
     if s["beard"]:
         b = rgb(s["beard"])
         d.polygon([(CX - 8, hy + 6), (CX - 4, hy + 12), (CX + 4, hy + 12), (CX + 8, hy + 6), (CX + 4, hy + 8), (CX - 4, hy + 8)], fill=b)
         d.polygon([(CX + 3, hy + 9), (CX + 8, hy + 6), (CX + 4, hy + 12)], fill=sh(b, 0.75))
-    d.line([(CX - 1, hy + 8), (CX + 1, hy + 8)], fill=(150, 70, 60, 255))
+    d.line([(CX - 1, hy + 9), (CX + 1, hy + 9)], fill=(150, 70, 60, 255))
     if evo:
         d.ellipse([CX - 9, hy - HEAD_R - 7, CX + 9, hy - HEAD_R - 2], outline=rgb("#ffd75e"), width=2)
     return im
