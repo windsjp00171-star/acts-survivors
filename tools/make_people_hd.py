@@ -78,17 +78,21 @@ def body(s, f, evo):
     if s["long"]:
         d.rectangle([CX - HEAD_R - 2, hy, CX - HEAD_R + 1, top + 6], fill=hair)
         d.rectangle([CX + HEAD_R - 1, hy, CX + HEAD_R + 2, top + 6], fill=sh(hair, 0.75))
-    # 眼睛：小而簡單（2×3 的深色塊，只留一點高光），間距靠近、位置偏低，臉才不會像在瞪人
-    for ex in (CX - 6, CX + 4):
-        d.rectangle([ex, hy + 2, ex + 1, hy + 5], fill=(40, 26, 30, 255))
-        d.point((ex, hy + 2), fill=(235, 235, 240, 255))
-    d.rectangle([CX - 8, hy + 7, CX - 6, hy + 7], fill=(232, 150, 140, 255))   # 淡淡的腮紅
-    d.rectangle([CX + 6, hy + 7, CX + 8, hy + 7], fill=(232, 150, 140, 255))
+    # 眼睛：有眼白的小眼睛（白底、深色瞳孔朝前）加眉毛與微笑，臉才有「人」的感覺；純黑點加空白臉會像恐怖遊戲
+    brow = sh(hair if not s["bald"] else skin, 0.6)
+    for ex in (CX - 8, CX + 3):
+        d.rectangle([ex, hy + 1, ex + 4, hy + 5], fill=(250, 246, 238, 255))
+        d.rectangle([ex + 1, hy + 2, ex + 3, hy + 5], fill=(58, 38, 30, 255))
+        d.point((ex + 1, hy + 2), fill=(255, 255, 255, 255))
+        d.line([(ex - 1, hy - 1), (ex + 5, hy - 2)], fill=brow, width=2)
+    d.rectangle([CX - 11, hy + 7, CX - 9, hy + 8], fill=(238, 150, 140, 255))   # 淡淡的腮紅
+    d.rectangle([CX + 9, hy + 7, CX + 11, hy + 8], fill=(238, 150, 140, 255))
     if s["beard"]:
+        # 下巴的鬍子：上緣平直（不往臉頰翹），嘴巴在鬍子上方，才不會像咧嘴
         b = rgb(s["beard"])
-        d.polygon([(CX - 8, hy + 6), (CX - 4, hy + 12), (CX + 4, hy + 12), (CX + 8, hy + 6), (CX + 4, hy + 8), (CX - 4, hy + 8)], fill=b)
-        d.polygon([(CX + 3, hy + 9), (CX + 8, hy + 6), (CX + 4, hy + 12)], fill=sh(b, 0.75))
-    d.line([(CX - 1, hy + 9), (CX + 1, hy + 9)], fill=(150, 70, 60, 255))
+        d.polygon([(CX - 7, hy + 10), (CX + 7, hy + 10), (CX + 6, hy + 12), (CX + 3, hy + 15), (CX - 3, hy + 15), (CX - 6, hy + 12)], fill=b)
+        d.polygon([(CX + 3, hy + 10), (CX + 7, hy + 10), (CX + 6, hy + 12), (CX + 3, hy + 15)], fill=sh(b, 0.75))
+    d.line([(CX - 3, hy + 9), (CX - 2, hy + 10), (CX + 2, hy + 10), (CX + 3, hy + 9)], fill=(170, 80, 70, 255), width=1)
     if evo:
         d.ellipse([CX - 9, hy - HEAD_R - 7, CX + 9, hy - HEAD_R - 2], outline=rgb("#ffd75e"), width=2)
     return im
