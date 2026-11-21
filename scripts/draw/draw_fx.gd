@@ -192,12 +192,15 @@ func _draw_air() -> void:
 		var center: Vector2 = (r.owner.pos + Vector2(0, -6)).round()
 		var col: Color = g.C_FLAME if on_fire else r.owner.get("col", g.C_GOLD)
 		# 聲波：一圈像素環，越外面越細；環上四個音符跟著轉
-		var w: int = 3 if k < 0.4 and r.thick >= 2 else 2
-		g.PX.ring(n, center, r.r, col.darkened(0.5), w + 1, 0.8)
-		g.PX.ring(n, center, r.r, col, w - 1 if w > 1 else 1, 0.8)
-		for j in 4:
-			var ang: float = j * TAU / 4.0 + r.r * 0.03
-			g._fx(n, "note", 1, 0, center + Vector2(cos(ang), sin(ang) * 0.8) * r.r)
+		# 畫面清爽：環變細、越往外越淡（原本整圈不透明，幾位同伴同時放時會蓋滿畫面）
+		var fade: float = 1.0 - k
+		var w: int = 2 if k < 0.4 and r.thick >= 2 else 1
+		g.PX.ring(n, center, r.r, Color(col.darkened(0.5), 0.5 * fade), w + 1, 0.8)
+		g.PX.ring(n, center, r.r, Color(col, 0.85 * fade), w, 0.8)
+		if k < 0.5:
+			for j in 4:
+				var ang: float = j * TAU / 4.0 + r.r * 0.03
+				g._fx(n, "note", 1, 0, center + Vector2(cos(ang), sin(ang) * 0.8) * r.r)
 		if r.get("evo", false):
 			g.PX.ring(n, center, r.r + 3.0, g.C_GOLD, 1, 0.8, 2)
 	for b in g.beams:

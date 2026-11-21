@@ -3370,12 +3370,15 @@ func _dmg_number(e: Dictionary, dmg: float, src) -> void:
 		return
 	var col: Color = src.get("col", C_CREAM) if src is Dictionary else C_CREAM
 	var lead: bool = src is Dictionary and src == pa
+	# 畫面清爽：小怪被同伴打的小數字不顯示（一群怪時會蓋滿畫面），只留主角自己、菁英與 Boss 的
+	if not lead and not e.get("elite", false) and not e.get("boss", false):
+		return
 	for dn in dnums:
 		if dn.e == e.node and dn.t < 0.25 and bool(dn.get("lead", false)) == lead:
 			dn.v += dmg
 			dn.col = col
 			return
-	if dnums.size() >= 40:
+	if dnums.size() >= 16:
 		return
 	dnums.append({"e": e.node, "pos": e.pos + Vector2(randf_range(-4, 4), -14), "v": dmg, "t": 0.0, "col": col, "dx": randf_range(-10.0, 10.0), "lead": lead})
 
