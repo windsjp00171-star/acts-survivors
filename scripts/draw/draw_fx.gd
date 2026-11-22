@@ -134,6 +134,16 @@ func _draw_ground_fx() -> void:
 		if cd.length() > 70.0 and cd.length() < 360.0:
 			var ctip: Vector2 = g.paul.pos + cd.normalized() * 38.0 + Vector2(0, -8)
 			n.draw_rect(Rect2(ctip.round() - Vector2(2, 2), Vector2(4, 4)), Color(g.C_GOLD, 0.6 + 0.4 * sin(g.t * 6.0)))
+	# 分頭行動：同伴走出畫面時，主角身邊有個他顏色的點指著方向；倒下的閃紅
+	if g.roam:
+		var seen: Rect2 = g._view_rect()
+		for c in g.comps:
+			if c.level == 0 or c.follows != "" or seen.has_point(c.pos):
+				continue
+			var ct: Vector2 = g.paul.pos + (c.pos - g.paul.pos).normalized() * 32.0 + Vector2(0, -8)
+			var ccol: Color = Color("ff5a4a") if c.down > 0.0 else c.col
+			n.draw_rect(Rect2(ct.round() - Vector2(2, 2), Vector2(5, 5)), Color("1a1014"))
+			n.draw_rect(Rect2(ct.round() - Vector2(1, 1), Vector2(3, 3)), Color(ccol, 0.6 + 0.4 * sin(g.t * 6.0)))
 	for b in g.breads:
 		var bx: float = roundf(b.pos.x)
 		var by: float = roundf(b.pos.y) - roundf(absf(sin(g.t * 3.0 + b.pos.x)) * 1.5)

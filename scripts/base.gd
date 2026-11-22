@@ -303,6 +303,20 @@ func _show_home() -> void:
 			_show_home())
 		drow.add_child(db)
 	_text(content, "輕鬆：敵人打得輕、Boss 血少（信心等級與每日挑戰照標準）" if easy else "標準：越後面越難，Boss 分三階段要走位；過不去就回來點恩賜盤、換信物", 11, UIKit.MUTED, true)
+	# 隊形：分頭行動時同伴自己走動打敵人，主角去支援他們
+	var roam: bool = bool(Save.data.get("roam_on", false))
+	var rrow := _row(content)
+	for m in [[false, "隊形：跟著主角"], [true, "隊形：分頭行動"]]:
+		var rb := UIKit.button(m[1], 13, roam == m[0])
+		rb.custom_minimum_size = Vector2(0 if portrait else 150, 32)
+		rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var rv: bool = m[0]
+		rb.pressed.connect(func():
+			Save.data.roam_on = rv
+			Save.save_profile()
+			_show_home())
+		rrow.add_child(rb)
+	_text(content, "分頭行動（試玩）：同伴自己走動找敵人打，血少會退回你身邊休息；你有危險他們會來救，Boss 出現就一起去打。倒下的同伴，你過去陪他會比較快起來" if roam else "跟著主角：同伴排在你身邊一起走", 11, UIKit.MUTED, true)
 	if mode == "story":
 		_show_story()
 		return

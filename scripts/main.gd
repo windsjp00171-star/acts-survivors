@@ -12,6 +12,7 @@ const DrawFX := preload("res://scripts/draw/draw_fx.gd")
 const Equipment := preload("res://scripts/equipment.gd")
 const People := preload("res://scripts/people.gd")
 const Mobs := preload("res://scripts/mobs.gd")
+const Roam := preload("res://scripts/roam.gd")
 ## 隊形：同伴依加入順序站到這些位置（相對保羅）
 const SLOTS := [Vector2(-32, 12), Vector2(32, 11), Vector2(-28, -14), Vector2(27, -15), Vector2(0, -28), Vector2(-9, 29)]   # 人物圖 0.45 起變大，隊形也拉開一點
 
@@ -198,6 +199,7 @@ var joy := {"on": false, "index": -1, "origin": Vector2.ZERO, "pos": Vector2.ZER
 var world: Node2D
 var ground: Sprite2D
 var ground_fx: Node2D
+var roam := false   # 分頭行動隊形：同伴自己走動、自己找敵人
 var tall := []   # 高到會擋住人的物件
 var decals: Node2D
 var air: Node2D
@@ -429,6 +431,7 @@ func _ready() -> void:
 	if Save.run_config.has("daily"):
 		trials = Array(Save.run_config.daily_trials)   # 每日挑戰：今天的兩個條件
 	Save.run_config.trials = trials
+	roam = bool(Save.data.get("roam_on", false)) or OS.get_cmdline_user_args().has("--roam")
 	endless = bool(Save.run_config.get("endless", false)) or OS.get_cmdline_user_args().has("--endless")
 	if endless:
 		D.waves.max_enemies = int(D.endless.max_enemies)
@@ -530,6 +533,8 @@ func _ready() -> void:
 			for k in a.substr(6).split(","):   # 測試：主角一開始就學會這些技能（k 或 k:等級）
 				var kp := k.split(":")
 				kit_lv[kp[0]] = int(kp[1]) if kp.size() > 1 else 1
+		elif a == "--roam":
+			roam = true
 		elif a == "--perf":
 			perf = true
 		elif a == "--film":
@@ -965,6 +970,62 @@ func _set_level(c: Dictionary, lv: int) -> void:
 		_update_synergy()
 
 
+## 分頭行動：隔一小段時間想一次要做什麼，其餘時間往目的地走
+func _roam_move(c: Dictionary, dt: float) -> void:
+	var R: Dictionary = D.roam
+	var buddy = by_key.get(c.follows) if c.follows != "" else null
+	if buddy != null and buddy.level > 0:
+		c.goal = buddy.base + Vector2(14, 0)   # 成對的同伴跟著搭檔
+	else:
+		c.think = float(c.get("think", c.i * 0.07)) - dt
+		if c.think <= 0.0:
+			c.think = float(R.think)
+			_roam_think(c)
+	var hp_max := _comp_max_hp()
+	if str(c.get("act", "")) == Roam.BACK and c.base.distance_to(paul.pos) < float(R.rest_r):
+		c.hp = minf(hp_max, c.hp + float(R.rest_heal) * dt)
+	var to: Vector2 = c.goal - c.base
+	var step: float = float(R.speed) * dt
+	c.base += to if to.length() <= step else to.normalized() * step
+
+
+func _roam_think(c: Dictionary) -> void:
+	var R: Dictionary = D.roam
+	var rank := 0
+	var n := 0
+	var mates := []
+	for o in comps:
+		if o.level == 0 or o.follows != "":
+			continue
+		n += 1
+		if o != c and o.down <= 0.0:
+			if o.base.distance_squared_to(paul.pos) < c.base.distance_squared_to(paul.pos):
+				rank += 1
+			if o.has("foe"):
+				mates.append(o.foe)
+	var crowd := 0
+	for e in _enemies_near(paul.pos, float(R.aid_near)):
+		if not e.dead and e.pos.distance_to(paul.pos) < float(R.aid_near):
+			crowd += 1
+	var foes := []
+	for e in _nearest_enemies(c.base, float(R.leash) * 1.5, 14):
+		if not e.get("boss", false):
+			foes.append(e.pos)
+	var out := Roam.decide(
+		{"pos": c.base, "hp_k": c.hp / _comp_max_hp(), "range": float(c.st.get("range", 60.0)), "rank": rank, "i": c.i, "n": maxi(1, n), "t": t,
+			"resting": str(c.get("act", "")) == Roam.BACK},
+		{"hero": paul.pos, "hero_trouble": Roam.hero_in_trouble(paul.hp / float(D.paul.hp), crowd, R),
+			"boss": boss.pos if boss != null and not boss.dead else null, "foes": foes, "mates": mates}, R)
+	if out.state == Roam.AID and str(c.get("act", "")) != Roam.AID:
+		c.name_until = t + 2.0   # 來支援的同伴亮一下名字
+	c.act = out.state
+	c.goal = out.pos
+	if out.state == Roam.FIGHT:
+		c.foe = out.pos
+	else:
+		c.erase("foe")
+
+
 func _recruit(c: Dictionary) -> void:
 	if solo:
 		return   # 一個人的關卡：沒有同伴加入
@@ -982,6 +1043,7 @@ func _recruit(c: Dictionary) -> void:
 	_set_level(c, 2 if c.get("tstart", false) else 1)   # 恩賜樹「直接 Lv2」
 	c.base = paul.pos + c.home + Vector2(randf_range(-30, 30), 40)
 	c.pos = c.base
+	c.goal = c.base
 	c.node.visible = true
 	if c.with != "":
 		_recruit(by_key[c.with])
@@ -2709,7 +2771,10 @@ func _step(dt: float) -> void:
 		var k := minf(1.0, dt * 12.0)   # 同伴一開始就緊跟在主角身邊
 		var target: Vector2 = p.pos + c.home + Vector2(sin(t * 0.7 + c.i * 1.7) * 2.0, cos(t * 0.9 + c.i * 1.3) * 1.5)
 		if c.down <= 0.0:
-			c.base += (target - c.base) * k
+			if roam:
+				_roam_move(c, dt)
+			else:
+				c.base += (target - c.base) * k
 		var spring := 6.0
 		if barn_on and barn.st.pull and c.pos.distance_to(barn.pos) < _aura_r(barn) * 1.4:
 			spring = 30.0
@@ -2723,7 +2788,7 @@ func _step(dt: float) -> void:
 		c.castfx = maxf(0.0, c.castfx - dt)
 		c.hurt_cd = maxf(0.0, c.hurt_cd - dt)
 		if c.down > 0.0:
-			c.down -= dt * revive_mult
+			c.down -= dt * revive_mult * (float(D.roam.revive_mult) if roam and c.pos.distance_to(p.pos) < float(D.roam.revive_r) else 1.0)
 			if c.down <= 0.0:
 				c.hp = _comp_max_hp() * rules.revive_hp
 		if _active(c):
@@ -5629,6 +5694,13 @@ func _update_enemies(dt: float) -> void:
 				var dd: float = c.pos.distance_to(e.pos)
 				if dd < bd:
 					bd = dd
+					target = c.pos + Vector2(0, -4)
+		elif roam:
+			# 分頭行動：離同伴明顯比較近的敵人，改去追同伴（不然敵人只圍主角，同伴在外面沒事做）
+			var rd: float = p.pos.distance_to(e.pos) * float(D.roam.aggro)
+			for c in comps:
+				if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(e.pos) < rd:
+					rd = c.pos.distance_to(e.pos)
 					target = c.pos + Vector2(0, -4)
 		if float(e.get("taunt_t", 0.0)) > 0.0:
 			# 參孫的嘲諷：這幾秒只追他
