@@ -129,6 +129,11 @@ func _draw_ground_fx() -> void:
 		if int(g.t * 4.0) % 2 == 0:
 			n.draw_rect(Rect2(cx + 6, cy - 9, 1, 1), Color.WHITE)
 			n.draw_rect(Rect2(cx - 8, cy - 2, 1, 1), Color.WHITE)
+		# 寶箱在螢幕外時，主角身邊有個金點指著方向
+		var cd: Vector2 = ch.pos - g.paul.pos
+		if cd.length() > 70.0 and cd.length() < 360.0:
+			var ctip: Vector2 = g.paul.pos + cd.normalized() * 38.0 + Vector2(0, -8)
+			n.draw_rect(Rect2(ctip.round() - Vector2(2, 2), Vector2(4, 4)), Color(g.C_GOLD, 0.6 + 0.4 * sin(g.t * 6.0)))
 	for b in g.breads:
 		var bx: float = roundf(b.pos.x)
 		var by: float = roundf(b.pos.y) - roundf(absf(sin(g.t * 3.0 + b.pos.x)) * 1.5)

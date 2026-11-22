@@ -2165,7 +2165,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			for i in int(D.waves.veteran.gems) - 1:
 				gems.append({"pos": e.pos + Vector2(randf_range(-6, 6), randf_range(-5, 5)), "got": false})
 		if e.d.get("chest", false):
-			chests.append({"pos": e.pos, "relic": randf() < float(D.relic_rules.elite_chance)})
+			chests.append({"pos": _chest_spot(e.pos), "relic": randf() < float(D.relic_rules.elite_chance)})
 			_tip("chest")
 		if e.get("elite", false):
 			run_elites += 1
@@ -2183,7 +2183,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 			star_falls = star_falls.filter(func(sf): return sf.get("src", "") != "boss")
 		if e.get("boss", false) and e.get("mid", false):
 			# 中途 Boss 打退了：掉寶箱（一定能選聖物），真正的 Boss 之後才來
-			chests.append({"pos": e.pos, "relic": true})
+			chests.append({"pos": _chest_spot(e.pos), "relic": true})
 			boss = null
 			run_midboss += 1
 			if endless:
@@ -4885,6 +4885,19 @@ func _equip_drop(is_boss: bool) -> void:
 	ui.show_banner("掉落　%s　（%s）" % [it.name, cfg.rarities[rar].name], 2.2)
 	if smoke:
 		print("EQUIPDROP ", it.name, " ", cfg.rarities[rar].name, " ", it.aff)
+
+
+## 精英與中途 Boss 的寶箱不掉在腳邊：離主角太近就推到 90～150 外（好東西在外面，要走出去才拿得到）
+const CHEST_FAR_MIN := 90.0
+const CHEST_FAR_MAX := 150.0
+
+
+func _chest_spot(at: Vector2) -> Vector2:
+	var d: Vector2 = at - paul.pos
+	if d.length() >= CHEST_FAR_MIN:
+		return at
+	var dir: Vector2 = d.normalized() if d.length() > 1.0 else Vector2.from_angle(randf() * TAU)
+	return _push_out(paul.pos + dir * randf_range(CHEST_FAR_MIN, CHEST_FAR_MAX), 8.0)
 
 
 func _who(k: String) -> Dictionary:
