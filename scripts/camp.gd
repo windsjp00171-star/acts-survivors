@@ -2,6 +2,7 @@ extends Node2D
 ## 安提阿營地：遊戲開啟後的第一個畫面。保羅在營地走動，跟同伴、帳棚、見證牆、路標互動。
 ## 設施依進度出現（meta.json 的 camp）。鍵盤 WASD 移動、空白鍵互動；觸控／滑鼠點目標就走過去。
 
+const People := preload("res://scripts/people.gd")
 const C_GOLD := Color("ffd75e")
 const C_CREAM := Color("fff4c2")
 const C_INK := Color("f4ead2")
@@ -134,9 +135,7 @@ func _lamp_pos(i: int) -> Vector2:
 
 func _sprite(key: String) -> Sprite2D:
 	var s := Sprite2D.new()
-	s.texture = load("res://assets/sprites/%s_0.png" % key)
-	s.centered = false
-	s.offset = Vector2(-12, -25)
+	People.pose(s, key, false, People.DOWN, false, 0.0)
 	actors.add_child(s)
 	return s
 
@@ -198,12 +197,12 @@ func _build_camp() -> void:
 		var pos := _p(cos(a) * 46.0, sin(a) * 26.0 + 6.0)
 		var node := _sprite(c.key)
 		node.position = pos
-		node.flip_h = pos.x > 0.0
+		People.pose(node, c.key, false, People.LEFT if pos.x > 0.0 else People.RIGHT, false, 0.0)   # 面向營火
 		people.append({"key": c.key, "pos": pos, "node": node, "ph": randf() * TAU})
 		if c.get("with", "") != "":
 			var n2 := _sprite(c.with)
 			n2.position = pos + Vector2(12, 2)
-			n2.flip_h = node.flip_h
+			People.pose(n2, c.with, false, People.LEFT if pos.x > 0.0 else People.RIGHT, false, 0.0)
 		var nm: String = c.name + ("・" + _name_of(c.with) if c.get("with", "") != "" else "")
 		spots.append({"kind": "comp", "key": c.key, "name": nm, "pos": pos + (Vector2(6, 0) if c.get("with", "") != "" else Vector2.ZERO), "r": 12.0})
 
@@ -502,7 +501,7 @@ func _start_talk(key: String) -> void:
 func _show_line() -> void:
 	var line: Array = talk[talk_i]
 	var who: String = line[0]
-	talk_icon.texture = load("res://assets/sprites/%s_0.png" % who)
+	talk_icon.texture = People.frame(who) if People.has(who) else load("res://assets/sprites/%s_0.png" % who)
 	talk_name.text = G.paul.name if who == "paul" else _name_of(who)
 	talk_text.text = line[1]
 	talk_box.visible = true
@@ -582,10 +581,8 @@ func _process(dt: float) -> void:
 	var lim := _p(150, 85)
 	paul.pos = paul.pos.clamp(-lim, lim)
 	paul.node.position = paul.pos.round()
-	if mv.x != 0.0:
-		paul.node.flip_h = mv.x < 0.0
-	var f := int(t * 6.0) % 2 if paul.moving else 0
-	paul.node.texture = load("res://assets/sprites/%s_%d.png" % [lead, f])
+	paul.row = People.facing(mv, int(paul.get("row", People.DOWN)))
+	People.pose(paul.node, lead, false, paul.row, paul.moving, t)
 	for p in people:
 		p.node.position = p.pos + Vector2(0, roundf(sin(t * 1.6 + p.ph) * 0.6))
 

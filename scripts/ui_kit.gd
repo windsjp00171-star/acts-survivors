@@ -1,6 +1,8 @@
 class_name UIKit
 ## 介面共用的字型、顏色、樣式。
 
+const People := preload("res://scripts/people.gd")
+
 const INK := Color("f4ead2")
 const GOLD := Color("ffd75e")
 const CREAM := Color("fff4c2")
@@ -87,7 +89,10 @@ static func button(text: String, size := 14, primary := false) -> Button:
 static func sprite_icon(key: String, scale := 3) -> TextureRect:
 	var tr := TextureRect.new()
 	var path := "res://assets/sprites/%s_0.png" % key
-	if ResourceLoader.exists(path):
+	var person := key.trim_suffix("_evo")
+	if People.has(person):
+		tr.texture = People.frame(person, People.DOWN, 0, key != person)
+	elif ResourceLoader.exists(path):
 		tr.texture = load(path)
 	tr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

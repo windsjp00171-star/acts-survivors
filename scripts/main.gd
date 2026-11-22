@@ -10,6 +10,7 @@ const DATA_PATH := "res://data/game.json"
 const PX := preload("res://scripts/draw/px.gd")
 const DrawFX := preload("res://scripts/draw/draw_fx.gd")
 const Equipment := preload("res://scripts/equipment.gd")
+const People := preload("res://scripts/people.gd")
 ## 隊形：同伴依加入順序站到這些位置（相對保羅）
 const SLOTS := [Vector2(-32, 12), Vector2(32, 11), Vector2(-28, -14), Vector2(27, -15), Vector2(0, -28), Vector2(-9, 29)]   # 人物圖 0.45 起變大，隊形也拉開一點
 
@@ -762,6 +763,13 @@ func _sprite(key: String, offset: Vector2) -> Sprite2D:
 	return s
 
 
+func _person(key: String) -> Sprite2D:
+	var s := Sprite2D.new()
+	People.pose(s, key, false, People.DOWN, false, 0.0)
+	world.add_child(s)
+	return s
+
+
 func _build_world() -> void:
 	ground = Sprite2D.new()
 	ground.texture = _tex(stage.get("ground", "ground"))
@@ -803,7 +811,7 @@ func _build_world() -> void:
 	cam.make_current()
 
 	paul = {"name": D.paul.name, "pos": Vector2.ZERO, "hp": float(D.paul.hp), "inv": 0.0, "moving": false,
-		"node": _sprite(leader + "_0", Vector2(-12, -25))}
+		"node": _person(leader)}
 	pa = {"key": leader, "name": D.paul.name, "skill": D.paul.skill, "tag": D.paul.tag, "i": 99, "pos": Vector2.ZERO,
 		"level": 1, "st": _stats(D.paul.skill, 1), "engine": D.skills[D.paul.skill].get("engine", D.paul.skill), "look": D.skills[D.paul.skill].get("look", ""),
 		"cd": 0.5, "castfx": 0.0, "col": Color(D.paul.get("color", "#ffd75e")), "down": 0.0, "sleep": 0.0, "off": Vector2.ZERO, "follows": "", "with": "", "aff": 1.0, "syn": 1.0}
@@ -820,7 +828,7 @@ func _build_world() -> void:
 			"look": D.skills[d.skill].get("look", "") if d.skill != "" else "",
 			"syn": 1.0, "castfx": 0.0, "col": Color(d.get("color", "#ffd75e")),
 			"aff": (1.0 + Save.affinity_level(d.key) * float(Save.meta.affinity.bonus_per_level)) * (1.0 + Save.up_value("haste")),
-			"node": _sprite(d.key + "_0", Vector2(-12, -25))}
+			"node": _person(d.key)}
 		c.node.visible = false
 		comps.append(c)
 		by_key[d.key] = c
@@ -6099,13 +6107,13 @@ func _update_blind(dt: float, hz: Dictionary) -> void:
 			blind_flash = maxf(0.0, blind_flash - dt)
 			if el >= float(hz.ananias_at) and ananias.is_empty():
 				var a := randf() * TAU
-				ananias = {"pos": paul.pos + Vector2(cos(a), sin(a) * 0.7) * 130.0, "node": _sprite("ananias_0", Vector2(-12, -25))}
+				ananias = {"pos": paul.pos + Vector2(cos(a), sin(a) * 0.7) * 130.0, "node": _person("ananias")}
 				ui.show_banner("有人走過來了：「掃羅弟兄……」（徒 9:17）", 2.5)
 			if not ananias.is_empty():
 				var to: Vector2 = paul.pos - ananias.pos
 				ananias.pos += to.normalized() * minf(to.length(), float(hz.ananias_speed) * dt)
 				ananias.node.position = ananias.pos.round()
-				ananias.node.texture = _tex("ananias_%d" % (int(t * 4.0) % 2))
+				People.pose(ananias.node, "ananias", false, People.facing(to, People.DOWN), true, t)
 				if to.length() < float(hz.touch):
 					_ananias_arrive(hz)
 		"heal":
@@ -6120,7 +6128,7 @@ func _update_blind(dt: float, hz: Dictionary) -> void:
 				if to2.length() > 10.0:
 					ananias.pos += to2.normalized() * minf(to2.length(), 50.0 * dt)
 				ananias.node.position = ananias.pos.round()
-				ananias.node.texture = _tex("ananias_%d" % ((int(t * 4.0) % 2) if to2.length() > 10.0 else 0))
+				People.pose(ananias.node, "ananias", false, People.facing(to2, People.DOWN), to2.length() > 10.0, t)
 
 
 func _ananias_arrive(hz: Dictionary) -> void:
@@ -6161,7 +6169,7 @@ func _draw_dark() -> void:
 			var a := i / 12.0 * TAU + t * 0.3
 			n.draw_line(at + Vector2(cos(a), sin(a)) * 14.0, at + Vector2(cos(a), sin(a)) * (24.0 + 4.0 * (i % 2)), Color("ffe9a0"), 2.0)
 		n.draw_circle(at, 13.0, Color("fff8d8"))
-		n.draw_texture_rect(_tex("jesus_0"), Rect2(at + Vector2(-17, -19), Vector2(36, 33)), false)
+		n.draw_texture_rect(People.frame("jesus"), Rect2(at + Vector2(-17, -19), Vector2(36, 33)), false)
 		return
 	if blind_state == "" or blind_state == "done" or blind_state == "vision":
 		return
@@ -6676,10 +6684,9 @@ func _render(dt: float) -> void:
 	ground.position = (v.position - Vector2(16, 16)).floor()
 	ground.region_rect = Rect2(ground.position, v.size + Vector2(32, 32))
 
-	var walk := int(t * 5.0) % 2
-	p.node.texture = _tex("%s%s_%d" % [pa.key, "_evo" if evolved.has(pa.key) else "", walk if p.moving else 0])
 	p.hurt_t = maxf(0.0, float(p.get("hurt_t", 0.0)) - dt)
 	_animate(p.node, p.pos, p.moving, float(p.get("face", 1.0)), pa.castfx / 0.18, p.hurt_t / 0.18, 0.0, 0.15, pa.get("cast_dir", Vector2.ZERO))
+	_pose(p, pa.key, p.moving, pa.castfx, pa.get("cast_dir", Vector2.ZERO), 0.0)
 	p.node.modulate = Color(1, 1, 1, 0.4 if p.inv > 0.0 and int(t * 20.0) % 2 == 1 else 1.0)
 	if p.hp <= 0.0:
 		# 倒下了：躺平、變灰
@@ -6690,8 +6697,6 @@ func _render(dt: float) -> void:
 		if c.level == 0:
 			continue
 		var c_moving: bool = (p.moving or c.vel.length() > 5.0) and c.down <= 0.0
-		var f: int = (walk + c.i) % 2 if c_moving else 0
-		c.node.texture = _tex("%s%s_%d" % [c.key, "_evo" if evolved.has(c.key) else "", f])
 		if absf(c.vel.x) > 4.0:
 			c.face = signf(c.vel.x)
 		c.hurt_t = maxf(0.0, float(c.get("hurt_t", 0.0)) - dt)
@@ -6704,6 +6709,7 @@ func _render(dt: float) -> void:
 			c.node.modulate = Color(0.55, 0.55, 0.6)
 			continue
 		_animate(c.node, c.pos, c_moving, float(c.get("face", 1.0)), k, c.hurt_t / 0.18, c.i * 1.7, 0.2, c.get("cast_dir", Vector2.ZERO))
+		_pose(c, c.key, c_moving, c.castfx, c.get("cast_dir", Vector2.ZERO), c.i * 0.13)
 		if c.sleep > 0.0:
 			c.node.modulate = Color(0.6, 0.65, 0.85)
 		elif c.hurt_t > 0.0:
@@ -6762,6 +6768,16 @@ func _render(dt: float) -> void:
 	ui.set_boss(boss.hp / boss.max_hp if boss != null and not boss.dead else -1.0, D.boss.name)
 	ui.update_hud({"hp_frac": clampf(p.hp / D.paul.hp, 0.0, 1.0), "level": level, "xp_frac": clampf(float(xp) / xp_need, 0.0, 1.0),
 		"time": int(t), "kills": kills, "bread": run_bread, "meter": meter, "fever": fever, "fever_kills": fever_kills, "over": over, "choosing": choosing or chest_open, "build": build_short, "tasks": _task_text(), "combo": combo, "combo_t": combo_t, "boss_in": _boss_in(), "kit": _kit_hud(), "kit_res": _class_hud()})
+
+
+## 人物的走路圖與面向：出手時面向目標，走路時面向走的方向
+func _pose(who: Dictionary, key: String, moving: bool, castfx: float, cast_dir: Vector2, ph: float) -> void:
+	var d: Vector2 = who.pos - (who.get("pose_at", who.pos) as Vector2)
+	who.pose_at = who.pos
+	if d.length() < 0.1:
+		d = Vector2.ZERO
+	who.row = People.facing(cast_dir if castfx > 0.0 and cast_dir != Vector2.ZERO else d, int(who.get("row", People.DOWN)))
+	People.pose(who.node, key, evolved.has(key), who.row, moving, t + ph)
 
 
 ## 人物的動作（不用另外畫圖，全部用位置、傾斜、伸縮做出來）：

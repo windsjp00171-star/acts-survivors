@@ -723,8 +723,9 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 	for b in card_buttons:
 		b.disabled = true
 		b.get_parent().modulate = LOCKED   # 變暗但不透明（後面的數字不會透出來）
+	var mine := cards_box   # 等一格的期間可能已經選完、換成下一批：只處理自己這一批
 	await get_tree().process_frame
-	if cards_box == null:
+	if cards_box != mine or cards_box == null:
 		return
 	cards_box.position = ((size - cards_box.size) / 2.0).round() + Vector2(0, 14)
 	card_ready_at = now + delay
@@ -784,7 +785,7 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 		return
 	root.add_child(row)
 	await get_tree().process_frame
-	if not is_instance_valid(row) or cards_box == null:
+	if not is_instance_valid(row) or cards_box != mine or cards_box == null:
 		return
 	row.position = Vector2(roundf((size.x - row.size.x) / 2.0), cards_box.position.y + cards_box.size.y + 8)
 	var over := minf(row.position.y + row.size.y + 6 - size.y, cards_box.position.y - 64.0)   # 卡片太高時，卡片和按鈕一起往上移（標題留著），按鈕才不會跑出畫面

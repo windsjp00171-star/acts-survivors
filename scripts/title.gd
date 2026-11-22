@@ -5,6 +5,7 @@ extends Control
 ## 劇情模式第一次通過司提反、大馬色、羅馬這幾章，回營地前會先來這裡播章節過場（CUTS），播完直接進營地。
 ## 「開始」進營地；「設定」切音樂、音效、特效精簡、字大一點。手機返回鍵在這裡是離開遊戲。
 
+const People := preload("res://scripts/people.gd")
 const PX := 3.0             # 像素放大倍數（背景用的「一格」）
 # 開場：每一幕的旁白與畫面（scene 決定 _draw_intro 畫什麼）
 const INTRO := [
@@ -98,9 +99,8 @@ func _ready() -> void:
 	_pick_walkers()
 	for k in walkers + ROOM + ["jesus"]:
 		for f in 2:
-			var path := "res://assets/sprites/%s_%d.png" % [k, f]
-			if ResourceLoader.exists(path):
-				tex["%s_%d" % [k, f]] = load(path)
+			tex["%s_%d" % [k, f]] = People.frame(k, People.DOWN, f * 3)
+			tex["%s_up_%d" % [k, f]] = People.frame(k, People.UP, 1 + f * 4)   # 往光裡走：背對畫面
 	_build()
 	get_viewport().size_changed.connect(func(): resize_t = 0.25)
 	Sfx.music("title")
@@ -987,7 +987,7 @@ func _who(k: String, foot: Vector2, s: float, col: Color) -> void:
 func _tx(k: String) -> Texture2D:
 	var key := "%s_0" % k
 	if not tex.has(key):
-		tex[key] = load("res://assets/sprites/%s.png" % key)
+		tex[key] = People.frame(k) if People.has(k) else load("res://assets/sprites/%s.png" % key)
 	return tex[key]
 
 
@@ -1063,7 +1063,7 @@ func _draw() -> void:
 		var off: Vector2 = Vector2((i - mid) * 15.0 * scale * 0.55, -absf(i - mid) * 6.0 * scale * 0.4)
 		var at := Vector2(cx, base_y) + off - PFOOT * PK * scale
 		draw_rect(Rect2(at + Vector2(5, 22.5) * PK * scale, Vector2(14, 2) * PK * scale), Color(0, 0, 0, 0.35))
-		draw_texture_rect(tex["%s_%d" % [k, f]], Rect2(at, PSZ * PK * scale), false)
+		draw_texture_rect(tex["%s_up_%d" % [k, f]], Rect2(at, PSZ * PK * scale), false)
 
 
 func _hills(vs: Vector2, horizon: float, ph: float, col: Color, amp: float, freq: float) -> void:

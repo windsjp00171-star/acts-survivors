@@ -73,13 +73,14 @@ static func dot_ring(n: Node2D, center: Vector2, r: float, squash: float, col: C
 		n.draw_rect(Rect2(round(center.x + cos(a) * r), round(center.y + sin(a) * r * squash), thick, thick), col)
 
 
-## 小人：深色外框、袍子、腰帶、臉
-static func person(n: Node2D, x: float, y: float, robe: Color, sash: Color) -> void:
-	n.draw_rect(Rect2(x - 3, y - 11, 7, 12), Color("1a1420"))
-	n.draw_rect(Rect2(x - 2, y - 6, 5, 6), robe)
-	n.draw_rect(Rect2(x, y - 6, 1, 6), sash)
-	n.draw_rect(Rect2(x - 1, y - 10, 3, 4), Color("e0a878"))
-	n.draw_rect(Rect2(x - 2, y - 11, 5, 2), Color("4a3020"))
+## 小人（小門徒、慕道的人）：用門徒的人物圖縮小畫，衣服顏色用染色分辨
+static var _small: Texture2D
+
+
+static func person(n: Node2D, x: float, y: float, robe: Color, _sash: Color) -> void:
+	if _small == null:
+		_small = preload("res://scripts/people.gd").frame("disciple")
+	n.draw_texture_rect(_small, Rect2(x - 8, y - 14, 17, 15.7), false, Color.WHITE.lerp(robe, 0.45))
 
 
 ## 座標雜湊成 0~1（不用亂數，同一格永遠同樣結果）

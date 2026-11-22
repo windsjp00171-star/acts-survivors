@@ -702,11 +702,7 @@ func _draw_schools(n: Node2D) -> void:
 			continue
 		var mx: float = roundf(m.pos.x)
 		var my: float = roundf(m.pos.y) - (3.0 if m.hop > 0.0 else 0.0)
-		n.draw_rect(Rect2(mx - 3, my - 10, 7, 11), Color("2a1a10"))
-		n.draw_rect(Rect2(mx - 2, my - 6, 5, 6), Color("e8dcc0"))
-		n.draw_rect(Rect2(mx - 2, my - 6, 5, 1), Color("b89a6a"))
-		n.draw_rect(Rect2(mx - 1, my - 9, 3, 3), Color("e0a878"))
-		n.draw_rect(Rect2(mx - 1, my - 10, 3, 1), Color("5a3a20"))
+		PX.person(n, mx, my, Color.WHITE, Color.WHITE)
 		if m.hop > 0.0:
 			n.draw_rect(Rect2(mx + 3, my - 7, 3, 1), g.C_CREAM)
 	# 詩歌：全場的詩歌（金色的同心圈＋飛出去的音符）

@@ -67,7 +67,8 @@
 
 - `python3 tools/make_music.py [曲名…]`：配樂。關卡曲分三層（鼓、伴奏、旋律），遊戲裡依戰況調音量；全部重做約 20 分鐘。需要 numpy、scipy、ffmpeg。
 - `python3 tools/make_sounds.py`：音效。
-- `python3 tools/make_terrain.py`、`make_people.py`、`make_enemies.py`：地面、物件、人物、敵人的像素圖。
+- `python3 tools/make_people_lpc.py`：人物走路圖（LPC 部件，來源在 `tools/lpc_src`）。
+- `python3 tools/make_terrain.py`、`make_people.py`（只剩 arpg 用）、`make_enemies.py`：地面、物件、人物、敵人的像素圖。
 - `python3 tools/make_cuts.py [場景…]`：過場的像素背景圖。這是唯一用 AI 畫的素材（Pollinations 的 FLUX），提示詞在 `tools/cuts/prompts.json`；人物仍是遊戲裡的角色圖。**正式販售前要確認它的使用條款允許商業使用。**
 - `python3 tools/make_font.py`：遊戲字型。它只收遊戲裡用到的字，**文字改過就要重跑**，不然新字會變成方框。
 
