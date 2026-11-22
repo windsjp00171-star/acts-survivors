@@ -26,6 +26,7 @@ CREDITS = [
     ("Bat (Rework)", "bagzie, Jordan Irwin (AntumDeluge)", "https://opengameart.org/content/bat-rework"),
     ("King Cobra", "Jordan Irwin (AntumDeluge)", "https://opengameart.org/content/king-cobra"),
     ("LPC Frogman", "Stephen Challener (Redshrike), Evert", "https://opengameart.org/content/lpc-frogman"),
+    ("Gothicvania Magic Pack 9（爆炸、火花、落雷；CC0）", "ansimuz", "https://opengameart.org/content/gothicvania-magic-pack-9"),
     ("LPC Horses（改作）", "bluecarrot16, Jordan Irwin (AntumDeluge)", "https://opengameart.org/content/lpc-horses-rework"),
 ]
 
@@ -284,12 +285,39 @@ def mobs() -> None:
         im.save(MOBS / f"{key}.png", optimize=True)
 
 
+# ---------- 攻擊特效（Gothicvania，CC0）：爆炸、擊中火花、落雷尾端；兩倍解析度、同名取代舊圖 ----------
+FX_SRC = ROOT / "tools" / "lpc_src" / "fx"
+
+
+def fx_frame(name: str, n: int) -> Image.Image:
+    return Image.open(FX_SRC / f"{name}{n}.png").convert("RGBA")
+
+
+def fx_sheet(name: str, picks: tuple, size: int, crop=None) -> Image.Image:
+    o = Image.new("RGBA", (size * len(picks), size))
+    for i, n in enumerate(picks):
+        im = fx_frame(name, n)
+        if crop:
+            im = im.crop(crop)
+        o.paste(im.resize((size, size), Image.Resampling.NEAREST), (i * size, 0))
+    return o
+
+
+def fx() -> None:
+    fx_sheet("FireBomb_Fire-bomb", (8, 9, 10, 11, 12, 14), 64).save(HD / "fx_boom.png", optimize=True)
+    sp = fx_sheet("spark_spark", (2, 3, 4, 6), 22)
+    r_, g_, b_, a_ = sp.split()
+    Image.merge("RGBA", (b_, g_, r_, a_)).save(HD / "fx_spark.png", optimize=True)   # 藍光對調成暖金色，和聖靈的光一致
+    fx_sheet("Lightning_Lightning", (5, 6, 7), 26, crop=(0, 64, 64, 128)).save(HD / "fx_zapend.png", optimize=True)
+
+
 def main() -> None:
     HD.mkdir(parents=True, exist_ok=True)
     MOBS.mkdir(parents=True, exist_ok=True)
     grounds()
     props()
     mobs()
+    fx()
     doc = {"_說明": "地圖與敵人素材的作者名單（tools/make_world_lpc.py 產生），遊戲內「日誌」頁底下顯示。", "license": "OGA-BY 3.0",
            "items": [{"name": n, "authors": a, "url": u} for n, a, u in CREDITS]}
     (ROOT / "data" / "credits_world.json").write_text(json.dumps(doc, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
