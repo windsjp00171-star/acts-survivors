@@ -1,0 +1,51 @@
+{
+ "_說明": "地圖與敵人素材的作者名單（tools/make_world_lpc.py 產生），遊戲內「日誌」頁底下顯示。",
+ "license": "OGA-BY 3.0",
+ "items": [
+  {
+   "name": "LPC Revised（地形、牆、屋頂、石柱、物件）",
+   "authors": "Eliza Wyatt (DeathsDarling), Lanea Zimmerman (Sharm), Hyptosis, Demetrius",
+   "url": "https://github.com/ElizaWy/LPC"
+  },
+  {
+   "name": "LPC Imp",
+   "authors": "Stephen Challener (Redshrike), William.Thompsonj",
+   "url": "https://opengameart.org/content/lpc-imp"
+  },
+  {
+   "name": "LPC Golem",
+   "authors": "Stephen Challener (Redshrike), William.Thompsonj",
+   "url": "https://opengameart.org/content/lpc-golem"
+  },
+  {
+   "name": "LPC Spider",
+   "authors": "Stephen Challener (Redshrike), William.Thompsonj",
+   "url": "https://opengameart.org/content/lpc-spider"
+  },
+  {
+   "name": "LPC Beetle",
+   "authors": "Stephen Challener (Redshrike)",
+   "url": "https://opengameart.org/content/lpc-beetle"
+  },
+  {
+   "name": "Bat (Rework)",
+   "authors": "bagzie, Jordan Irwin (AntumDeluge)",
+   "url": "https://opengameart.org/content/bat-rework"
+  },
+  {
+   "name": "King Cobra",
+   "authors": "Jordan Irwin (AntumDeluge)",
+   "url": "https://opengameart.org/content/king-cobra"
+  },
+  {
+   "name": "LPC Frogman",
+   "authors": "Stephen Challener (Redshrike), Evert",
+   "url": "https://opengameart.org/content/lpc-frogman"
+  },
+  {
+   "name": "LPC Horses（改作）",
+   "authors": "bluecarrot16, Jordan Irwin (AntumDeluge)",
+   "url": "https://opengameart.org/content/lpc-horses-rework"
+  }
+ ]
+}

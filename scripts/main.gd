@@ -11,6 +11,7 @@ const PX := preload("res://scripts/draw/px.gd")
 const DrawFX := preload("res://scripts/draw/draw_fx.gd")
 const Equipment := preload("res://scripts/equipment.gd")
 const People := preload("res://scripts/people.gd")
+const Mobs := preload("res://scripts/mobs.gd")
 ## 隊形：同伴依加入順序站到這些位置（相對保羅）
 const SLOTS := [Vector2(-32, 12), Vector2(32, 11), Vector2(-28, -14), Vector2(27, -15), Vector2(0, -28), Vector2(-9, 29)]   # 人物圖 0.45 起變大，隊形也拉開一點
 
@@ -197,6 +198,7 @@ var joy := {"on": false, "index": -1, "origin": Vector2.ZERO, "pos": Vector2.ZER
 var world: Node2D
 var ground: Sprite2D
 var ground_fx: Node2D
+var tall := []   # 高到會擋住人的物件
 var decals: Node2D
 var air: Node2D
 var cam: Camera2D
@@ -750,8 +752,25 @@ func _ready() -> void:
 # ---------- 建立場景 ----------
 func _tex(key: String) -> Texture2D:
 	if not tex.has(key):
-		tex[key] = load("res://assets/sprites/%s.png" % key)
+		tex[key] = _hd(key) if ResourceLoader.exists("res://assets/sprites/hd/%s.png" % key) else load("res://assets/sprites/%s.png" % key)
 	return tex[key]
+
+
+## 兩倍解析度的地圖素材：當成一半大小的圖用，尺寸、碰撞都不用改
+func _hd(key: String) -> Texture2D:
+	var im: Image = (load("res://assets/sprites/hd/%s.png" % key) as Texture2D).get_image()
+	var tx := ImageTexture.create_from_image(im)
+	tx.set_size_override(Vector2i(im.get_width() / 2, im.get_height() / 2))
+	return tx
+
+
+func _mob_sprite(key: String) -> Sprite2D:
+	if not Mobs.has(key):
+		return _sprite(key + "_0", Vector2(-10, -13))
+	var s := Sprite2D.new()
+	Mobs.setup(s, key)
+	world.add_child(s)
+	return s
 
 
 func _sprite(key: String, offset: Vector2) -> Sprite2D:
@@ -1943,7 +1962,7 @@ func _spawn_one(type: String, at: Vector2) -> void:
 		"sprite": spr, "tint": tint * Color(0.7, 0.5, 0.6) if vet else tint, "roar": 2.0, "vet": vet, "hunter": hunter,
 		"dmul": _curve(SC.damage, t) * stage.dmg_mult * _endless_mult("damage"), "smul": _curve(SC.speed, t) * _endless_mult("speed"),
 		"dash_cd": randf() * 3.0, "dash_t": 0.0, "blink_cd": 2.0 + randf() * 2.0,
-		"knock": Vector2.ZERO, "dead": false, "node": _sprite(spr + "_0", Vector2(-10, -13))}
+		"knock": Vector2.ZERO, "dead": false, "node": _mob_sprite(spr)}
 	var sc: float = float(d.get("scale", 1.0)) * (float(V.scale) if vet else 1.0)
 	if sc != 1.0:
 		e.node.scale = Vector2.ONE * sc
@@ -1965,7 +1984,7 @@ func _spawn_special(key: String, def: Dictionary, at: Vector2) -> void:
 		"flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "shoot": 0.0, "r": 6.0 * scale, "sprite": def.sprite,
 		"tint": Color(def.tint[0], def.tint[1], def.tint[2]), "roar": 2.0, "elite": scale > 1.0,
 		"dash_cd": 2.0, "dash_t": 0.0, "blink_cd": 2.0, "sum_cd": 2.0,
-		"knock": Vector2.ZERO, "dead": false, "node": _sprite(def.sprite + "_0", Vector2(-10, -13))}
+		"knock": Vector2.ZERO, "dead": false, "node": _mob_sprite(def.sprite)}
 	e.node.scale = Vector2(scale, scale)
 	enemies.append(e)
 
@@ -6634,6 +6653,7 @@ func _update_chunks() -> void:
 					ls.reparent(decals)   # 平的（打穀場）：人可以走上去，畫在地上
 				chunks[key] = {"items": items, "rects": rects}
 				continue
+			var big_done := false
 			for k in 3:
 				var h := PX.hash2(cx * 7 + k * 131, cy * 13 + k * 71)
 				var wx := cx * CHUNK + floori(PX.hash2(cx + k * 17, cy * 3 + 1) * CHUNK)
@@ -6656,6 +6676,16 @@ func _update_chunks() -> void:
 				var s := _sprite(key2, Vector2(-t2.get_width() / 2, -t2.get_height()))
 				s.position = Vector2(wx, wy)
 				items.append(s)
+				if t2.get_width() > 36:   # 房子：一格只放一間、靠中間，才不會疊在一起
+					if big_done:
+						s.queue_free()
+						items.erase(s)
+						continue
+					big_done = true
+					wx = cx * CHUNK + CHUNK / 2
+					s.position.x = wx
+					tall = tall.filter(func(o): return is_instance_valid(o))
+					tall.append(s)
 				if pick.has("solid"):
 					var bw: float = pick.solid[0]
 					var bh: float = pick.solid[1]
@@ -6683,6 +6713,10 @@ func _render(dt: float) -> void:
 	var v := _view_rect()
 	ground.position = (v.position - Vector2(16, 16)).floor()
 	ground.region_rect = Rect2(ground.position, v.size + Vector2(32, 32))
+	for s in tall:   # 房子、樹擋住主角時變半透明
+		if is_instance_valid(s):
+			var hid: bool = p.pos.y < s.position.y and p.pos.y > s.position.y - s.texture.get_height() and absf(p.pos.x - s.position.x) < s.texture.get_width() * 0.5 + 4.0
+			s.modulate.a = move_toward(s.modulate.a, 0.4 if hid else 1.0, dt * 6.0)
 
 	p.hurt_t = maxf(0.0, float(p.get("hurt_t", 0.0)) - dt)
 	_animate(p.node, p.pos, p.moving, float(p.get("face", 1.0)), pa.castfx / 0.18, p.hurt_t / 0.18, 0.0, 0.15, pa.get("cast_dir", Vector2.ZERO))
@@ -6723,7 +6757,10 @@ func _render(dt: float) -> void:
 		if e.dead:
 			continue
 		if not e.get("boss", false):
-			e.node.texture = _tex("%s_%d" % [e.sprite, (ef + int(e.ph)) % 2])
+			if Mobs.has(e.sprite):
+				Mobs.pose(e.node, p.pos - e.pos, t + e.ph)
+			else:
+				e.node.texture = _tex("%s_%d" % [e.sprite, (ef + int(e.ph)) % 2])
 			# 剛出現：從地上長出來；被打中：壓扁一下
 			var age: float = t - float(e.get("born", -9.0))
 			if e.flash > 0.0:

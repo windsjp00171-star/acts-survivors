@@ -1309,6 +1309,10 @@ func _credits_box() -> void:
 	_text(content, "人物美術：Liberated Pixel Cup（LPC）", 14, UIKit.GOLD)
 	_text(content, "%s　%s" % [C.license, C.source], 10, UIKit.MUTED, true)
 	_text(content, "作者：" + "、".join(C.authors).replace("ö", "oe"), 10, UIKit.MUTED, true)
+	var W: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://data/credits_world.json"))
+	_text(content, "地圖與敵人美術（%s）" % W.license, 14, UIKit.GOLD)
+	for it in W["items"]:
+		_text(content, "%s：%s　%s" % [it.name, it.authors, it.url], 10, UIKit.MUTED, true)
 
 
 func _show_log() -> void:
@@ -1332,7 +1336,7 @@ func _show_log() -> void:
 	content.add_child(rb)
 	content.add_child(rnote)
 	_save_code_ui()
-	_text(content, "素材說明：人物用 LPC 開源部件拼成（作者見下）；敵人、地圖、特效是程式畫的像素圖；過場背景圖是用 AI（Pollinations 的 FLUX 模型）畫出空場景，再縮成像素風格；音樂是程式合成的原創曲，裡面引用的聖詩旋律都是 1929 年以前、早已公版的曲調。", 10, UIKit.MUTED, true)
+	_text(content, "素材說明：人物用 LPC 開源部件拼成（作者見下）；敵人與地圖也用 LPC 一類的開源素材（作者見下），部分地標、Boss 與特效是程式畫的像素圖；過場背景圖是用 AI（Pollinations 的 FLUX 模型）畫出空場景，再縮成像素風格；音樂是程式合成的原創曲，裡面引用的聖詩旋律都是 1929 年以前、早已公版的曲調。", 10, UIKit.MUTED, true)
 	_credits_box()
 	for i in devlog.entries.size():
 		var e: Dictionary = devlog.entries[i]
