@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 新增
+- 測試旗標 `--botmode=idle|random`（機器人站著不動／亂走）與 `storysim.sh` 的 `SIM_EXTRA` 環境變數，用來量「走位有沒有影響勝負」；第一輪結果在 `docs/refactor/06-difficulty-measure.md`：前兩章站著不動也過得了
 - 人物 Q 版示範（待核可）：`tools/make_people_hd.py` 以 52×68 高解析度、約 2.5 頭身但身體纖細、大眼睛帶高光、頭髮有份量、外框用部位深色的風格（參考 RO 一類 Q 版的方向，不沿用任何素材）產生示範人物與進化版；遊戲內打算以 0.5 倍繪製，世界座標與碰撞不變。對照圖在 `docs/refactor/style-proposal/people_ro_*.png`，`assets/sprites` 未動
 - 人物新比例示範（待核可）：`tools/make_people_v2.py` 用約 4.3 頭身的新身體模板（頭 6×7、肩窄、腰收、長袍到腳踝，畫布 26×34）產生保羅、彼得、司提反的示範圖，輸出到指定資料夾，不動 `assets/sprites`；新舊對照在 `docs/refactor/style-proposal/people_v2_compare.png`。HANDOFF.md 補上最近六個 commit 與新陷阱
 - 測試存檔 `tools/sim/profiles/fresh_eq.json`（典型裝備）、`fresh_eqmax.json`（滿上限裝備），給 storysim 比較有／沒有裝備的平衡；第一輪結果在 `docs/refactor/05-equipment-layer.md`

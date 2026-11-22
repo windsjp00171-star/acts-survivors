@@ -174,6 +174,9 @@ var parts: Array = []
 var heals: Array = []
 var pops: Array = []
 var film := false          # 測試用：錄影模式
+var bot_mode := ""         # 測試用：--botmode=idle（站著不動）／random（亂走），量「操作有沒有用」
+var bot_rand_t := 0.0
+var bot_rand_v := Vector2.ZERO
 var auto_lite := false    # 畫面一直卡（每秒不到 40 格超過 3 秒）：這一局自動改用特效精簡
 var low_fps_t := 0.0
 var perf := false          # 測試用：--perf 每 300 格印出各部分平均花多少時間
@@ -510,6 +513,8 @@ func _ready() -> void:
 			perf = true
 		elif a == "--film":
 			film = true   # 錄宣傳影片：機器人照常速玩，打擊停頓等效果照常
+		elif a.begins_with("--botmode="):
+			bot_mode = a.substr(10)
 		elif a == "--bot":
 			bot = true
 			if not OS.get_cmdline_user_args().has("--film"):
@@ -1653,6 +1658,13 @@ func _move_vector() -> Vector2:
 
 ## 測試機器人：躲開附近的敵人與 Boss 預警、空檔時去撿經驗和寶箱
 func _bot_move() -> Vector2:
+	if bot_mode == "idle":
+		return Vector2.ZERO
+	if bot_mode == "random":
+		if t >= bot_rand_t:
+			bot_rand_t = t + 1.0
+			bot_rand_v = Vector2.from_angle(randf() * TAU)
+		return bot_rand_v
 	var p: Vector2 = paul.pos
 	var push := Vector2.ZERO
 	for e in enemies:

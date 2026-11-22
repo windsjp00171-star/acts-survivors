@@ -38,7 +38,7 @@ cd "$ROOT"
 for ch in "$@"; do
   cp "$PROF" "$U/profile.json"
   for i in $(seq "$N"); do
-    (timeout 900 "$G" --headless --path . res://scenes/main.tscn -- --smoke --bot --story="$ch" --frames=40000 2>&1 \
+    (timeout 900 "$G" --headless --path . res://scenes/main.tscn -- --smoke --bot --story="$ch" --frames=40000 ${SIM_EXTRA:-} 2>&1 \
       | grep -E "BOTRESULT|SCRIPT ERROR|DMG" | head -3 > "$OUTDIR/${ch}_$i.txt") &
     sleep 2
     while [ "$(jobs -rp | wc -l)" -ge "$PAR" ]; do sleep 1; done
