@@ -301,6 +301,9 @@ var smoke_awaken := -1
 var smoke_drain := 0.0      # 測試用（--drain）：每 8 秒把主角和同伴的血壓到三成，看救命技能放不放得出來
 var fxtest := false
 var keystones := {}
+var mow := {}          # 點上的割草基石：效果 → 節點（每驅散 every 隻觸發一次）
+var chase_hits := 0    # 連續被 Boss 追擊打中幾下
+var mow_haste_t := 0.0  # 割草基石「如鷹展翅」剩下的秒數
 # 主角的職業技能（game.json 的 kits）：kit_lv 是學會的技能與等級，kit_cd 是冷卻
 var kit_lv := {}
 var kit_cd := {}
@@ -401,6 +404,18 @@ func _ready() -> void:
 	D.director.merge(stage.get("director", {}), true)
 	if story:
 		D.boss.hp = float(D.boss.hp) * float(Save.story.get("boss_mult", 1.0)) * float(chapter.get("boss_mult", 1.0))
+	else:
+		D.boss.hp = float(D.boss.hp) * float(D.get("free_mult", {}).get("boss", 1.0))
+	# Boss 的招式跟著這一章的難度變痛（以前每一章都一樣）；小怪、菁英照原本的倍率
+	# 輕鬆難度：敵人打得輕、Boss 血少（信心等級與每日挑戰不適用）
+	if bool(Save.data.get("easy_on", false)) and int(Save.run_config.get("faith", 0)) == 0 and not Save.run_config.has("daily"):
+		stage.dmg_mult = float(stage.dmg_mult) * float(D.easy.damage)
+		D.boss.hp = float(D.boss.hp) * float(D.easy.boss_hp)
+	var bpow: float = maxf(float(D.boss.power_min), float(stage.dmg_mult) * float(D.boss.power_scale)) * (float(chapter.get("boss_dmg", 1.0)) if story else 1.0)
+	D.boss.touch_damage = float(D.boss.touch_damage) * bpow
+	for atk in ["sweep", "grid", "slam", "hunt", "stars"]:
+		if D.boss.has(atk):
+			D.boss[atk].damage = float(D.boss[atk].damage) * bpow
 	# 熬煉（難度條件）
 	faith = int(Save.run_config.get("faith", 0))
 	for a in OS.get_cmdline_user_args():
@@ -481,6 +496,9 @@ func _ready() -> void:
 	# 永久恩典（營地建設）
 	D.paul.hp = float(D.paul.hp) + Save.up_value("vigor") + Save.gift_global("hp")
 	keystones = Save.board_keystones()
+	for nd in Save.board_nodes():
+		if nd.kind == "mow" and Save.board_is_on(nd.id, Save.cur_leader()):
+			mow[nd.do] = nd
 	if OS.get_cmdline_user_args().has("--smoke") and not keystones.is_empty():
 		print("KEYSTONES ", keystones.keys(), " hp+", Save.gift_global("hp"))
 	if keystones.has("midnight"):
@@ -827,7 +845,7 @@ func _apply_gifts(c: Dictionary) -> void:
 	if Save.meta.gifts.board.order.has(c.tag):
 		for nd in Save.gift_nodes(c.tag) + Save.gift_nodes("橋").filter(func(b): return b.tags.has(c.tag)):
 			var r := Save.gift_eff(c.tag, nd.id)   # 只有裝上的節點生效
-			if r <= 0 or nd.kind in ["cards", "keystone"]:
+			if r <= 0 or nd.kind in ["cards", "keystone", "mow"]:
 				continue
 			if nd.kind == "bridge":
 				per["dmg"] = float(per.get("dmg", 0.0)) + float(nd.per)
@@ -872,6 +890,7 @@ func _build_ui() -> void:
 			ui.names[c.name].text = c.name + "・" + by_key[c.with].name
 	ui.card_chosen.connect(_on_card)
 	ui.chest_closed.connect(_on_chest_closed)
+	ui.mark_boss_phases(D.boss.phases)
 	ui.fever_pressed.connect(_start_fever)
 	ui.restart_pressed.connect(func(): _leave("res://scenes/main.tscn"))
 	ui.home_pressed.connect(func(): _leave("res://scenes/base.tscn"))
@@ -1211,10 +1230,29 @@ func _make_cards() -> Array:
 			pool.insert(mini(1, pool.size()), sc)
 	pool = pool.filter(func(cd): return not banished.has("%s:%s" % [cd.kind, cd.key]))
 	var cards := pool.slice(0, n_cards)
+	for cd in cards:
+		cd.syn = _syn_note(cd)
 	var fill := _filler_cards()
 	while cards.size() < n_cards and not fill.is_empty():
 		cards.append(fill.pop_front())
 	return cards
+
+
+## 卡片上的協同說明：同流派的其他人一共幾級、這個人加入後彼此加多少傷害
+func _syn_note(cd: Dictionary) -> String:
+	if not cd.kind in ["recruit", "up"]:
+		return ""
+	var me: int = int(by_key[cd.key].level) if by_key.has(cd.key) else int(pa.level)
+	var lv := 0
+	var names := []
+	for o in comps + [pa]:
+		if o.level > 0 and o.follows == "" and o.tag == cd.tag and o.key != cd.key:
+			lv += int(o.level)
+			names.append(o.name)
+	if names.is_empty():
+		return ""
+	var per := float(D.synergy.per_level_damage)
+	return "協同：和%s同流派，他傷害 +%d%%，他們再 +%d%%" % ["、".join(names.slice(0, 2)), roundi(lv * per * 100.0), roundi((me + 1 if cd.kind == "recruit" else 1) * per * 100.0)]
 
 
 ## 沒有足夠的卡時的小獎勵（恩上加恩、如鷹展翅、嗎哪；血少時才有五餅二魚）
@@ -1942,6 +1980,8 @@ func _trial_for_build() -> String:
 func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if e.dead or float(e.get("ally", 0.0)) > 0.0:
 		return
+	if e.get("boss", false) and e.state == "shift":
+		return   # 換階段的空檔打不動
 	if src is Dictionary and ((calling == "evangelist" and randf() < 0.05) or (epistles.has("convert_plus") and randf() < 0.02)) and not e.get("elite", false) and not e.get("boss", false):
 		_convert(e, 5.0)   # 傳福音的：不管哪個流派，這一擊都可能把敵人說服過來
 		return
@@ -2040,6 +2080,8 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 	if not e.has("hp0"):
 		e.hp0 = e.hp   # 第一次被打時的血量（「收割」用）
 	e.hp -= dmg
+	if e.get("boss", false):
+		_boss_gate(e)
 	if src is Dictionary:
 		src.dealt = float(src.get("dealt", 0.0)) + minf(dmg, maxf(0.0, dmg + e.hp))   # 這一局打出的傷害（結算排行用）
 	e.flash = 0.08
@@ -2064,6 +2106,38 @@ func _hurt(e: Dictionary, dmg: float, from := Vector2.INF, src = null) -> void:
 		_kill(e, true, src)
 	elif _tagged(src, "講道"):
 		_persuade(e, 1)
+
+
+## 割草基石：每驅散 every 隻觸發一次。blasting 擋住連鎖裡再觸發（震波殺的不會馬上再放一次）
+func _mow_kill(e: Dictionary) -> void:
+	for k in mow:
+		var nd: Dictionary = mow[k]
+		if kills % int(nd.every) != 0:
+			continue
+		match k:
+			"burst":
+				if not blasting:
+					blasting = true
+					_aoe(e.pos, float(nd.r), float(nd.dmg) + level * 1.5, 0.0, 60.0, C_FLAME)
+					blasting = false
+			"quake":
+				if not blasting:
+					blasting = true
+					_aoe(paul.pos, float(nd.r), float(nd.dmg) + level * 3.0, 0.6, 120.0, C_GOLD)
+					shake = maxf(shake, 0.25)
+					blasting = false
+			"heal":
+				_heal_paul(float(D.paul.hp) * float(nd.pct))
+				for c in comps:
+					if c.level > 0 and c.down <= 0.0:
+						c.hp = minf(_comp_max_hp(), float(c.hp) + _comp_max_hp() * float(nd.pct))
+			"guard":
+				guard = mini(guard + 1, _guard_max(pa))
+				_ring_pop(paul.pos + Vector2(0, -8), Color("9fd8ff"), 20.0)
+			"haste":
+				mow_haste_t = float(nd.secs)
+			"minion":
+				_spawn_minion(e.pos)
 
 
 func _kill(e: Dictionary, by_player: bool, src = null) -> void:
@@ -2096,6 +2170,7 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		elif e.get("elite", false):
 			_equip_drop(false)
 		kills += 1
+		_mow_kill(e)
 		if float(kbuff.get("fisher", 0.0)) > 0.0:
 			var fh: float = _kv(_kit_spell("fisher"), "heal")
 			_heal_paul(fh)   # 彼得「得人如得魚」
@@ -2420,6 +2495,12 @@ func _event_effects(fx: Dictionary) -> void:
 	_refresh_build_text()
 
 
+## 馬上要反應的提示不用等；其他說明至少隔 TIP_GAP 秒一則，開頭才不會一直跳字（這局沒講到的下一局再講）
+const TIP_NOW := ["gem", "fever", "boss", "phase", "persecute", "siege", "seek", "chest"]
+const TIP_GAP := 35.0
+var tip_next_t := 0.0
+
+
 ## 新手教學：第一次遇到才出現，看過就記在存檔
 func _tip(id: String) -> void:
 	var seen: Array = Save.data.get("tips_seen", [])
@@ -2435,7 +2516,13 @@ func _update_tips() -> void:
 	var card_tip: bool = tip_queue[0] in ["cards", "link", "anoint", "deepen", "kit", "awaken"]
 	if (choosing and not card_tip) or (ui.tip_busy() and not (choosing and card_tip)):
 		return
+	if not card_tip and not tip_queue[0] in TIP_NOW and t < tip_next_t:
+		var urgent := tip_queue.find_custom(func(q): return q in TIP_NOW)
+		if urgent < 0:
+			return
+		tip_queue.push_front(tip_queue.pop_at(urgent))
 	var id: String = tip_queue.pop_front()
+	tip_next_t = t + TIP_GAP
 	var T: Dictionary = D.tips[id]
 	var touch := DisplayServer.is_touchscreen_available()
 	ui.show_tip(T.get("text_touch", T.text) if touch else T.text)
@@ -2852,6 +2939,9 @@ func _companion_skills(dt: float) -> void:
 	speed_mult *= (1.0 + float(set_bonus.get("speed", 0.0)) + grace_spd) * (1.0 + (haste_amt if haste_t > 0.0 else 0.0)) * (1.0 + _class_haste())
 	if keystones.has("pairs"):
 		speed_mult *= 1.2 if (_party_count() + 1) % 2 == 0 else 0.9   # 基石「兩個兩個」
+	if mow_haste_t > 0.0:
+		mow_haste_t -= dt
+		speed_mult *= 1.0 + float(mow.haste.mult)
 	haste_t = maxf(0.0, haste_t - dt)
 	harp_t = maxf(0.0, harp_t - dt)
 	pa.ult_cd = maxf(0.0, float(pa.get("ult_cd", 0.0)) - dt)
@@ -3390,8 +3480,8 @@ func _dmg_number(e: Dictionary, dmg: float, src) -> void:
 			dn.v += dmg
 			dn.col = col
 			return
-	if dnums.size() >= 16:
-		return
+	if dnums.size() >= (16 if e.get("elite", false) or e.get("boss", false) else 5):
+		return   # 主角打小怪的數字：畫面上已經有幾個就不再加
 	dnums.append({"e": e.node, "pos": e.pos + Vector2(randf_range(-4, 4), -14), "v": dmg, "t": 0.0, "col": col, "dx": randf_range(-10.0, 10.0), "lead": lead})
 
 
@@ -6458,10 +6548,17 @@ func _update_stars(dt: float) -> void:
 			sf.done = true
 			blasts.append({"pos": sf.pos, "t": 0.0, "r": sf.r * 1.4, "col": C_GOLD, "evo": false})
 			shake = maxf(shake, 0.15)
+			if sf.get("hero_only", false):
+				# Boss 的追擊：連著被打中越來越痛，躲開一次就歸零（站著不動撐不住，會走位的人不受影響）
+				if paul.pos.distance_to(sf.pos) >= sf.r:
+					chase_hits = 0
+				elif paul.inv <= 0.0 and fever <= 0.0:
+					sf.dmg *= 1.0 + float(D.boss.chase_ramp) * chase_hits
+					chase_hits += 1
 			if paul.pos.distance_to(sf.pos) < sf.r and paul.inv <= 0.0:
 				_damage_paul(sf.dmg, sf.get("pierce", false), sf.get("src", "persecute" if sf.get("pierce", false) else "star"))
 			for c in comps:
-				if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(sf.pos) < sf.r and fever <= 0.0:
+				if c.level > 0 and c.down <= 0.0 and c.pos.distance_to(sf.pos) < sf.r and fever <= 0.0 and not sf.get("hero_only", false):
 					c.hurt_cd = 0.0
 					_damage_companion(c, sf.dmg)
 			for e in enemies.duplicate():
@@ -8574,31 +8671,62 @@ func _spawn_boss(hp_mult := 1.0, keep_going := false) -> void:
 	boss = {"type": "boss", "boss": true, "d": {"name": B.name, "damage": B.touch_damage}, "pos": _edge_point(-30.0),
 		"hp": float(B.hp) * hp_mult, "max_hp": float(B.hp) * hp_mult, "mid": mid, "ph": 0.0, "flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "r": 14.0,
 		"sprite": "boss", "tint": Color(B.tint[0], B.tint[1], B.tint[2]) if B.has("tint") and not own_art else Color.WHITE, "dmul": 1.0, "smul": 1.0, "knock": Vector2.ZERO, "dead": false, "node": s,
-		"state": "move", "timer": 2.5, "pattern_i": 0, "pattern": ""}
+		"state": "move", "timer": 2.5, "pattern_i": 0, "pattern": "", "phase": 1}
 	enemies.append(boss)
 	ui.show_banner(("Boss 來襲：" if mid else "Boss：") + B.name, 2.5)
 	if fever <= 0.0:
 		Sfx.music("boss")
 
 
+## 血量打到門檻就進下一階段：血卡在門檻上、收掉場上的招、放一圈只有一個缺口的衝擊波
+func _boss_gate(b: Dictionary) -> void:
+	var gates: Array = D.boss.phases
+	var ph := int(b.phase)
+	if ph > gates.size() or b.hp > b.max_hp * float(gates[ph - 1]):
+		return
+	b.hp = b.max_hp * float(gates[ph - 1])
+	b.phase = ph + 1
+	_tip("phase")
+	b.state = "shift"
+	b.timer = float(D.boss.shift_seconds)
+	b.pattern_i = 0
+	b.charges = 0
+	b.vortex_t = 0.0
+	tele = []
+	ui.show_banner("%s　第%s階段" % [D.boss.name, ["一", "二", "三", "四"][ph]], 1.8)
+	_ring_pop(b.pos, C_RED, 60.0)
+	shake = 0.4
+	Sfx.play("roar", 0.0)
+	for i in ph:
+		var gap: float = (paul.pos - b.pos).angle() + randf_range(-1.2, 1.2)
+		delayed.append({"t": 0.5 + i * 0.9, "fn": func():
+			if not b.get("dead", false):
+				boss_waves.append({"pos": b.pos, "r": 12.0, "gap": gap, "gap_w": 0.6, "dmg": float(D.boss.sweep.damage), "hit": false})})
+
+
+## 第二、三階段：出完招再追著主角腳下連落幾下，站著不動會一直被打到
+func _boss_chase(b: Dictionary) -> void:
+	var n := int(D.boss.chase[int(b.phase) - 1])
+	if b.pattern == "follow":
+		return
+	for i in n:
+		delayed.append({"t": i * 0.35, "fn": func():
+			if not b.get("dead", false) and b.state != "shift":
+				star_falls.append({"pos": paul.pos, "t": 0.65, "max": 0.65, "r": 15.0, "dmg": float(D.boss.hunt.damage) * float(D.boss.chase_dmg), "pierce": true, "src": "boss", "hero_only": true})})
+
+
 func _update_boss(b: Dictionary, dt: float) -> void:
 	_update_boss_waves(dt)
 	_update_boss_extras(b, dt)
 	var B: Dictionary = D.boss
-	var phase2: bool = b.hp < b.max_hp * B.phase2_at
+	var pi := int(b.phase) - 1
+	var phase2: bool = pi >= 1
 	b.flash = maxf(0.0, b.flash - dt)
 	b.knock = Vector2.ZERO
 	match b.state:
 		"move":
 			b.pos += (paul.pos - b.pos).normalized() * B.speed * (1.6 if phase2 else 1.0) * dt
 			b.timer -= dt
-			if phase2 and not b.get("p2", false):
-				b.p2 = true
-				b.pattern_i = 0
-				ui.show_banner("%s更猛烈了！" % B.name, 1.6)
-				_ring_pop(b.pos, C_RED, 60.0)
-				shake = 0.4
-				Sfx.play("roar", 0.0)
 			if float(b.get("vortex_t", 0.0)) > 0.0:
 				# 漩渦：把主角往 Boss 拉過去，結束時在 Boss 身邊重重砸下
 				b.vortex_t -= dt
@@ -8620,7 +8748,7 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 				if BOSS_SPECIAL.has(b.pattern):
 					_ring_pop(b.pos, C_RED, 34.0)   # 特殊招式：Boss 身上先亮一圈，提醒要出招了
 				b.state = "warn"
-				b.timer = B.warn * (0.7 if phase2 else 1.0) * (1.4 if calling == "prophet" else 1.0)
+				b.timer = B.warn * float(B.phase_warn[pi]) * (1.4 if calling == "prophet" else 1.0)
 		"warn":
 			b.timer -= dt
 			if b.timer <= 0.0:
@@ -8642,18 +8770,25 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 					_boss_special(b, phase2)
 				if b.pattern == "summon":
 					_boss_summon(b)
+				_boss_chase(b)
 				if b.pattern == "slam" or b.pattern == "grid":
 					b.state = "break"
 					b.timer = B.break_seconds
 					ui.show_banner("破口！", 1.0)
 				else:
 					b.state = "move"
-					b.timer = 1.0 if phase2 else 1.6
+					b.timer = float(B.phase_rest[pi])
 		"break":
 			b.timer -= dt
 			if b.timer <= 0.0:
 				b.state = "move"
-				b.timer = 1.0 if phase2 else 1.4
+				b.timer = float(B.phase_rest[pi])
+		"shift":
+			b.timer -= dt
+			b.flash = 0.06 if int(t * 10.0) % 2 == 0 else 0.0
+			if b.timer <= 0.0:
+				b.state = "move"
+				b.timer = 0.5
 	if paul.pos.distance_to(b.pos) < b.r and paul.inv <= 0.0:
 		_damage_paul(B.touch_damage, false, "boss")
 

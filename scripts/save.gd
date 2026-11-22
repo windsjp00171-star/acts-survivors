@@ -147,7 +147,7 @@ func reset_profile() -> void:
 		var b := FileAccess.open("user://profile_backup.json", FileAccess.WRITE)
 		b.store_string(JSON.stringify(data, "  "))
 	var keep := {}
-	for k in ["music_on", "sfx_on", "fxlite_on", "bigtext_on"]:
+	for k in ["music_on", "sfx_on", "fxlite_on", "bigtext_on", "easy_on", "card_full_on"]:
 		if data.has(k):
 			keep[k] = data[k]
 	data = _defaults()

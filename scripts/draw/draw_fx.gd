@@ -437,7 +437,7 @@ func _draw_air() -> void:
 		var kp: Dictionary = g.kit_pops[i]
 		var kk: float = kp.t / 0.8
 		var ka: float = 1.0 if kk < 0.6 else (1.0 - kk) / 0.4
-		var ksz: float = 18.0 * (1.0 + 0.3 * clampf(1.0 - kp.t / 0.12, 0.0, 1.0))
+		var ksz: float = 11.0 * (1.0 + 0.3 * clampf(1.0 - kp.t / 0.12, 0.0, 1.0))
 		var kc: Vector2 = (g.paul.pos + Vector2((i - (g.kit_pops.size() - 1) / 2.0) * 22.0, -60.0 - kk * 6.0)).round()
 		n.draw_rect(Rect2(kc - Vector2(ksz / 2.0 + 2.0, ksz / 2.0 + 2.0), Vector2(ksz + 4.0, ksz + 4.0)), Color(Color("140c10"), 0.85 * ka))
 		n.draw_rect(Rect2(kc - Vector2(ksz / 2.0 + 2.0, ksz / 2.0 + 2.0), Vector2(ksz + 4.0, ksz + 4.0)), Color(g.C_GOLD, ka), false, 1.0)
@@ -449,7 +449,7 @@ func _draw_air() -> void:
 	for f in g.tag_fx:
 		var k: float = f.t / 0.8
 		var pos: Vector2 = (f.pos + Vector2(-8, -32 - k * 10.0)).round()
-		var tfs := 11 if f.get("big", false) else 8
+		var tfs := 9 if f.get("big", false) else 8
 		n.draw_string_outline(UIKit.font(), pos, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs, 3 if tfs > 8 else 2, Color(Color("140c10"), 1.0 - k))
 		n.draw_string(UIKit.font(), pos, f.text, HORIZONTAL_ALIGNMENT_LEFT, -1, tfs, Color(f.col, 1.0 - k))
 	if g.guard > 0:

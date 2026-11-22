@@ -442,6 +442,20 @@ func show_banner(text: String, secs: float) -> void:
 	banner_until = Time.get_ticks_msec() / 1000.0 + secs
 
 
+## Boss 血條上的階段刻度
+func mark_boss_phases(gates: Array) -> void:
+	for g in gates:
+		boss_fill.add_child(_rect_at(240.0 * float(g)))
+
+
+func _rect_at(x: float) -> ColorRect:
+	var r := ColorRect.new()
+	r.color = C_DARK
+	r.size = Vector2(2, 4)
+	r.position = Vector2(x - 1.0, 0)
+	return r
+
+
 func set_boss(frac: float, boss_name: String) -> void:
 	var on := frac >= 0.0
 	boss_bg.visible = on
@@ -580,6 +594,20 @@ const KIND_COL := {"awaken": Color("ffd75e"), "kit": Color("ff6a8a"), "recruit":
 	"fruit": Color("ff9ae0"), "armor": Color("c9a46b"), "epistle": Color("fff4c2"), "event": Color("c8a0ff"), "school": Color("ffd75e"), "relic": Color("ff8a2a"), "anoint": Color("c8a0ff"), "link": Color("ff8a2a"), "link_up": Color("ff8a2a")}
 
 
+## 卡片說明拆成 [一句重點, 跟構築有關的提示（第二行起）]
+static func _card_parts(desc: String) -> Array:
+	var lines := desc.split("\n", false)
+	if lines.is_empty():
+		return ["", []]
+	var head := RegEx.create_from_string("（[^）]*）").sub(lines[0], "", true)
+	for stop in ["。", "；"]:
+		head = head.get_slice(stop, 0)
+	if head.length() > 34:
+		var cut := head.rfind("，", 34)
+		head = head.substr(0, cut if cut > 8 else 34) + "……"
+	return [head, Array(lines).slice(1)]
+
+
 ## 一張升級卡的內容：左邊人物圖（有的話）、上面是種類標籤，再來標題、說明
 func _card_body(b: Button, c: Dictionary, i: int, portrait: bool, narrow := false) -> void:
 	var kcol: Color = KIND_COL.get(c.kind, C_CREAM)
@@ -622,11 +650,22 @@ func _card_body(b: Button, c: Dictionary, i: int, portrait: bool, narrow := fals
 	tl.get_parent().remove_child(tl)
 	tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	col.add_child(tl)
-	var dl := label(c.desc, 12, C_INK)
+	# 預設只寫一句重點；「看全文」打開才整段列出來。協同、進化、套裝這種跟構築有關的另起一行標金色
+	var parts := _card_parts(str(c.desc))
+	var full: bool = bool(Save.data.get("card_full_on", false))
+	var dl := label(str(c.desc) if full else str(parts[0]), 12, C_INK)
 	dl.get_parent().remove_child(dl)
-	dl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	dl.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
 	col.add_child(dl)
-	for l in [badge, tl, dl]:
+	var hints: Array = [] if full else (parts[1] as Array).duplicate()
+	if str(c.get("syn", "")) != "":
+		hints.append(c.syn)
+	var hl := label("\n".join(hints), 11, C_GOLD)
+	hl.get_parent().remove_child(hl)
+	hl.autowrap_mode = TextServer.AUTOWRAP_ARBITRARY
+	hl.visible = not hints.is_empty()
+	col.add_child(hl)
+	for l in [badge, tl, dl, hl]:
 		l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		l.custom_minimum_size.x = 220 if portrait else (126 if narrow else 168)
 		if not portrait:
@@ -712,9 +751,17 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 				b.get_parent().modulate = Color.WHITE
 		if not card_buttons.is_empty() and is_instance_valid(card_buttons[0]):
 			card_buttons[0].grab_focus())
-	var row := HBoxContainer.new()   # 卡片下面：重抽、放逐
+	var row := HBoxContainer.new()   # 卡片下面：重抽、放逐、看全文
 	row.name = "CardReroll"
 	row.add_theme_constant_override("separation", 10)
+	var fb := UIKit.button("只看重點" if bool(Save.data.get("card_full_on", false)) else "看全文", 13)
+	fb.focus_mode = Control.FOCUS_NONE
+	fb.custom_minimum_size = Vector2(84, 32)
+	fb.pressed.connect(func():
+		Save.data.card_full_on = not bool(Save.data.get("card_full_on", false))
+		Save.save_profile()
+		show_cards(cards, Time.get_ticks_msec() / 1000.0, delay, rerolls, title_text, sub_text, banishes))
+	row.add_child(fb)
 	if rerolls > 0:
 		var rb := UIKit.button("重抽（R）　剩 %d 次" % rerolls, 13)
 		rb.focus_mode = Control.FOCUS_NONE

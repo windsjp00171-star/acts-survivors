@@ -289,6 +289,20 @@ func _show_home() -> void:
 		mrow.add_child(mb)
 	if not free_ok:
 		_text(content, "自由模式：通過第一章以後開放，可以自由組隊、挑戰信心等級", 11, UIKit.MUTED, true)
+	# 難度：輕鬆給想看故事的人；標準後段要靠恩賜盤與信物
+	var easy: bool = bool(Save.data.get("easy_on", false))
+	var drow := _row(content)
+	for m in [[false, "難度：標準"], [true, "難度：輕鬆"]]:
+		var db := UIKit.button(m[1], 13, easy == m[0])
+		db.custom_minimum_size = Vector2(0 if portrait else 150, 32)
+		db.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var dv: bool = m[0]
+		db.pressed.connect(func():
+			Save.data.easy_on = dv
+			Save.save_profile()
+			_show_home())
+		drow.add_child(db)
+	_text(content, "輕鬆：敵人打得輕、Boss 血少（信心等級與每日挑戰照標準）" if easy else "標準：越後面越難，Boss 分三階段要走位；過不去就回來點恩賜盤、換信物", 11, UIKit.MUTED, true)
 	if mode == "story":
 		_show_story()
 		return
@@ -1230,6 +1244,8 @@ func _show_gifts() -> void:
 	_text(v, str(nd.desc), 12, UIKit.INK, true)
 	if nd.kind == "keystone":
 		_text(v, "基石：很強，但有代價", 11, C_RED_UI, true)
+	elif nd.kind == "mow":
+		_text(v, "割草基石：清場很快，沒有代價", 11, UIKit.GOLD, true)
 	var h := HFlowContainer.new()
 	h.add_theme_constant_override("h_separation", 8)
 	v.add_child(h)
