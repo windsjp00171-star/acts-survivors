@@ -203,7 +203,7 @@ func _dlg_render() -> void:
 	h.add_theme_constant_override("separation", 10)
 	dlg_box.add_child(h)
 	if L.get("icon", "") != "":
-		var ic := UIKit.sprite_icon(L.icon, 4)
+		var ic := UIKit.sprite_icon(L.icon, 2 if size.x < 500.0 else 4)   # 直式手機放不下大頭像
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		h.add_child(ic)
 	var v := VBoxContainer.new()
@@ -215,7 +215,7 @@ func _dlg_render() -> void:
 	var tx := label(L.text, 13, C_INK)
 	tx.get_parent().remove_child(tx)
 	tx.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tx.custom_minimum_size = Vector2(minf(460.0, size.x - 140.0), 0)
+	tx.custom_minimum_size = Vector2(minf(460.0, size.x - (220.0 if size.x < 500.0 else 140.0)), 0)
 	v.add_child(tx)
 	var col := VBoxContainer.new()
 	col.size_flags_vertical = Control.SIZE_SHRINK_END
@@ -686,7 +686,7 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 	title.name = "CardTitle"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.size.x = size.x
-	title.position = Vector2(0, 34 if not portrait else 90)
+	title.position = Vector2(0, 34 if not portrait else 106)
 	if sub_text != "":
 		# 事件的情境說明
 		var sub := label(sub_text, 13, C_CREAM)
@@ -694,7 +694,7 @@ func show_cards(cards: Array, now: float, delay: float, rerolls := 0, title_text
 		sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		sub.size.x = size.x - 60.0
-		sub.position = Vector2(30, (34 if not portrait else 90) + 30)
+		sub.position = Vector2(30, (34 if not portrait else 106) + 30)
 	cards_box = VBoxContainer.new() if portrait else HBoxContainer.new()
 	var narrow: bool = not portrait and cards.size() >= 4   # 教師：四張卡時窄一點才排得下
 	cards_box.add_theme_constant_override("separation", 6 if narrow else 10)

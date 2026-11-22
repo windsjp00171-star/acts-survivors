@@ -14,6 +14,7 @@ const WALK_FPS := 10.0
 const FOOT := Vector2(-16, -31)   # 腳底對到節點原點
 
 static var _sheets := {}
+static var _frames := {}   # 要留著：畫完就釋放的 AtlasTexture 會變成白方塊
 
 
 static func _path(key: String, evo: bool) -> String:
@@ -57,8 +58,12 @@ static func pose(node: Sprite2D, key: String, evo: bool, row: int, moving: bool,
 
 ## 單格（原始大小）：給頭像、標題畫面用。預設裁成和舊人物圖一樣的 26:24 比例
 static func frame(key: String, row := DOWN, col := 0, evo := false) -> AtlasTexture:
+	var id := "%s|%d|%d|%s" % [key, row, col, evo]
+	if _frames.has(id):
+		return _frames[id]
 	var a := AtlasTexture.new()
 	a.atlas = load(_path(key, evo))
 	var r := Rect2(2, 5, 60, 57) if evo else Rect2(6, 14, 52, 48)
 	a.region = Rect2(Vector2(col, row) * CELL + r.position, r.size)
+	_frames[id] = a
 	return a
