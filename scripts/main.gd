@@ -984,6 +984,10 @@ func _roam_move(c: Dictionary, dt: float) -> void:
 	var hp_max := _comp_max_hp()
 	if str(c.get("act", "")) == Roam.BACK and c.base.distance_to(paul.pos) < float(R.rest_r):
 		c.hp = minf(hp_max, c.hp + float(R.rest_heal) * dt)
+	if str(c.get("act", "")) == Roam.HEAL:
+		for o in comps:   # 醫療角色：站在受傷同伴旁邊，慢慢幫他補血
+			if o != c and o.level > 0 and o.down <= 0.0 and o.hp < hp_max and o.base.distance_to(c.base) < float(R.heal_r):
+				o.hp = minf(hp_max, o.hp + float(R.heal_rate) * dt)
 	var to: Vector2 = c.goal - c.base
 	var step: float = float(R.speed) * dt
 	c.base += to if to.length() <= step else to.normalized() * step
@@ -1007,17 +1011,21 @@ func _roam_think(c: Dictionary) -> void:
 	for e in _enemies_near(paul.pos, float(R.aid_near)):
 		if not e.dead and e.pos.distance_to(paul.pos) < float(R.aid_near):
 			crowd += 1
+	var hurt := []
+	for o in comps:
+		if o != c and o.level > 0 and o.down <= 0.0 and o.hp < _comp_max_hp():
+			hurt.append({"pos": o.base, "hp_k": o.hp / _comp_max_hp()})
 	var foes := []
-	for e in _nearest_enemies(c.base, float(R.leash) * 1.5, 14):
+	for e in _nearest_enemies(c.base, float(R.leash_attacker) * 1.5, 14):
 		if not e.get("boss", false):
 			foes.append(e.pos)
 	var out := Roam.decide(
-		{"pos": c.base, "hp_k": c.hp / _comp_max_hp(), "range": float(c.st.get("range", 60.0)), "rank": rank, "i": c.i, "n": maxi(1, n), "t": t,
+		{"pos": c.base, "hp_k": c.hp / _comp_max_hp(), "range": float(c.st.get("range", 60.0)), "role": R.roles.get(c.skill, "attacker"), "rank": rank, "i": c.i, "n": maxi(1, n), "t": t,
 			"resting": str(c.get("act", "")) == Roam.BACK},
 		{"hero": paul.pos, "hero_trouble": Roam.hero_in_trouble(paul.hp / float(D.paul.hp), crowd, R),
-			"boss": boss.pos if boss != null and not boss.dead else null, "foes": foes, "mates": mates,
+			"boss": boss.pos if boss != null and not boss.dead else null, "foes": foes, "mates": mates, "hurt": hurt,
 			"gather": _boss_in() >= 0.0 and _boss_in() <= float(R.gather_lead)}, R)
-	if (out.state == Roam.AID or out.state == Roam.GATHER) and str(c.get("act", "")) != out.state:
+	if (out.state == Roam.AID or out.state == Roam.GATHER or out.state == Roam.HEAL) and str(c.get("act", "")) != out.state:
 		c.name_until = t + 2.0   # 來支援、集合的同伴亮一下名字
 	c.act = out.state
 	c.goal = out.pos
@@ -2789,7 +2797,10 @@ func _step(dt: float) -> void:
 		c.castfx = maxf(0.0, c.castfx - dt)
 		c.hurt_cd = maxf(0.0, c.hurt_cd - dt)
 		if c.down > 0.0:
-			c.down -= dt * revive_mult * (float(D.roam.revive_mult) if roam and c.pos.distance_to(p.pos) < float(D.roam.revive_r) else 1.0)
+			if not roam:
+				c.down -= dt * revive_mult
+			elif c.pos.distance_to(p.pos) < float(D.roam.revive_r):
+				c.down -= dt * revive_mult * float(D.roam.revive_rate)   # 分頭行動：倒下的同伴要主角走過去才扶得起來
 			if c.down <= 0.0:
 				c.hp = _comp_max_hp() * rules.revive_hp
 		if _active(c):

@@ -17,6 +17,7 @@ func _initialize() -> void:
 	_spreads_out()
 	_trouble_rule()
 	_gathers_before_boss()
+	_roles()
 	print("RESULT ", "FAIL (%d)" % fails if fails else "PASS")
 	quit(1 if fails else 0)
 
@@ -64,7 +65,7 @@ func _hurt_companion_retreats_and_rests() -> void:
 
 
 func _stays_within_leash() -> void:
-	var d := Roam.decide(_me(), _world({"foes": [Vector2(float(R.leash) + 20.0, 0)]}), R)
+	var d := Roam.decide(_me(), _world({"foes": [Vector2(float(R.leash_attacker) + 20.0, 0)]}), R)
 	_expect(d.state == Roam.WANDER, "不該追到離主角太遠的地方")
 
 
@@ -83,6 +84,20 @@ func _gathers_before_boss() -> void:
 	_expect(sees.state == Roam.BOSS, "Boss 出來後改去打 Boss，不是繼續集合")
 	var hurt := Roam.decide(_me({"hp_k": float(R.retreat_hp) - 0.05}), _world({"gather": true}), R)
 	_expect(hurt.state == Roam.BACK, "快倒了還是先退回休息")
+
+
+func _roles() -> void:
+	var sick := {"pos": Vector2(150, 40), "hp_k": float(R.heal_below) - 0.2}
+	var healer := Roam.decide(_me({"role": "healer"}), _world({"hurt": [sick], "foes": []}), R)
+	_expect(healer.state == Roam.HEAL and healer.pos.distance_to(sick.pos) < float(R.heal_r), "醫療角色要去受傷的同伴身邊")
+	var far := {"pos": Vector2(float(R.heal_range) + 100.0, 0), "hp_k": 0.1}
+	_expect(Roam.decide(_me({"role": "healer"}), _world({"hurt": [far], "foes": []}), R).state != Roam.HEAL, "太遠的不去")
+	_expect(Roam.decide(_me({"role": "attacker"}), _world({"hurt": [sick]}), R).state == Roam.FIGHT, "攻擊角色不管補血，照樣打敵人")
+	var far_foe := Vector2(float(R.leash_guard) + 40.0, 0)
+	_expect(Roam.decide(_me({"role": "guard"}), _world({"foes": [far_foe]}), R).state == Roam.GUARD, "守衛不離主角太遠，沒事就守在身邊")
+	_expect(Roam.decide(_me({"role": "attacker"}), _world({"foes": [far_foe]}), R).state == Roam.FIGHT, "攻擊角色會追得比較遠")
+	var aid := Roam.decide(_me({"role": "guard", "rank": int(R.aid_count) + 3}), _world({"hero_trouble": true}), R)
+	_expect(aid.state == Roam.AID, "主角有難，守衛不分遠近都會衝回來")
 
 
 func _trouble_rule() -> void:

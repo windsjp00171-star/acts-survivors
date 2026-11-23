@@ -8,6 +8,8 @@ const BOSS := "boss"     # 往 Boss 移動
 const FIGHT := "fight"   # 打附近的敵人
 const WANDER := "wander"
 const GATHER := "gather" # Boss 快出現：先回主角身邊集合
+const HEAL := "heal"     # 醫療角色：去受傷的同伴身邊補血
+const GUARD := "guard"   # 守衛角色：守在主角身邊
 
 
 ## 該去支援主角的情況：血少，或被一群敵人貼身
@@ -15,23 +17,35 @@ static func hero_in_trouble(hp_k: float, crowd: int, R: Dictionary) -> bool:
 	return hp_k < float(R.aid_hp) or crowd >= int(R.aid_crowd)
 
 
-## me：{pos, hp_k, range, rank（離主角由近到遠第幾位）, i, n, t, resting}
-## world：{hero, hero_trouble, boss（Vector2 或 null）, foes（位置）, mates（其他同伴的目標位置）}
+## me：{pos, hp_k, range, role（attacker／healer／guard）, rank（離主角由近到遠第幾位）, i, n, t, resting}
+## world：{hero, hero_trouble, boss（Vector2 或 null）, foes（位置）, mates（其他同伴的目標位置）, hurt（受傷同伴的 {pos, hp_k}）}
 static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictionary:
 	var hero: Vector2 = world.hero
+	var role: String = me.get("role", "attacker")
+	var leash: float = float(R.get("leash_" + role, R.leash))
 	var reach: float = clampf(float(me.range) * float(R.stand), float(R.stand_min), float(R.stand_max))
 	if float(me.hp_k) < float(R.retreat_hp) or (bool(me.resting) and float(me.hp_k) < float(R.return_hp)):
 		return {"state": BACK, "pos": hero + _ring(me, float(R.back_r))}
-	if bool(world.hero_trouble) and int(me.rank) < int(R.aid_count):
+	if bool(world.hero_trouble) and (role == "guard" or int(me.rank) < int(R.aid_count)):
 		return {"state": AID, "pos": hero + _ring(me, float(R.aid_r))}
 	if bool(world.get("gather", false)) and world.boss == null:
 		return {"state": GATHER, "pos": hero + _ring(me, float(R.gather_r))}
 	if world.boss != null:
 		return {"state": BOSS, "pos": world.boss + _ring(me, maxf(reach, float(R.boss_r)))}
+	if role == "healer":
+		var sick := Vector2.INF
+		var sick_d := float(R.heal_range)
+		for h: Dictionary in world.get("hurt", []):
+			var d: float = me.pos.distance_to(h.pos)
+			if float(h.hp_k) < float(R.heal_below) and d < sick_d:
+				sick_d = d
+				sick = h.pos
+		if sick != Vector2.INF:
+			return {"state": HEAL, "pos": sick + _ring(me, float(R.heal_r) * 0.5)}
 	var best := Vector2.INF
 	var best_s := INF
 	for f: Vector2 in world.foes:
-		if f.distance_to(hero) > float(R.leash):
+		if f.distance_to(hero) > leash:
 			continue
 		var s: float = f.distance_to(me.pos)
 		for m: Vector2 in world.mates:
@@ -44,6 +58,8 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 		var away: Vector2 = me.pos - best
 		away = away.normalized() if away.length() > 0.5 else Vector2.RIGHT
 		return {"state": FIGHT, "pos": best + away * reach}
+	if role == "guard":
+		return {"state": GUARD, "pos": hero + _ring(me, float(R.guard_r))}
 	return {"state": WANDER, "pos": hero + _ring(me, float(R.wander_r))}
 
 
