@@ -27,6 +27,8 @@ CREDITS = [
     ("King Cobra", "Jordan Irwin (AntumDeluge)", "https://opengameart.org/content/king-cobra"),
     ("LPC Frogman", "Stephen Challener (Redshrike), Evert", "https://opengameart.org/content/lpc-frogman"),
     ("Gothicvania Magic Pack 9（爆炸、火花、落雷；CC0）", "ansimuz", "https://opengameart.org/content/gothicvania-magic-pack-9"),
+    ("Palms（棕櫚；CC0）", "fryhet", "https://opengameart.org/content/palms"),
+    ("Free Pixel Effects Pack（護盾、治療特效；CC0）", "CodeManu", "https://opengameart.org/content/free-pixel-effects-pack"),
     ("LPC Horses（改作）", "bluecarrot16, Jordan Irwin (AntumDeluge)", "https://opengameart.org/content/lpc-horses-rework"),
 ]
 
@@ -169,6 +171,10 @@ def props() -> None:
     broken = pil.crop((0, 40, 32, 96))
     ImageDraw.Draw(broken).polygon([(0, 0), (32, 0), (32, 6), (24, 1), (17, 8), (9, 2), (0, 9)], fill=(0, 0, 0, 0))
     out("column_2", broken)
+    for k in (1, 2):   # 棕櫚（fryhet，CC0）：原圖是 1 倍，放大成兩倍解析度
+        pm = src(W_SRC, f"palm_{k}.png")
+        pm = pm.crop(pm.getbbox())
+        out(f"palm_{k}", pm.resize((pm.width * 2, pm.height * 2), Image.NEAREST))
     out("amphora", w("vases", 0, 0, 32, 64))
     out("bush", w("plants_summer", 0, 0, 32, 32))
     out("dry_bush", w("plants_autumn", 32, 0, 64, 32))
@@ -309,6 +315,56 @@ def fx() -> None:
     r_, g_, b_, a_ = sp.split()
     Image.merge("RGBA", (b_, g_, r_, a_)).save(HD / "fx_spark.png", optimize=True)   # 藍光對調成暖金色，和聖靈的光一致
     fx_sheet("Lightning_Lightning", (5, 6, 7), 26, crop=(0, 64, 64, 128)).save(HD / "fx_zapend.png", optimize=True)
+    rise = ((9, 0.6, 1.0), (10, 0.6, 1.4), (11, 0.55, 1.8), (12, 0.5, 2.0))
+    column(128, 128, rise).save(HD / "fx_firecol.png", optimize=True)
+    column(160, 180, rise, GOLD_RAMP).save(HD / "fx_glorycol.png", optimize=True)
+    column(112, 112, rise, WATER_RAMP).save(HD / "fx_watercol.png", optimize=True)
+    for key, name, picks, size in (("shield", "8_protectioncircle", (0, 4), 22), ("heal", "17_felspell", (0, 5, 10), 36)):
+        sh = Image.open(FX_SRC / f"{name}_spritesheet.png").convert("RGBA")   # CodeManu：100×100 一格、橫八格
+        o2 = Image.new("RGBA", (size * len(picks), size))
+        for k, n_ in enumerate(picks):
+            c = sh.crop(((n_ % 8) * 100, (n_ // 8) * 100, (n_ % 8) * 100 + 100, (n_ // 8) * 100 + 100))
+            c = c.crop(c.getbbox()).resize((size, size), Image.Resampling.NEAREST)
+            o2.paste(c, (k * size, 0))
+        o2.save(HD / f"fx_{key}.png", optimize=True)
+    sp2 = Image.new("RGBA", (40 * 4, 28))   # 水花：爆開的圖壓扁、染成藍
+    for k, i in enumerate((8, 9, 10, 12)):
+        f = fx_frame("FireBomb_Fire-bomb", i)
+        f = f.crop(f.getbbox()).resize((40, 22), Image.Resampling.NEAREST)
+        sp2.alpha_composite(recolor(f, WATER_RAMP), (k * 40, 28 - 22))
+    sp2.save(HD / "fx_splash.png", optimize=True)
+
+
+GOLD_RAMP = ((120, 80, 20), (230, 180, 70), (255, 235, 160), (255, 255, 240))
+WATER_RAMP = ((10, 30, 80), (40, 110, 200), (150, 215, 255), (240, 250, 255))
+
+
+def recolor(im: Image.Image, ramp: tuple) -> Image.Image:
+    """依明暗換成指定色階（保留透明度）：同一套火的動畫變成光、變成水"""
+    px = im.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = px[x, y]
+            if a:
+                t = (0.3 * r + 0.59 * g + 0.11 * b) / 255 * (len(ramp) - 1)
+                i = min(int(t), len(ramp) - 2)
+                c = tuple(round(ramp[i][k] + (ramp[i + 1][k] - ramp[i][k]) * (t - i)) for k in range(3))
+                px[x, y] = (*c, a)
+    return im
+
+
+def column(cw: int, ch: int, frames: tuple, ramp=None) -> Image.Image:
+    """柱狀特效：火球爆開的圖往上拉長成柱（底部對齊），放進 cw×ch 的格子；frames 是 (第幾張, 橫拉, 直拉)"""
+    o = Image.new("RGBA", (cw * len(frames), ch))
+    for k, (i, sx, sy) in enumerate(frames):
+        f = fx_frame("FireBomb_Fire-bomb", i)
+        f = f.crop(f.getbbox())
+        sc = min(1.0, ch / (f.height * sy), cw / (f.width * sx))
+        f = f.resize((max(1, round(f.width * sx * sc)), max(1, round(f.height * sy * sc))), Image.Resampling.NEAREST)
+        if ramp:
+            f = recolor(f, ramp)
+        o.alpha_composite(f, (k * cw + (cw - f.width) // 2, ch - f.height))
+    return o
 
 
 def main() -> None:
