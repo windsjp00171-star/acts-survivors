@@ -7,6 +7,7 @@ const AID := "aid"       # 去支援主角
 const BOSS := "boss"     # 往 Boss 移動
 const FIGHT := "fight"   # 打附近的敵人
 const WANDER := "wander"
+const GATHER := "gather" # Boss 快出現：先回主角身邊集合
 
 
 ## 該去支援主角的情況：血少，或被一群敵人貼身
@@ -23,6 +24,8 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 		return {"state": BACK, "pos": hero + _ring(me, float(R.back_r))}
 	if bool(world.hero_trouble) and int(me.rank) < int(R.aid_count):
 		return {"state": AID, "pos": hero + _ring(me, float(R.aid_r))}
+	if bool(world.get("gather", false)) and world.boss == null:
+		return {"state": GATHER, "pos": hero + _ring(me, float(R.gather_r))}
 	if world.boss != null:
 		return {"state": BOSS, "pos": world.boss + _ring(me, maxf(reach, float(R.boss_r)))}
 	var best := Vector2.INF

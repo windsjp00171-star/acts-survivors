@@ -16,6 +16,7 @@ func _initialize() -> void:
 	_stays_within_leash()
 	_spreads_out()
 	_trouble_rule()
+	_gathers_before_boss()
 	print("RESULT ", "FAIL (%d)" % fails if fails else "PASS")
 	quit(1 if fails else 0)
 
@@ -72,6 +73,16 @@ func _spreads_out() -> void:
 	var b := Vector2(20, 70)
 	var d := Roam.decide(_me({"pos": Vector2(50, 0)}), _world({"foes": [a, b], "mates": [a, a]}), R)
 	_expect(d.pos.distance_to(b) < d.pos.distance_to(a), "別人在打的就換一群，不要全擠在一起")
+
+
+func _gathers_before_boss() -> void:
+	var g := Roam.decide(_me(), _world({"gather": true}), R)
+	_expect(g.state == Roam.GATHER, "Boss 快出現時要先回主角身邊集合")
+	_expect(g.pos.distance_to(Vector2.ZERO) <= float(R.gather_r) + 1.0, "集合要站在主角附近")
+	var sees := Roam.decide(_me(), _world({"gather": true, "boss": Vector2(90, 0)}), R)
+	_expect(sees.state == Roam.BOSS, "Boss 出來後改去打 Boss，不是繼續集合")
+	var hurt := Roam.decide(_me({"hp_k": float(R.retreat_hp) - 0.05}), _world({"gather": true}), R)
+	_expect(hurt.state == Roam.BACK, "快倒了還是先退回休息")
 
 
 func _trouble_rule() -> void:

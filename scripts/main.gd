@@ -1015,9 +1015,10 @@ func _roam_think(c: Dictionary) -> void:
 		{"pos": c.base, "hp_k": c.hp / _comp_max_hp(), "range": float(c.st.get("range", 60.0)), "rank": rank, "i": c.i, "n": maxi(1, n), "t": t,
 			"resting": str(c.get("act", "")) == Roam.BACK},
 		{"hero": paul.pos, "hero_trouble": Roam.hero_in_trouble(paul.hp / float(D.paul.hp), crowd, R),
-			"boss": boss.pos if boss != null and not boss.dead else null, "foes": foes, "mates": mates}, R)
-	if out.state == Roam.AID and str(c.get("act", "")) != Roam.AID:
-		c.name_until = t + 2.0   # 來支援的同伴亮一下名字
+			"boss": boss.pos if boss != null and not boss.dead else null, "foes": foes, "mates": mates,
+			"gather": _boss_in() >= 0.0 and _boss_in() <= float(R.gather_lead)}, R)
+	if (out.state == Roam.AID or out.state == Roam.GATHER) and str(c.get("act", "")) != out.state:
+		c.name_until = t + 2.0   # 來支援、集合的同伴亮一下名字
 	c.act = out.state
 	c.goal = out.pos
 	if out.state == Roam.FIGHT:
