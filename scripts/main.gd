@@ -6854,6 +6854,8 @@ func _render(dt: float) -> void:
 				e.node.scale = Vector2(1.0 + 0.3 * (1.0 - g), g)
 			else:
 				e.node.scale = Vector2.ONE
+		if e.get("boss", false) and e.node.hframes > 1:
+			e.node.frame = _boss_frame(e)
 		e.node.position = e.pos.round()
 		if e.flash > 0.0:
 			e.node.modulate = Color(4, 4, 3.5)
@@ -8793,6 +8795,23 @@ func _boss_in() -> float:
 	return maxf(0.0, float(D.boss.at) - t) if not boss_spawned else -1.0
 
 
+const BOSS_ANIM_FRAMES := 8
+const BOSS_STRIKE_SECONDS := 0.25
+
+
+## Boss 動畫格：走路（4 格輪流）、預告時蓄力（前半 4、後半 5）、出招瞬間 6、破口與換階段 7
+func _boss_frame(b: Dictionary) -> int:
+	if float(b.get("strike_t", 0.0)) > 0.0:
+		return 6
+	match b.state:
+		"warn":
+			var warn_total: float = maxf(0.01, float(D.boss.warn) * float(D.boss.phase_warn[int(b.phase) - 1]))
+			return 5 if float(b.timer) < warn_total * 0.45 else 4
+		"break", "shift":
+			return 7
+	return int(t * 6.0) % 4
+
+
 ## hp_mult < 1：中途 Boss（打退了不算通關）
 func _spawn_boss(hp_mult := 1.0, keep_going := false) -> void:
 	var mid := hp_mult < 1.0 or keep_going
@@ -8804,6 +8823,14 @@ func _spawn_boss(hp_mult := 1.0, keep_going := false) -> void:
 	var own_art := ResourceLoader.exists("res://assets/sprites/boss_%s.png" % stage.id)
 	s.centered = false
 	s.offset = Vector2(-20, -30)
+	# 有動畫圖的 Boss：8 格（0-3 走路、4-5 蓄力、6 出招、7 收招），2 倍解析度、縮半顯示
+	var anim_path := "res://assets/sprites/boss_%s_anim.png" % stage.id
+	if ResourceLoader.exists(anim_path):
+		s.texture = load(anim_path)
+		s.hframes = BOSS_ANIM_FRAMES
+		s.scale = Vector2(0.5, 0.5)
+		s.offset = Vector2(-64, -108)
+		own_art = true
 	world.add_child(s)
 	boss = {"type": "boss", "boss": true, "d": {"name": B.name, "damage": B.touch_damage}, "pos": _edge_point(-30.0),
 		"hp": float(B.hp) * hp_mult, "max_hp": float(B.hp) * hp_mult, "mid": mid, "ph": 0.0, "flash": 0.0, "stun": 0.0, "cd": 0.0, "bcd": 0.0, "r": 14.0,
@@ -8859,6 +8886,7 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 	var pi := int(b.phase) - 1
 	var phase2: bool = pi >= 1
 	b.flash = maxf(0.0, b.flash - dt)
+	b.strike_t = maxf(0.0, float(b.get("strike_t", 0.0)) - dt)
 	b.knock = Vector2.ZERO
 	match b.state:
 		"move":
@@ -8889,6 +8917,7 @@ func _update_boss(b: Dictionary, dt: float) -> void:
 		"warn":
 			b.timer -= dt
 			if b.timer <= 0.0:
+				b.strike_t = BOSS_STRIKE_SECONDS
 				for sh in tele:
 					if sh.get("rush", false):
 						b.pos = sh.b   # 騷亂衝過去
