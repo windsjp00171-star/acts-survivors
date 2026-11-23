@@ -218,7 +218,7 @@ func _build_camp() -> void:
 
 	var start := _p(-10, 22)
 	if Save.data.stats.runs > 0:
-		start = _p(110, 40)   # 剛從路上回來
+		start = _p(20, 34)   # 剛從路上回來：站在旅程路標旁
 	paul = {"pos": start, "node": _sprite(lead), "moving": false}
 	if lead != "paul":
 		var pn := _sprite("paul")

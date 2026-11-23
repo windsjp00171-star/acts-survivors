@@ -399,6 +399,16 @@ func _show_home() -> void:
 			col.add_child(lb)
 		if open and i == sel and stg.has("story"):
 			_text(col, "這段故事：" + stg.story, 11, UIKit.INK, true)
+		if open:
+			var gofree := UIKit.button("出發：" + stg.name, 14, i == sel)
+			gofree.custom_minimum_size = Vector2(0, 38)
+			gofree.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var fidx := i
+			gofree.pressed.connect(func():
+				Save.data.stage = fidx
+				Save.save_profile()
+				_start())
+			col.add_child(gofree)
 		if open and i != sel:
 			var pick := UIKit.button("選這裡", 12)
 			pick.custom_minimum_size = Vector2(72, 30)
@@ -536,12 +546,6 @@ func _show_story() -> void:
 	var sel := clampi(int(Save.data.get("story_sel", Save.story_next())), 0, CH.size() - 1)
 	if not Save.story_open(sel):
 		sel = mini(Save.story_next(), CH.size() - 1)
-	var ch_sel: Dictionary = CH[sel]
-	var go := UIKit.button("出發：第 %d 章　%s" % [sel + 1, ch_sel.title], 18, true)
-	go.custom_minimum_size = Vector2(220, 52)
-	go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	go.pressed.connect(func(): _start_story(sel))
-	content.add_child(go)
 	_text(content, "福音傳到地極", 16, UIKit.GOLD)
 	_text(content, "「聖靈降臨在你們身上，你們就必得著能力，並要在耶路撒冷、猶太全地，和撒馬利亞，直到地極，作我的見證。」（徒 1:8）", 11, UIKit.MUTED, true)
 	_text(content, "每一章的主角和會遇到的同伴都照聖經；在故事裡加入的人，自由模式也能帶。", 11, UIKit.MUTED, true)
@@ -575,23 +579,20 @@ func _show_story() -> void:
 				people.add_child(ic)
 			if ch.get("solo", false):
 				_text(col, "這一章只有主角一個人", 11, UIKit.SKY, true)
+			# 每一章自己一張卡，出發鈕就在卡片上方（不用先選、也不用捲動去找）
+			var go := UIKit.button("出發：第 %d 章" % (i + 1), 15, i == sel)
+			go.custom_minimum_size = Vector2(0, 40)
+			go.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var idx := i
+			go.pressed.connect(func(): _start_story(idx))
+			col.add_child(go)
+			if i == sel:
+				go.grab_focus()
 		if open and i == sel and stg.has("story"):
 			_text(col, "這段故事：" + stg.story, 11, UIKit.INK, true)
 		if open and i == sel:
 			_kit_box(col, str(ch.leader))
-		if open and i != sel:
-			var pick := UIKit.button("選這章", 12)
-			pick.custom_minimum_size = Vector2(72, 30)
-			pick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-			var idx := i
-			pick.pressed.connect(func():
-				Save.data.story_sel = idx
-				Save.save_profile()
-				_show_home())
-			row.add_child(pick)
 	_calling_ui()
-	content.move_child(go, 0)
-	go.grab_focus()
 
 
 ## 主角的職業特質、職業技能、覺醒（出發前先知道這位主角怎麼玩）
@@ -1494,3 +1495,7 @@ func auto_shots(shot_path: String) -> void:
 		step[1].call()
 		await get_tree().create_timer(0.6).timeout
 		get_viewport().get_texture().get_image().save_png(shot_path.replace(".png", "_%s.png" % step[0]))
+		if step[0] == "home":
+			scroll.scroll_vertical = 330   # 往下捲：看章節卡片
+			await get_tree().create_timer(0.3).timeout
+			get_viewport().get_texture().get_image().save_png(shot_path.replace(".png", "_home_cards.png"))

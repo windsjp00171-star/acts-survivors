@@ -14,7 +14,7 @@
   },
   "_camp說明": "安提阿營地的設施：條件達成才會出現。stat 可以用 runs、wins、elites、best_kills、best_fevers、tasks、witness_total、achievements（已達成數）。kind：depart 出發、shop 解鎖、ach 見證錄、supper 擘餅的桌子（內容在 talks.json 的 supper），其他是裝飾。stat 也可以用 churches（建立了幾間教會）。pos 是相對營火的位置（橫式畫面），pos_v 是直式（手機直拿）畫面的位置；沒寫 pos_v 就把 pos 左右壓窄、上下拉長。",
   "camp": [
-    {"id": "sign", "kind": "depart", "name": "旅程路標", "pos": [134, 44], "pos_v": [80, 122], "stat": "runs", "min": 0},
+    {"id": "sign", "kind": "depart", "name": "旅程路標", "pos": [34, 46], "pos_v": [36, 56], "stat": "runs", "min": 0},
     {"id": "log", "kind": "log", "name": "製作日誌", "pos": [52, 64], "pos_v": [34, 130], "stat": "runs", "min": 0},
     {"id": "tent", "kind": "shop", "name": "補給帳棚", "pos": [-122, -14], "pos_v": [-66, -66], "stat": "runs", "min": 1, "news": "百基拉搭起了補給帳棚：可以用見證解鎖了"},
     {"id": "board", "kind": "ach", "name": "見證牆", "pos": [84, -54], "pos_v": [52, -126], "stat": "runs", "min": 2, "news": "營地立起了見證牆：看看還有哪些目標"},
