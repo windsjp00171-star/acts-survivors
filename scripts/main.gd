@@ -9436,6 +9436,8 @@ func _fx_sample() -> void:
 			var was: float = float(fx_hp.get(c.key, hp))
 			if hp > was: add.call("回血", hp - was)
 			fx_hp[c.key] = hp
+			if roam and c != pa and c.down <= 0.0:
+				add.call("同伴:" + str(c.get("act", "")), 1)
 	add.call("香氣", zones.size())
 	add.call("瓶子", jars.size())
 	add.call("樹", trees.size())
@@ -9497,6 +9499,8 @@ func _smoke_tick() -> void:
 			if c.level > 0:
 				dealt[c.key] = roundi(float(c.get("dealt", 0.0)))
 		print("DEALT ", dealt)
+		if roam:
+			print("ROAM ", fx_stat.keys().filter(func(k): return str(k).begins_with("同伴:")).map(func(k): return "%s=%d" % [k, fx_stat[k]]))
 		print("SUPPORTS ", pa.get("anoints", []), " slots=", _support_slots(), " fusions=", fusions_on.keys(), " tiers=", school_tier)
 		get_tree().quit()
 		return

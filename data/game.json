@@ -22,7 +22,7 @@
   ],
   "companion_rules": { "hp": 20, "down_seconds": 8, "revive_hp": 0.5 },
   "_roam說明": "分頭行動隊形。speed 同伴走路速度；think 幾秒想一次；leash 離主角最遠多少還會去打；stand 站在招式射程的幾成（stand_min～stand_max）；share_r／share_cost 別人在打的目標要繞開；aid_hp／aid_crowd 主角血量比例或貼身敵人數到多少算有難（aid_near 是貼身的距離），最近的 aid_count 位來支援；retreat_hp 以下退回主角身邊，休息到 return_hp 再出去，rest_r 內每秒回 rest_heal 血；revive_r 內主角陪著，倒下的同伴起身快 revive_mult 倍；aggro 敵人離同伴比離主角近到這個比例以下就改追同伴。",
-  "roam": { "speed": 62, "think": 0.35, "leash": 120, "stand": 0.6, "stand_min": 16, "stand_max": 55, "share_r": 34, "share_cost": 45,
+  "roam": { "speed": 62, "think": 0.35, "leash": 180, "stand": 0.6, "stand_min": 16, "stand_max": 55, "share_r": 34, "share_cost": 45,
     "aid_hp": 0.4, "aid_crowd": 9, "aid_near": 40, "aid_count": 2, "aid_r": 24, "retreat_hp": 0.35, "return_hp": 0.8, "back_r": 20,
     "rest_r": 40, "rest_heal": 2.0, "boss_r": 30, "wander_r": 45, "revive_r": 28, "revive_mult": 3.0, "aggro": 0.8 },
   "_companions說明": "color 是這位同伴招式的顏色（畫面上用顏色分辨誰在出招）；skill 對應下面的 skills；tag 是流派；era 顯示在名冊上。站位依加入順序自動排。",
