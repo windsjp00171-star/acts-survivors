@@ -327,6 +327,8 @@ def fx() -> None:
             c = c.crop(c.getbbox()).resize((size, size), Image.Resampling.NEAREST)
             o2.paste(c, (k * size, 0))
         o2.save(HD / f"fx_{key}.png", optimize=True)
+    beam_tile().save(HD / "fx_beam.png", optimize=True)
+    note_icon().save(HD / "fx_note.png", optimize=True)
     sp2 = Image.new("RGBA", (40 * 4, 28))   # 水花：爆開的圖壓扁、染成藍
     for k, i in enumerate((8, 9, 10, 12)):
         f = fx_frame("FireBomb_Fire-bomb", i)
@@ -365,6 +367,56 @@ def column(cw: int, ch: int, frames: tuple, ramp=None) -> Image.Image:
             f = recolor(f, ramp)
         o.alpha_composite(f, (k * cw + (cw - f.width) // 2, ch - f.height))
     return o
+
+
+def beam_tile() -> Image.Image:
+    """光束（灰階，遊戲裡再上色）：32×18 可橫向接起來。中間白熱、往外漸暗、邊緣用棋盤點過渡，外緣有緩緩起伏的波浪和亮點"""
+    import math
+    w, h = 32, 18
+    bands = (0, 40, 90, 140, 190, 230, 255, 255, 255)   # 由邊緣到中心
+    im = Image.new("RGBA", (w, h))
+    px = im.load()
+    for x in range(w):
+        wave = round(math.sin(x / w * math.tau * 2) * 0.9)   # 邊緣左右起伏
+        for y in range(h):
+            d = min(y, h - 1 - y) + wave * (1 if y < h // 2 else -1)
+            d = max(0, min(len(bands) - 1, d))
+            v = bands[d]
+            lo = bands[max(0, d - 1)]
+            if d > 0 and (x + y) % 2 == 0:
+                v = (v + lo) // 2   # 棋盤點：兩級之間的過渡
+            if v:
+                px[x, y] = (v, v, v, 255 if v > 60 else 200)
+    for x in (5, 21):   # 流動的亮點
+        for y in (h // 2 - 3, h // 2 + 3):
+            px[x, y] = (255, 255, 255, 255)
+    return im
+
+
+def note_icon() -> Image.Image:
+    """八分音符：12×16，奶白色、深色邊"""
+    rows = (
+        "........KKK.",
+        ".......KWWKK",
+        ".......KWWWWK",
+        ".......KWK.KK",
+        ".......KWK...",
+        ".......KWK...",
+        ".......KWK...",
+        "..KKK..KWK...",
+        ".KWWWK.KWK...",
+        "KWWWWWKKWK...",
+        "KWWWWWWKWK...",
+        "KWWWWWWWKK...",
+        ".KWWWWWK.....",
+        "..KKKKK......",
+    )
+    im = Image.new("RGBA", (13, len(rows)))
+    for y, r in enumerate(rows):
+        for x, c in enumerate(r):
+            if c != ".":
+                im.putpixel((x, y), (255, 255, 255, 255) if c == "W" else (40, 28, 50, 255))
+    return im
 
 
 def main() -> None:
