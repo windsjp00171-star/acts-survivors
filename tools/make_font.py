@@ -21,8 +21,14 @@ chars |= set(chr(c) for c in range(0x20, 0x7F))
 chars |= set("，。、；：！？「」『』（）《》〈〉…—–～・●○◆◇★☆✓✗✕▶▼▲←→↑↓＋－×÷％　０１２３４５６７８９ⅡⅠ")
 chars = {c for c in chars if ord(c) >= 0x20}
 
-ttc = TTCollection(SRC)
-font = ttc.fonts[3]                      # Noto Sans CJK TC Medium
+WIN_SRC = "C:/Windows/Fonts/NotoSansTC-VF.ttf"   # Windows 內建的思源黑體（可變字重），取 Medium（500）
+if os.path.exists(SRC):
+    font = TTCollection(SRC).fonts[3]    # Noto Sans CJK TC Medium
+else:
+    from fontTools.ttLib import TTFont
+    from fontTools.varLib import instancer
+    font = instancer.instantiateVariableFont(TTFont(WIN_SRC), {"wght": 500})
+    font["hhea"].ascent, font["hhea"].descent = 1160, -288   # 跟 Noto Sans CJK 版的行高一樣，UI 排版才不會跑掉
 opts = subset.Options()
 opts.layout_features = ["*"]
 opts.name_IDs = ["*"]
