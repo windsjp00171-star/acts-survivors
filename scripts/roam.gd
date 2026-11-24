@@ -43,7 +43,7 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 		if sick != Vector2.INF:
 			return {"state": HEAL, "pos": sick + _ring(me, float(R.heal_r) * 0.5)}
 	# 攻擊型各有一塊遠處的地盤（巡邏點附近），只打地盤裡或撞到身上的敵人；主角身邊的留給主角
-	var patrol: Vector2 = hero + _ring(me, float(R.get("patrol_r", R.wander_r)))
+	var patrol: Vector2 = hero + _ring(me, float(R.get("patrol_r", R.wander_r)), float(R.get("patrol_ry", 0.8)))
 	var best := Vector2.INF
 	var best_s := INF
 	for f: Vector2 in world.foes:
@@ -69,6 +69,6 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 
 
 ## 同伴各站一個方向，慢慢轉，不會疊在一起
-static func _ring(me: Dictionary, r: float) -> Vector2:
+static func _ring(me: Dictionary, r: float, ry := 0.8) -> Vector2:
 	var a: float = TAU * float(me.i) / maxf(1.0, float(me.n)) + float(me.t) * 0.15
-	return Vector2(cos(a), sin(a) * 0.8) * r
+	return Vector2(cos(a), sin(a) * ry) * r

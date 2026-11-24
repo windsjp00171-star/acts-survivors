@@ -134,16 +134,30 @@ func _draw_ground_fx() -> void:
 		if cd.length() > 70.0 and cd.length() < 360.0:
 			var ctip: Vector2 = g.paul.pos + cd.normalized() * 38.0 + Vector2(0, -8)
 			n.draw_rect(Rect2(ctip.round() - Vector2(2, 2), Vector2(4, 4)), Color(g.C_GOLD, 0.6 + 0.4 * sin(g.t * 6.0)))
-	# 分頭行動：同伴走出畫面時，主角身邊有個他顏色的點指著方向；倒下的閃紅
+	# 分頭行動：同伴走出畫面時，畫面邊緣有一個他顏色的箭頭指著他在哪裡；倒下的閃紅、加驚嘆號
 	if g.roam:
 		var seen: Rect2 = g._view_rect()
+		var inner: Rect2 = seen.grow(-9.0)
+		var mid: Vector2 = seen.get_center()
 		for c in g.comps:
-			if c.level == 0 or c.follows != "" or seen.has_point(c.pos):
+			if c.level == 0 or c.follows != "" or seen.has_point(c.pos + Vector2(0, -8)):
 				continue
-			var ct: Vector2 = g.paul.pos + (c.pos - g.paul.pos).normalized() * 32.0 + Vector2(0, -8)
-			var ccol: Color = Color("ff5a4a") if c.down > 0.0 else c.col
-			n.draw_rect(Rect2(ct.round() - Vector2(2, 2), Vector2(5, 5)), Color("1a1014"))
-			n.draw_rect(Rect2(ct.round() - Vector2(1, 1), Vector2(3, 3)), Color(ccol, 0.6 + 0.4 * sin(g.t * 6.0)))
+			var dv: Vector2 = c.pos + Vector2(0, -8) - mid
+			# 從畫面中心往同伴的方向，碰到內縮的邊框就停：箭頭貼著畫面邊緣
+			var k: float = minf(absf(inner.size.x * 0.5 / maxf(absf(dv.x), 0.001)), absf(inner.size.y * 0.5 / maxf(absf(dv.y), 0.001)))
+			var tip: Vector2 = (mid + dv * minf(k, 1.0)).round()
+			var dir: Vector2 = dv.normalized()
+			var side: Vector2 = dir.orthogonal()
+			var down: bool = c.down > 0.0
+			var ccol: Color = Color("ff5a4a") if down else c.col
+			var a: float = (0.55 + 0.45 * sin(g.t * 10.0)) if down else 1.0
+			var tri := PackedVector2Array([tip + dir * 5.0, tip - dir * 3.0 + side * 4.5, tip - dir * 3.0 - side * 4.5])
+			var out := PackedVector2Array([tip + dir * 7.0, tip - dir * 4.5 + side * 6.5, tip - dir * 4.5 - side * 6.5])
+			n.draw_colored_polygon(out, Color(0.08, 0.05, 0.07, 0.85 * a))
+			n.draw_colored_polygon(tri, Color(ccol, a))
+			if down:
+				n.draw_rect(Rect2(tip - dir * 9.0 + Vector2(-0.5, -3), Vector2(1, 3)), Color(1, 1, 1, a))
+				n.draw_rect(Rect2(tip - dir * 9.0 + Vector2(-0.5, 1), Vector2(1, 1)), Color(1, 1, 1, a))
 	for b in g.breads:
 		var bx: float = roundf(b.pos.x)
 		var by: float = roundf(b.pos.y) - roundf(absf(sin(g.t * 3.0 + b.pos.x)) * 1.5)

@@ -65,15 +65,20 @@ func _hurt_companion_retreats_and_rests() -> void:
 	_expect(ok.state == Roam.FIGHT, "休息好了要回去打")
 
 
-## 使用者要的是「像別的玩家在地圖另一頭」：沒敵人時攻擊型要跑遠、各往不同方向，不是圍在主角身邊
+## 使用者要的是：攻擊型各自出去打、往不同方向散開，不是圍在主角身邊；但不能跑到看不見的地方
+## 橫式畫面（640×360、鏡頭 2.5 倍）看得到主角四周約 ±128 × ±72
+const VIEW_HALF := Vector2(128, 72)
+
+
 func _attackers_patrol_far() -> void:
 	var spots := []
 	for i in 4:
 		var d := Roam.decide(_me({"i": i, "role": "attacker"}), _world({"foes": []}), R)
 		_expect(d.state == Roam.WANDER, "沒敵人時應該去巡邏")
-		_expect(d.pos.length() > 200.0, "攻擊型巡邏點離主角太近（%.0f），又會圍在身邊" % d.pos.length())
+		_expect(d.pos.length() > 50.0, "攻擊型巡邏點離主角太近（%.0f），又會圍在身邊" % d.pos.length())
+		_expect(absf(d.pos.x) <= VIEW_HALF.x and absf(d.pos.y) <= VIEW_HALF.y, "第 %d 位巡邏點跑出畫面：%s" % [i, d.pos])
 		spots.append(d.pos)
-	_expect(spots[0].distance_to(spots[2]) > 300.0, "攻擊型應該往不同方向散開")
+	_expect(spots[0].distance_to(spots[2]) > 150.0, "攻擊型應該往不同方向散開")
 	var heal := Roam.decide(_me({"role": "healer"}), _world({"foes": []}), R)
 	_expect(heal.pos.length() < 100.0, "醫療沒事時待在主角附近，方便補血")
 
