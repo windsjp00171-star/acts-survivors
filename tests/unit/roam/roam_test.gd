@@ -18,6 +18,7 @@ func _initialize() -> void:
 	_trouble_rule()
 	_gathers_before_boss()
 	_roles()
+	_attackers_patrol_far()
 	print("RESULT ", "FAIL (%d)" % fails if fails else "PASS")
 	quit(1 if fails else 0)
 
@@ -64,15 +65,30 @@ func _hurt_companion_retreats_and_rests() -> void:
 	_expect(ok.state == Roam.FIGHT, "休息好了要回去打")
 
 
+## 使用者要的是「像別的玩家在地圖另一頭」：沒敵人時攻擊型要跑遠、各往不同方向，不是圍在主角身邊
+func _attackers_patrol_far() -> void:
+	var spots := []
+	for i in 4:
+		var d := Roam.decide(_me({"i": i, "role": "attacker"}), _world({"foes": []}), R)
+		_expect(d.state == Roam.WANDER, "沒敵人時應該去巡邏")
+		_expect(d.pos.length() > 200.0, "攻擊型巡邏點離主角太近（%.0f），又會圍在身邊" % d.pos.length())
+		spots.append(d.pos)
+	_expect(spots[0].distance_to(spots[2]) > 300.0, "攻擊型應該往不同方向散開")
+	var heal := Roam.decide(_me({"role": "healer"}), _world({"foes": []}), R)
+	_expect(heal.pos.length() < 100.0, "醫療沒事時待在主角附近，方便補血")
+
+
 func _stays_within_leash() -> void:
 	var d := Roam.decide(_me(), _world({"foes": [Vector2(float(R.leash_attacker) + 20.0, 0)]}), R)
 	_expect(d.state == Roam.WANDER, "不該追到離主角太遠的地方")
 
 
 func _spreads_out() -> void:
-	var a := Vector2(60, 0)
-	var b := Vector2(20, 70)
-	var d := Roam.decide(_me({"pos": Vector2(50, 0)}), _world({"foes": [a, b], "mates": [a, a]}), R)
+	# 兩群敵人都在這位同伴的地盤裡（巡邏點在主角右邊 patrol_r）
+	var p := Vector2(float(R.patrol_r), 0)
+	var a := p + Vector2(10, 0)
+	var b := p + Vector2(-30, 70)
+	var d := Roam.decide(_me({"pos": p + Vector2(-10, 0)}), _world({"foes": [a, b], "mates": [a, a]}), R)
 	_expect(d.pos.distance_to(b) < d.pos.distance_to(a), "別人在打的就換一群，不要全擠在一起")
 
 

@@ -431,7 +431,7 @@ func _ready() -> void:
 	if Save.run_config.has("daily"):
 		trials = Array(Save.run_config.daily_trials)   # 每日挑戰：今天的兩個條件
 	Save.run_config.trials = trials
-	roam = bool(Save.data.get("roam_on", false)) or OS.get_cmdline_user_args().has("--roam")
+	roam = bool(Save.data.get("roam_on", true)) or OS.get_cmdline_user_args().has("--roam")
 	endless = bool(Save.run_config.get("endless", false)) or OS.get_cmdline_user_args().has("--endless")
 	if endless:
 		D.waves.max_enemies = int(D.endless.max_enemies)
@@ -990,7 +990,9 @@ func _roam_move(c: Dictionary, dt: float) -> void:
 				o.hp = minf(hp_max, o.hp + float(R.heal_rate) * dt)
 	var to: Vector2 = c.goal - c.base
 	var step: float = float(R.speed) * dt
-	c.base += to if to.length() <= step else to.normalized() * step
+	var mv: Vector2 = to if to.length() <= step else to.normalized() * step
+	c.base += mv
+	c.walk_v = mv / maxf(dt, 0.0001)   # 自己的移動速度：走路動畫和面向看這個，不看主角
 
 
 func _roam_think(c: Dictionary) -> void:
@@ -2003,6 +2005,38 @@ func _wave_now() -> Vector2:
 	return Vector2(c[0][1], c[0][2])
 
 
+## 分頭行動：敵人離某位同伴夠近（在跟他打）
+func _near_roamer(at: Vector2) -> bool:
+	var kr := float(D.roam.keep_r)
+	for c in comps:
+		if c.level > 0 and c.down <= 0.0 and c.follows == "" and c.pos.distance_to(at) < kr:
+			return true
+	return false
+
+
+var roam_pack_t := 0.0
+
+
+## 分頭行動：跑到遠處的攻擊型同伴身邊也會冒出一小群敵人，他們在那頭自己打（敵人總數照上限）
+func _roam_packs(dt: float) -> void:
+	var R: Dictionary = D.roam
+	roam_pack_t -= dt
+	if roam_pack_t > 0.0 or boss != null:
+		return
+	roam_pack_t = float(R.pack_every)
+	for c in comps:
+		if c.level == 0 or c.down > 0.0 or c.follows != "" or R.roles.get(c.skill, "attacker") != "attacker":
+			continue
+		if c.pos.distance_to(paul.pos) < float(R.pack_far):
+			continue
+		var at: Vector2 = c.pos + Vector2.from_angle(randf() * TAU) * float(R.pack_d)
+		var type := _pick_type()
+		for i in int(R.pack_n):
+			if enemies.size() >= int(D.waves.max_enemies):
+				return
+			_spawn_one(type, at + Vector2(randf_range(-10, 10), randf_range(-10, 10)))
+
+
 func _spawn_group() -> void:
 	var type := _pick_type()
 	var center := _edge_point(16.0)
@@ -2944,6 +2978,8 @@ func _step(dt: float) -> void:
 	if spawn_timer <= 0.0 and enemies.size() < mini(int(wave.x), int(D.waves.max_enemies)):
 		_spawn_group()
 		spawn_timer = wave.y / _endless_mult("spawn")
+	if roam:
+		_roam_packs(dt)
 
 	var G: Dictionary = D.gems
 	var helm: int = armor.get("helmet", 0)
@@ -2959,7 +2995,7 @@ func _step(dt: float) -> void:
 	for g in gems:
 		var to: Vector2 = p.pos + Vector2(0, -6) - g.pos
 		var d: float = to.length()
-		if d < mr or fever > 0.0 or vac_t > 0.0:
+		if d < mr or fever > 0.0 or vac_t > 0.0 or (roam and d > float(D.roam.gem_pull_d)):   # 分頭行動：遠處同伴打出來的經驗自己飛回主角
 			g.pos += to.normalized() * (G.magnet_speed * (2.5 if fever > 0.0 or vac_t > 0.0 else 1.0)) * dt
 		if d < 4.0:
 			g.got = true
@@ -5844,8 +5880,8 @@ func _update_enemies(dt: float) -> void:
 				_kill(e, false)
 				continue
 
-		# 跑太遠就繞回畫面邊緣，維持密度
-		if not view.grow(140.0).has_point(e.pos):
+		# 跑太遠就繞回畫面邊緣，維持密度（分頭行動：正在跟遠處同伴打的不算）
+		if not view.grow(140.0).has_point(e.pos) and not (roam and _near_roamer(e.pos)):
 			e.pos = _edge_point(16.0)
 			e.erase("swarm_dir")
 			e.erase("march")
@@ -6817,6 +6853,12 @@ func _render(dt: float) -> void:
 		var c_moving: bool = (p.moving or c.vel.length() > 5.0) and c.down <= 0.0
 		if absf(c.vel.x) > 4.0:
 			c.face = signf(c.vel.x)
+		if roam:
+			# 分頭行動：各走各的，自己在走才擺走路動作、往自己走的方向轉身
+			var wv: Vector2 = c.get("walk_v", Vector2.ZERO)
+			c_moving = wv.length() > 5.0 and c.down <= 0.0
+			if absf(wv.x) > 4.0:
+				c.face = signf(wv.x)
 		c.hurt_t = maxf(0.0, float(c.get("hurt_t", 0.0)) - dt)
 		var k: float = c.castfx / 0.18
 		if c.down > 0.0:
@@ -9479,6 +9521,7 @@ func _fx_sample() -> void:
 			fx_hp[c.key] = hp
 			if roam and c != pa and c.down <= 0.0:
 				add.call("同伴:" + str(c.get("act", "")), 1)
+				add.call("同伴:遠" if c.pos.distance_to(paul.pos) > 200.0 else "同伴:近", 1)   # 測試：離主角 200 以外的比例
 	add.call("香氣", zones.size())
 	add.call("瓶子", jars.size())
 	add.call("樹", trees.size())
@@ -9597,6 +9640,14 @@ func _smoke_tick() -> void:
 		_set_paused(false)
 	if smoke_shot != "" and smoke_frames == 1700:
 		get_viewport().get_texture().get_image().save_png(smoke_shot)
+	if smoke_shot != "" and OS.get_cmdline_user_args().has("--wide") and smoke_frames % 1200 == 600:
+		# 測試用（--wide）：鏡頭拉遠拍一張，看分頭行動的同伴各自在哪裡
+		var z0: Vector2 = cam.zoom
+		cam.zoom = z0 * 0.3
+		await get_tree().process_frame
+		await get_tree().process_frame
+		get_viewport().get_texture().get_image().save_png(smoke_shot.replace(".png", "_wide%d.png" % (smoke_frames / 1200)))
+		cam.zoom = z0
 	if smoke_frames >= smoke_max_frames:
 		print("SMOKE DONE t=%.1f fps=%d" % [t, Engine.get_frames_per_second()])
 		var dealt2 := {}

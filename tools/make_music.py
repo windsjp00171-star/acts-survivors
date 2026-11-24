@@ -544,6 +544,9 @@ def beats(notes):
     return sum(d for _, d in notes)
 
 
+MUSIC_Q = 2   # Vorbis 品質（-1～10）：0 以下在鼓和合唱上會有明顯的壓縮雜音
+
+
 def _write_ogg(path, y, q, mono=False):
     tmp = path + ".wav"
     if mono:
@@ -553,8 +556,7 @@ def _write_ogg(path, y, q, mono=False):
         w.setsampwidth(2)
         w.setframerate(SR)
         w.writeframes((np.clip(y.T, -1, 1) * 32767).astype(np.int16).tobytes())
-    rate = ["-ar", "22050"] if mono else []     # 鼓層：取樣率也降一點（檔案小三成，疊在底下聽不出來）
-    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp] + rate + ["-c:a", "libvorbis", "-q:a", str(q), path], check=True)
+    subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-i", tmp, "-c:a", "libvorbis", "-q:a", str(q), path], check=True)
     os.remove(tmp)
 
 
@@ -573,8 +575,9 @@ def save(name, layers, stems=True, target_db=-19.0):
     if stems:
         for k, y in layers.items():
             # 鼓層大多是雜訊、檔案最大：用單聲道、品質低一級（疊在其他層底下聽不出差別）
+            # 鼓層單聲道；品質不能太低（史詩版的鼓很大聲，低品質壓縮會聽到沙沙的破音）
             _write_ogg(os.path.join(OUT, "music_%s_%s.ogg" % (name, k)), np.tanh(y * g * 1.1) / 1.1,
-                       -1 if k == "perc" else 0, k == "perc")
+                       MUSIC_Q, k == "perc")
     else:
         _write_ogg(os.path.join(OUT, "music_%s.ogg" % name), np.tanh(full * g * 1.1) / 1.1, 1)
     print("music_%s%s  %.1f 秒" % (name, "（三層）" if stems else "", full.shape[1] / SR))

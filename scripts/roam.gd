@@ -42,10 +42,14 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 				sick = h.pos
 		if sick != Vector2.INF:
 			return {"state": HEAL, "pos": sick + _ring(me, float(R.heal_r) * 0.5)}
+	# 攻擊型各有一塊遠處的地盤（巡邏點附近），只打地盤裡或撞到身上的敵人；主角身邊的留給主角
+	var patrol: Vector2 = hero + _ring(me, float(R.get("patrol_r", R.wander_r)))
 	var best := Vector2.INF
 	var best_s := INF
 	for f: Vector2 in world.foes:
 		if f.distance_to(hero) > leash:
+			continue
+		if role == "attacker" and R.has("zone_r") and f.distance_to(patrol) > float(R.zone_r) and f.distance_to(me.pos) > float(R.self_r):
 			continue
 		var s: float = f.distance_to(me.pos)
 		for m: Vector2 in world.mates:
@@ -60,7 +64,8 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 		return {"state": FIGHT, "pos": best + away * reach}
 	if role == "guard":
 		return {"state": GUARD, "pos": hero + _ring(me, float(R.guard_r))}
-	return {"state": WANDER, "pos": hero + _ring(me, float(R.wander_r))}
+	# 攻擊型沒敵人可打：各自往不同方向跑遠去巡邏（像別的玩家在地圖另一頭）；醫療在主角附近走動
+	return {"state": WANDER, "pos": patrol if role == "attacker" else hero + _ring(me, float(R.wander_r))}
 
 
 ## 同伴各站一個方向，慢慢轉，不會疊在一起
