@@ -19,6 +19,8 @@ func _initialize() -> void:
 	_gathers_before_boss()
 	_roles()
 	_attackers_patrol_far()
+	_rally_when_hero_nearly_dead()
+	_healer_heals_hero_first()
 	print("RESULT ", "FAIL (%d)" % fails if fails else "PASS")
 	quit(1 if fails else 0)
 
@@ -81,6 +83,24 @@ func _attackers_patrol_far() -> void:
 	_expect(spots[0].distance_to(spots[2]) > 150.0, "攻擊型應該往不同方向散開")
 	var heal := Roam.decide(_me({"role": "healer"}), _world({"foes": []}), R)
 	_expect(heal.pos.length() < 100.0, "醫療沒事時待在主角附近，方便補血")
+
+
+## 主角血少（aid_hp 以下）只來最近幾位；快死了（rally_hp 以下）全員都回來
+func _rally_when_hero_nearly_dead() -> void:
+	var far_rank := int(R.aid_count) + 1
+	var some := Roam.decide(_me({"rank": far_rank}), _world({"hero_trouble": true, "hero_hp_k": float(R.aid_hp) - 0.05}), R)
+	_expect(some.state != Roam.AID, "血少但還撐得住：遠的同伴繼續打")
+	var all := Roam.decide(_me({"rank": far_rank}), _world({"hero_trouble": true, "hero_hp_k": float(R.rally_hp) - 0.05}), R)
+	_expect(all.state == Roam.AID, "主角快死了，遠的同伴也要回來")
+
+
+## 醫療：主角和同伴都受傷時，先去補主角
+func _healer_heals_hero_first() -> void:
+	var mate := {"pos": Vector2(50, 0), "hp_k": 0.3}
+	var hero := {"pos": Vector2.ZERO, "hp_k": 0.5, "hero": true}
+	var d := Roam.decide(_me({"pos": Vector2(60, 0), "role": "healer"}), _world({"hurt": [mate, hero]}), R)
+	_expect(d.state == Roam.HEAL, "有人受傷，醫療應該去補")
+	_expect(d.pos.distance_to(Vector2.ZERO) < float(R.heal_r), "主角受傷時醫療要先到主角身邊")
 
 
 func _stays_within_leash() -> void:

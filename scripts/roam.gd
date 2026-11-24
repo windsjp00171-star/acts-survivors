@@ -26,7 +26,9 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 	var reach: float = clampf(float(me.range) * float(R.stand), float(R.stand_min), float(R.stand_max))
 	if float(me.hp_k) < float(R.retreat_hp) or (bool(me.resting) and float(me.hp_k) < float(R.return_hp)):
 		return {"state": BACK, "pos": hero + _ring(me, float(R.back_r))}
-	if bool(world.hero_trouble) and (role == "guard" or int(me.rank) < int(R.aid_count)):
+	# 主角有難：最近幾位和守衛回來；主角血快沒了（rally_hp 以下）全員回來
+	var rally: bool = float(world.get("hero_hp_k", 1.0)) < float(R.get("rally_hp", 0.0))
+	if bool(world.hero_trouble) and (role == "guard" or rally or int(me.rank) < int(R.aid_count)):
 		return {"state": AID, "pos": hero + _ring(me, float(R.aid_r))}
 	if bool(world.get("gather", false)) and world.boss == null:
 		return {"state": GATHER, "pos": hero + _ring(me, float(R.gather_r))}
@@ -36,7 +38,7 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 		var sick := Vector2.INF
 		var sick_d := float(R.heal_range)
 		for h: Dictionary in world.get("hurt", []):
-			var d: float = me.pos.distance_to(h.pos)
+			var d: float = 0.0 if bool(h.get("hero", false)) else me.pos.distance_to(h.pos)   # 主角受傷先補主角
 			if float(h.hp_k) < float(R.heal_below) and d < sick_d:
 				sick_d = d
 				sick = h.pos

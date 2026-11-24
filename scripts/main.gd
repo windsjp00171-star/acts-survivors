@@ -988,6 +988,8 @@ func _roam_move(c: Dictionary, dt: float) -> void:
 		for o in comps:   # 醫療角色：站在受傷同伴旁邊，慢慢幫他補血
 			if o != c and o.level > 0 and o.down <= 0.0 and o.hp < hp_max and o.base.distance_to(c.base) < float(R.heal_r):
 				o.hp = minf(hp_max, o.hp + float(R.heal_rate) * dt)
+		if paul.hp > 0.0 and paul.pos.distance_to(c.base) < float(R.heal_r):
+			paul.hp = minf(float(D.paul.hp), paul.hp + float(R.heal_rate) * dt)   # 主角受傷也補
 	var to: Vector2 = c.goal - c.base
 	var step: float = float(R.speed) * dt
 	var mv: Vector2 = to if to.length() <= step else to.normalized() * step
@@ -1017,6 +1019,9 @@ func _roam_think(c: Dictionary) -> void:
 	for o in comps:
 		if o != c and o.level > 0 and o.down <= 0.0 and o.hp < _comp_max_hp():
 			hurt.append({"pos": o.base, "hp_k": o.hp / _comp_max_hp()})
+	var hero_k: float = paul.hp / float(D.paul.hp)
+	if hero_k < 1.0:
+		hurt.append({"pos": paul.pos, "hp_k": hero_k, "hero": true})   # 主角也算傷患，醫療會先來補
 	var foes := []
 	for e in _nearest_enemies(c.base, float(R.leash_attacker) * 1.5, 14):
 		if not e.get("boss", false):
@@ -1024,11 +1029,15 @@ func _roam_think(c: Dictionary) -> void:
 	var out := Roam.decide(
 		{"pos": c.base, "hp_k": c.hp / _comp_max_hp(), "range": float(c.st.get("range", 60.0)), "role": R.roles.get(c.skill, "attacker"), "rank": rank, "i": c.i, "n": maxi(1, n), "t": t,
 			"resting": str(c.get("act", "")) == Roam.BACK},
-		{"hero": paul.pos, "hero_trouble": Roam.hero_in_trouble(paul.hp / float(D.paul.hp), crowd, R),
+		{"hero": paul.pos, "hero_trouble": Roam.hero_in_trouble(hero_k, crowd, R), "hero_hp_k": hero_k,
 			"boss": boss.pos if boss != null and not boss.dead else null, "foes": foes, "mates": mates, "hurt": hurt,
 			"gather": _boss_in() >= 0.0 and _boss_in() <= float(R.gather_lead)}, R)
 	if (out.state == Roam.AID or out.state == Roam.GATHER or out.state == Roam.HEAL) and str(c.get("act", "")) != out.state:
 		c.name_until = t + 2.0   # 來支援、集合的同伴亮一下名字
+		if out.state == Roam.AID and tag_fx.size() < 12:
+			tag_fx.append({"pos": c.pos + Vector2(-12, -26), "text": "我來了！", "col": C_GOLD, "t": 0.0})
+		elif out.state == Roam.HEAL and out.pos.distance_to(paul.pos) < float(R.heal_r) and tag_fx.size() < 12:
+			tag_fx.append({"pos": c.pos + Vector2(-12, -26), "text": "撐住！", "col": C_HEAL, "t": 0.0})
 	c.act = out.state
 	c.goal = out.pos
 	if out.state == Roam.FIGHT:
