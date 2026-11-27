@@ -123,3 +123,7 @@ GODOT=godot tools/sim/storysim.sh mid 2 9 10 11
 ## 授權
 
 尚未決定。
+
+---
+
+作者 EMMARK 的其他作品與履歷：[作品集](https://windsjp00171-star.github.io/CLAUDE-DESIGN/)
