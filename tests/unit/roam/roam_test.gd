@@ -21,6 +21,7 @@ func _initialize() -> void:
 	_attackers_patrol_far()
 	_rally_when_hero_nearly_dead()
 	_healer_heals_hero_first()
+	_meets_teammate_for_combo()
 	print("RESULT ", "FAIL (%d)" % fails if fails else "PASS")
 	quit(1 if fails else 0)
 
@@ -101,6 +102,19 @@ func _healer_heals_hero_first() -> void:
 	var d := Roam.decide(_me({"pos": Vector2(60, 0), "role": "healer"}), _world({"hurt": [mate, hero]}), R)
 	_expect(d.state == Roam.HEAL, "有人受傷，醫療應該去補")
 	_expect(d.pos.distance_to(Vector2.ZERO) < float(R.heal_r), "主角受傷時醫療要先到主角身邊")
+
+
+## 隊友會主動靠過去放會合合擊（往兩人中間走）；守衛不離開主角；主角有難時救主角優先
+func _meets_teammate_for_combo() -> void:
+	var mate := Vector2(140, 0)
+	var me := _me({"pos": Vector2(40, 0), "role": "attacker"})
+	var d := Roam.decide(me, _world({"meet": mate}), R)
+	_expect(d.state == Roam.MEET, "合擊好了、隊友在附近，應該走過去會合")
+	_expect(d.pos.distance_to(Vector2(90, 0)) < 1.0, "會合要往兩人中間走")
+	var g := Roam.decide(_me({"role": "guard"}), _world({"meet": mate, "foes": []}), R)
+	_expect(g.state == Roam.GUARD, "守衛不為了合擊離開主角")
+	var aid := Roam.decide(_me({"rank": 0}), _world({"meet": mate, "hero_trouble": true}), R)
+	_expect(aid.state == Roam.AID, "主角有難時先去救，不是去會合")
 
 
 func _stays_within_leash() -> void:

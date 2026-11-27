@@ -196,7 +196,7 @@ func _draw_air() -> void:
 		var k: float = pf.t / 0.3
 		var sx: float = (1.0 + 0.5 * k) * (-1.0 if pf.flip else 1.0)
 		n.draw_set_transform(pf.pos + Vector2(0, -6.0 * k), 0.0, Vector2(sx, 1.0 - 0.7 * k))
-		n.draw_texture(pf.tex, pf.off, Color(3.0, 3.0, 2.6, 1.0 - k))
+		n.draw_texture_rect_region(pf.tex, Rect2(pf.off, pf.src.size), pf.src, Color(3.0, 3.0, 2.6, 1.0 - k))
 	n.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	var on_fire = g.fever > 0.0
 	for b in g._barrier_pieces():

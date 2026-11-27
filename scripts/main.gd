@@ -241,6 +241,7 @@ var run_holies := 0
 var run_shocks := 0
 # 同行合擊（data/game.json 的 bonds）
 var bond_cd := {}          # 第幾組 → 下次可以發動的時間
+var meet_cd := {}          # 會合合擊：「a|b」→ 下次可以發動的時間
 var bond_buff := {}        # 同伴 key → 加倍剩下的秒數
 var bonds_seen := {}
 var crit_t := 0.0          # 全隊會心一擊剩下的秒數
@@ -1022,6 +1023,19 @@ func _roam_think(c: Dictionary) -> void:
 	var hero_k: float = paul.hp / float(D.paul.hp)
 	if hero_k < 1.0:
 		hurt.append({"pos": paul.pos, "hp_k": hero_k, "hero": true})   # 主角也算傷患，醫療會先來補
+	# 會合：附近（meet_seek 內、還沒碰在一起）而且合擊好了的隊友；搭檔優先
+	var meet = null
+	var meet_s := INF
+	for o in comps:
+		if o == c or o.level == 0 or o.down > 0.0 or o.follows != "":
+			continue
+		var od: float = o.base.distance_to(c.base)
+		if od < float(R.meet_r) or od > float(R.meet_seek) or t < float(meet_cd.get(_meet_key(c, o), 0.0)):
+			continue
+		var ms: float = od - (100.0 if _bond_pair(c.key, o.key) else 0.0)
+		if ms < meet_s:
+			meet_s = ms
+			meet = o.base
 	var foes := []
 	for e in _nearest_enemies(c.base, float(R.leash_attacker) * 1.5, 14):
 		if not e.get("boss", false):
@@ -1031,7 +1045,7 @@ func _roam_think(c: Dictionary) -> void:
 			"resting": str(c.get("act", "")) == Roam.BACK},
 		{"hero": paul.pos, "hero_trouble": Roam.hero_in_trouble(hero_k, crowd, R), "hero_hp_k": hero_k,
 			"boss": boss.pos if boss != null and not boss.dead else null, "foes": foes, "mates": mates, "hurt": hurt,
-			"gather": _boss_in() >= 0.0 and _boss_in() <= float(R.gather_lead)}, R)
+			"gather": _boss_in() >= 0.0 and _boss_in() <= float(R.gather_lead), "meet": meet}, R)
 	if (out.state == Roam.AID or out.state == Roam.GATHER or out.state == Roam.HEAL) and str(c.get("act", "")) != out.state:
 		c.name_until = t + 2.0   # 來支援、集合的同伴亮一下名字
 		if out.state == Roam.AID and tag_fx.size() < 12:
@@ -1044,6 +1058,53 @@ func _roam_think(c: Dictionary) -> void:
 		c.foe = out.pos
 	else:
 		c.erase("foe")
+
+
+func _meet_key(a: Dictionary, b: Dictionary) -> String:
+	return "%s|%s" % ([a.key, b.key] if str(a.key) < str(b.key) else [b.key, a.key])
+
+
+func _bond_pair(a: String, b: String) -> bool:
+	for B in D.get("bonds", []):
+		if (B.a == a and B.b == b) or (B.a == b and B.b == a):
+			return true
+	return false
+
+
+## 會合合擊：兩位同伴、或同伴和主角靠在一起，就在兩人中間放一圈（各自有冷卻）
+func _update_meets() -> void:
+	var R: Dictionary = D.roam
+	var live := comps.filter(func(c): return c.level > 0 and c.down <= 0.0 and c.sleep <= 0.0)
+	var hero_on: bool = paul.hp > 0.0
+	for i in live.size():
+		var a: Dictionary = live[i]
+		if hero_on and a.pos.distance_to(paul.pos) < float(R.meet_r) and t >= float(meet_cd.get("@" + str(a.key), 0.0)):
+			meet_cd["@" + str(a.key)] = t + float(R.meet_cd_hero)
+			_meet_strike(paul, a)
+		for j in range(i + 1, live.size()):
+			var b: Dictionary = live[j]
+			var k := _meet_key(a, b)
+			if a.pos.distance_to(b.pos) < float(R.meet_r) and t >= float(meet_cd.get(k, 0.0)):
+				meet_cd[k] = t + float(R.meet_cd_pair)
+				_meet_strike(a, b)
+
+
+func _meet_strike(a: Dictionary, b: Dictionary) -> void:
+	var R: Dictionary = D.roam
+	var mid: Vector2 = (a.pos + b.pos) / 2.0
+	var dmg: float = float(R.meet_dmg) + level * float(R.meet_dmg_lv)
+	for e in _enemies_near(mid, float(R.meet_aoe)):
+		if e.dead or float(e.get("ally", 0.0)) > 0.0 or e.pos.distance_to(mid) > float(R.meet_aoe):
+			continue
+		_hurt(e, dmg, mid)
+		if not e.get("boss", false):
+			e.stun = maxf(e.stun, float(R.meet_stun))
+	_ring_pop(mid + Vector2(0, -6), C_GOLD, float(R.meet_aoe))
+	link_fx.append({"a": a.pos + Vector2(0, -8), "b": b, "t": 0.0, "depth": 2})
+	if tag_fx.size() < 12:
+		tag_fx.append({"pos": mid + Vector2(-12, -24), "text": "會合！", "col": C_GOLD, "t": 0.0})
+	Sfx.play("bond", 0.1)
+	_fxc("會合合擊")
 
 
 func _recruit(c: Dictionary) -> void:
@@ -2299,7 +2360,9 @@ func _kill(e: Dictionary, by_player: bool, src = null) -> void:
 		if not solo:
 			_spawn_seeker(e.pos, {"name": "從黑暗中出來的人", "ref": "徒 26:18", "line": "我好像……醒過來了。"})
 	if poofs.size() < 60 and not e.get("boss", false) and not _fx_lite():
-		poofs.append({"tex": e.node.texture, "pos": e.pos.round(), "off": e.node.offset, "t": 0.0, "flip": e.node.flip_h})
+		var nd: Sprite2D = e.node
+		var fs: Vector2 = nd.texture.get_size() / Vector2(nd.hframes, nd.vframes)   # 走路圖是整張表：只取現在這一格
+		poofs.append({"tex": nd.texture, "src": Rect2(Vector2(nd.frame % nd.hframes, nd.frame / nd.hframes) * fs, fs), "pos": e.pos.round(), "off": nd.offset, "t": 0.0, "flip": nd.flip_h})
 	e.node.queue_free()
 	if by_player:
 		if e.has("born") and not e.get("elite", false):
@@ -2989,6 +3052,7 @@ func _step(dt: float) -> void:
 		spawn_timer = wave.y / _endless_mult("spawn")
 	if roam:
 		_roam_packs(dt)
+		_update_meets()
 
 	var G: Dictionary = D.gems
 	var helm: int = armor.get("helmet", 0)
@@ -4453,6 +4517,8 @@ func _bond_check(c: Dictionary) -> void:
 		var other := _member(B.b if B.a == c.key else B.a)
 		var shep: bool = calling == "shepherd"
 		if other.is_empty() or t - float(other.get("last_cast", -99.0)) > float(D.bond_rules.window) * (1.7 if shep else 1.0):
+			continue
+		if other.pos.distance_to(c.pos) > float(D.bond_rules.get("near", 1e9)):
 			continue
 		bond_cd[i] = t + float(D.bond_rules.cooldown) * (0.6 if shep else 1.0)
 		_bond_fx(B, c, other)
@@ -9593,7 +9659,7 @@ func _smoke_tick() -> void:
 				dealt[c.key] = roundi(float(c.get("dealt", 0.0)))
 		print("DEALT ", dealt)
 		if roam:
-			print("ROAM ", fx_stat.keys().filter(func(k): return str(k).begins_with("同伴:")).map(func(k): return "%s=%d" % [k, fx_stat[k]]))
+			print("ROAM ", fx_stat.keys().filter(func(k): return str(k).begins_with("同伴:") or str(k) == "觸發:會合合擊").map(func(k): return "%s=%d" % [k, fx_stat[k]]))
 		print("SUPPORTS ", pa.get("anoints", []), " slots=", _support_slots(), " fusions=", fusions_on.keys(), " tiers=", school_tier)
 		get_tree().quit()
 		return

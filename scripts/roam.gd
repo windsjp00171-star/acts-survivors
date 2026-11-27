@@ -1,6 +1,6 @@
 extends RefCounted
 ## 「分頭行動」隊形的判斷：每位同伴自己決定現在要做什麼、往哪裡站。純計算，不碰場景，數字在 data/game.json 的 roam。
-## 優先順序：自己快倒了就退回主角身邊 > 主角有危險去支援 > Boss 出現去打 Boss > 附近的敵人 > 沒事做就在主角附近走動
+## 優先順序：自己快倒了就退回主角身邊 > 主角有危險去支援 > Boss 快來集合 > 打 Boss > 醫療補人 > 跟隊友會合合擊 > 自己那一邊的敵人 > 守衛守主角／巡邏
 
 const BACK := "back"     # 退回主角身邊休息
 const AID := "aid"       # 去支援主角
@@ -10,6 +10,7 @@ const WANDER := "wander"
 const GATHER := "gather" # Boss 快出現：先回主角身邊集合
 const HEAL := "heal"     # 醫療角色：去受傷的同伴身邊補血
 const GUARD := "guard"   # 守衛角色：守在主角身邊
+const MEET := "meet"     # 跟隊友會合，放會合合擊
 
 
 ## 該去支援主角的情況：血少，或被一群敵人貼身
@@ -44,6 +45,9 @@ static func decide(me: Dictionary, world: Dictionary, R: Dictionary) -> Dictiona
 				sick = h.pos
 		if sick != Vector2.INF:
 			return {"state": HEAL, "pos": sick + _ring(me, float(R.heal_r) * 0.5)}
+	# 會合：跟附近隊友的合擊好了，先走過去碰頭（兩人往中間走），放完再回自己那一邊；守衛守著主角不動
+	if world.get("meet") != null and role != "guard":
+		return {"state": MEET, "pos": (me.pos + (world.meet as Vector2)) / 2.0}
 	# 攻擊型各有一塊遠處的地盤（巡邏點附近），只打地盤裡或撞到身上的敵人；主角身邊的留給主角
 	var patrol: Vector2 = hero + _ring(me, float(R.get("patrol_r", R.wander_r)), float(R.get("patrol_ry", 0.8)))
 	var best := Vector2.INF
